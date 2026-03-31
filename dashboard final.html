@@ -1,0 +1,1668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team Performance Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+:root{
+  --bg:#0d0e11;--surface:#13151a;--surface2:#1a1d24;--surface3:#21252f;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+  --text:#f0f0f0;--text2:#8a8f9e;--text3:#555a68;
+  --green:#2dce89;--green-bg:rgba(45,206,137,0.1);
+  --red:#f5365c;--red-bg:rgba(245,54,92,0.1);
+  --amber:#fbb83a;--amber-bg:rgba(251,184,58,0.1);
+  --blue:#5e9cf5;--blue-bg:rgba(94,156,245,0.1);
+  --accent:#5e9cf5;
+  --fh:'Syne',sans-serif;--fm:'DM Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--fh);min-height:100vh;overflow-x:hidden;}
+/* NAV */
+nav{position:sticky;top:0;z-index:100;background:rgba(13,14,17,0.94);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;}
+.nav-brand{font-size:15px;font-weight:700;letter-spacing:.05em;}.nav-brand span{color:var(--accent);}
+.nav-tabs{display:flex;gap:4px;}
+.nav-tab{background:none;border:none;color:var(--text2);font-family:var(--fh);font-size:13px;font-weight:500;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all .15s;}
+.nav-tab:hover,.nav-tab.active{color:var(--text);background:var(--surface2);}
+.nav-date{font-family:var(--fm);font-size:12px;color:var(--text3);}
+/* PAGES */
+.page{display:none;padding:24px;}.page.active{display:block;}
+/* HEADINGS */
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.section-title{font-size:18px;font-weight:700;}
+.section-sub{font-size:12px;color:var(--text3);font-family:var(--fm);margin-top:2px;}
+/* KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px;}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;}
+.kpi-label{font-size:11px;font-weight:600;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;}
+.kpi-val{font-size:24px;font-weight:700;font-family:var(--fm);}
+.kpi-val.g{color:var(--green);}.kpi-val.r{color:var(--red);}.kpi-val.a{color:var(--amber);}
+.kpi-sub{font-size:11px;color:var(--text3);margin-top:4px;font-family:var(--fm);}
+/* PERSON CARDS */
+.cards-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:24px;}
+.p-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;transition:border-color .2s;}
+.p-card:hover{border-color:var(--border2);}
+.p-card.ab{border-top:2px solid var(--green);}
+.p-card.bb{border-top:2px solid var(--red);}
+.p-card.mx{border-top:2px solid var(--amber);}
+.p-name{font-size:13px;font-weight:700;margin-bottom:10px;letter-spacing:.02em;}
+.p-rev{font-size:20px;font-weight:700;font-family:var(--fm);line-height:1;}
+.p-sub{font-size:11px;color:var(--text2);margin-top:3px;font-family:var(--fm);}
+.bar-bg{height:3px;background:var(--surface3);border-radius:2px;margin:6px 0 8px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:2px;transition:width .4s;}
+.pdiv{border:none;border-top:1px solid var(--border);margin:8px 0;}
+.p-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;}
+.p-lbl{font-size:10px;color:var(--text3);font-family:var(--fm);}
+.p-val{font-size:12px;font-weight:500;font-family:var(--fm);}
+.p-val.g{color:var(--green);}.p-val.r{color:var(--red);}
+.pills{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap;}
+.pill{font-size:9px;font-weight:600;padding:3px 7px;border-radius:20px;letter-spacing:.04em;text-transform:uppercase;}
+.pg{background:var(--green-bg);color:var(--green);}
+.pr{background:var(--red-bg);color:var(--red);}
+.pa{background:var(--amber-bg);color:var(--amber);}
+/* CHARTS */
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;}
+.chart-title{font-size:13px;font-weight:600;margin-bottom:4px;}
+.chart-sub{font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:16px;}
+/* ENTRY */
+.entry-layout{display:grid;grid-template-columns:260px 1fr;gap:20px;align-items:start;}
+.sidebar{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;position:sticky;top:76px;}
+.sidebar-title{font-size:13px;font-weight:700;margin-bottom:16px;}
+.field-lbl{font-size:11px;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+input[type=date],input[type=number],input[type=text],select{
+  width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;
+  padding:9px 12px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none;transition:border-color .15s;
+}
+input:focus,select:focus{border-color:var(--accent);}
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 18px;border-radius:8px;font-family:var(--fh);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;}
+.btn-p{background:var(--accent);color:#fff;}.btn-p:hover{background:#4d8ee0;}
+.btn-s{background:var(--surface2);color:var(--text2);border:1px solid var(--border2);}.btn-s:hover{color:var(--text);}
+.btn-d{background:var(--red-bg);color:var(--red);border:1px solid rgba(245,54,92,.2);}.btn-d:hover{background:rgba(245,54,92,.2);}
+.btn-w{width:100%;}
+.entry-table{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.et-head{display:grid;grid-template-columns:130px 1fr 1fr 110px;gap:0;padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);}
+.th{font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);}
+.et-row{display:grid;grid-template-columns:130px 1fr 1fr 110px;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;}
+.et-row:last-child{border-bottom:none;}
+.et-name{font-size:13px;font-weight:600;}
+.inp-wrap{position:relative;}
+.inp-pre{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text3);font-family:var(--fm);pointer-events:none;}
+.inp-pl{padding-left:22px !important;}
+.et-mtd{font-size:11px;color:var(--text3);font-family:var(--fm);line-height:1.6;}
+/* LEADERBOARD */
+.lb-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;}
+.lb-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;}
+.lb-title{font-size:13px;font-weight:700;margin-bottom:16px;}
+.lb-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);}
+.lb-row:last-child{border-bottom:none;}
+.lb-rank{font-size:11px;font-weight:700;color:var(--text3);font-family:var(--fm);width:24px;min-width:24px;}
+.lb-rank.gold{color:#fbb83a;}.lb-rank.silver{color:#9aa5b4;}.lb-rank.bronze{color:#c97d44;}
+.lb-name{font-size:13px;font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lb-bar-bg{flex:2;height:4px;background:var(--surface3);border-radius:2px;overflow:hidden;}
+.lb-bar-fill{height:100%;border-radius:2px;background:var(--accent);}
+.lb-val{font-size:12px;font-weight:700;font-family:var(--fm);white-space:nowrap;}
+/* HISTORY */
+.hist-table{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.hist-head{display:grid;grid-template-columns:90px 110px 100px 80px 100px 80px 80px 70px;padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);}
+.hist-row{display:grid;grid-template-columns:90px 110px 100px 80px 100px 80px 80px 70px;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;font-size:12px;font-family:var(--fm);}
+.hist-row:last-child{border-bottom:none;}
+.hist-row:hover{background:var(--surface2);}
+.del-btn{background:none;border:1px solid var(--border2);color:var(--text3);font-size:11px;font-family:var(--fm);padding:4px 8px;border-radius:5px;cursor:pointer;transition:all .15s;}
+.del-btn:hover{border-color:var(--red);color:var(--red);}
+/* SETTINGS */
+.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.set-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;}
+.set-title{font-size:13px;font-weight:700;margin-bottom:16px;}
+.pcfg-head{display:grid;grid-template-columns:110px 90px 80px 90px 36px;gap:8px;margin-bottom:8px;}
+.pcfg-row{display:grid;grid-template-columns:110px 90px 80px 90px 36px;gap:8px;align-items:center;margin-bottom:7px;}
+.icon-btn{background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:4px;border-radius:4px;transition:color .15s;}
+.icon-btn:hover{color:var(--red);}
+.calc-note{font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:4px;padding:8px 10px;background:var(--surface2);border-radius:6px;border-left:2px solid var(--accent);}
+/* EMPTY */
+.empty{text-align:center;padding:48px 24px;color:var(--text3);}
+.empty-icon{font-size:32px;margin-bottom:12px;}
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:8px;font-size:13px;font-weight:600;z-index:999;transform:translateY(80px);opacity:0;transition:all .3s;pointer-events:none;}
+.toast.show{transform:translateY(0);opacity:1;}
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:24px;width:380px;max-width:90vw;}
+.modal-title{font-size:15px;font-weight:700;margin-bottom:20px;}
+.modal-field{margin-bottom:14px;}
+.modal-btns{display:flex;gap:8px;margin-top:20px;justify-content:flex-end;}
+
+/* HOLIDAY TABLE */
+.hol-th{background:var(--surface2);color:var(--text3);font-weight:600;padding:8px 5px;border:1px solid var(--border);text-align:center;}
+.hol-th.nc{text-align:left;min-width:110px;padding:8px 12px;position:sticky;left:0;z-index:2;background:var(--surface2);}
+.hol-td{padding:4px 3px;border:1px solid var(--border);text-align:center;background:var(--surface);}
+.hol-td.nc{text-align:left;font-weight:600;font-size:12px;color:var(--text);background:var(--surface);padding:6px 12px;position:sticky;left:0;z-index:1;}
+.hol-td.we{background:var(--surface3);}
+.hol-cell{width:24px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:4px;cursor:pointer;transition:background .1s;margin:0 auto;font-size:10px;font-weight:700;color:var(--text3);}
+.hol-cell:hover{background:var(--surface3);}
+.hol-cell.on-hol{background:var(--red-bg);color:var(--red);}
+.hol-cell.on-sick{background:rgba(251,184,58,0.15);color:var(--amber);}
+/* TEAM TABS sub-nav */
+.sub-nav{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:0;}
+.sub-tab{background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);font-family:var(--fh);font-size:13px;font-weight:500;padding:8px 16px;cursor:pointer;transition:all .15s;margin-bottom:-1px;}
+.sub-tab:hover{color:var(--text);}
+.sub-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+/* MEMBER TOGGLE */
+.member-toggle{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);cursor:pointer;transition:all .15s;background:var(--surface2);}
+.member-toggle:hover{border-color:var(--border2);}
+.member-toggle.selected{border-color:var(--accent);background:var(--blue-bg);}
+.member-toggle input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px;cursor:pointer;}
+/* BIZ TARGET */
+.biz-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+.biz-input-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;}
+.biz-set-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;}
+.biz-set-title{font-size:13px;font-weight:700;margin-bottom:16px;}
+/* RUN RATE card */
+.rr-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;grid-column:1/-1;}
+@media(max-width:1200px){.cards-grid{grid-template-columns:repeat(4,1fr);}.kpi-row{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:900px){.cards-grid{grid-template-columns:repeat(3,1fr);}.charts-row{grid-template-columns:1fr;}.entry-layout{grid-template-columns:1fr;}.lb-grid{grid-template-columns:1fr;}.biz-grid{grid-template-columns:repeat(2,1fr);}.biz-input-row{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">PERF<span>.</span>DASH</div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('dashboard')">Dashboard</button>
+    <button class="nav-tab" onclick="showPage('biz')">Business Target</button>
+    <button class="nav-tab" onclick="showPage('teams')">Teams</button>
+    <button class="nav-tab" onclick="showPage('entry')">Daily Entry</button>
+    <button class="nav-tab" onclick="showPage('leaderboard')">Leaderboard</button>
+    <button class="nav-tab" onclick="showPage('history')">History</button>
+    <button class="nav-tab" onclick="showPage('holiday')">Holiday</button>
+    <button class="nav-tab" onclick="showPage('settings')">Settings</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:16px">
+    <div id="syncStatus" style="display:flex;align-items:center;gap:6px;font-family:var(--fm);font-size:11px;color:var(--text3)">
+      <span id="syncDot" style="width:7px;height:7px;border-radius:50%;background:var(--text3);display:inline-block;transition:background .3s"></span>
+      <span id="syncLabel">connecting…</span>
+    </div>
+    <div class="nav-date" id="navDate"></div>
+  </div>
+</nav>
+
+<!-- DASHBOARD -->
+<div class="page active" id="page-dashboard">
+  <div class="section-head">
+    <div><div class="section-title">Team Overview</div><div class="section-sub" id="dash-sub"></div></div>
+    <button class="btn btn-s" onclick="showPage('entry')">+ Add today's numbers</button>
+  </div>
+  <div class="kpi-row" id="kpiRow"></div>
+  <div class="cards-grid" id="cardsGrid"></div>
+  <div class="charts-row">
+    <div class="chart-card"><div class="chart-title">Daily team revenue</div><div class="chart-sub">vs daily run rate target</div><div style="position:relative;height:220px"><canvas id="cDailyRev"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Cumulative revenue</div><div class="chart-sub">actual vs target trajectory</div><div style="position:relative;height:220px"><canvas id="cCumul"></canvas></div></div>
+  </div>
+  <div class="charts-row">
+    <div class="chart-card"><div class="chart-title">Individual revenue vs target</div><div class="chart-sub">month to date</div><div id="wRevBar" style="position:relative;height:300px"><canvas id="cRevBar"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Needs met performance</div><div class="chart-sub">MTD vs target</div><div id="wNmBar" style="position:relative;height:300px"><canvas id="cNmBar"></canvas></div></div>
+  </div>
+</div>
+
+<!-- BUSINESS TARGET -->
+<div class="page" id="page-biz">
+  <div class="section-head">
+    <div><div class="section-title">Business Target</div><div class="section-sub" id="biz-sub">Department-wide revenue & needs met targets</div></div>
+    <select id="bizMonth" onchange="renderBizTarget()" style="width:180px"></select>
+  </div>
+  <!-- Inputs -->
+  <div class="biz-input-row">
+    <div class="biz-set-card">
+      <div class="biz-set-title">Set Monthly Targets</div>
+      <div style="margin-bottom:12px"><div class="field-lbl">Revenue Target (£)</div>
+        <input type="number" id="bizRevTarget" placeholder="e.g. 376200" step="100" oninput="saveBizTargets()">
+      </div>
+      <div><div class="field-lbl">Needs Met Target</div>
+        <input type="number" id="bizNmTarget" placeholder="e.g. 660" step="1" oninput="saveBizTargets()">
+      </div>
+    </div>
+    <div class="biz-set-card">
+      <div class="biz-set-title">Daily Run Rate Settings</div>
+      <div class="calc-note" style="margin-bottom:12px">Daily run rate = people working that day × £1,200. People working = all active consultants minus those on planned holiday on that date. Sickness is excluded from run rate.</div>
+      <div><div class="field-lbl">Rate per person per day (£)</div>
+        <input type="number" id="bizRatePerPerson" placeholder="1200" step="50" oninput="saveBizTargets()" value="1200">
+      </div>
+    </div>
+  </div>
+  <!-- KPIs -->
+  <div class="biz-grid" id="bizKpiRow"></div>
+  <!-- Run Rate Log -->
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-title">Daily Run Rate vs Actual</div>
+      <div class="chart-sub">target capacity vs what was logged</div>
+      <div style="position:relative;height:220px"><canvas id="cBizDaily"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Cumulative Revenue vs Business Target</div>
+      <div class="chart-sub">actual vs target trajectory</div>
+      <div style="position:relative;height:220px"><canvas id="cBizCumul"></canvas></div>
+    </div>
+  </div>
+  <!-- Daily run rate table -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px">
+    <div style="display:grid;grid-template-columns:100px 1fr 100px 110px 110px;padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border)">
+      <div class="th">Date</div><div class="th">People Working</div><div class="th">Run Rate</div><div class="th">Actual Rev</div><div class="th">Variance</div>
+    </div>
+    <div id="bizRunRateRows"></div>
+  </div>
+</div>
+
+<!-- TEAMS -->
+<div class="page" id="page-teams">
+  <div class="section-head">
+    <div><div class="section-title">Teams</div><div class="section-sub">Split team views within the department</div></div>
+    <select id="teamsMonth" onchange="renderTeams()" style="width:180px"></select>
+  </div>
+  <div class="sub-nav">
+    <button class="sub-tab active" onclick="switchTeamTab('g')">Team G</button>
+    <button class="sub-tab" onclick="switchTeamTab('james')">Team James</button>
+    <button class="sub-tab" onclick="switchTeamTab('damo')">Team Damo</button>
+    <button class="sub-tab" onclick="switchTeamTab('assign')" style="margin-left:auto;color:var(--accent)">⚙ Assign Members</button>
+  </div>
+  <div id="teamTabContent"></div>
+</div>
+
+<!-- ENTRY -->
+<div class="page" id="page-entry">
+  <div class="section-head">
+    <div><div class="section-title">Daily Entry</div><div class="section-sub">Log each consultant's revenue and needs met</div></div>
+  </div>
+  <div class="entry-layout">
+    <div class="sidebar">
+      <div class="sidebar-title">Date & month</div>
+      <div style="margin-bottom:12px">
+        <div class="field-lbl">Working date</div>
+        <input type="date" id="entryDate">
+      </div>
+      <div style="margin-bottom:16px">
+        <div class="field-lbl">Month</div>
+        <select id="entryMonth" onchange="onEntryMonthChange()"></select>
+      </div>
+      <button class="btn btn-p btn-w" onclick="saveAllEntries()">Save all entries</button>
+      <div style="margin-top:8px"><button class="btn btn-s btn-w" onclick="clearDayEntries()">Clear this day</button></div>
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+        <div class="field-lbl" style="margin-bottom:8px">Day summary</div>
+        <div id="entrySummary" style="font-size:12px;color:var(--text3);font-family:var(--fm);line-height:1.8">Select a date.</div>
+      </div>
+    </div>
+    <div class="entry-table">
+      <div class="et-head">
+        <div class="th">Consultant</div>
+        <div class="th">Revenue (£)</div>
+        <div class="th">Needs met</div>
+        <div class="th">MTD totals</div>
+      </div>
+      <div id="entryRows"></div>
+    </div>
+  </div>
+</div>
+
+<!-- LEADERBOARD -->
+<div class="page" id="page-leaderboard">
+  <div class="section-head">
+    <div><div class="section-title">Leaderboard</div><div class="section-sub" id="lb-sub"></div></div>
+    <select id="lbMonth" onchange="renderLeaderboard()" style="width:180px"></select>
+  </div>
+  <div class="lb-grid" id="lbGrid"></div>
+</div>
+
+<!-- HISTORY -->
+<div class="page" id="page-history">
+  <div class="section-head">
+    <div><div class="section-title">History</div><div class="section-sub">All logged daily entries</div></div>
+    <div style="display:flex;gap:8px">
+      <select id="histMonth" onchange="renderHistory()" style="width:180px"></select>
+      <select id="histPerson" onchange="renderHistory()" style="width:160px"></select>
+    </div>
+  </div>
+  <div class="hist-table">
+    <div class="hist-head">
+      <div class="th">Date</div><div class="th">Consultant</div><div class="th">Revenue</div>
+      <div class="th">NM</div><div class="th">MTD Rev</div><div class="th">MTD NM</div>
+      <div class="th">% target</div><div class="th">Action</div>
+    </div>
+    <div id="histRows"></div>
+  </div>
+</div>
+
+
+<!-- HOLIDAY -->
+<div class="page" id="page-holiday">
+  <div class="section-head">
+    <div><div class="section-title">Holiday Planner</div><div class="section-sub">Click once = planned holiday (excluded from COP & run rate). Click twice = sickness/unplanned (excluded from COP only, not from run rate). Click again to clear.</div></div>
+  </div>
+  <div style="display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="field-lbl" style="margin-bottom:0;white-space:nowrap">Month:</div>
+      <select id="holMonth" onchange="renderHoliday()" style="width:180px"></select>
+    </div>
+    <button class="btn btn-s" onclick="clearAllHols()">Clear all holidays this month</button>
+  </div>
+  <div style="overflow-x:auto;border-radius:12px;border:1px solid var(--border)">
+    <table id="holTbl" style="border-collapse:collapse;font-family:var(--fm);font-size:11px;white-space:nowrap;width:100%"></table>
+  </div>
+  <div style="display:flex;gap:16px;font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:12px;flex-wrap:wrap">
+    <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;background:var(--red-bg);border:1px solid rgba(245,54,92,.4);display:inline-block"></span>Planned holiday — excluded from COP &amp; run rate</span>
+    <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;background:rgba(251,184,58,0.15);border:1px solid rgba(251,184,58,.4);display:inline-block"></span>Sickness/unplanned — excluded from COP only</span>
+    <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;background:var(--surface3);border:1px solid var(--border);display:inline-block"></span>Weekend — already excluded</span>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="page" id="page-settings">
+  <div class="section-head">
+    <div><div class="section-title">Settings</div><div class="section-sub">Configure consultants, targets, and months</div></div>
+  </div>
+  <div class="settings-grid">
+    <div class="set-card" style="grid-column:1/-1">
+      <div class="set-title">Consultants</div>
+      <div class="calc-note" style="margin-bottom:14px">Monthly target = Risk Per Day × Working Days &nbsp;·&nbsp; NM target = Working Days × 1.75 &nbsp;·&nbsp; COP uses calendar working days elapsed today as the baseline</div>
+      <div class="pcfg-head">
+        <div class="th">Name</div>
+        <div class="th">Risk/day (£)</div>
+        <div class="th">Work days</div>
+        <div class="th">Monthly target</div>
+        <div></div>
+      </div>
+      <div id="personConfigRows"></div>
+      <div style="display:grid;grid-template-columns:110px 90px 80px 90px 36px;gap:8px;margin-top:12px;">
+        <input type="text" id="newName" placeholder="Name">
+        <input type="number" id="newRPD" placeholder="1200" step="50">
+        <input type="number" id="newDays" placeholder="22" step="0.5">
+        <div style="font-size:12px;color:var(--text3);font-family:var(--fm);display:flex;align-items:center;" id="newCalcPreview">—</div>
+        <button class="btn btn-p" onclick="addPerson()" style="padding:8px;font-size:16px;">+</button>
+      </div>
+
+    </div>
+    <div class="set-card">
+      <div class="set-title">Month management</div>
+      <div style="margin-bottom:10px"><div class="field-lbl">Active month</div><select id="activeMonthSel" onchange="setActiveMonth()" style="margin-bottom:10px"></select></div>
+      <button class="btn btn-p btn-w" onclick="openNewMonthModal()" style="margin-bottom:8px">+ Create new month</button>
+    </div>
+    <div class="set-card">
+      <div class="set-title" style="color:var(--red)">Danger zone</div>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:14px;font-family:var(--fm);">This will permanently erase all data.</p>
+      <button class="btn btn-d btn-w" onclick="clearAllData()">Clear all data</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEW MONTH MODAL -->
+<div class="modal-overlay" id="monthModal">
+  <div class="modal">
+    <div class="modal-title">Create new month</div>
+    <div class="modal-field"><div class="field-lbl">Month</div><select id="modalMonthSel"></select></div>
+    <div class="modal-field"><div class="field-lbl">Year</div><input type="number" id="modalYear" value="2026" min="2020" max="2040"></div>
+    <div class="modal-btns">
+      <button class="btn btn-s" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-p" onclick="createNewMonth()">Create</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// DATA LAYER
+// ═══════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════
+// FIREBASE CONFIG  ← PASTE YOUR CONFIG HERE
+// ═══════════════════════════════════════════════════════════════════
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyCBt7njbJiXXI3P6W0Ikvj_jjDLNUa9qUQ",
+  authDomain:        "sales-dashboard-d4d8d.firebaseapp.com",
+  databaseURL:       "https://sales-dashboard-d4d8d-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId:         "sales-dashboard-d4d8d",
+  storageBucket:     "sales-dashboard-d4d8d.firebasestorage.app",
+  messagingSenderId: "77197680689",
+  appId:             "1:77197680689:web:0339650da210b16b6fb510"
+};
+
+firebase.initializeApp(FIREBASE_CONFIG);
+const _db    = firebase.database();
+const _dbRef = _db.ref('perfDash2');
+
+// ─── Sync status indicator ─────────────────────────────────────────
+function setSyncStatus(state){
+  const dot = document.getElementById('syncDot');
+  const lbl = document.getElementById('syncLabel');
+  if(!dot||!lbl) return;
+  const map = {
+    connecting: { color:'#8a8f9e', text:'connecting…' },
+    live:       { color:'#2dce89', text:'live' },
+    saving:     { color:'#fbb83a', text:'saving…' },
+    error:      { color:'#f5365c', text:'offline' }
+  };
+  const s = map[state] || map.connecting;
+  dot.style.background = s.color;
+  lbl.textContent = s.text;
+}
+
+// ─── Save (debounced 400ms) ────────────────────────────────────────
+let _saveTimer = null;
+let _ignoreNextSnapshot = false;
+
+function saveApp(){
+  setSyncStatus('saving');
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(()=>{
+    _ignoreNextSnapshot = true;
+    _dbRef.set(APP)
+      .then(()=>setSyncStatus('live'))
+      .catch(e=>{ _ignoreNextSnapshot=false; console.error('Save failed',e); setSyncStatus('error'); });
+  }, 400);
+}
+
+function todayKey(){
+  const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+}
+
+let APP = {
+  people: [],
+  months: {},
+  activeMonth: todayKey(),
+  teams: { g:[], james:[], damo:[] },
+  bizTargets: {},
+  holidays: {},
+  sickness: {},
+  manualElapsed: null
+};
+
+// ── month key helpers ──────────────────────────────────────────────
+function monthLabel(k){
+  const [y,m]=k.split('-');
+  return new Date(y,m-1,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+}
+function allMonthKeys(){
+  const keys=Object.keys(APP.months);
+  if(!keys.includes(APP.activeMonth)) keys.push(APP.activeMonth);
+  return [...new Set(keys)].sort().reverse();
+}
+
+// ── entry helpers (source of truth) ───────────────────────────────
+// An entry = {date:'YYYY-MM-DD', name:String, revenue:Number, nm:Number}
+function getEntries(monthKey){
+  return (APP.months[monthKey]||{entries:[]}).entries;
+}
+function setEntries(monthKey, entries){
+  if(!APP.months[monthKey]) APP.months[monthKey]={entries:[]};
+  APP.months[monthKey].entries = entries;
+  saveApp();
+}
+
+// ── target calculation: riskPerDay × daysT ─────────────────────────
+function personTarget(p){ return Math.round((p.riskPerDay||0) * (p.daysT||0)); }
+
+// ── CALENDAR: count Mon–Fri working days from 1st of month to today ─
+// This is the hidden tally — how many working days have elapsed so far
+// in the active month as of today's date. Used for COP baseline.
+// calWorkDays(monthKey, personName):
+//   Count Mon-Fri days from 1st of month to TODAY (active month)
+//   or to end of month (past months), excluding holidays for that person.
+//   This is used directly in COP formulas.
+function calWorkDays(mk, personName){
+  if(APP.manualElapsed != null){
+    const base = APP.manualElapsed;
+    if(personName){
+      const [y, m] = mk.split('-').map(Number);
+      const hols = getHols(mk, personName);
+      const sick = getSick(mk, personName||'');
+      const allOff = [...new Set([...hols, ...sick])];
+      let counted = 0, offInWindow = 0;
+      const cursor = new Date(y, m-1, 1);
+      while(counted < base){
+        const dow = cursor.getDay();
+        if(dow !== 0 && dow !== 6){
+          const ds = cursor.toISOString().slice(0,10);
+          if(allOff.includes(ds)) offInWindow++;
+          else counted++;
+        }
+        cursor.setDate(cursor.getDate()+1);
+        if(cursor.getMonth() !== m-1) break;
+      }
+      return Math.max(0, base - offInWindow);
+    }
+    return base;
+  }
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const [y, m] = mk.split('-').map(Number);
+  const isActive = (y === today.getFullYear() && m === (today.getMonth()+1));
+  const cutoff = isActive ? today : new Date(y, m, 0);
+  const hols = getHols(mk, personName||'');
+  const sick = getSick(mk, personName||'');
+  const allOff = [...new Set([...hols, ...sick])];
+  let count = 0;
+  const cursor = new Date(y, m-1, 1);
+  while(cursor <= cutoff){
+    const dow = cursor.getDay();
+    if(dow !== 0 && dow !== 6){
+      const ds = cursor.toISOString().slice(0,10);
+      if(!allOff.includes(ds)) count++;
+    }
+    cursor.setDate(cursor.getDate()+1);
+  }
+  return count;
+}
+// Team-level (no holiday/sickness exclusion) for KPI display
+function calWorkDaysTeam(mk){ return calWorkDays(mk, null); }
+
+// ── CORE STATS ──────────────────────────────────────────────────────
+/*
+  EXACT FORMULAS:
+
+  revMTD       = sum of all revenue entries logged this month
+  nmMTD        = sum of all NM entries logged this month
+
+  target       = riskPerDay × daysT          (from settings, fixed for month)
+  nmTarget     = daysT × 1.75                (from settings, fixed for month)
+
+  calDays      = calendar working days elapsed so far this month (Mon–Fri)
+                 For past months this equals daysT (all days elapsed)
+
+  COP Risk     = (calDays × riskPerDay + riskPerDay) − revMTD
+               = ((calDays + 1) × riskPerDay) − revMTD
+               positive = still needed by end of next working day
+               negative = ahead of where next day's checkpoint requires
+
+  COP NM       = (calDays × 1.75 + 1.75) − nmMTD
+               = ((calDays + 1) × 1.75) − nmMTD
+               positive = still needed, negative = ahead
+
+  revPct       = revMTD / target × 100
+  nmPct        = nmMTD  / nmTarget × 100
+*/
+function calcStats(monthKey){
+  const entries = getEntries(monthKey);
+
+  // (calDays computed per-person below, inside map)
+
+  return APP.people.map(p=>{
+    const mine = entries.filter(e=>e.name===p.name);
+
+    // ── actuals (purely from logged entries) ─────────────────────
+    const revMTD = mine.reduce((s,e)=>s+(e.revenue||0), 0);
+    const nmMTD  = mine.reduce((s,e)=>s+(e.nm||0), 0);
+
+    // ── fixed targets from settings ──────────────────────────────
+    const target   = personTarget(p);             // riskPerDay × daysT
+    const nmTarget = parseFloat(((p.daysT||0) * 1.75).toFixed(2)); // daysT × 1.75
+
+    // calendar working days elapsed for this person (holidays excluded)
+    const calDays = calWorkDays(monthKey, p.name);
+
+    // ── COP (next working day checkpoint) ────────────────────────
+    // COP Risk = (calDays × riskPerDay + riskPerDay) − revMTD
+    const copRev = (calDays * (p.riskPerDay||0) + (p.riskPerDay||0)) - revMTD;
+
+    // COP NM = (calDays × 1.75 + 1.75) − nmMTD
+    const copNm  = (calDays * 1.75 + 1.75) - nmMTD;
+
+    // ── percentages ──────────────────────────────────────────────
+    const revPct = target>0   ? Math.round(revMTD  / target   * 100) : 0;
+    const nmTargetFixed = (p.daysT||0) * 1.75;
+    const nmPct  = nmTargetFixed>0 ? Math.round(nmMTD / nmTargetFixed * 100) : 0;
+
+    const riskAhead = copRev <= 0;
+    const nmAhead   = copNm  <= 0;
+
+    // count of distinct logged dates (for display only, not used in calcs)
+    const loggedDays = new Set(mine.filter(e=>(e.revenue||0)>0||(e.nm||0)>0).map(e=>e.date)).size;
+
+    return {
+      ...p, target, revMTD, nmMTD, loggedDays, calDays, nmTarget,
+      copRev, copNm, revPct, nmPct, riskAhead, nmAhead
+    };
+  });
+}
+
+// ── daily totals for charts ────────────────────────────────────────
+function getDailyTotals(monthKey){
+  const entries = getEntries(monthKey);
+  const byDate = {};
+  entries.forEach(e=>{
+    if(!byDate[e.date]) byDate[e.date]={rev:0,nm:0};
+    byDate[e.date].rev += (e.revenue||0);
+    byDate[e.date].nm  += (e.nm||0);
+  });
+  return Object.entries(byDate).sort((a,b)=>a[0].localeCompare(b[0]));
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+// HOLIDAY STORAGE
+// APP.holidays[monthKey][personName] = ['YYYY-MM-DD', ...]
+// ═══════════════════════════════════════════════════════════════════
+// holidays/sickness already initialised in APP init block
+
+function getHols(mk, name){
+  return (APP.holidays[mk] && APP.holidays[mk][name]) ? APP.holidays[mk][name] : [];
+}
+function getSick(mk, name){
+  return (APP.sickness[mk] && APP.sickness[mk][name]) ? APP.sickness[mk][name] : [];
+}
+// Returns 'hol', 'sick', or null for a person/date
+function getDayStatus(mk, name, ds){
+  if(getHols(mk, name).includes(ds)) return 'hol';
+  if(getSick(mk, name).includes(ds)) return 'sick';
+  return null;
+}
+function holClick(el){
+  const mk   = el.getAttribute('data-mk');
+  const name = el.getAttribute('data-name');
+  const ds   = el.getAttribute('data-ds');
+  // cycle: null → hol → sick → null
+  const cur = getDayStatus(mk, name, ds);
+  // Remove from both
+  if(!APP.holidays[mk]) APP.holidays[mk]={};
+  if(!APP.sickness[mk]) APP.sickness[mk]={};
+  if(!APP.holidays[mk][name]) APP.holidays[mk][name]=[];
+  if(!APP.sickness[mk][name]) APP.sickness[mk][name]=[];
+  APP.holidays[mk][name] = APP.holidays[mk][name].filter(d=>d!==ds);
+  APP.sickness[mk][name] = APP.sickness[mk][name].filter(d=>d!==ds);
+  if(cur === null)   APP.holidays[mk][name].push(ds);
+  else if(cur==='hol') APP.sickness[mk][name].push(ds);
+  // if cur==='sick' → already cleared above → null
+  saveApp();
+  renderHoliday();
+  if(document.getElementById('page-dashboard').classList.contains('active')) renderDashboard();
+}
+function clearAllHols(){
+  const mk = document.getElementById('holMonth').value || APP.activeMonth;
+  if(!confirm('Clear all holidays & sickness for ' + monthLabel(mk) + '?')) return;
+  if(APP.holidays[mk]) delete APP.holidays[mk];
+  if(APP.sickness[mk]) delete APP.sickness[mk];
+  saveApp(); renderHoliday();
+  if(document.getElementById('page-dashboard').classList.contains('active')) renderDashboard();
+  showToast('Holidays cleared');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// HOLIDAY RENDER
+// ═══════════════════════════════════════════════════════════════════
+function renderHoliday(){
+  populateAllSelects();
+  const mk = document.getElementById('holMonth').value || APP.activeMonth;
+  const [y, m] = mk.split('-').map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const people = APP.people.filter(p => personTarget(p) > 0);
+
+  if(!people.length){
+    document.getElementById('holTbl').innerHTML = '<tr><td style="padding:24px;color:var(--text3);font-family:var(--fm)">No consultants set up yet.</td></tr>';
+    return;
+  }
+
+  // build date info for every day of the month
+  const dates = [];
+  for(let d = 1; d <= daysInMonth; d++){
+    const dt = new Date(y, m-1, d);
+    const dow = dt.getDay();
+    const isWE = dow === 0 || dow === 6;
+    const ds = y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const dayLtr = ['S','M','T','W','T','F','S'][dow];
+    dates.push({d, ds, isWE, dayLtr});
+  }
+
+  let html = '<thead><tr>';
+  html += '<th class="hol-th nc">Consultant</th>';
+  dates.forEach(({d, dayLtr, isWE}) => {
+    html += '<th class="hol-th" style="'+(isWE?'color:var(--text3)':'')+'">'+d+'<br><span style="font-size:9px">'+dayLtr+'</span></th>';
+  });
+  html += '<th class="hol-th">Days off</th></tr></thead><tbody>';
+
+  people.forEach(p => {
+    const hols = getHols(mk, p.name);
+    const sick = getSick(mk, p.name);
+    const totalOff = new Set([...hols, ...sick]).size;
+    html += '<tr><td class="hol-td nc">'+p.name+'</td>';
+    dates.forEach(({ds, isWE}) => {
+      if(isWE){
+        html += '<td class="hol-td we"><span style="color:var(--text3);font-size:10px">—</span></td>';
+      } else {
+        const status = getDayStatus(mk, p.name, ds);
+        const cls = status==='hol' ? 'on-hol' : status==='sick' ? 'on-sick' : '';
+        const lbl = status==='hol' ? 'H' : status==='sick' ? 'S' : '';
+        const title = status==='hol' ? 'Planned holiday' : status==='sick' ? 'Sickness/unplanned' : 'Click to mark holiday';
+        html += '<td class="hol-td"><div class="hol-cell '+cls+'" data-mk="'+mk+'" data-name="'+p.name+'" data-ds="'+ds+'" onclick="holClick(this)" title="'+title+'">'+lbl+'</div></td>';
+      }
+    });
+    html += '<td class="hol-td" style="font-size:10px;font-family:var(--fm)"><span style="color:var(--red)">H:'+hols.length+'</span> <span style="color:var(--amber)">S:'+sick.length+'</span></td></tr>';
+  });
+
+  html += '</tbody>';
+  document.getElementById('holTbl').innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FORMAT HELPERS
+// ═══════════════════════════════════════════════════════════════════
+const fmt  = v=>'£'+Math.round(Math.abs(v)).toLocaleString();
+const fmt2 = v=>'£'+Math.abs(v).toFixed(2);
+function rankCls(i){ return i===0?'gold':i===1?'silver':i===2?'bronze':''; }
+function rankLbl(i){ return i===0?'1st':i===1?'2nd':i===2?'3rd':(i+1)+'th'; }
+
+// ═══════════════════════════════════════════════════════════════════
+// CHARTS
+// ═══════════════════════════════════════════════════════════════════
+const _charts={};
+function destroyChart(id){ if(_charts[id]){_charts[id].destroy();delete _charts[id];} }
+
+const gridCol='rgba(255,255,255,0.05)';
+const tickCol='#555a68';
+
+function renderDashCharts(mk){
+  const daily = getDailyTotals(mk);
+  const labels = daily.map(d=>d[0].slice(5).replace('-','/'));
+  const revs   = daily.map(d=>d[1].rev);
+
+  // daily run rate target = team monthly target / total working days in month
+  const teamTarget = APP.people.reduce((s,p)=>s+personTarget(p),0);
+  const avgDaysT   = APP.people.filter(p=>p.daysT>0).reduce((s,p)=>s+p.daysT,0) / (APP.people.filter(p=>p.daysT>0).length||1);
+  const dailyTgt   = avgDaysT>0 ? teamTarget/avgDaysT : 0;
+  const tgtLine    = daily.map(()=>Math.round(dailyTgt));
+
+  // cumulative
+  let cumActual=[], cumTarget=[], ca=0, ct=0;
+  daily.forEach((_,i)=>{ ca+=revs[i]; ct+=tgtLine[i]; cumActual.push(Math.round(ca)); cumTarget.push(Math.round(ct)); });
+
+  destroyChart('dailyRev'); destroyChart('cumul');
+
+  _charts.dailyRev = new Chart(document.getElementById('cDailyRev'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {data:revs,backgroundColor:revs.map((v,i)=>v>=(tgtLine[i]||0)?'#2dce89':'#5e9cf5'),borderRadius:3,barPercentage:0.65},
+      {data:tgtLine,type:'line',borderColor:'rgba(245,54,92,.6)',borderWidth:1.5,pointRadius:0,borderDash:[4,3],fill:false,tension:0}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'£'+Math.round(c.parsed.y).toLocaleString()}}},
+      scales:{
+        x:{ticks:{color:tickCol,font:{size:10},maxRotation:45,autoSkip:true},grid:{display:false}},
+        y:{ticks:{color:tickCol,font:{size:10},callback:v=>'£'+Math.round(v/1000)+'k'},grid:{color:gridCol}}
+      }
+    }
+  });
+
+  _charts.cumul = new Chart(document.getElementById('cCumul'),{
+    type:'line',
+    data:{labels,datasets:[
+      {data:cumActual,borderColor:'#2dce89',backgroundColor:'rgba(45,206,137,.06)',borderWidth:2,pointRadius:2,fill:true,tension:0.3},
+      {data:cumTarget,borderColor:'rgba(245,54,92,.5)',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false,tension:0}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'£'+Math.round(c.parsed.y).toLocaleString()}}},
+      scales:{
+        x:{ticks:{color:tickCol,font:{size:10},maxRotation:45,autoSkip:true},grid:{display:false}},
+        y:{ticks:{color:tickCol,font:{size:10},callback:v=>'£'+Math.round(v/1000)+'k'},grid:{color:gridCol}}
+      }
+    }
+  });
+
+  // person bar charts
+  const stats  = calcStats(mk).filter(s=>s.target>0);
+  const pNames = stats.map(s=>s.name);
+  const barH   = Math.max(220, stats.length*38+80);
+
+  document.getElementById('wRevBar').style.height = barH+'px';
+  document.getElementById('wNmBar').style.height  = barH+'px';
+
+  destroyChart('revBar'); destroyChart('nmBar');
+
+  _charts.revBar = new Chart(document.getElementById('cRevBar'),{
+    type:'bar',
+    data:{labels:pNames,datasets:[
+      {label:'Revenue',data:stats.map(s=>Math.round(s.revMTD)),backgroundColor:'#5e9cf5',borderRadius:3,barPercentage:0.4},
+      {label:'Target', data:stats.map(s=>s.target),backgroundColor:'rgba(255,255,255,.08)',borderRadius:3,barPercentage:0.4}
+    ]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'£'+Math.round(c.parsed.x).toLocaleString()}}},
+      scales:{
+        x:{ticks:{color:tickCol,font:{size:10},callback:v=>'£'+Math.round(v/1000)+'k'},grid:{color:gridCol}},
+        y:{ticks:{color:tickCol,font:{size:11}},grid:{display:false}}
+      }
+    }
+  });
+
+  _charts.nmBar = new Chart(document.getElementById('cNmBar'),{
+    type:'bar',
+    data:{labels:pNames,datasets:[
+      {label:'NM MTD',  data:stats.map(s=>s.nmMTD),  backgroundColor:stats.map(s=>s.nmAhead?'#2dce89':'#fbb83a'),borderRadius:3,barPercentage:0.4},
+      {label:'NM Tgt',  data:stats.map(s=>s.nmTarget),backgroundColor:'rgba(255,255,255,.08)',borderRadius:3,barPercentage:0.4}
+    ]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.x.toFixed(1)}}},
+      scales:{
+        x:{ticks:{color:tickCol,font:{size:10}},grid:{color:gridCol}},
+        y:{ticks:{color:tickCol,font:{size:11}},grid:{display:false}}
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════════════
+function renderDashboard(){
+  const mk     = APP.activeMonth;
+  const stats  = calcStats(mk);
+  const active = stats.filter(s=>s.target>0);
+  const teamTgt = APP.people.reduce((s,p)=>s+personTarget(p),0);
+  const totalRev = active.reduce((s,p)=>s+p.revMTD,0);
+  const totalNM  = active.reduce((s,p)=>s+p.nmMTD,0);
+  const pct      = teamTgt>0 ? Math.round(totalRev/teamTgt*100) : 0;
+  const ahead    = active.filter(p=>p.riskAhead).length;
+  const revGap   = totalRev - teamTgt;
+
+  const calDaysDisplay = calWorkDaysTeam(mk);
+
+  document.getElementById('dash-sub').textContent = monthLabel(mk)+' · '+new Date().toLocaleDateString('en-GB');
+
+  document.getElementById('kpiRow').innerHTML=`
+    <div class="kpi-card"><div class="kpi-label">Team revenue MTD</div>
+      <div class="kpi-val ${pct>=100?'g':pct>=75?'a':'r'}">£${Math.round(totalRev).toLocaleString()}</div>
+      <div class="kpi-sub">${pct}% of £${teamTgt.toLocaleString()} target</div></div>
+    <div class="kpi-card"><div class="kpi-label">Team target</div>
+      <div class="kpi-val">£${teamTgt.toLocaleString()}</div>
+      <div class="kpi-sub">${active.length} active consultants</div></div>
+    <div class="kpi-card"><div class="kpi-label">Working days elapsed</div>
+      <div style="margin:4px 0 4px">
+        <select onchange="setElapsedDays(this.value)" style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:5px 10px;font-size:18px;font-weight:700;font-family:var(--fm);color:var(--text);outline:none;cursor:pointer;">
+          ${Array.from({length:30},(_,i)=>i+1).map(n=>`<option value="${n}"${n===(APP.manualElapsed||calWorkDaysTeam(mk))?' selected':''}>${n}</option>`).join('')}
+        </select>
+      </div>
+      <div class="kpi-sub">Select elapsed working days</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total needs met</div>
+      <div class="kpi-val">${totalNM}</div>
+      <div class="kpi-sub">deals logged MTD</div></div>
+    <div class="kpi-card"><div class="kpi-label">On track</div>
+      <div class="kpi-val ${ahead>=active.length/2?'g':'a'}">${ahead} / ${active.length}</div>
+      <div class="kpi-sub">consultants ahead on risk COP</div></div>`;
+
+  if(active.length===0){
+    document.getElementById('cardsGrid').innerHTML=`<div class="empty" style="grid-column:1/-1">
+      <div class="empty-icon">📊</div><div style="font-size:14px">No consultants yet. Go to Settings to add your team.</div></div>`;
+  } else {
+    document.getElementById('cardsGrid').innerHTML=active.map(p=>{
+      const both=p.riskAhead&&p.nmAhead, neither=!p.riskAhead&&!p.nmAhead;
+      const cardCls=both?'ab':neither?'bb':'mx';
+      const rbc=p.riskAhead?'#2dce89':p.revPct>=75?'#fbb83a':'#f5365c';
+      const nbc=p.nmAhead?'#2dce89':p.nmPct>=75?'#fbb83a':'#f5365c';
+      const copRevStr=p.riskAhead?`+${fmt(p.copRev)} ahead`:`${fmt(p.copRev)} needed`;
+      const copNmStr =p.nmAhead  ?`${Math.abs(p.copNm).toFixed(1)} ahead`:`${p.copNm.toFixed(1)} needed`;
+      return `<div class="p-card ${cardCls}">
+        <div class="p-name">${p.name}</div>
+        <div class="p-rev">£${Math.round(p.revMTD).toLocaleString()}</div>
+        <div class="p-sub">${p.revPct}% of £${p.target.toLocaleString()}</div>
+        <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(p.revPct,100)}%;background:${rbc}"></div></div>
+        <div class="p-row"><span class="p-lbl">COP risk (next day)</span><span class="p-val ${p.riskAhead?'g':'r'}">${copRevStr}</span></div>
+        <div class="pdiv"></div>
+        <div class="p-row"><span class="p-lbl">NM target</span><span class="p-val">${parseFloat((p.daysT*1.75).toFixed(2))}</span></div>
+        <div class="p-row"><span class="p-lbl">NM this month</span><span class="p-val">${p.nmMTD}</span></div>
+        <div class="p-sub" style="text-align:right;margin-bottom:2px">${p.nmPct}% of target</div>
+        <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(p.nmPct,100)}%;background:${nbc}"></div></div>
+        <div class="p-row" style="margin-top:4px"><span class="p-lbl">COP NM (next day)</span><span class="p-val ${p.nmAhead?'g':'r'}">${copNmStr}</span></div>
+        <div class="pills">
+          <span class="pill ${p.riskAhead?'pg':'pr'}">${p.riskAhead?'Risk ahead':'Risk behind'}</span>
+          <span class="pill ${p.nmAhead?'pg':'pr'}">${p.nmAhead?'NM ahead':'NM behind'}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  setTimeout(()=>renderDashCharts(mk), 50);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DAILY ENTRY
+// ═══════════════════════════════════════════════════════════════════
+function renderEntryPage(){
+  populateAllSelects();
+  const dateEl = document.getElementById('entryDate');
+  if(!dateEl.value) dateEl.value = new Date().toISOString().slice(0,10);
+  dateEl.onchange = buildEntryRows;
+  buildEntryRows();
+}
+
+function buildEntryRows(){
+  const date    = document.getElementById('entryDate').value;
+  const mk      = APP.activeMonth;
+  const entries = getEntries(mk);
+  const active  = APP.people.filter(p=>personTarget(p)>0);
+
+  if(active.length===0){
+    document.getElementById('entryRows').innerHTML='<div class="empty"><div class="empty-icon">👤</div><div>No consultants set up yet. Go to Settings.</div></div>';
+    document.getElementById('entrySummary').textContent='No consultants.';
+    return;
+  }
+
+  document.getElementById('entryRows').innerHTML = active.map(p=>{
+    // existing entry for this exact date & person
+    const ex = entries.find(e=>e.date===date && e.name===p.name);
+    // MTD totals EXCLUDING today (so the input shows what they're adding on top)
+    const mtdRevExToday = entries.filter(e=>e.name===p.name && e.date!==date).reduce((s,e)=>s+(e.revenue||0),0);
+    const mtdNmExToday  = entries.filter(e=>e.name===p.name && e.date!==date).reduce((s,e)=>s+(e.nm||0),0);
+    // include today's saved value in the displayed MTD
+    const mtdRevFull = mtdRevExToday + (ex?ex.revenue:0);
+    const mtdNmFull  = mtdNmExToday  + (ex?ex.nm:0);
+    const target = personTarget(p);
+    const pct    = target>0?Math.round(mtdRevFull/target*100):0;
+    return `<div class="et-row">
+      <div class="et-name">${p.name}</div>
+      <div class="inp-wrap">
+        <span class="inp-pre">£</span>
+        <input type="number" class="inp-pl" id="rev_${p.name}" placeholder="0.00" step="0.01" min="0" value="${ex?ex.revenue:''}">
+      </div>
+      <input type="number" id="nm_${p.name}" placeholder="0" step="1" min="0" value="${ex?ex.nm:''}">
+      <div class="et-mtd">
+        <span style="color:var(--green)">£${Math.round(mtdRevFull).toLocaleString()}</span> · ${pct}%<br>
+        <span style="color:var(--text2)">${mtdNmFull} NM</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // sidebar summary
+  const dayEntries = entries.filter(e=>e.date===date);
+  const dayRev = dayEntries.reduce((s,e)=>s+(e.revenue||0),0);
+  const dayNM  = dayEntries.reduce((s,e)=>s+(e.nm||0),0);
+  document.getElementById('entrySummary').innerHTML =
+    `Date: <b>${date||'—'}</b><br>Day rev: £${Math.round(dayRev).toLocaleString()}<br>Day NM: ${dayNM}<br>Entries: ${dayEntries.length}`;
+}
+
+function saveAllEntries(){
+  const date = document.getElementById('entryDate').value;
+  if(!date){ showToast('Select a date first','err'); return; }
+  const mk = APP.activeMonth;
+  // remove all existing entries for this date, then re-add
+  let entries = getEntries(mk).filter(e=>e.date!==date);
+  APP.people.filter(p=>personTarget(p)>0).forEach(p=>{
+    const rev = parseFloat(document.getElementById('rev_'+p.name)?.value)||0;
+    const nm  = parseInt(document.getElementById('nm_'+p.name)?.value)||0;
+    // only store if there's a value (keeps data clean)
+    if(rev>0||nm>0) entries.push({date, name:p.name, revenue:rev, nm});
+  });
+  setEntries(mk, entries);
+  showToast('Saved entries for '+date);
+  buildEntryRows();
+}
+
+function clearDayEntries(){
+  const date = document.getElementById('entryDate').value;
+  if(!date) return;
+  if(!confirm('Clear all entries for '+date+'?')) return;
+  const mk = APP.activeMonth;
+  setEntries(mk, getEntries(mk).filter(e=>e.date!==date));
+  buildEntryRows();
+  showToast('Cleared '+date);
+}
+
+function onEntryMonthChange(){
+  APP.activeMonth = document.getElementById('entryMonth').value;
+  saveApp();
+  buildEntryRows();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LEADERBOARD
+// ═══════════════════════════════════════════════════════════════════
+function renderLeaderboard(){
+  const mk    = document.getElementById('lbMonth').value || APP.activeMonth;
+  const stats = calcStats(mk).filter(s=>s.target>0);
+  document.getElementById('lb-sub').textContent = monthLabel(mk);
+
+  if(stats.length===0){
+    document.getElementById('lbGrid').innerHTML='<div class="empty" style="grid-column:1/-1"><div>No data for this month.</div></div>';
+    return;
+  }
+
+  const byRev  = [...stats].sort((a,b)=>b.revMTD-a.revMTD);
+  const byNM   = [...stats].sort((a,b)=>b.nmMTD-a.nmMTD);
+  const byPct  = [...stats].sort((a,b)=>b.revPct-a.revPct);
+  const byCOP  = [...stats].filter(s=>s.riskAhead).sort((a,b)=>a.copRev-b.copRev);
+
+  const maxRev = byRev[0]?.revMTD||1;
+  const maxNM  = byNM[0]?.nmMTD||1;
+
+  function lbRows(arr, valFn, barFn, colFn){
+    return arr.slice(0,10).map((p,i)=>`<div class="lb-row">
+      <div class="lb-rank ${rankCls(i)}">${rankLbl(i)}</div>
+      <div class="lb-name">${p.name}</div>
+      <div class="lb-bar-bg"><div class="lb-bar-fill" style="width:${barFn(p)+'%'};background:${colFn(p)}"></div></div>
+      <div class="lb-val" style="color:${colFn(p)}">${valFn(p)}</div>
+    </div>`).join('');
+  }
+
+  document.getElementById('lbGrid').innerHTML=`
+    <div class="lb-card"><div class="lb-title">Revenue MTD</div>
+      ${lbRows(byRev,p=>'£'+Math.round(p.revMTD).toLocaleString(),p=>Math.round(p.revMTD/maxRev*100),()=>'#5e9cf5')}
+    </div>
+    <div class="lb-card"><div class="lb-title">Needs met MTD</div>
+      ${lbRows(byNM,p=>p.nmMTD,p=>Math.round(p.nmMTD/maxNM*100),()=>'#2dce89')}
+    </div>
+    <div class="lb-card"><div class="lb-title">% of revenue target</div>
+      ${lbRows(byPct,p=>p.revPct+'%',p=>Math.min(p.revPct,100),p=>p.revPct>=100?'#2dce89':'#fbb83a')}
+    </div>
+    <div class="lb-card"><div class="lb-title">Most ahead on COP risk</div>
+      ${byCOP.length===0?'<div class="empty"><div>No one ahead yet.</div></div>':
+        lbRows(byCOP,p=>'+'+fmt(p.copRev),()=>80,()=>'#2dce89')}
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// HISTORY
+// ═══════════════════════════════════════════════════════════════════
+function renderHistory(){
+  const mk     = document.getElementById('histMonth').value || APP.activeMonth;
+  const person = document.getElementById('histPerson').value;
+  const all    = getEntries(mk);
+  let rows     = [...all].sort((a,b)=>b.date.localeCompare(a.date)||a.name.localeCompare(b.name));
+  if(person&&person!=='all') rows=rows.filter(e=>e.name===person);
+
+  if(rows.length===0){
+    document.getElementById('histRows').innerHTML='<div class="empty"><div class="empty-icon">📋</div><div>No entries yet.</div></div>';
+    return;
+  }
+
+  document.getElementById('histRows').innerHTML = rows.map(e=>{
+    const p = APP.people.find(x=>x.name===e.name)||{riskPerDay:0,daysT:0};
+    const target = personTarget(p);
+    // MTD up to and including this date
+    const mtdRev = all.filter(x=>x.name===e.name&&x.date<=e.date).reduce((s,x)=>s+(x.revenue||0),0);
+    const mtdNm  = all.filter(x=>x.name===e.name&&x.date<=e.date).reduce((s,x)=>s+(x.nm||0),0);
+    const pct    = target>0?Math.round(mtdRev/target*100):0;
+    const col    = pct>=100?'var(--green)':pct>=75?'var(--amber)':'var(--red)';
+    return `<div class="hist-row">
+      <div>${e.date.slice(5).replace('-','/')}</div>
+      <div style="font-weight:500">${e.name}</div>
+      <div style="color:var(--green)">£${(e.revenue||0).toLocaleString()}</div>
+      <div>${e.nm||0}</div>
+      <div>£${Math.round(mtdRev).toLocaleString()}</div>
+      <div>${mtdNm}</div>
+      <div style="color:${col}">${pct}%</div>
+      <div><button class="del-btn" onclick="deleteEntry('${mk}','${e.date}','${e.name}')">remove</button></div>
+    </div>`;
+  }).join('');
+}
+
+function deleteEntry(mk, date, name){
+  if(!confirm(`Remove entry for ${name} on ${date}?`)) return;
+  setEntries(mk, getEntries(mk).filter(e=>!(e.date===date&&e.name===name)));
+  renderHistory();
+  showToast('Entry removed');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════════════════════════
+function renderSettings(){
+  populateAllSelects();
+  document.getElementById('activeMonthSel').value = APP.activeMonth;
+
+  document.getElementById('personConfigRows').innerHTML = APP.people.map((p,i)=>{
+    const tgt = personTarget(p);
+    return `<div class="pcfg-row">
+      <input type="text"   value="${p.name}"       onchange="updatePerson(${i},'name',this.value)">
+      <input type="number" value="${p.riskPerDay||0}" step="50" onchange="updatePerson(${i},'riskPerDay',+this.value)" placeholder="1200">
+      <input type="number" value="${p.daysT||0}"   step="0.5"  onchange="updatePerson(${i},'daysT',+this.value)" placeholder="22">
+      <div style="font-size:12px;color:var(--green);font-family:var(--fm);display:flex;align-items:center;">£${tgt.toLocaleString()}</div>
+      <button class="icon-btn" onclick="removePerson(${i})" title="Remove">✕</button>
+    </div>`;
+  }).join('');
+
+  // wire new-person preview inputs
+  const rpdEl = document.getElementById('newRPD');
+  const daysEl = document.getElementById('newDays');
+  if(rpdEl) rpdEl.oninput = updateNewPreview;
+  if(daysEl) daysEl.oninput = updateNewPreview;
+}
+
+function updateNewPreview(){
+  const r = parseFloat(document.getElementById('newRPD').value)||0;
+  const d = parseFloat(document.getElementById('newDays').value)||0;
+  const el = document.getElementById('newCalcPreview');
+  if(el) el.textContent = (r&&d) ? '£'+(r*d).toLocaleString() : '—';
+}
+
+function updatePerson(i, field, val){
+  APP.people[i][field] = val;
+  saveApp();
+  // refresh the target preview in that row
+  renderSettings();
+}
+
+function removePerson(i){
+  if(!confirm('Remove '+APP.people[i].name+'? Their data will remain in history.')) return;
+  APP.people.splice(i,1);
+  saveApp();
+  renderSettings();
+}
+
+function addPerson(){
+  const name = document.getElementById('newName').value.trim();
+  const rpd  = parseFloat(document.getElementById('newRPD').value)||0;
+  const days = parseFloat(document.getElementById('newDays').value)||22;
+  if(!name){ showToast('Enter a name','err'); return; }
+  if(APP.people.find(p=>p.name===name)){ showToast('Name already exists','err'); return; }
+  APP.people.push({name, riskPerDay:rpd, daysT:days});
+  saveApp();
+  renderSettings();
+  document.getElementById('newName').value='';
+  document.getElementById('newRPD').value='';
+  document.getElementById('newDays').value='';
+  document.getElementById('newCalcPreview').textContent='—';
+  showToast(name+' added');
+}
+
+function setActiveMonth(){
+  APP.activeMonth = document.getElementById('activeMonthSel').value;
+  saveApp();
+  showToast('Active month → '+monthLabel(APP.activeMonth));
+}
+
+// ── month modal ────────────────────────────────────────────────────
+function openNewMonthModal(){
+  const sel = document.getElementById('modalMonthSel');
+  sel.innerHTML=['January','February','March','April','May','June','July','August','September','October','November','December']
+    .map((m,i)=>`<option value="${String(i+1).padStart(2,'0')}">${m}</option>`).join('');
+  sel.value = String(new Date().getMonth()+1).padStart(2,'0');
+  document.getElementById('modalYear').value = new Date().getFullYear();
+  document.getElementById('monthModal').classList.add('open');
+}
+function closeModal(){ document.getElementById('monthModal').classList.remove('open'); }
+function createNewMonth(){
+  const m = document.getElementById('modalMonthSel').value;
+  const y = document.getElementById('modalYear').value;
+  const key = y+'-'+m;
+  if(APP.months[key]){ showToast('Month already exists'); closeModal(); return; }
+  APP.months[key]={entries:[]};
+  APP.activeMonth=key;
+  saveApp();
+  populateAllSelects();
+  renderSettings();
+  closeModal();
+  showToast('Created '+monthLabel(key));
+}
+
+function clearAllData(){
+  if(!confirm('Delete ALL data and consultants? This cannot be undone.')) return;
+  APP={people:[],months:{},activeMonth:todayKey(),teams:{g:[],james:[],damo:[]},bizTargets:{},holidays:{},sickness:{},manualElapsed:null};
+  APP.months[APP.activeMonth]={entries:[]};
+  saveApp();
+  populateAllSelects();
+  renderDashboard();
+  renderSettings();
+  showToast('All data cleared');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SHARED HELPERS
+// ═══════════════════════════════════════════════════════════════════
+function populateAllSelects(){
+  const months = allMonthKeys();
+
+  ['entryMonth','lbMonth','histMonth','activeMonthSel','holMonth','bizMonth','teamsMonth'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(!el) return;
+    const cur = el.value || APP.activeMonth;
+    el.innerHTML = months.map(mk=>`<option value="${mk}"${mk===cur?' selected':''}>${monthLabel(mk)}</option>`).join('');
+    if(!months.includes(el.value)) el.value = APP.activeMonth;
+  });
+
+  const hp = document.getElementById('histPerson');
+  if(hp){
+    const cur = hp.value||'all';
+    hp.innerHTML = `<option value="all">All consultants</option>`+
+      APP.people.map(p=>`<option value="${p.name}"${p.name===cur?' selected':''}>${p.name}</option>`).join('');
+  }
+}
+
+function showToast(msg, type){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = type==='err' ? 'var(--red)' : 'var(--green)';
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2600);
+}
+
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelector(`.nav-tab[onclick="showPage('${id}')"]`).classList.add('active');
+  if(id==='dashboard')   renderDashboard();
+  if(id==='biz')        { populateAllSelects(); renderBizTarget(); }
+  if(id==='teams')      { populateAllSelects(); renderTeams(); }
+  if(id==='entry')       renderEntryPage();
+  if(id==='leaderboard'){ populateAllSelects(); renderLeaderboard(); }
+  if(id==='history')    { populateAllSelects(); renderHistory(); }
+  if(id==='holiday')    { populateAllSelects(); renderHoliday(); }
+  if(id==='settings')    renderSettings();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ELAPSED DAYS
+// ═══════════════════════════════════════════════════════════════════
+function setElapsedDays(val){
+  APP.manualElapsed = parseInt(val);
+  saveApp();
+  renderDashboard();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// BUSINESS TARGET
+// ═══════════════════════════════════════════════════════════════════
+function getBizTargets(mk){
+  if(!APP.bizTargets) APP.bizTargets={};
+  return APP.bizTargets[mk] || { revTarget:0, nmTarget:0, ratePerPerson:1200 };
+}
+
+function saveBizTargets(){
+  const mk = document.getElementById('bizMonth').value || APP.activeMonth;
+  if(!APP.bizTargets) APP.bizTargets={};
+  APP.bizTargets[mk] = {
+    revTarget:   parseFloat(document.getElementById('bizRevTarget').value)||0,
+    nmTarget:    parseFloat(document.getElementById('bizNmTarget').value)||0,
+    ratePerPerson: parseFloat(document.getElementById('bizRatePerPerson').value)||1200
+  };
+  saveApp();
+  renderBizTarget();
+}
+
+// Count how many active consultants are working on a given date (not on planned holiday — sickness does NOT reduce run rate)
+function peopleWorkingOnDate(mk, ds){
+  const active = APP.people.filter(p=>personTarget(p)>0);
+  return active.filter(p=>!getHols(mk,p.name).includes(ds)).length;
+}
+
+// Get all working dates in a month (Mon-Fri)
+function workingDatesInMonth(mk){
+  const [y,m] = mk.split('-').map(Number);
+  const days=[];
+  const cursor = new Date(y,m-1,1);
+  while(cursor.getMonth()===m-1){
+    const dow=cursor.getDay();
+    if(dow!==0&&dow!==6) days.push(cursor.toISOString().slice(0,10));
+    cursor.setDate(cursor.getDate()+1);
+  }
+  return days;
+}
+
+function renderBizTarget(){
+  populateAllSelects();
+  const mk  = document.getElementById('bizMonth').value || APP.activeMonth;
+  const cfg = getBizTargets(mk);
+
+  // populate inputs
+  if(cfg.revTarget)      document.getElementById('bizRevTarget').value = cfg.revTarget;
+  if(cfg.nmTarget)       document.getElementById('bizNmTarget').value  = cfg.nmTarget;
+  document.getElementById('bizRatePerPerson').value = cfg.ratePerPerson||1200;
+
+  const entries  = getEntries(mk);
+  const active   = APP.people.filter(p=>personTarget(p)>0);
+  const totalRev = entries.reduce((s,e)=>s+(e.revenue||0),0);
+  const totalNM  = entries.reduce((s,e)=>s+(e.nm||0),0);
+
+  const elapsed  = APP.manualElapsed || calWorkDaysTeam(mk);
+  const revTarget= cfg.revTarget||0;
+  const nmTarget = cfg.nmTarget||0;
+  const rpp      = cfg.ratePerPerson||1200;
+
+  // COP Revenue = current rev - (revTarget / totalWorkingDays * (elapsed+1))
+  const allWD    = workingDatesInMonth(mk).length;
+  const dailyRevTgt = allWD>0 ? revTarget/allWD : 0;
+  const copRev   = totalRev - (dailyRevTgt*(elapsed+1));
+
+  // COP NM = current NM - (nmTarget / totalWorkingDays * (elapsed+1))
+  const dailyNmTgt  = allWD>0 ? nmTarget/allWD : 0;
+  const copNM    = totalNM - (dailyNmTgt*(elapsed+1));
+
+  // Revenue remaining
+  const revRemaining = revTarget - totalRev;
+  const nmRemaining  = nmTarget  - totalNM;
+
+  // Today's run rate
+  const today = new Date().toISOString().slice(0,10);
+  const peopleToday = active.filter(p=>!getHols(mk,p.name).includes(today)).length;
+  const todayRunRate = peopleToday * rpp;
+
+  const revPct = revTarget>0 ? Math.round(totalRev/revTarget*100) : 0;
+  const nmPct  = nmTarget>0  ? Math.round(totalNM/nmTarget*100)  : 0;
+
+  const copRevCls  = copRev>=0?'g':'r';
+  const copNmCls   = copNM>=0?'g':'r';
+  const revRemCls  = revRemaining<=0?'g':'a';
+
+  document.getElementById('bizKpiRow').innerHTML=`
+    <div class="kpi-card"><div class="kpi-label">Revenue MTD</div>
+      <div class="kpi-val ${revPct>=100?'g':revPct>=75?'a':'r'}">£${Math.round(totalRev).toLocaleString()}</div>
+      <div class="kpi-sub">${revPct}% of £${revTarget.toLocaleString()} target</div></div>
+    <div class="kpi-card"><div class="kpi-label">Revenue Remaining</div>
+      <div class="kpi-val ${revRemCls}">£${Math.round(Math.max(0,revRemaining)).toLocaleString()}</div>
+      <div class="kpi-sub">${allWD-elapsed} working days left</div></div>
+    <div class="kpi-card"><div class="kpi-label">COP Revenue</div>
+      <div class="kpi-val ${copRevCls}">${copRev>=0?'+':''}£${Math.round(Math.abs(copRev)).toLocaleString()}</div>
+      <div class="kpi-sub">${copRev>=0?'ahead of':'behind'} daily checkpoint</div></div>
+    <div class="kpi-card"><div class="kpi-label">Daily Rev Needed (to hit target)</div>
+      <div class="kpi-val a">£${allWD-elapsed>0?Math.round(revRemaining/(allWD-elapsed)).toLocaleString():'—'}</div>
+      <div class="kpi-sub">per remaining working day</div></div>
+    <div class="kpi-card"><div class="kpi-label">Needs Met MTD</div>
+      <div class="kpi-val ${nmPct>=100?'g':nmPct>=75?'a':'r'}">${totalNM}</div>
+      <div class="kpi-sub">${nmPct}% of ${nmTarget} target</div></div>
+    <div class="kpi-card"><div class="kpi-label">NM Remaining</div>
+      <div class="kpi-val ${nmRemaining<=0?'g':'a'}">${Math.max(0,nmRemaining)}</div>
+      <div class="kpi-sub">${nmRemaining<=0?'target hit!':'still needed'}</div></div>
+    <div class="kpi-card"><div class="kpi-label">COP Needs Met</div>
+      <div class="kpi-val ${copNmCls}">${copNM>=0?'+':''}${copNM.toFixed(1)}</div>
+      <div class="kpi-sub">${copNM>=0?'ahead of':'behind'} NM checkpoint</div></div>
+    <div class="kpi-card"><div class="kpi-label">Today's Run Rate</div>
+      <div class="kpi-val">${peopleToday > 0 ? '£'+todayRunRate.toLocaleString() : '—'}</div>
+      <div class="kpi-sub">${peopleToday} people × £${rpp.toLocaleString()}</div></div>
+  `;
+
+  // Build daily run rate rows
+  const wdDates  = workingDatesInMonth(mk);
+  const today2   = new Date().toISOString().slice(0,10);
+  const pastDates= wdDates.filter(d=>d<=today2);
+  const byDate   = {};
+  entries.forEach(e=>{
+    if(!byDate[e.date]) byDate[e.date]=0;
+    byDate[e.date]+=(e.revenue||0);
+  });
+
+  let tableHtml='', cumRev=0;
+  const chartLabels=[], chartRR=[], chartActual=[], chartCumActual=[], chartCumTarget=[];
+  let cumTarget=0;
+
+  pastDates.forEach(ds=>{
+    const pw     = peopleWorkingOnDate(mk,ds);
+    const rr     = pw * rpp;
+    const actual = byDate[ds]||0;
+    const variance = actual - rr;
+    cumRev += actual; cumTarget += rr;
+    const vcls   = variance>=0?'style="color:var(--green)"':'style="color:var(--red)"';
+    tableHtml+=`<div style="display:grid;grid-template-columns:100px 1fr 100px 110px 110px;padding:9px 16px;border-bottom:1px solid var(--border);font-size:12px;font-family:var(--fm);align-items:center;">
+      <div style="color:var(--text3)">${ds.slice(5).replace('-','/')}</div>
+      <div style="color:var(--text2)">${pw} people</div>
+      <div>£${rr.toLocaleString()}</div>
+      <div style="color:var(--green)">£${Math.round(actual).toLocaleString()}</div>
+      <div ${vcls}>${variance>=0?'+':''}£${Math.round(variance).toLocaleString()}</div>
+    </div>`;
+    chartLabels.push(ds.slice(5).replace('-','/'));
+    chartRR.push(rr);
+    chartActual.push(Math.round(actual));
+    chartCumActual.push(Math.round(cumRev));
+    chartCumTarget.push(Math.round(cumTarget));
+  });
+
+  document.getElementById('bizRunRateRows').innerHTML = tableHtml||'<div class="empty"><div class="empty-icon">📊</div><div>No data yet for this month.</div></div>';
+
+  // Charts
+  destroyChart('bizDaily'); destroyChart('bizCumul');
+  if(chartLabels.length){
+    _charts.bizDaily = new Chart(document.getElementById('cBizDaily'),{
+      type:'bar',
+      data:{labels:chartLabels,datasets:[
+        {label:'Actual',data:chartActual,backgroundColor:chartActual.map((v,i)=>v>=(chartRR[i]||0)?'#2dce89':'#5e9cf5'),borderRadius:3,barPercentage:0.65},
+        {label:'Run Rate',data:chartRR,type:'line',borderColor:'rgba(245,54,92,.6)',borderWidth:1.5,pointRadius:0,borderDash:[4,3],fill:false,tension:0}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'£'+Math.round(c.parsed.y).toLocaleString()}}},
+        scales:{x:{ticks:{color:tickCol,font:{size:10},maxRotation:45,autoSkip:true},grid:{display:false}},y:{ticks:{color:tickCol,font:{size:10},callback:v=>'£'+Math.round(v/1000)+'k'},grid:{color:gridCol}}}}
+    });
+    _charts.bizCumul = new Chart(document.getElementById('cBizCumul'),{
+      type:'line',
+      data:{labels:chartLabels,datasets:[
+        {label:'Actual',data:chartCumActual,borderColor:'#2dce89',backgroundColor:'rgba(45,206,137,.06)',borderWidth:2,pointRadius:2,fill:true,tension:0.3},
+        {label:'Run Rate',data:chartCumTarget,borderColor:'rgba(245,54,92,.5)',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false,tension:0},
+        ...(revTarget>0?[{label:'Target',data:chartLabels.map(()=>revTarget),borderColor:'rgba(251,184,58,.4)',borderWidth:1,borderDash:[2,4],pointRadius:0,fill:false}]:[])
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'£'+Math.round(c.parsed.y).toLocaleString()}}},
+        scales:{x:{ticks:{color:tickCol,font:{size:10},maxRotation:45,autoSkip:true},grid:{display:false}},y:{ticks:{color:tickCol,font:{size:10},callback:v=>'£'+Math.round(v/1000)+'k'},grid:{color:gridCol}}}}
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TEAMS
+// ═══════════════════════════════════════════════════════════════════
+let _currentTeamTab = 'g';
+const TEAM_LABELS = { g:'Team G', james:'Team James', damo:'Team Damo' };
+const TEAM_COLORS = { g:'#5e9cf5', james:'#2dce89', damo:'#fbb83a' };
+
+function switchTeamTab(tab){
+  _currentTeamTab = tab;
+  document.querySelectorAll('.sub-tab').forEach(b=>{
+    b.classList.toggle('active', b.textContent.trim()===
+      (tab==='assign'?'⚙ Assign Members': TEAM_LABELS[tab]||tab));
+  });
+  renderTeamTabContent();
+}
+
+function renderTeams(){
+  populateAllSelects();
+  renderTeamTabContent();
+}
+
+function renderTeamTabContent(){
+  const container = document.getElementById('teamTabContent');
+  if(_currentTeamTab==='assign'){
+    renderTeamAssign(container);
+  } else {
+    renderTeamDashboard(container, _currentTeamTab);
+  }
+}
+
+function renderTeamAssign(container){
+  if(!APP.teams) APP.teams={g:[],james:[],damo:[]};
+  const teamKeys = ['g','james','damo'];
+  container.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+      ${teamKeys.map(tk=>`
+        <div class="set-card">
+          <div class="set-title" style="color:${TEAM_COLORS[tk]}">${TEAM_LABELS[tk]}</div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:12px">${(APP.teams[tk]||[]).length} members assigned</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            ${APP.people.filter(p=>personTarget(p)>0).map(p=>{
+              const inTeam = (APP.teams[tk]||[]).includes(p.name);
+              return `<label class="member-toggle ${inTeam?'selected':''}">
+                <input type="checkbox" ${inTeam?'checked':''} onchange="toggleTeamMember('${tk}','${p.name}',this.checked)" style="width:14px;height:14px">
+                <span style="font-size:13px;font-weight:600">${p.name}</span>
+                ${teamKeys.filter(t=>t!==tk&&(APP.teams[t]||[]).includes(p.name)).map(t=>`<span style="font-size:9px;color:${TEAM_COLORS[t]};margin-left:auto">${TEAM_LABELS[t]}</span>`).join('')}
+              </label>`;
+            }).join('')}
+            ${APP.people.filter(p=>personTarget(p)>0).length===0?'<div style="color:var(--text3);font-size:12px">No consultants yet. Add them in Settings.</div>':''}
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
+}
+
+function toggleTeamMember(teamKey, name, checked){
+  if(!APP.teams) APP.teams={g:[],james:[],damo:[]};
+  if(!APP.teams[teamKey]) APP.teams[teamKey]=[];
+  if(checked){ if(!APP.teams[teamKey].includes(name)) APP.teams[teamKey].push(name); }
+  else { APP.teams[teamKey]=APP.teams[teamKey].filter(n=>n!==name); }
+  saveApp();
+  renderTeamAssign(document.getElementById('teamTabContent'));
+}
+
+function renderTeamDashboard(container, teamKey){
+  if(!APP.teams) APP.teams={g:[],james:[],damo:[]};
+  const mk      = document.getElementById('teamsMonth').value || APP.activeMonth;
+  const members = (APP.teams[teamKey]||[]);
+  const color   = TEAM_COLORS[teamKey];
+  const label   = TEAM_LABELS[teamKey];
+
+  if(members.length===0){
+    container.innerHTML=`<div class="empty"><div class="empty-icon">👥</div><div>No members assigned to ${label} yet.<br><button class="btn btn-s" onclick="switchTeamTab('assign')" style="margin-top:12px">Assign Members</button></div></div>`;
+    return;
+  }
+
+  const teamPeople = APP.people.filter(p=>members.includes(p.name));
+  const entries    = getEntries(mk);
+  const stats      = calcStats(mk).filter(s=>members.includes(s.name));
+  const teamRevMTD = stats.reduce((s,p)=>s+p.revMTD,0);
+  const teamNmMTD  = stats.reduce((s,p)=>s+p.nmMTD,0);
+  const teamTgt    = stats.reduce((s,p)=>s+p.target,0);
+  const teamPct    = teamTgt>0?Math.round(teamRevMTD/teamTgt*100):0;
+  const elapsed    = APP.manualElapsed || calWorkDaysTeam(mk);
+  const ahead      = stats.filter(p=>p.riskAhead).length;
+
+  // Team COP
+  const teamRPD   = teamPeople.reduce((s,p)=>s+(p.riskPerDay||0),0);
+  const teamCopRev = teamRevMTD - (teamRPD*(elapsed+1));
+  const teamNmTarget = teamPeople.reduce((s,p)=>s+(p.daysT||0)*1.75,0);
+  const teamCopNm  = teamNmMTD - ((teamPeople.reduce((s,p)=>s+(p.daysT||0),0)/teamPeople.length||0)*1.75*(elapsed+1));
+
+  container.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+      <div style="font-size:22px;font-weight:700;color:${color}">${label}</div>
+      <div style="font-size:13px;color:var(--text3);font-family:var(--fm)">${members.length} members · ${monthLabel(mk)}</div>
+    </div>
+    <div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
+      <div class="kpi-card"><div class="kpi-label">Team Revenue MTD</div>
+        <div class="kpi-val ${teamPct>=100?'g':teamPct>=75?'a':'r'}">£${Math.round(teamRevMTD).toLocaleString()}</div>
+        <div class="kpi-sub">${teamPct}% of £${teamTgt.toLocaleString()}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Team Target</div>
+        <div class="kpi-val">£${teamTgt.toLocaleString()}</div>
+        <div class="kpi-sub">${members.length} consultants</div></div>
+      <div class="kpi-card"><div class="kpi-label">Team NM MTD</div>
+        <div class="kpi-val">${teamNmMTD}</div>
+        <div class="kpi-sub">target: ${teamNmTarget.toFixed(1)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">COP Revenue</div>
+        <div class="kpi-val ${teamCopRev>=0?'g':'r'}">${teamCopRev>=0?'+':''}£${Math.round(Math.abs(teamCopRev)).toLocaleString()}</div>
+        <div class="kpi-sub">${teamCopRev>=0?'ahead':'behind'} of checkpoint</div></div>
+      <div class="kpi-card"><div class="kpi-label">On Track</div>
+        <div class="kpi-val ${ahead>=stats.length/2?'g':'a'}">${ahead} / ${stats.length}</div>
+        <div class="kpi-sub">ahead on risk COP</div></div>
+    </div>
+    <div class="cards-grid" style="margin-top:8px">
+      ${stats.map(p=>{
+        const rbc=p.riskAhead?'#2dce89':p.revPct>=75?'#fbb83a':'#f5365c';
+        const nbc=p.nmAhead?'#2dce89':p.nmPct>=75?'#fbb83a':'#f5365c';
+        const cardCls=p.riskAhead&&p.nmAhead?'ab':!p.riskAhead&&!p.nmAhead?'bb':'mx';
+        return `<div class="p-card ${cardCls}" style="border-top-color:${color}">
+          <div class="p-name">${p.name}</div>
+          <div class="p-rev">£${Math.round(p.revMTD).toLocaleString()}</div>
+          <div class="p-sub">${p.revPct}% of £${p.target.toLocaleString()}</div>
+          <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(p.revPct,100)}%;background:${rbc}"></div></div>
+          <div class="p-row"><span class="p-lbl">COP risk</span><span class="p-val ${p.riskAhead?'g':'r'}">${p.riskAhead?'+'+fmt(p.copRev)+' ahead':fmt(p.copRev)+' needed'}</span></div>
+          <div class="pdiv"></div>
+          <div class="p-row"><span class="p-lbl">NM MTD</span><span class="p-val">${p.nmMTD} / ${parseFloat((p.daysT*1.75).toFixed(1))}</span></div>
+          <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(p.nmPct,100)}%;background:${nbc}"></div></div>
+          <div class="p-row"><span class="p-lbl">COP NM</span><span class="p-val ${p.nmAhead?'g':'r'}">${p.nmAhead?Math.abs(p.copNm).toFixed(1)+' ahead':p.copNm.toFixed(1)+' needed'}</span></div>
+          <div class="pills">
+            <span class="pill ${p.riskAhead?'pg':'pr'}">${p.riskAhead?'Risk ahead':'Risk behind'}</span>
+            <span class="pill ${p.nmAhead?'pg':'pr'}">${p.nmAhead?'NM ahead':'NM behind'}</span>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="charts-row" style="margin-top:8px">
+      <div class="chart-card">
+        <div class="chart-title">${label} — Revenue vs Target</div>
+        <div class="chart-sub">individual MTD performance</div>
+        <div style="position:relative;height:${Math.max(180,stats.length*36+60)}px"><canvas id="cTeam_${teamKey}_rev"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">${label} — Needs Met vs Target</div>
+        <div class="chart-sub">MTD vs working days × 1.75</div>
+        <div style="position:relative;height:${Math.max(180,stats.length*36+60)}px"><canvas id="cTeam_${teamKey}_nm"></canvas></div>
+      </div>
+    </div>`;
+
+  // render team charts after DOM update
+  setTimeout(()=>{
+    destroyChart('team_'+teamKey+'_rev'); destroyChart('team_'+teamKey+'_nm');
+    const pNames = stats.map(s=>s.name);
+    _charts['team_'+teamKey+'_rev'] = new Chart(document.getElementById('cTeam_'+teamKey+'_rev'),{
+      type:'bar',
+      data:{labels:pNames,datasets:[
+        {label:'Revenue',data:stats.map(s=>Math.round(s.revMTD)),backgroundColor:color+'aa',borderRadius:3,barPercentage:0.4},
+        {label:'Target', data:stats.map(s=>s.target),backgroundColor:'rgba(255,255,255,.08)',borderRadius:3,barPercentage:0.4}
+      ]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'£'+Math.round(c.parsed.x).toLocaleString()}}},
+        scales:{x:{ticks:{color:tickCol,font:{size:10},callback:v=>'£'+Math.round(v/1000)+'k'},grid:{color:gridCol}},y:{ticks:{color:tickCol,font:{size:11}},grid:{display:false}}}}
+    });
+    _charts['team_'+teamKey+'_nm'] = new Chart(document.getElementById('cTeam_'+teamKey+'_nm'),{
+      type:'bar',
+      data:{labels:pNames,datasets:[
+        {label:'NM MTD', data:stats.map(s=>s.nmMTD),  backgroundColor:stats.map(s=>s.nmAhead?color+'cc':'#fbb83a99'),borderRadius:3,barPercentage:0.4},
+        {label:'NM Tgt', data:stats.map(s=>s.nmTarget),backgroundColor:'rgba(255,255,255,.08)',borderRadius:3,barPercentage:0.4}
+      ]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.x.toFixed(1)}}},
+        scales:{x:{ticks:{color:tickCol,font:{size:10}},grid:{color:gridCol}},y:{ticks:{color:tickCol,font:{size:11}},grid:{display:false}}}}
+    });
+  },50);
+}
+
+// close modal on overlay click
+document.getElementById('monthModal').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
+
+// ─── INIT ──────────────────────────────────────────────────────────
+document.getElementById('navDate').textContent =
+  new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+
+function _applyDefaults(){
+  if(!APP.months)     APP.months = {};
+  if(!APP.activeMonth) APP.activeMonth = todayKey();
+  if(!APP.months[APP.activeMonth]) APP.months[APP.activeMonth]={entries:[]};
+  if(!APP.teams)      APP.teams = {g:[],james:[],damo:[]};
+  if(!APP.bizTargets) APP.bizTargets = {};
+  if(!APP.holidays)   APP.holidays = {};
+  if(!APP.sickness)   APP.sickness = {};
+  if(APP.manualElapsed == null) APP.manualElapsed = null;
+  if(!APP.people)     APP.people = [];
+}
+
+setSyncStatus('connecting');
+
+// Load once, then subscribe to real-time updates
+_dbRef.once('value').then(snap=>{
+  const data = snap.val();
+  if(data){ APP = data; }
+  _applyDefaults();
+  setSyncStatus('live');
+  populateAllSelects();
+  renderDashboard();
+
+  // Real-time listener — fires whenever any client saves
+  _dbRef.on('value', snap=>{
+    if(_ignoreNextSnapshot){ _ignoreNextSnapshot=false; return; }
+    const remote = snap.val();
+    if(!remote) return;
+    APP = remote;
+    _applyDefaults();
+    setSyncStatus('live');
+    // Re-render the currently active page, but skip if user has an input focused
+    if(document.activeElement && ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
+    const pg = document.querySelector('.page.active');
+    if(pg){
+      const id = pg.id.replace('page-','');
+      showPage(id);
+    }
+  });
+}).catch(e=>{
+  console.error('Firebase load failed:', e);
+  setSyncStatus('error');
+  _applyDefaults();
+  populateAllSelects();
+  renderDashboard();
+});
+</script>
+</body>
+</html>
