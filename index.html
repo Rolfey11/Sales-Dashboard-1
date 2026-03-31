@@ -1798,7 +1798,14 @@ function renderDbdTeamGrid(teamKey){
       const e = pLookup[ds];
       const isToday = ds===today;
       const borderStyle = isToday ? 'border-left:2px solid var(--accent);border-right:2px solid var(--accent);' : '';
-      if(!e || (e.revenue===0 && e.nm===0)){
+      const dayStatus = getDayStatus(mk, p.name, ds);
+      const isOff = dayStatus === 'hol' || dayStatus === 'sick';
+      if(isOff){
+        const badge = dayStatus==='hol'
+          ? `<span style="font-size:9px;font-weight:700;color:var(--red)">HOL</span>`
+          : `<span style="font-size:9px;font-weight:700;color:var(--amber)">SICK</span>`;
+        html += `<td class="dbd-td" style="${borderStyle}background:var(--surface3)">${badge}</td>`;
+      } else if(!e || (e.revenue===0 && e.nm===0)){
         const isFuture = ds > today;
         html += `<td class="dbd-td" style="${borderStyle}"><span class="dbd-empty">${isFuture?'·':'—'}</span></td>`;
       } else {
@@ -1942,7 +1949,7 @@ function renderPersonTracker(name){
       </tr></thead>
       <tbody>`;
 
-  let cumRev = 0, cumTgt = 0, cumNm = 0;
+  let cumRev = 0, cumTgt = 0, cumNm = 0, cumNmTgt = 0;
 
   wdDates.forEach(ds=>{
     const e       = lookup[ds]||{revenue:0,nm:0};
@@ -1951,19 +1958,22 @@ function renderPersonTracker(name){
     const holStatus = getDayStatus(mk, name, ds);
     const isHol   = holStatus==='hol';
     const isSick  = holStatus==='sick';
+    const isOff   = isHol || isSick;
 
-    // Only add to cumulative target if person was working (not on planned holiday)
-    if(!isHol) cumTgt += riskPerDay;
+    // Exclude BOTH holiday and sickness from cumulative targets
+    if(!isOff) cumTgt    += riskPerDay;
+    if(!isOff) cumNmTgt  += nmPerDay;
     cumRev += rev;
     cumNm  += nm;
 
-    const runRate = isHol ? 0 : riskPerDay;
-    const pct     = runRate>0 ? Math.round(rev/runRate*100) : (rev>0?100:0);
-    const pctCls  = pct>=100?'var(--green)':pct>=75?'var(--amber)':'var(--red)';
-    const mDiff   = cumRev - cumTgt;
-    const mDiffCls= mDiff>=0?'var(--green)':'var(--red)';
-    const isToday = ds===today;
-    const dayName = new Date(ds).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+    const runRate  = isOff ? 0 : riskPerDay;
+    const nmTgtDay = isOff ? 0 : nmPerDay;
+    const pct      = runRate>0 ? Math.round(rev/runRate*100) : (rev>0?100:0);
+    const pctCls   = pct>=100?'var(--green)':pct>=75?'var(--amber)':'var(--red)';
+    const mDiff    = cumRev - cumTgt;
+    const mDiffCls = mDiff>=0?'var(--green)':'var(--red)';
+    const isToday  = ds===today;
+    const dayName  = new Date(ds).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
 
     let rowNote = '';
     if(isHol)  rowNote = ' <span style="font-size:9px;color:var(--red);background:var(--red-bg);padding:2px 5px;border-radius:3px">HOL</span>';
@@ -1972,10 +1982,10 @@ function renderPersonTracker(name){
     html += `<tr class="itrk-tr${isToday?' today-row':''}">
       <td class="itrk-td" style="text-align:left;color:var(--text2)">${dayName}${rowNote}</td>
       <td class="itrk-td" style="color:${rev>0?'var(--green)':'var(--text3)'}">${rev>0?'£'+Math.round(rev).toLocaleString():'—'}</td>
-      <td class="itrk-td" style="color:var(--text3)">£${runRate.toLocaleString()}</td>
-      <td class="itrk-td" style="color:${pctCls};font-weight:600">${isHol?'—':pct+'%'}</td>
+      <td class="itrk-td" style="color:var(--text3)">${isOff?'—':'£'+runRate.toLocaleString()}</td>
+      <td class="itrk-td" style="color:${pctCls};font-weight:600">${isOff?'—':pct+'%'}</td>
       <td class="itrk-td" style="color:${nm>0?'var(--text)':'var(--text3)'}">${nm>0?nm:'—'}</td>
-      <td class="itrk-td" style="color:var(--text3)">${nmPerDay.toFixed(2)}</td>
+      <td class="itrk-td" style="color:var(--text3)">${isOff?'—':nmTgtDay.toFixed(2)}</td>
       <td class="itrk-td" style="color:${color};font-weight:600">£${Math.round(cumRev).toLocaleString()}</td>
       <td class="itrk-td" style="color:var(--text3)">£${Math.round(cumTgt).toLocaleString()}</td>
       <td class="itrk-td" style="color:${mDiffCls};font-weight:600">${mDiff>=0?'+':''}£${Math.round(Math.abs(mDiff)).toLocaleString()}</td>
