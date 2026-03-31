@@ -418,6 +418,7 @@ input:focus,select:focus{border-color:var(--accent);}
   <div style="display:flex;gap:16px;font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:12px;flex-wrap:wrap">
     <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;background:var(--red-bg);border:1px solid rgba(245,54,92,.4);display:inline-block"></span>Planned holiday — excluded from COP &amp; run rate</span>
     <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;background:rgba(251,184,58,0.15);border:1px solid rgba(251,184,58,.4);display:inline-block"></span>Sickness/unplanned — excluded from COP only</span>
+    <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;background:rgba(131,5,68,0.15);border:1px solid rgba(131,5,68,.4);display:inline-block"></span>UK Bank Holiday — excluded from all targets &amp; run rate</span>
     <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;background:var(--surface3);border:1px solid var(--border);display:inline-block"></span>Weekend — already excluded</span>
   </div>
 </div>
@@ -571,12 +572,42 @@ function setEntries(monthKey, entries){
 function personTarget(p){ return Math.round((p.riskPerDay||0) * (p.daysT||0)); }
 
 // ── CALENDAR: count Mon–Fri working days from 1st of month to today ─
-// This is the hidden tally — how many working days have elapsed so far
+// ═══════════════════════════════════════════════════════════════════
+// UK BANK HOLIDAYS (England & Wales)
+// Hardcoded fallback 2024–2027, supplemented by live gov.uk fetch
+// ═══════════════════════════════════════════════════════════════════
+const UK_BANK_HOLIDAYS = new Set([
+  // 2024
+  '2024-01-01','2024-03-29','2024-04-01','2024-05-06',
+  '2024-05-27','2024-08-26','2024-12-25','2024-12-26',
+  // 2025
+  '2025-01-01','2025-04-18','2025-04-21','2025-05-05',
+  '2025-05-26','2025-08-25','2025-12-25','2025-12-26',
+  // 2026
+  '2026-01-01','2026-04-03','2026-04-06','2026-05-04',
+  '2026-05-25','2026-08-31','2026-12-25','2026-12-28',
+  // 2027
+  '2027-01-01','2027-03-26','2027-03-29','2027-05-03',
+  '2027-05-31','2027-08-30','2027-12-27','2027-12-28'
+]);
+
+// Try to refresh from gov.uk API
+fetch('https://www.gov.uk/bank-holidays.json')
+  .then(r=>r.json())
+  .then(data=>{
+    const events = (data['england-and-wales']||{}).events||[];
+    events.forEach(e=>UK_BANK_HOLIDAYS.add(e.date));
+  })
+  .catch(()=>{}); // silently fall back to hardcoded set
+
+function isBankHoliday(ds){ return UK_BANK_HOLIDAYS.has(ds); }
+
+// ── Working dates (Mon-Fri, excluding bank holidays) ────────────────
 // in the active month as of today's date. Used for COP baseline.
 // calWorkDays(monthKey, personName):
 //   Count Mon-Fri days from 1st of month to TODAY (active month)
-//   or to end of month (past months), excluding holidays for that person.
-//   This is used directly in COP formulas.
+//   or to end of month (past months), excluding holidays, sickness
+//   and UK bank holidays for that person.
 function calWorkDays(mk, personName){
   if(APP.manualElapsed != null){
     const base = APP.manualElapsed;
@@ -591,7 +622,8 @@ function calWorkDays(mk, personName){
         const dow = cursor.getDay();
         if(dow !== 0 && dow !== 6){
           const ds = cursor.toISOString().slice(0,10);
-          if(allOff.includes(ds)) offInWindow++;
+          if(isBankHoliday(ds)) { /* bank holidays not in the base count */ }
+          else if(allOff.includes(ds)) offInWindow++;
           else counted++;
         }
         cursor.setDate(cursor.getDate()+1);
@@ -615,7 +647,7 @@ function calWorkDays(mk, personName){
     const dow = cursor.getDay();
     if(dow !== 0 && dow !== 6){
       const ds = cursor.toISOString().slice(0,10);
-      if(!allOff.includes(ds)) count++;
+      if(!allOff.includes(ds) && !isBankHoliday(ds)) count++;
     }
     cursor.setDate(cursor.getDate()+1);
   }
@@ -718,8 +750,9 @@ function getHols(mk, name){
 function getSick(mk, name){
   return (APP.sickness[mk] && APP.sickness[mk][name]) ? APP.sickness[mk][name] : [];
 }
-// Returns 'hol', 'sick', or null for a person/date
+// Returns 'bh', 'hol', 'sick', or null for a person/date
 function getDayStatus(mk, name, ds){
+  if(isBankHoliday(ds)) return 'bh';
   if(getHols(mk, name).includes(ds)) return 'hol';
   if(getSick(mk, name).includes(ds)) return 'sick';
   return null;
@@ -795,6 +828,8 @@ function renderHoliday(){
     dates.forEach(({ds, isWE}) => {
       if(isWE){
         html += '<td class="hol-td we"><span style="color:var(--text3);font-size:10px">—</span></td>';
+      } else if(isBankHoliday(ds)){
+        html += '<td class="hol-td" style="background:rgba(131,5,68,0.08)"><div class="hol-cell" style="background:rgba(131,5,68,0.15);color:#830544;cursor:default;font-size:8px;font-weight:700" title="UK Bank Holiday">BH</div></td>';
       } else {
         const status = getDayStatus(mk, p.name, ds);
         const cls = status==='hol' ? 'on-hol' : status==='sick' ? 'on-sick' : '';
@@ -943,7 +978,7 @@ function renderDashboard(){
     <div class="kpi-card"><div class="kpi-label">Working days elapsed</div>
       <div style="margin:4px 0 4px">
         <select onchange="setElapsedDays(this.value)" style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:5px 10px;font-size:18px;font-weight:700;font-family:var(--fm);color:var(--text);outline:none;cursor:pointer;">
-          ${Array.from({length:30},(_,i)=>i+1).map(n=>`<option value="${n}"${n===(APP.manualElapsed||calWorkDaysTeam(mk))?' selected':''}>${n}</option>`).join('')}
+          ${Array.from({length:31},(_,i)=>i).map(n=>`<option value="${n}"${n===(APP.manualElapsed!=null?APP.manualElapsed:calWorkDaysTeam(mk))?' selected':''}>${n}</option>`).join('')}
         </select>
       </div>
       <div class="kpi-sub">Select elapsed working days</div></div>
@@ -1340,7 +1375,8 @@ function showPage(id){
 // ELAPSED DAYS
 // ═══════════════════════════════════════════════════════════════════
 function setElapsedDays(val){
-  APP.manualElapsed = parseInt(val);
+  const n = parseInt(val);
+  APP.manualElapsed = isNaN(n) ? null : n;
   saveApp();
   renderDashboard();
 }
@@ -1367,18 +1403,22 @@ function saveBizTargets(){
 
 // Count how many active consultants are working on a given date (not on planned holiday — sickness does NOT reduce run rate)
 function peopleWorkingOnDate(mk, ds){
+  if(isBankHoliday(ds)) return 0;
   const active = APP.people.filter(p=>personTarget(p)>0);
   return active.filter(p=>!getHols(mk,p.name).includes(ds)).length;
 }
 
-// Get all working dates in a month (Mon-Fri)
+// Get all working dates in a month (Mon-Fri, excluding bank holidays)
 function workingDatesInMonth(mk){
   const [y,m] = mk.split('-').map(Number);
   const days=[];
   const cursor = new Date(y,m-1,1);
   while(cursor.getMonth()===m-1){
     const dow=cursor.getDay();
-    if(dow!==0&&dow!==6) days.push(cursor.toISOString().slice(0,10));
+    if(dow!==0&&dow!==6){
+      const ds=cursor.toISOString().slice(0,10);
+      if(!isBankHoliday(ds)) days.push(ds);
+    }
     cursor.setDate(cursor.getDate()+1);
   }
   return days;
@@ -1765,103 +1805,146 @@ function renderDbdTeamGrid(teamKey){
     lookup[e.name][e.date] = {revenue: e.revenue||0, nm: e.nm||0};
   });
 
-  // Header row
+  // ── TRANSPOSED: names across top, days down left ──────────────────
   let html = '<div class="dbd-wrap"><table class="dbd-table"><thead><tr>';
-  html += '<th class="dbd-th name-col">Consultant</th>';
-  allDays.forEach(({d, dayLtr, isWE, ds})=>{
-    const isToday = ds===today;
-    html += `<th class="dbd-th" style="${isWE?'color:var(--text3)':''}${isToday?';border-bottom:2px solid var(--accent)':''}">${d}<br><span style="font-size:9px">${dayLtr}</span></th>`;
+
+  // Top-left corner: "Date" header, sticky
+  html += '<th class="dbd-th name-col" style="min-width:90px;top:0">Date</th>';
+
+  // Name headers across the top — clickable
+  people.forEach(p=>{
+    html += `<th class="dbd-th" style="min-width:90px;cursor:pointer;white-space:nowrap" onclick="dbdOpenPerson('${p.name.replace(/'/g,"\\'")}')">
+      <span style="color:${color};margin-right:3px">▶</span>${p.name}
+    </th>`;
   });
-  html += '<th class="dbd-th" style="min-width:90px">MTD Rev</th>';
-  html += '<th class="dbd-th" style="min-width:70px">MTD NM</th>';
-  html += '<th class="dbd-th" style="min-width:70px">% Target</th>';
+
+  // Team total header
+  html += '<th class="dbd-th" style="min-width:90px">Team Total</th>';
   html += '</tr></thead><tbody>';
 
-  people.forEach(p=>{
-    const pLookup = lookup[p.name]||{};
-    let mtdRev=0, mtdNm=0;
-    allDays.forEach(({ds})=>{ if(pLookup[ds]){ mtdRev+=pLookup[ds].revenue; mtdNm+=pLookup[ds].nm; } });
-    const tgt   = personTarget(p);
-    const revPct= tgt>0 ? Math.round(mtdRev/tgt*100) : 0;
-    const pctCls= revPct>=100?'style="color:var(--green)"':revPct>=75?'style="color:var(--amber)"':'style="color:var(--red)"';
+  // One row per day
+  allDays.forEach(({ds, d, dow, isWE, dayLtr})=>{
+    const isToday = ds === today;
+    const isBH = isBankHoliday(ds);
+    const rowBg = isToday ? 'background:rgba(131,5,68,0.07);' : isWE ? 'background:var(--surface3);' : '';
+    const borderStyle = isToday ? 'border-top:2px solid var(--accent);border-bottom:2px solid var(--accent);' : '';
 
-    html += `<tr>`;
-    html += `<td class="dbd-td name-col" onclick="dbdOpenPerson('${p.name.replace(/'/g,"\\'")}')">
-      <span style="color:${color};margin-right:4px">▶</span>${p.name}
-    </td>`;
+    html += `<tr style="${rowBg}${borderStyle}">`;
 
-    allDays.forEach(({ds, isWE})=>{
+    // Date label cell
+    const dateLabel = new Date(ds).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+    if(isWE){
+      html += `<td class="dbd-td name-col" style="color:var(--text3);cursor:default;font-size:11px">${dateLabel}</td>`;
+    } else if(isBH){
+      html += `<td class="dbd-td name-col" style="cursor:default;font-size:11px">${dateLabel} <span style="font-size:8px;font-weight:700;color:#830544;background:rgba(131,5,68,0.12);padding:1px 4px;border-radius:3px">BH</span></td>`;
+    } else {
+      html += `<td class="dbd-td name-col" style="color:var(--text2);cursor:default;font-size:11px">${dateLabel}</td>`;
+    }
+
+    // One cell per person
+    let teamDayRev = 0, teamDayNm = 0;
+    people.forEach(p=>{
+      const pLookup = lookup[p.name]||{};
+      const e = pLookup[ds];
+      const hasEntry = e && (e.revenue > 0 || e.nm > 0);
+
       if(isWE){
         html += '<td class="dbd-td we">—</td>';
+        if(hasEntry){ teamDayRev += (e.revenue||0); teamDayNm += (e.nm||0); }
         return;
       }
-      const e = pLookup[ds];
-      const isToday = ds===today;
-      const borderStyle = isToday ? 'border-left:2px solid var(--accent);border-right:2px solid var(--accent);' : '';
+
       const dayStatus = getDayStatus(mk, p.name, ds);
-      const isOff = dayStatus === 'hol' || dayStatus === 'sick';
-      if(isOff){
+      const isOff = dayStatus === 'hol' || dayStatus === 'sick' || dayStatus === 'bh';
+
+      if(hasEntry){ teamDayRev += e.revenue||0; teamDayNm += e.nm||0; }
+
+      if(isOff && hasEntry){
+        // Show both badge AND entry value
         const badge = dayStatus==='hol'
-          ? `<span style="font-size:9px;font-weight:700;color:var(--red)">HOL</span>`
-          : `<span style="font-size:9px;font-weight:700;color:var(--amber)">SICK</span>`;
-        html += `<td class="dbd-td" style="${borderStyle}background:var(--surface3)">${badge}</td>`;
-      } else if(!e || (e.revenue===0 && e.nm===0)){
-        const isFuture = ds > today;
-        html += `<td class="dbd-td" style="${borderStyle}"><span class="dbd-empty">${isFuture?'·':'—'}</span></td>`;
-      } else {
+          ? `<span style="font-size:8px;font-weight:700;color:var(--red)">HOL</span>`
+          : dayStatus==='sick'
+          ? `<span style="font-size:8px;font-weight:700;color:var(--amber)">SICK</span>`
+          : `<span style="font-size:8px;font-weight:700;color:#830544">BH</span>`;
         const hitRR = e.revenue >= (p.riskPerDay||0);
-        const revCls = hitRR ? 'dbd-hit' : 'dbd-miss';
-        html += `<td class="dbd-td" style="${borderStyle}">
+        html += `<td class="dbd-td" style="background:var(--surface3)">
           <div class="dbd-cell">
-            <span class="dbd-rev ${revCls}">£${Math.round(e.revenue).toLocaleString()}</span>
+            ${badge}
+            <span class="dbd-rev ${hitRR?'dbd-hit':'dbd-miss'}">£${Math.round(e.revenue).toLocaleString()}</span>
             <span class="dbd-nm">${e.nm} NM</span>
           </div>
         </td>`;
+      } else if(isOff){
+        // Off, no entry
+        const badge = dayStatus==='hol'
+          ? `<span style="font-size:9px;font-weight:700;color:var(--red)">HOL</span>`
+          : dayStatus==='sick'
+          ? `<span style="font-size:9px;font-weight:700;color:var(--amber)">SICK</span>`
+          : `<span style="font-size:8px;font-weight:700;color:#830544">BH</span>`;
+        html += `<td class="dbd-td" style="background:var(--surface3)">${badge}</td>`;
+      } else if(hasEntry){
+        // Working day with entry
+        const hitRR = e.revenue >= (p.riskPerDay||0);
+        html += `<td class="dbd-td">
+          <div class="dbd-cell">
+            <span class="dbd-rev ${hitRR?'dbd-hit':'dbd-miss'}">£${Math.round(e.revenue).toLocaleString()}</span>
+            <span class="dbd-nm">${e.nm} NM</span>
+          </div>
+        </td>`;
+      } else {
+        // No entry
+        const isFuture = ds > today;
+        html += `<td class="dbd-td"><span class="dbd-empty">${isFuture?'·':'—'}</span></td>`;
       }
     });
 
-    html += `<td class="dbd-td total-col" style="color:var(--green)">£${Math.round(mtdRev).toLocaleString()}</td>`;
-    html += `<td class="dbd-td total-col">${mtdNm}</td>`;
-    html += `<td class="dbd-td total-col" ${pctCls}>${revPct}%</td>`;
-    html += '</tr>';
-  });
-
-  // Team totals row
-  let teamRevByDay = {};
-  let teamNmByDay  = {};
-  allDays.forEach(({ds})=>{ teamRevByDay[ds]=0; teamNmByDay[ds]=0; });
-  people.forEach(p=>{
-    const pL = lookup[p.name]||{};
-    allDays.forEach(({ds})=>{ if(pL[ds]){ teamRevByDay[ds]+=pL[ds].revenue; teamNmByDay[ds]+=pL[ds].nm; }});
-  });
-  const teamMtdRev = Object.values(teamRevByDay).reduce((s,v)=>s+v,0);
-  const teamMtdNm  = Object.values(teamNmByDay).reduce((s,v)=>s+v,0);
-  const teamTgt    = people.reduce((s,p)=>s+personTarget(p),0);
-  const teamPct    = teamTgt>0?Math.round(teamMtdRev/teamTgt*100):0;
-
-  html += `<tr style="background:var(--surface2)">`;
-  html += `<td class="dbd-td name-col" style="font-size:11px;color:var(--text3);font-weight:700;cursor:default">TEAM TOTAL</td>`;
-  allDays.forEach(({ds, isWE})=>{
-    if(isWE){ html += '<td class="dbd-td we" style="background:var(--surface2)">—</td>'; return; }
-    const rev = teamRevByDay[ds]||0;
-    const nm  = teamNmByDay[ds]||0;
-    const isToday = ds===today;
-    const bStyle = isToday?'border-left:2px solid var(--accent);border-right:2px solid var(--accent);':'';
-    if(!rev && !nm){
-      html += `<td class="dbd-td" style="background:var(--surface2);${bStyle}"><span class="dbd-empty">—</span></td>`;
+    // Team total cell for this day
+    if(isWE){
+      html += '<td class="dbd-td total-col we">—</td>';
+    } else if(teamDayRev===0 && teamDayNm===0){
+      html += `<td class="dbd-td total-col"><span class="dbd-empty">—</span></td>`;
     } else {
-      html += `<td class="dbd-td" style="background:var(--surface2);${bStyle}">
+      html += `<td class="dbd-td total-col">
         <div class="dbd-cell">
-          <span class="dbd-rev" style="color:${color}">£${Math.round(rev).toLocaleString()}</span>
-          <span class="dbd-nm">${nm} NM</span>
+          <span class="dbd-rev" style="color:${color}">£${Math.round(teamDayRev).toLocaleString()}</span>
+          <span class="dbd-nm">${teamDayNm} NM</span>
         </div>
       </td>`;
     }
+
+    html += '</tr>';
   });
+
+  // MTD totals row at the bottom
+  html += `<tr style="background:var(--surface2)">`;
+  html += `<td class="dbd-td name-col" style="font-size:11px;color:var(--text3);font-weight:700;cursor:default">MTD TOTAL</td>`;
+  let grandRev = 0, grandNm = 0;
+  people.forEach(p=>{
+    const pL = lookup[p.name]||{};
+    let mtdRev=0, mtdNm=0;
+    allDays.forEach(({ds})=>{ if(pL[ds]){ mtdRev+=pL[ds].revenue; mtdNm+=pL[ds].nm; } });
+    const tgt    = personTarget(p);
+    const revPct = tgt>0 ? Math.round(mtdRev/tgt*100) : 0;
+    const pctCol = revPct>=100?'var(--green)':revPct>=75?'var(--amber)':'var(--red)';
+    grandRev += mtdRev; grandNm += mtdNm;
+    html += `<td class="dbd-td total-col">
+      <div class="dbd-cell">
+        <span class="dbd-rev" style="color:var(--green)">£${Math.round(mtdRev).toLocaleString()}</span>
+        <span class="dbd-nm">${mtdNm} NM</span>
+        <span style="font-size:9px;color:${pctCol};font-weight:700">${revPct}%</span>
+      </div>
+    </td>`;
+  });
+  const teamTgt = people.reduce((s,p)=>s+personTarget(p),0);
+  const teamPct = teamTgt>0?Math.round(grandRev/teamTgt*100):0;
   const tPctCls = teamPct>=100?'var(--green)':teamPct>=75?'var(--amber)':'var(--red)';
-  html += `<td class="dbd-td total-col" style="color:${color}">£${Math.round(teamMtdRev).toLocaleString()}</td>`;
-  html += `<td class="dbd-td total-col">${teamMtdNm}</td>`;
-  html += `<td class="dbd-td total-col" style="color:${tPctCls}">${teamPct}%</td>`;
+  html += `<td class="dbd-td total-col">
+    <div class="dbd-cell">
+      <span class="dbd-rev" style="color:${color}">£${Math.round(grandRev).toLocaleString()}</span>
+      <span class="dbd-nm">${grandNm} NM</span>
+      <span style="font-size:9px;color:${tPctCls};font-weight:700">${teamPct}%</span>
+    </div>
+  </td>`;
   html += '</tr>';
 
   html += '</tbody></table></div>';
@@ -1958,9 +2041,10 @@ function renderPersonTracker(name){
     const holStatus = getDayStatus(mk, name, ds);
     const isHol   = holStatus==='hol';
     const isSick  = holStatus==='sick';
-    const isOff   = isHol || isSick;
+    const isBH    = holStatus==='bh';
+    const isOff   = isHol || isSick || isBH;
 
-    // Exclude BOTH holiday and sickness from cumulative targets
+    // Exclude holiday, sickness AND bank holidays from cumulative targets
     if(!isOff) cumTgt    += riskPerDay;
     if(!isOff) cumNmTgt  += nmPerDay;
     cumRev += rev;
@@ -1978,6 +2062,7 @@ function renderPersonTracker(name){
     let rowNote = '';
     if(isHol)  rowNote = ' <span style="font-size:9px;color:var(--red);background:var(--red-bg);padding:2px 5px;border-radius:3px">HOL</span>';
     if(isSick) rowNote = ' <span style="font-size:9px;color:var(--amber);background:var(--amber-bg);padding:2px 5px;border-radius:3px">SICK</span>';
+    if(isBH)   rowNote = ' <span style="font-size:9px;color:#830544;background:rgba(131,5,68,0.12);padding:2px 5px;border-radius:3px">BANK HOL</span>';
 
     html += `<tr class="itrk-tr${isToday?' today-row':''}">
       <td class="itrk-td" style="text-align:left;color:var(--text2)">${dayName}${rowNote}</td>
