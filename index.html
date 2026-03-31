@@ -196,7 +196,10 @@ input:focus,select:focus{border-color:var(--accent);}
 <div class="page active" id="page-dashboard">
   <div class="section-head">
     <div><div class="section-title">Team Overview</div><div class="section-sub" id="dash-sub"></div></div>
-    <button class="btn btn-s" onclick="showPage('entry')">+ Add today's numbers</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-s" onclick="exportDashboardCSV()">↓ Export CSV</button>
+      <button class="btn btn-s" onclick="showPage('entry')">+ Add today's numbers</button>
+    </div>
   </div>
   <div class="kpi-row" id="kpiRow"></div>
   <div class="cards-grid" id="cardsGrid"></div>
@@ -214,7 +217,10 @@ input:focus,select:focus{border-color:var(--accent);}
 <div class="page" id="page-biz">
   <div class="section-head">
     <div><div class="section-title">Business Target</div><div class="section-sub" id="biz-sub">Department-wide revenue & needs met targets</div></div>
-    <select id="bizMonth" onchange="renderBizTarget()" style="width:180px"></select>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-s" onclick="exportBizCSV()">↓ Export CSV</button>
+      <select id="bizMonth" onchange="renderBizTarget()" style="width:180px"></select>
+    </div>
   </div>
   <!-- Inputs -->
   <div class="biz-input-row">
@@ -263,7 +269,10 @@ input:focus,select:focus{border-color:var(--accent);}
 <div class="page" id="page-teams">
   <div class="section-head">
     <div><div class="section-title">Teams</div><div class="section-sub">Split team views within the department</div></div>
-    <select id="teamsMonth" onchange="renderTeams()" style="width:180px"></select>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-s" onclick="exportTeamsCSV()">↓ Export CSV</button>
+      <select id="teamsMonth" onchange="renderTeams()" style="width:180px"></select>
+    </div>
   </div>
   <div class="sub-nav">
     <button class="sub-tab active" onclick="switchTeamTab('g')">Team G</button>
@@ -313,7 +322,10 @@ input:focus,select:focus{border-color:var(--accent);}
 <div class="page" id="page-leaderboard">
   <div class="section-head">
     <div><div class="section-title">Leaderboard</div><div class="section-sub" id="lb-sub"></div></div>
-    <select id="lbMonth" onchange="renderLeaderboard()" style="width:180px"></select>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-s" onclick="exportLeaderboardCSV()">↓ Export CSV</button>
+      <select id="lbMonth" onchange="renderLeaderboard()" style="width:180px"></select>
+    </div>
   </div>
   <div class="lb-grid" id="lbGrid"></div>
 </div>
@@ -323,6 +335,7 @@ input:focus,select:focus{border-color:var(--accent);}
   <div class="section-head">
     <div><div class="section-title">History</div><div class="section-sub">All logged daily entries</div></div>
     <div style="display:flex;gap:8px">
+      <button class="btn btn-s" onclick="exportHistoryCSV()">↓ Export CSV</button>
       <select id="histMonth" onchange="renderHistory()" style="width:180px"></select>
       <select id="histPerson" onchange="renderHistory()" style="width:160px"></select>
     </div>
@@ -342,6 +355,7 @@ input:focus,select:focus{border-color:var(--accent);}
 <div class="page" id="page-holiday">
   <div class="section-head">
     <div><div class="section-title">Holiday Planner</div><div class="section-sub">Click once = planned holiday (excluded from COP & run rate). Click twice = sickness/unplanned (excluded from COP only, not from run rate). Click again to clear.</div></div>
+    <button class="btn btn-s" onclick="exportHolidayCSV()">↓ Export CSV</button>
   </div>
   <div style="display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap">
     <div style="display:flex;align-items:center;gap:8px">
@@ -1608,6 +1622,146 @@ function renderTeamDashboard(container, teamKey){
         scales:{x:{ticks:{color:tickCol,font:{size:10}},grid:{color:gridCol}},y:{ticks:{color:tickCol,font:{size:11}},grid:{display:false}}}}
     });
   },50);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CSV EXPORT HELPERS
+// ═══════════════════════════════════════════════════════════════════
+function downloadCSV(filename, rows){
+  const csv = rows.map(r => r.map(cell => {
+    const s = String(cell == null ? '' : cell);
+    return s.includes(',') || s.includes('"') || s.includes('\n') ? '"'+s.replace(/"/g,'""')+'"' : s;
+  }).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('CSV downloaded');
+}
+
+// Dashboard — one row per consultant, current active month
+function exportDashboardCSV(){
+  const mk    = APP.activeMonth;
+  const stats = calcStats(mk).filter(s=>s.target>0);
+  const rows  = [
+    ['Month', 'Consultant', 'Revenue MTD (£)', 'Target (£)', 'Rev %', 'NM MTD', 'NM Target', 'NM %', 'COP Revenue', 'COP NM', 'Risk Ahead', 'NM Ahead', 'Logged Days']
+  ];
+  stats.forEach(p => rows.push([
+    monthLabel(mk), p.name,
+    Math.round(p.revMTD), p.target, p.revPct+'%',
+    p.nmMTD, p.nmTarget.toFixed(2), p.nmPct+'%',
+    Math.round(p.copRev), p.copNm.toFixed(2),
+    p.riskAhead ? 'Yes' : 'No',
+    p.nmAhead   ? 'Yes' : 'No',
+    p.loggedDays
+  ]));
+  downloadCSV('dashboard_'+mk+'.csv', rows);
+}
+
+// Business Target — daily run rate rows for selected month
+function exportBizCSV(){
+  const mk  = document.getElementById('bizMonth').value || APP.activeMonth;
+  const cfg = getBizTargets(mk);
+  const rpp = cfg.ratePerPerson || 1200;
+  const entries = getEntries(mk);
+  const byDate  = {};
+  entries.forEach(e => { if(!byDate[e.date]) byDate[e.date]=0; byDate[e.date]+=(e.revenue||0); });
+  const wdDates = workingDatesInMonth(mk);
+  const today   = new Date().toISOString().slice(0,10);
+  const rows = [['Month','Date','People Working','Run Rate (£)','Actual Revenue (£)','Variance (£)','Rev Target','NM Target']];
+  let cumRev=0, cumRR=0;
+  wdDates.filter(d=>d<=today).forEach(ds => {
+    const pw  = peopleWorkingOnDate(mk, ds);
+    const rr  = pw * rpp;
+    const act = byDate[ds]||0;
+    cumRev += act; cumRR += rr;
+    rows.push([monthLabel(mk), ds, pw, rr, Math.round(act), Math.round(act-rr), cfg.revTarget||0, cfg.nmTarget||0]);
+  });
+  // summary row
+  rows.push([]);
+  rows.push(['TOTAL','','','',Math.round(cumRev),'','','']);
+  downloadCSV('business_target_'+mk+'.csv', rows);
+}
+
+// Teams — one row per consultant per team for selected month
+function exportTeamsCSV(){
+  const mk    = document.getElementById('teamsMonth').value || APP.activeMonth;
+  const teams = APP.teams || {g:[],james:[],damo:[]};
+  const rows  = [['Month','Team','Consultant','Revenue MTD (£)','Target (£)','Rev %','NM MTD','NM Target','Risk Ahead','NM Ahead']];
+  const teamDefs = [
+    {key:'g',    label:'Team G'},
+    {key:'james',label:'Team James'},
+    {key:'damo', label:'Team Damo'}
+  ];
+  teamDefs.forEach(({key, label}) => {
+    const members = (teams[key]||[]);
+    const stats   = calcStats(mk).filter(s=>members.includes(s.name));
+    stats.forEach(p => rows.push([
+      monthLabel(mk), label, p.name,
+      Math.round(p.revMTD), p.target, p.revPct+'%',
+      p.nmMTD, p.nmTarget.toFixed(2),
+      p.riskAhead?'Yes':'No', p.nmAhead?'Yes':'No'
+    ]));
+  });
+  downloadCSV('teams_'+mk+'.csv', rows);
+}
+
+// Leaderboard — all consultants ranked by revenue for selected month
+function exportLeaderboardCSV(){
+  const mk    = document.getElementById('lbMonth').value || APP.activeMonth;
+  const stats = calcStats(mk).filter(s=>s.target>0).sort((a,b)=>b.revMTD-a.revMTD);
+  const rows  = [['Month','Rev Rank','Consultant','Revenue MTD (£)','Target (£)','Rev %','NM MTD','NM Target','NM %','Risk Ahead','NM Ahead']];
+  stats.forEach((p,i) => rows.push([
+    monthLabel(mk), i+1, p.name,
+    Math.round(p.revMTD), p.target, p.revPct+'%',
+    p.nmMTD, p.nmTarget.toFixed(2), p.nmPct+'%',
+    p.riskAhead?'Yes':'No', p.nmAhead?'Yes':'No'
+  ]));
+  downloadCSV('leaderboard_'+mk+'.csv', rows);
+}
+
+// History — all raw entries for selected month & person filter
+function exportHistoryCSV(){
+  const mk     = document.getElementById('histMonth').value || APP.activeMonth;
+  const person = document.getElementById('histPerson').value;
+  const all    = getEntries(mk);
+  let rows_data = [...all].sort((a,b)=>a.date.localeCompare(b.date)||a.name.localeCompare(b.name));
+  if(person && person!=='all') rows_data = rows_data.filter(e=>e.name===person);
+  const rows = [['Month','Date','Consultant','Revenue (£)','Needs Met','MTD Revenue (£)','MTD NM','% of Target']];
+  rows_data.forEach(e => {
+    const p      = APP.people.find(x=>x.name===e.name)||{riskPerDay:0,daysT:0};
+    const target = personTarget(p);
+    const mtdRev = all.filter(x=>x.name===e.name&&x.date<=e.date).reduce((s,x)=>s+(x.revenue||0),0);
+    const mtdNm  = all.filter(x=>x.name===e.name&&x.date<=e.date).reduce((s,x)=>s+(x.nm||0),0);
+    const pct    = target>0?Math.round(mtdRev/target*100):0;
+    rows.push([monthLabel(mk), e.date, e.name, e.revenue||0, e.nm||0, Math.round(mtdRev), mtdNm, pct+'%']);
+  });
+  const suffix = person && person!=='all' ? '_'+person : '_all';
+  downloadCSV('history_'+mk+suffix+'.csv', rows);
+}
+
+// Holiday — one row per consultant per day off for selected month
+function exportHolidayCSV(){
+  const mk     = document.getElementById('holMonth').value || APP.activeMonth;
+  const people = APP.people.filter(p=>personTarget(p)>0);
+  const rows   = [['Month','Consultant','Date','Type','Day of Week']];
+  people.forEach(p => {
+    const hols = getHols(mk, p.name);
+    const sick = getSick(mk, p.name);
+    hols.forEach(ds => {
+      const dow = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date(ds).getDay()];
+      rows.push([monthLabel(mk), p.name, ds, 'Planned Holiday', dow]);
+    });
+    sick.forEach(ds => {
+      const dow = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date(ds).getDay()];
+      rows.push([monthLabel(mk), p.name, ds, 'Sickness/Unplanned', dow]);
+    });
+  });
+  if(rows.length===1){ showToast('No holiday data to export','err'); return; }
+  rows.sort((a,b)=> a[2]<b[2]?-1:1);
+  downloadCSV('holiday_'+mk+'.csv', rows);
 }
 
 // close modal on overlay click
