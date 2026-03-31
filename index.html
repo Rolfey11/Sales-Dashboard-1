@@ -207,7 +207,11 @@ input:focus,select:focus{border-color:var(--accent);}
     <button class="nav-tab" onclick="showPage('holiday')">Holiday</button>
     <button class="nav-tab" onclick="showPage('settings')">Settings</button>
   </div>
-  <div style="display:flex;align-items:center;gap:16px">
+  <div style="display:flex;align-items:center;gap:14px">
+    <div style="display:flex;align-items:center;gap:7px">
+      <span style="font-size:10px;font-weight:600;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">Month</span>
+      <select id="globalMonthSel" onchange="setGlobalMonth()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:5px 10px;font-size:12px;font-family:var(--fm);color:var(--text);outline:none;cursor:pointer;min-width:140px;"></select>
+    </div>
     <div id="syncStatus" style="display:flex;align-items:center;gap:6px;font-family:var(--fm);font-size:11px;color:var(--text3)">
       <span id="syncDot" style="width:7px;height:7px;border-radius:50%;background:var(--text3);display:inline-block;transition:background .3s"></span>
       <span id="syncLabel">connecting…</span>
@@ -1225,7 +1229,22 @@ function addPerson(){
 function setActiveMonth(){
   APP.activeMonth = document.getElementById('activeMonthSel').value;
   saveApp();
+  populateAllSelects();
   showToast('Active month → '+monthLabel(APP.activeMonth));
+}
+
+function setGlobalMonth(){
+  const val = document.getElementById('globalMonthSel').value;
+  if(!val) return;
+  APP.activeMonth = val;
+  saveApp();
+  // sync the settings selector too
+  const s = document.getElementById('activeMonthSel');
+  if(s) s.value = val;
+  // re-render current page
+  const pg = document.querySelector('.page.active');
+  if(pg){ showPage(pg.id.replace('page-','')); }
+  showToast('Month → '+monthLabel(val));
 }
 
 // ── month modal ────────────────────────────────────────────────────
@@ -1276,6 +1295,12 @@ function populateAllSelects(){
     el.innerHTML = months.map(mk=>`<option value="${mk}"${mk===cur?' selected':''}>${monthLabel(mk)}</option>`).join('');
     if(!months.includes(el.value)) el.value = APP.activeMonth;
   });
+
+  // Global nav selector always tracks APP.activeMonth
+  const gsel = document.getElementById('globalMonthSel');
+  if(gsel){
+    gsel.innerHTML = months.map(mk=>`<option value="${mk}"${mk===APP.activeMonth?' selected':''}>${monthLabel(mk)}</option>`).join('');
+  }
 
   const hp = document.getElementById('histPerson');
   if(hp){
