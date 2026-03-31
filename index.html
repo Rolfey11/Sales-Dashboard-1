@@ -169,25 +169,30 @@ input:focus,select:focus{border-color:var(--accent);}
 @media(max-width:900px){.cards-grid{grid-template-columns:repeat(3,1fr);}.charts-row{grid-template-columns:1fr;}.entry-layout{grid-template-columns:1fr;}.lb-grid{grid-template-columns:1fr;}.biz-grid{grid-template-columns:repeat(2,1fr);}.biz-input-row{grid-template-columns:1fr;}}
 /* DAY BY DAY GRID */
 .dbd-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border);margin-bottom:24px;}
-.dbd-table{border-collapse:collapse;font-family:var(--fm);font-size:13px;white-space:nowrap;min-width:100%;}
-.dbd-th{background:var(--surface2);color:var(--text3);font-weight:600;padding:11px 14px;border:1px solid var(--border);text-align:center;font-size:12px;letter-spacing:.04em;}
-.dbd-th.name-col{text-align:left;min-width:140px;position:sticky;left:0;z-index:2;background:var(--surface2);}
-.dbd-td{padding:8px 10px;border:1px solid var(--border);text-align:center;background:var(--surface);vertical-align:middle;}
-.dbd-td.name-col{text-align:left;font-weight:600;font-size:13px;color:var(--text);background:var(--surface);padding:9px 14px;position:sticky;left:0;z-index:1;cursor:pointer;transition:background .15s;}
+.dbd-table{border-collapse:collapse;font-family:var(--fm);font-size:14px;white-space:nowrap;min-width:100%;}
+.dbd-th{background:var(--surface2);color:var(--text3);font-weight:600;padding:13px 16px;border:1px solid var(--border);text-align:center;font-size:13px;letter-spacing:.04em;}
+.dbd-th.name-col{text-align:left;min-width:150px;position:sticky;left:0;z-index:2;background:var(--surface2);}
+.dbd-td{padding:10px 12px;border:1px solid var(--border);text-align:center;background:var(--surface);vertical-align:middle;min-width:80px;}
+.dbd-td.name-col{text-align:left;font-weight:600;font-size:14px;color:var(--text);background:var(--surface);padding:10px 16px;position:sticky;left:0;z-index:1;cursor:pointer;transition:background .15s;}
 .dbd-td.name-col:hover{background:var(--surface3);color:var(--accent);}
-.dbd-td.we{background:var(--surface3);}
+/* Full-cell fills */
+.dbd-td.we{background:#1e2330;color:#4a5060;font-size:12px;font-weight:600;}
+.dbd-td.cell-hol{background:rgba(245,54,92,0.18);border-color:rgba(245,54,92,0.3);}
+.dbd-td.cell-sick{background:rgba(251,184,58,0.18);border-color:rgba(251,184,58,0.3);}
+.dbd-td.cell-bh{background:rgba(131,5,68,0.18);border-color:rgba(131,5,68,0.3);}
 .dbd-td.total-col{background:var(--surface2);font-weight:700;}
-.dbd-cell{display:flex;flex-direction:column;align-items:center;gap:2px;}
-.dbd-rev{font-size:13px;font-weight:700;}
-.dbd-nm{font-size:11px;color:var(--text3);}
+.dbd-cell{display:flex;flex-direction:column;align-items:center;gap:3px;}
+.dbd-status-label{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;}
+.dbd-rev{font-size:14px;font-weight:700;}
+.dbd-nm{font-size:12px;color:var(--text3);}
 .dbd-hit{color:var(--green);}
 .dbd-miss{color:var(--red);}
-.dbd-empty{color:var(--text3);font-size:12px;}
+.dbd-empty{color:var(--text3);font-size:13px;}
 /* Individual tracker */
-.itrk-table{width:100%;border-collapse:collapse;font-family:var(--fm);font-size:13px;}
-.itrk-th{background:var(--surface2);color:var(--text3);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:12px 16px;border:1px solid var(--border);text-align:right;}
+.itrk-table{width:100%;border-collapse:collapse;font-family:var(--fm);font-size:14px;}
+.itrk-th{background:var(--surface2);color:var(--text3);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:13px 18px;border:1px solid var(--border);text-align:right;}
 .itrk-th:first-child{text-align:left;}
-.itrk-td{padding:11px 16px;border:1px solid var(--border);text-align:right;background:var(--surface);font-size:13px;}
+.itrk-td{padding:13px 18px;border:1px solid var(--border);text-align:right;background:var(--surface);font-size:14px;}
 .itrk-td:first-child{text-align:left;font-weight:600;}
 .itrk-tr:hover .itrk-td{background:var(--surface2);}
 .itrk-tr.today-row .itrk-td{border-left:2px solid var(--accent);}
@@ -1826,7 +1831,7 @@ function renderDbdTeamGrid(teamKey){
   allDays.forEach(({ds, d, dow, isWE, dayLtr})=>{
     const isToday = ds === today;
     const isBH = isBankHoliday(ds);
-    const rowBg = isToday ? 'background:rgba(131,5,68,0.07);' : isWE ? 'background:var(--surface3);' : '';
+    const rowBg = isToday ? 'background:rgba(131,5,68,0.07);' : '';
     const borderStyle = isToday ? 'border-top:2px solid var(--accent);border-bottom:2px solid var(--accent);' : '';
 
     html += `<tr style="${rowBg}${borderStyle}">`;
@@ -1834,11 +1839,11 @@ function renderDbdTeamGrid(teamKey){
     // Date label cell
     const dateLabel = new Date(ds).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
     if(isWE){
-      html += `<td class="dbd-td name-col" style="color:var(--text3);cursor:default;font-size:13px">${dateLabel}</td>`;
+      html += `<td class="dbd-td name-col" style="color:var(--text3);cursor:default;font-size:14px;background:#1e2330">${dateLabel}</td>`;
     } else if(isBH){
-      html += `<td class="dbd-td name-col" style="cursor:default;font-size:13px">${dateLabel} <span style="font-size:8px;font-weight:700;color:#830544;background:rgba(131,5,68,0.12);padding:1px 4px;border-radius:3px">BH</span></td>`;
+      html += `<td class="dbd-td name-col cell-bh" style="cursor:default;font-size:14px">${dateLabel} <span style="font-size:11px;font-weight:800;color:#830544;letter-spacing:.04em">· BH</span></td>`;
     } else {
-      html += `<td class="dbd-td name-col" style="color:var(--text2);cursor:default;font-size:13px">${dateLabel}</td>`;
+      html += `<td class="dbd-td name-col" style="color:var(--text2);cursor:default;font-size:14px">${dateLabel}</td>`;
     }
 
     // One cell per person
@@ -1856,34 +1861,28 @@ function renderDbdTeamGrid(teamKey){
 
       const dayStatus = getDayStatus(mk, p.name, ds);
       const isOff = dayStatus === 'hol' || dayStatus === 'sick' || dayStatus === 'bh';
+      const cellCls = dayStatus==='hol' ? 'cell-hol' : dayStatus==='sick' ? 'cell-sick' : dayStatus==='bh' ? 'cell-bh' : '';
+      const statusLabel = dayStatus==='hol' ? 'HOL' : dayStatus==='sick' ? 'SICK' : dayStatus==='bh' ? 'BH' : '';
+      const statusCol = dayStatus==='hol' ? 'var(--red)' : dayStatus==='sick' ? 'var(--amber)' : '#830544';
 
       if(hasEntry){ teamDayRev += e.revenue||0; teamDayNm += e.nm||0; }
 
       if(isOff && hasEntry){
-        // Show both badge AND entry value
-        const badge = dayStatus==='hol'
-          ? `<span style="font-size:8px;font-weight:700;color:var(--red)">HOL</span>`
-          : dayStatus==='sick'
-          ? `<span style="font-size:8px;font-weight:700;color:var(--amber)">SICK</span>`
-          : `<span style="font-size:8px;font-weight:700;color:#830544">BH</span>`;
+        // Full-cell colour + both status label and entry
         const hitRR = e.revenue >= (p.riskPerDay||0);
-        html += `<td class="dbd-td" style="background:var(--surface3)">
+        html += `<td class="dbd-td ${cellCls}">
           <div class="dbd-cell">
-            ${badge}
+            <span class="dbd-status-label" style="color:${statusCol}">${statusLabel}</span>
             <span class="dbd-rev ${hitRR?'dbd-hit':'dbd-miss'}">£${Math.round(e.revenue).toLocaleString()}</span>
             <span class="dbd-nm">${e.nm} NM</span>
           </div>
         </td>`;
       } else if(isOff){
-        // Off, no entry
-        const badge = dayStatus==='hol'
-          ? `<span style="font-size:9px;font-weight:700;color:var(--red)">HOL</span>`
-          : dayStatus==='sick'
-          ? `<span style="font-size:9px;font-weight:700;color:var(--amber)">SICK</span>`
-          : `<span style="font-size:8px;font-weight:700;color:#830544">BH</span>`;
-        html += `<td class="dbd-td" style="background:var(--surface3)">${badge}</td>`;
+        // Full-cell colour, status label only
+        html += `<td class="dbd-td ${cellCls}">
+          <span class="dbd-status-label" style="color:${statusCol}">${statusLabel}</span>
+        </td>`;
       } else if(hasEntry){
-        // Working day with entry
         const hitRR = e.revenue >= (p.riskPerDay||0);
         html += `<td class="dbd-td">
           <div class="dbd-cell">
@@ -1892,7 +1891,6 @@ function renderDbdTeamGrid(teamKey){
           </div>
         </td>`;
       } else {
-        // No entry
         const isFuture = ds > today;
         html += `<td class="dbd-td"><span class="dbd-empty">${isFuture?'·':'—'}</span></td>`;
       }
@@ -2060,11 +2058,12 @@ function renderPersonTracker(name){
     const dayName  = new Date(ds).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
 
     let rowNote = '';
-    if(isHol)  rowNote = ' <span style="font-size:9px;color:var(--red);background:var(--red-bg);padding:2px 5px;border-radius:3px">HOL</span>';
-    if(isSick) rowNote = ' <span style="font-size:9px;color:var(--amber);background:var(--amber-bg);padding:2px 5px;border-radius:3px">SICK</span>';
-    if(isBH)   rowNote = ' <span style="font-size:9px;color:#830544;background:rgba(131,5,68,0.12);padding:2px 5px;border-radius:3px">BANK HOL</span>';
+    if(isHol)  rowNote = ' <span style="font-size:12px;font-weight:800;color:var(--red);background:var(--red-bg);padding:3px 7px;border-radius:4px;letter-spacing:.04em">HOL</span>';
+    if(isSick) rowNote = ' <span style="font-size:12px;font-weight:800;color:var(--amber);background:var(--amber-bg);padding:3px 7px;border-radius:4px;letter-spacing:.04em">SICK</span>';
+    if(isBH)   rowNote = ' <span style="font-size:12px;font-weight:800;color:#830544;background:rgba(131,5,68,0.12);padding:3px 7px;border-radius:4px;letter-spacing:.04em">BANK HOL</span>';
 
-    html += `<tr class="itrk-tr${isToday?' today-row':''}">
+    const rowOffBg = isHol ? 'background:rgba(245,54,92,0.08);' : isSick ? 'background:rgba(251,184,58,0.08);' : isBH ? 'background:rgba(131,5,68,0.08);' : '';
+    html += `<tr class="itrk-tr${isToday?' today-row':''}" style="${rowOffBg}">
       <td class="itrk-td" style="text-align:left;color:var(--text2)">${dayName}${rowNote}</td>
       <td class="itrk-td" style="color:${rev>0?'var(--green)':'var(--text3)'}">${rev>0?'£'+Math.round(rev).toLocaleString():'—'}</td>
       <td class="itrk-td" style="color:var(--text3)">${isOff?'—':'£'+runRate.toLocaleString()}</td>
