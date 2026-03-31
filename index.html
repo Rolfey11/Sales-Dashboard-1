@@ -24,7 +24,7 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:var(--fh);min-height:100vh;overflow-x:hidden;}
 /* NAV */
-nav{position:sticky;top:0;z-index:100;background:rgba(13,14,17,0.94);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;}
+nav{position:sticky;top:0;z-index:100;background:rgba(13,14,17,0.94);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;gap:16px;overflow-x:auto;}
 .nav-brand{font-size:15px;font-weight:700;letter-spacing:.05em;}.nav-brand span{color:var(--accent);}
 .nav-tabs{display:flex;gap:4px;}
 .nav-tab{background:none;border:none;color:var(--text2);font-family:var(--fh);font-size:13px;font-weight:500;padding:6px 14px;border-radius:6px;cursor:pointer;transition:all .15s;}
@@ -195,23 +195,25 @@ input:focus,select:focus{border-color:var(--accent);}
 <body>
 
 <nav>
-  <div class="nav-brand">PERF<span>.</span>DASH</div>
-  <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showPage('dashboard')">Dashboard</button>
-    <button class="nav-tab" onclick="showPage('biz')">Business Target</button>
-    <button class="nav-tab" onclick="showPage('teams')">Teams</button>
-    <button class="nav-tab" onclick="showPage('entry')">Daily Entry</button>
-    <button class="nav-tab" onclick="showPage('leaderboard')">Leaderboard</button>
-    <button class="nav-tab" onclick="showPage('history')">History</button>
-    <button class="nav-tab" onclick="showPage('daybyday')">Day by Day</button>
-    <button class="nav-tab" onclick="showPage('holiday')">Holiday</button>
-    <button class="nav-tab" onclick="showPage('settings')">Settings</button>
-  </div>
-  <div style="display:flex;align-items:center;gap:14px">
-    <div style="display:flex;align-items:center;gap:7px">
+  <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0">
+    <div class="nav-brand">PERF<span>.</span>DASH</div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="showPage('dashboard')">Dashboard</button>
+      <button class="nav-tab" onclick="showPage('biz')">Business Target</button>
+      <button class="nav-tab" onclick="showPage('teams')">Teams</button>
+      <button class="nav-tab" onclick="showPage('entry')">Daily Entry</button>
+      <button class="nav-tab" onclick="showPage('leaderboard')">Leaderboard</button>
+      <button class="nav-tab" onclick="showPage('history')">History</button>
+      <button class="nav-tab" onclick="showPage('daybyday')">Day by Day</button>
+      <button class="nav-tab" onclick="showPage('holiday')">Holiday</button>
+      <button class="nav-tab" onclick="showPage('settings')">Settings</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
       <span style="font-size:10px;font-weight:600;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">Month</span>
       <select id="globalMonthSel" onchange="setGlobalMonth()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:5px 10px;font-size:12px;font-family:var(--fm);color:var(--text);outline:none;cursor:pointer;min-width:140px;"></select>
     </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px;flex-shrink:0">
     <div id="syncStatus" style="display:flex;align-items:center;gap:6px;font-family:var(--fm);font-size:11px;color:var(--text3)">
       <span id="syncDot" style="width:7px;height:7px;border-radius:50%;background:var(--text3);display:inline-block;transition:background .3s"></span>
       <span id="syncLabel">connecting…</span>
