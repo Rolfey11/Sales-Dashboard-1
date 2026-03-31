@@ -167,8 +167,31 @@ input:focus,select:focus{border-color:var(--accent);}
 .rr-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;grid-column:1/-1;}
 @media(max-width:1200px){.cards-grid{grid-template-columns:repeat(4,1fr);}.kpi-row{grid-template-columns:repeat(3,1fr);}}
 @media(max-width:900px){.cards-grid{grid-template-columns:repeat(3,1fr);}.charts-row{grid-template-columns:1fr;}.entry-layout{grid-template-columns:1fr;}.lb-grid{grid-template-columns:1fr;}.biz-grid{grid-template-columns:repeat(2,1fr);}.biz-input-row{grid-template-columns:1fr;}}
+/* DAY BY DAY GRID */
+.dbd-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border);margin-bottom:24px;}
+.dbd-table{border-collapse:collapse;font-family:var(--fm);font-size:11px;white-space:nowrap;min-width:100%;}
+.dbd-th{background:var(--surface2);color:var(--text3);font-weight:600;padding:8px 10px;border:1px solid var(--border);text-align:center;font-size:10px;letter-spacing:.04em;}
+.dbd-th.name-col{text-align:left;min-width:120px;position:sticky;left:0;z-index:2;background:var(--surface2);}
+.dbd-td{padding:5px 8px;border:1px solid var(--border);text-align:center;background:var(--surface);vertical-align:middle;}
+.dbd-td.name-col{text-align:left;font-weight:600;font-size:12px;color:var(--text);background:var(--surface);padding:6px 12px;position:sticky;left:0;z-index:1;cursor:pointer;transition:background .15s;}
+.dbd-td.name-col:hover{background:var(--surface3);color:var(--accent);}
+.dbd-td.we{background:var(--surface3);}
+.dbd-td.total-col{background:var(--surface2);font-weight:700;}
+.dbd-cell{display:flex;flex-direction:column;align-items:center;gap:1px;}
+.dbd-rev{font-size:11px;font-weight:600;}
+.dbd-nm{font-size:9px;color:var(--text3);}
+.dbd-hit{color:var(--green);}
+.dbd-miss{color:var(--red);}
+.dbd-empty{color:var(--text3);font-size:10px;}
+/* Individual tracker */
+.itrk-table{width:100%;border-collapse:collapse;font-family:var(--fm);font-size:12px;}
+.itrk-th{background:var(--surface2);color:var(--text3);font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:10px 14px;border:1px solid var(--border);text-align:right;}
+.itrk-th:first-child{text-align:left;}
+.itrk-td{padding:9px 14px;border:1px solid var(--border);text-align:right;background:var(--surface);}
+.itrk-td:first-child{text-align:left;font-weight:600;}
+.itrk-tr:hover .itrk-td{background:var(--surface2);}
+.itrk-tr.today-row .itrk-td{border-left:2px solid var(--accent);}
 </style>
-</head>
 <body>
 
 <nav>
@@ -180,6 +203,7 @@ input:focus,select:focus{border-color:var(--accent);}
     <button class="nav-tab" onclick="showPage('entry')">Daily Entry</button>
     <button class="nav-tab" onclick="showPage('leaderboard')">Leaderboard</button>
     <button class="nav-tab" onclick="showPage('history')">History</button>
+    <button class="nav-tab" onclick="showPage('daybyday')">Day by Day</button>
     <button class="nav-tab" onclick="showPage('holiday')">Holiday</button>
     <button class="nav-tab" onclick="showPage('settings')">Settings</button>
   </div>
@@ -350,6 +374,24 @@ input:focus,select:focus{border-color:var(--accent);}
   </div>
 </div>
 
+
+<!-- DAY BY DAY -->
+<div class="page" id="page-daybyday">
+  <div class="section-head">
+    <div><div class="section-title">Day by Day</div><div class="section-sub" id="dbd-sub">Daily entries grid per team</div></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-s" id="dbdBackBtn" onclick="dbdBackToGrid()" style="display:none">← Back to team</button>
+      <button class="btn btn-s" onclick="exportDbdCSV()">↓ Export CSV</button>
+      <select id="dbdMonth" onchange="renderDayByDay()" style="width:180px"></select>
+    </div>
+  </div>
+  <div class="sub-nav" id="dbdSubNav">
+    <button class="sub-tab active" onclick="switchDbdTab('g')">Team G</button>
+    <button class="sub-tab" onclick="switchDbdTab('james')">Team James</button>
+    <button class="sub-tab" onclick="switchDbdTab('damo')">Team Damo</button>
+  </div>
+  <div id="dbdContent"></div>
+</div>
 
 <!-- HOLIDAY -->
 <div class="page" id="page-holiday">
@@ -1227,7 +1269,7 @@ function clearAllData(){
 function populateAllSelects(){
   const months = allMonthKeys();
 
-  ['entryMonth','lbMonth','histMonth','activeMonthSel','holMonth','bizMonth','teamsMonth'].forEach(id=>{
+  ['entryMonth','lbMonth','histMonth','activeMonthSel','holMonth','bizMonth','teamsMonth','dbdMonth'].forEach(id=>{
     const el = document.getElementById(id);
     if(!el) return;
     const cur = el.value || APP.activeMonth;
@@ -1262,6 +1304,7 @@ function showPage(id){
   if(id==='entry')       renderEntryPage();
   if(id==='leaderboard'){ populateAllSelects(); renderLeaderboard(); }
   if(id==='history')    { populateAllSelects(); renderHistory(); }
+  if(id==='daybyday')  { populateAllSelects(); renderDayByDay(); }
   if(id==='holiday')    { populateAllSelects(); renderHoliday(); }
   if(id==='settings')    renderSettings();
 }
@@ -1622,6 +1665,351 @@ function renderTeamDashboard(container, teamKey){
         scales:{x:{ticks:{color:tickCol,font:{size:10}},grid:{color:gridCol}},y:{ticks:{color:tickCol,font:{size:11}},grid:{display:false}}}}
     });
   },50);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DAY BY DAY
+// ═══════════════════════════════════════════════════════════════════
+let _dbdTeam = 'g';
+let _dbdPerson = null; // null = team grid view, string = individual view
+
+function switchDbdTab(team){
+  _dbdTeam = team;
+  _dbdPerson = null;
+  document.querySelectorAll('#dbdSubNav .sub-tab').forEach(b=>{
+    b.classList.toggle('active', b.textContent.trim() === (TEAM_LABELS[team]||team));
+  });
+  document.getElementById('dbdBackBtn').style.display = 'none';
+  renderDbdContent();
+}
+
+function dbdBackToGrid(){
+  _dbdPerson = null;
+  document.getElementById('dbdBackBtn').style.display = 'none';
+  renderDbdContent();
+}
+
+function renderDayByDay(){
+  populateAllSelects();
+  renderDbdContent();
+}
+
+function renderDbdContent(){
+  if(_dbdPerson){
+    renderPersonTracker(_dbdPerson);
+  } else {
+    renderDbdTeamGrid(_dbdTeam);
+  }
+}
+
+// ── Team grid ───────────────────────────────────────────────────────
+function renderDbdTeamGrid(teamKey){
+  const mk      = document.getElementById('dbdMonth').value || APP.activeMonth;
+  const members = (APP.teams||{})[teamKey] || [];
+  const entries = getEntries(mk);
+  const today   = new Date().toISOString().slice(0,10);
+  const label   = TEAM_LABELS[teamKey] || teamKey;
+  const color   = TEAM_COLORS[teamKey] || 'var(--accent)';
+
+  document.getElementById('dbd-sub').textContent = label + ' · ' + monthLabel(mk);
+  document.getElementById('dbdBackBtn').style.display = 'none';
+
+  const [y,m] = mk.split('-').map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const allDays = [];
+  for(let d=1; d<=daysInMonth; d++){
+    const ds = y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const dow = new Date(y,m-1,d).getDay();
+    allDays.push({ ds, d, dow, isWE: dow===0||dow===6, dayLtr:['S','M','T','W','T','F','S'][dow] });
+  }
+
+  const people = APP.people.filter(p => members.includes(p.name) && personTarget(p)>0);
+
+  if(!people.length){
+    document.getElementById('dbdContent').innerHTML =
+      '<div class="empty"><div class="empty-icon">👥</div><div>No members assigned to '+label+'. Go to Teams → Assign Members.</div></div>';
+    return;
+  }
+
+  // Build lookup: entries[name][date] = {revenue, nm}
+  const lookup = {};
+  entries.forEach(e=>{
+    if(!lookup[e.name]) lookup[e.name]={};
+    lookup[e.name][e.date] = {revenue: e.revenue||0, nm: e.nm||0};
+  });
+
+  // Header row
+  let html = '<div class="dbd-wrap"><table class="dbd-table"><thead><tr>';
+  html += '<th class="dbd-th name-col">Consultant</th>';
+  allDays.forEach(({d, dayLtr, isWE, ds})=>{
+    const isToday = ds===today;
+    html += `<th class="dbd-th" style="${isWE?'color:var(--text3)':''}${isToday?';border-bottom:2px solid var(--accent)':''}">${d}<br><span style="font-size:9px">${dayLtr}</span></th>`;
+  });
+  html += '<th class="dbd-th" style="min-width:90px">MTD Rev</th>';
+  html += '<th class="dbd-th" style="min-width:70px">MTD NM</th>';
+  html += '<th class="dbd-th" style="min-width:70px">% Target</th>';
+  html += '</tr></thead><tbody>';
+
+  people.forEach(p=>{
+    const pLookup = lookup[p.name]||{};
+    let mtdRev=0, mtdNm=0;
+    allDays.forEach(({ds})=>{ if(pLookup[ds]){ mtdRev+=pLookup[ds].revenue; mtdNm+=pLookup[ds].nm; } });
+    const tgt   = personTarget(p);
+    const revPct= tgt>0 ? Math.round(mtdRev/tgt*100) : 0;
+    const pctCls= revPct>=100?'style="color:var(--green)"':revPct>=75?'style="color:var(--amber)"':'style="color:var(--red)"';
+
+    html += `<tr>`;
+    html += `<td class="dbd-td name-col" onclick="dbdOpenPerson('${p.name.replace(/'/g,"\\'")}')">
+      <span style="color:${color};margin-right:4px">▶</span>${p.name}
+    </td>`;
+
+    allDays.forEach(({ds, isWE})=>{
+      if(isWE){
+        html += '<td class="dbd-td we">—</td>';
+        return;
+      }
+      const e = pLookup[ds];
+      const isToday = ds===today;
+      const borderStyle = isToday ? 'border-left:2px solid var(--accent);border-right:2px solid var(--accent);' : '';
+      if(!e || (e.revenue===0 && e.nm===0)){
+        const isFuture = ds > today;
+        html += `<td class="dbd-td" style="${borderStyle}"><span class="dbd-empty">${isFuture?'·':'—'}</span></td>`;
+      } else {
+        const hitRR = e.revenue >= (p.riskPerDay||0);
+        const revCls = hitRR ? 'dbd-hit' : 'dbd-miss';
+        html += `<td class="dbd-td" style="${borderStyle}">
+          <div class="dbd-cell">
+            <span class="dbd-rev ${revCls}">£${Math.round(e.revenue).toLocaleString()}</span>
+            <span class="dbd-nm">${e.nm} NM</span>
+          </div>
+        </td>`;
+      }
+    });
+
+    html += `<td class="dbd-td total-col" style="color:var(--green)">£${Math.round(mtdRev).toLocaleString()}</td>`;
+    html += `<td class="dbd-td total-col">${mtdNm}</td>`;
+    html += `<td class="dbd-td total-col" ${pctCls}>${revPct}%</td>`;
+    html += '</tr>';
+  });
+
+  // Team totals row
+  let teamRevByDay = {};
+  let teamNmByDay  = {};
+  allDays.forEach(({ds})=>{ teamRevByDay[ds]=0; teamNmByDay[ds]=0; });
+  people.forEach(p=>{
+    const pL = lookup[p.name]||{};
+    allDays.forEach(({ds})=>{ if(pL[ds]){ teamRevByDay[ds]+=pL[ds].revenue; teamNmByDay[ds]+=pL[ds].nm; }});
+  });
+  const teamMtdRev = Object.values(teamRevByDay).reduce((s,v)=>s+v,0);
+  const teamMtdNm  = Object.values(teamNmByDay).reduce((s,v)=>s+v,0);
+  const teamTgt    = people.reduce((s,p)=>s+personTarget(p),0);
+  const teamPct    = teamTgt>0?Math.round(teamMtdRev/teamTgt*100):0;
+
+  html += `<tr style="background:var(--surface2)">`;
+  html += `<td class="dbd-td name-col" style="font-size:11px;color:var(--text3);font-weight:700;cursor:default">TEAM TOTAL</td>`;
+  allDays.forEach(({ds, isWE})=>{
+    if(isWE){ html += '<td class="dbd-td we" style="background:var(--surface2)">—</td>'; return; }
+    const rev = teamRevByDay[ds]||0;
+    const nm  = teamNmByDay[ds]||0;
+    const isToday = ds===today;
+    const bStyle = isToday?'border-left:2px solid var(--accent);border-right:2px solid var(--accent);':'';
+    if(!rev && !nm){
+      html += `<td class="dbd-td" style="background:var(--surface2);${bStyle}"><span class="dbd-empty">—</span></td>`;
+    } else {
+      html += `<td class="dbd-td" style="background:var(--surface2);${bStyle}">
+        <div class="dbd-cell">
+          <span class="dbd-rev" style="color:${color}">£${Math.round(rev).toLocaleString()}</span>
+          <span class="dbd-nm">${nm} NM</span>
+        </div>
+      </td>`;
+    }
+  });
+  const tPctCls = teamPct>=100?'var(--green)':teamPct>=75?'var(--amber)':'var(--red)';
+  html += `<td class="dbd-td total-col" style="color:${color}">£${Math.round(teamMtdRev).toLocaleString()}</td>`;
+  html += `<td class="dbd-td total-col">${teamMtdNm}</td>`;
+  html += `<td class="dbd-td total-col" style="color:${tPctCls}">${teamPct}%</td>`;
+  html += '</tr>';
+
+  html += '</tbody></table></div>';
+
+  // Legend
+  html += `<div style="display:flex;gap:16px;font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:8px;flex-wrap:wrap">
+    <span style="display:flex;align-items:center;gap:6px"><span style="color:var(--green);font-weight:700">£x</span> Hit daily run rate</span>
+    <span style="display:flex;align-items:center;gap:6px"><span style="color:var(--red);font-weight:700">£x</span> Below daily run rate</span>
+    <span style="display:flex;align-items:center;gap:6px"><span style="color:var(--text3)">—</span> No entry logged</span>
+    <span style="display:flex;align-items:center;gap:6px"><span style="color:var(--accent);font-weight:700">▶ Name</span> Click to see individual tracker</span>
+  </div>`;
+
+  document.getElementById('dbdContent').innerHTML = html;
+}
+
+// ── Individual tracker ──────────────────────────────────────────────
+function dbdOpenPerson(name){
+  _dbdPerson = name;
+  document.getElementById('dbdBackBtn').style.display = 'inline-flex';
+  renderPersonTracker(name);
+}
+
+function renderPersonTracker(name){
+  const mk      = document.getElementById('dbdMonth').value || APP.activeMonth;
+  const entries = getEntries(mk);
+  const p       = APP.people.find(x=>x.name===name);
+  if(!p){ document.getElementById('dbdContent').innerHTML='<div class="empty">Person not found.</div>'; return; }
+
+  const today     = new Date().toISOString().slice(0,10);
+  const riskPerDay= p.riskPerDay||0;
+  const nmPerDay  = 1.75;
+  const target    = personTarget(p);
+  const nmTarget  = parseFloat(((p.daysT||0)*1.75).toFixed(2));
+  const teamKey   = _dbdTeam;
+  const color     = TEAM_COLORS[teamKey]||'var(--accent)';
+
+  document.getElementById('dbd-sub').textContent = name + ' · ' + monthLabel(mk);
+
+  // All working days in month up to today
+  const wdDates = workingDatesInMonth(mk).filter(ds=>ds<=today);
+
+  // Build entry lookup
+  const lookup = {};
+  entries.filter(e=>e.name===name).forEach(e=>{ lookup[e.date]={revenue:e.revenue||0,nm:e.nm||0}; });
+
+  // Summary KPIs
+  const mtdRev = wdDates.reduce((s,ds)=>s+(lookup[ds]?.revenue||0),0);
+  const mtdNm  = wdDates.reduce((s,ds)=>s+(lookup[ds]?.nm||0),0);
+  const elapsed = wdDates.length;
+  const cumTgtNow = elapsed * riskPerDay;
+  const diff    = mtdRev - cumTgtNow;
+  const revPct  = target>0?Math.round(mtdRev/target*100):0;
+
+  let html = `
+  <div class="kpi-row" style="grid-template-columns:repeat(5,1fr);margin-bottom:24px">
+    <div class="kpi-card"><div class="kpi-label">Revenue MTD</div>
+      <div class="kpi-val ${revPct>=100?'g':revPct>=75?'a':'r'}">£${Math.round(mtdRev).toLocaleString()}</div>
+      <div class="kpi-sub">${revPct}% of £${target.toLocaleString()}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Monthly Target</div>
+      <div class="kpi-val">£${target.toLocaleString()}</div>
+      <div class="kpi-sub">£${riskPerDay.toLocaleString()} / day</div></div>
+    <div class="kpi-card"><div class="kpi-label">Cumul Target to Date</div>
+      <div class="kpi-val">£${Math.round(cumTgtNow).toLocaleString()}</div>
+      <div class="kpi-sub">${elapsed} days × £${riskPerDay.toLocaleString()}</div></div>
+    <div class="kpi-card"><div class="kpi-label">MTD Difference</div>
+      <div class="kpi-val ${diff>=0?'g':'r'}">${diff>=0?'+':''}£${Math.round(Math.abs(diff)).toLocaleString()}</div>
+      <div class="kpi-sub">${diff>=0?'ahead of':'behind'} risk pace</div></div>
+    <div class="kpi-card"><div class="kpi-label">Needs Met MTD</div>
+      <div class="kpi-val">${mtdNm}</div>
+      <div class="kpi-sub">target: ${nmTarget}</div></div>
+  </div>
+
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px">
+    <table class="itrk-table">
+      <thead><tr>
+        <th class="itrk-th" style="text-align:left;min-width:90px">Date</th>
+        <th class="itrk-th">Revenue</th>
+        <th class="itrk-th">Daily Run Rate</th>
+        <th class="itrk-th">% of Run Rate</th>
+        <th class="itrk-th">NM</th>
+        <th class="itrk-th">NM Target/day</th>
+        <th class="itrk-th">Cumul Revenue</th>
+        <th class="itrk-th">Cumul Target</th>
+        <th class="itrk-th">MTD Diff</th>
+      </tr></thead>
+      <tbody>`;
+
+  let cumRev = 0, cumTgt = 0, cumNm = 0;
+
+  wdDates.forEach(ds=>{
+    const e       = lookup[ds]||{revenue:0,nm:0};
+    const rev     = e.revenue||0;
+    const nm      = e.nm||0;
+    const holStatus = getDayStatus(mk, name, ds);
+    const isHol   = holStatus==='hol';
+    const isSick  = holStatus==='sick';
+
+    // Only add to cumulative target if person was working (not on planned holiday)
+    if(!isHol) cumTgt += riskPerDay;
+    cumRev += rev;
+    cumNm  += nm;
+
+    const runRate = isHol ? 0 : riskPerDay;
+    const pct     = runRate>0 ? Math.round(rev/runRate*100) : (rev>0?100:0);
+    const pctCls  = pct>=100?'var(--green)':pct>=75?'var(--amber)':'var(--red)';
+    const mDiff   = cumRev - cumTgt;
+    const mDiffCls= mDiff>=0?'var(--green)':'var(--red)';
+    const isToday = ds===today;
+    const dayName = new Date(ds).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+
+    let rowNote = '';
+    if(isHol)  rowNote = ' <span style="font-size:9px;color:var(--red);background:var(--red-bg);padding:2px 5px;border-radius:3px">HOL</span>';
+    if(isSick) rowNote = ' <span style="font-size:9px;color:var(--amber);background:var(--amber-bg);padding:2px 5px;border-radius:3px">SICK</span>';
+
+    html += `<tr class="itrk-tr${isToday?' today-row':''}">
+      <td class="itrk-td" style="text-align:left;color:var(--text2)">${dayName}${rowNote}</td>
+      <td class="itrk-td" style="color:${rev>0?'var(--green)':'var(--text3)'}">${rev>0?'£'+Math.round(rev).toLocaleString():'—'}</td>
+      <td class="itrk-td" style="color:var(--text3)">£${runRate.toLocaleString()}</td>
+      <td class="itrk-td" style="color:${pctCls};font-weight:600">${isHol?'—':pct+'%'}</td>
+      <td class="itrk-td" style="color:${nm>0?'var(--text)':'var(--text3)'}">${nm>0?nm:'—'}</td>
+      <td class="itrk-td" style="color:var(--text3)">${nmPerDay.toFixed(2)}</td>
+      <td class="itrk-td" style="color:${color};font-weight:600">£${Math.round(cumRev).toLocaleString()}</td>
+      <td class="itrk-td" style="color:var(--text3)">£${Math.round(cumTgt).toLocaleString()}</td>
+      <td class="itrk-td" style="color:${mDiffCls};font-weight:600">${mDiff>=0?'+':''}£${Math.round(Math.abs(mDiff)).toLocaleString()}</td>
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  document.getElementById('dbdContent').innerHTML = html;
+}
+
+// ── Export for Day by Day ───────────────────────────────────────────
+function exportDbdCSV(){
+  if(_dbdPerson){
+    // Individual export
+    const mk      = document.getElementById('dbdMonth').value || APP.activeMonth;
+    const name    = _dbdPerson;
+    const entries = getEntries(mk);
+    const p       = APP.people.find(x=>x.name===name);
+    if(!p){ showToast('Person not found','err'); return; }
+    const riskPerDay = p.riskPerDay||0;
+    const today  = new Date().toISOString().slice(0,10);
+    const wdDates= workingDatesInMonth(mk).filter(ds=>ds<=today);
+    const lookup = {};
+    entries.filter(e=>e.name===name).forEach(e=>{ lookup[e.date]={revenue:e.revenue||0,nm:e.nm||0}; });
+    const rows = [['Month','Consultant','Date','Revenue (£)','Daily Run Rate (£)','% of Run Rate','NM','Cumul Revenue (£)','Cumul Target (£)','MTD Diff (£)']];
+    let cumRev=0, cumTgt=0;
+    wdDates.forEach(ds=>{
+      const e   = lookup[ds]||{revenue:0,nm:0};
+      const rev = e.revenue||0;
+      const hol = getDayStatus(mk,name,ds)==='hol';
+      if(!hol) cumTgt+=riskPerDay;
+      cumRev+=rev;
+      const rr  = hol?0:riskPerDay;
+      const pct = rr>0?Math.round(rev/rr*100):(rev>0?100:0);
+      rows.push([monthLabel(mk), name, ds, Math.round(rev), rr, hol?'HOL':pct+'%', e.nm||0, Math.round(cumRev), Math.round(cumTgt), Math.round(cumRev-cumTgt)]);
+    });
+    downloadCSV('daybyday_'+name.replace(/\s+/g,'_')+'_'+mk+'.csv', rows);
+  } else {
+    // Team grid export
+    const mk      = document.getElementById('dbdMonth').value || APP.activeMonth;
+    const teamKey = _dbdTeam;
+    const members = (APP.teams||{})[teamKey]||[];
+    const entries = getEntries(mk);
+    const people  = APP.people.filter(p=>members.includes(p.name)&&personTarget(p)>0);
+    const today   = new Date().toISOString().slice(0,10);
+    const wdDates = workingDatesInMonth(mk).filter(ds=>ds<=today);
+    const lookup  = {};
+    entries.forEach(e=>{ if(!lookup[e.name]) lookup[e.name]={}; lookup[e.name][e.date]={revenue:e.revenue||0,nm:e.nm||0}; });
+    const rows = [['Month','Team','Consultant','Date','Revenue (£)','NM','Hit Run Rate?','MTD Revenue (£)','MTD NM','% of Target']];
+    people.forEach(p=>{
+      const pL = lookup[p.name]||{};
+      let mtdR=0,mtdN=0;
+      wdDates.forEach(ds=>{ if(pL[ds]){mtdR+=pL[ds].revenue;mtdN+=pL[ds].nm;} });
+      const tgt=personTarget(p);
+      wdDates.forEach(ds=>{
+        const e = pL[ds]||{revenue:0,nm:0};
+        rows.push([monthLabel(mk),TEAM_LABELS[teamKey]||teamKey,p.name,ds,Math.round(e.revenue),e.nm,e.revenue>=(p.riskPerDay||0)?'Yes':'No',Math.round(mtdR),mtdN,tgt>0?Math.round(mtdR/tgt*100)+'%':'0%']);
+      });
+    });
+    downloadCSV('daybyday_'+teamKey+'_'+mk+'.csv', rows);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
