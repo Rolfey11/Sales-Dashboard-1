@@ -1426,6 +1426,8 @@ function _refreshMonthlyTargetRow(mk, name){
     if(el){ el.focus(); if(selStart!==null && el.setSelectionRange) el.setSelectionRange(selStart, selStart); }
   }
 }
+
+function clearMonthOverride(mk, name){
   if(APP.monthOverrides && APP.monthOverrides[mk]){
     delete APP.monthOverrides[mk][name];
     if(!Object.keys(APP.monthOverrides[mk]).length) delete APP.monthOverrides[mk];
