@@ -2000,6 +2000,92 @@ function renderTeamDashboard(container, teamKey){
   const TEAM_IMGS = { g: TEAM_G_IMG, james: TEAM_JAMES_IMG, damo: TEAM_DAMO_IMG };
   const teamImg = TEAM_IMGS[teamKey];
 
+  // ── Build daily breakdown table ──────────────────────────────────
+  const today2       = _localDateStr(new Date());
+  const wdDates      = workingDatesInMonth(mk).filter(ds => ds <= today2);
+  // Entry lookup: date → {rev, nm}
+  const dayLookup = {};
+  entries.forEach(e=>{
+    if(!members.includes(e.name)) return;
+    if(!dayLookup[e.date]) dayLookup[e.date]={rev:0,nm:0};
+    dayLookup[e.date].rev += (e.revenue||0);
+    dayLookup[e.date].nm  += (e.nm||0);
+  });
+  // Per-person RPD for this month
+  const memberRPDs = teamPeople.map(p=>({ name:p.name, rpd:(getPersonForMonth(p,mk).riskPerDay||0) }));
+
+  let cumActual=0, cumRR=0, cumNmActual=0, cumNmRR=0;
+  let tableRows='';
+  wdDates.forEach(ds=>{
+    // How many members are working (not on planned holiday or BH) and their combined RPD / NM rate
+    let dayRR=0, dayNmRR=0;
+    memberRPDs.forEach(({name,rpd})=>{
+      const st = getDayStatus(mk,name,ds);
+      if(st!=='hol'&&st!=='bh'){
+        dayRR    += rpd;
+        dayNmRR  += 1.75;
+      }
+    });
+    const dayActual = (dayLookup[ds]||{}).rev||0;
+    const dayNm     = (dayLookup[ds]||{}).nm||0;
+    cumActual  += dayActual;
+    cumRR      += dayRR;
+    cumNmActual+= dayNm;
+    cumNmRR    += dayNmRR;
+
+    const diff     = dayActual - dayRR;
+    const diffCls  = diff>=0?'var(--green)':'var(--red)';
+    const nmDiff   = dayNm - dayNmRR;
+    const nmDiffCls= nmDiff>=0?'var(--green)':'var(--red)';
+    const mtdDiff  = cumActual - cumRR;
+    const mtdDiffCls = mtdDiff>=0?'var(--green)':'var(--red)';
+    const nmMtdDiff  = cumNmActual - cumNmRR;
+    const nmMtdDiffCls = nmMtdDiff>=0?'var(--green)':'var(--red)';
+
+    const dateLabel = new Date(ds).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+    tableRows += `<tr style="border-bottom:1px solid var(--border);font-size:12px;font-family:var(--fm);">
+      <td style="padding:8px 14px;color:var(--text2);white-space:nowrap">${dateLabel}</td>
+      <td style="padding:8px 14px;text-align:right;color:${dayActual>0?'var(--text)':'var(--text3)'};font-weight:600">£${Math.round(dayActual).toLocaleString()}</td>
+      <td style="padding:8px 14px;text-align:right;color:var(--text3)">£${Math.round(dayRR).toLocaleString()}</td>
+      <td style="padding:8px 14px;text-align:right;color:${diffCls};font-weight:600">${diff>=0?'+':''}£${Math.round(diff).toLocaleString()}</td>
+      <td style="padding:8px 14px;text-align:right;color:${dayNm>0?'var(--text)':'var(--text3)'};">${dayNm}</td>
+      <td style="padding:8px 14px;text-align:right;color:var(--text3)">${dayNmRR.toFixed(2)}</td>
+      <td style="padding:8px 14px;text-align:right;color:${nmDiffCls};font-weight:600">${nmDiff>=0?'+':''}${nmDiff.toFixed(2)}</td>
+      <td style="padding:8px 14px;text-align:right;color:${color};font-weight:700">£${Math.round(cumActual).toLocaleString()}</td>
+      <td style="padding:8px 14px;text-align:right;color:var(--text3)">£${Math.round(cumRR).toLocaleString()}</td>
+      <td style="padding:8px 14px;text-align:right;color:${mtdDiffCls};font-weight:700">${mtdDiff>=0?'+':''}£${Math.round(mtdDiff).toLocaleString()}</td>
+    </tr>`;
+  });
+
+  const thStyle = `style="padding:9px 14px;background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;font-family:var(--fm);white-space:nowrap;border-bottom:1px solid var(--border);"`;
+  const thStyleR = `style="padding:9px 14px;background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;font-family:var(--fm);white-space:nowrap;text-align:right;border-bottom:1px solid var(--border);"`;
+
+  const dailyTable = wdDates.length ? `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-top:20px">
+      <div style="padding:14px 18px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+        <div style="font-size:13px;font-weight:700">Daily Breakdown</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">revenue · run rate · needs met · MTD cumulative</div>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;min-width:780px">
+          <thead><tr>
+            <th ${thStyle}>Date</th>
+            <th ${thStyleR}>Rev Total</th>
+            <th ${thStyleR}>Rev Run Rate</th>
+            <th ${thStyleR}>Rev Diff</th>
+            <th ${thStyleR}>NM Total</th>
+            <th ${thStyleR}>NM Run Rate</th>
+            <th ${thStyleR}>NM Diff</th>
+            <th ${thStyleR} style="border-left:2px solid var(--border2);padding:9px 14px;background:var(--surface2);color:${color};font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;font-family:var(--fm);white-space:nowrap;text-align:right;border-bottom:1px solid var(--border);">MTD Revenue</th>
+            <th ${thStyleR}>MTD Run Rate</th>
+            <th ${thStyleR}>MTD Diff</th>
+          </tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+    </div>` : '';
+  // ── End daily table ──────────────────────────────────────────────
+
   container.innerHTML = `
     <div style="display:flex;align-items:center;gap:18px;margin-bottom:24px">
       <img src="${teamImg}" alt="${label}" style="width:80px;height:80px;object-fit:cover;border-radius:50%;border:3px solid ${color};box-shadow:0 0 0 1px ${color}33,0 4px 16px rgba(0,0,0,.4);">
@@ -2058,7 +2144,8 @@ function renderTeamDashboard(container, teamKey){
         <div class="chart-sub">MTD vs working days × 1.75</div>
         <div style="position:relative;height:${Math.max(180,stats.length*36+60)}px"><canvas id="cTeam_${teamKey}_nm"></canvas></div>
       </div>
-    </div>`;
+    </div>
+    ${dailyTable}`;
 
   // render team charts after DOM update
   setTimeout(()=>{
@@ -2143,8 +2230,21 @@ function renderDbdOverallGrid(){
     allDays.push({ ds, isWE: dow===0||dow===6 });
   }
 
-  // All consultants that have a target set for this month
-  const people = APP.people.filter(p => personTargetForMonth(p, mk) > 0);
+  // All consultants that have a target set for this month, grouped by team order
+  const teamOrder = ['james', 'damo', 'g'];
+  const personTeamKey = {};
+  teamOrder.forEach(tk => {
+    (APP.teams[tk]||[]).forEach(name => { personTeamKey[name] = tk; });
+  });
+
+  const allPeople = APP.people.filter(p => personTargetForMonth(p, mk) > 0);
+  const people = [...allPeople].sort((a, b) => {
+    const ai = teamOrder.indexOf(personTeamKey[a.name] || '');
+    const bi = teamOrder.indexOf(personTeamKey[b.name] || '');
+    const aIdx = ai === -1 ? teamOrder.length : ai;
+    const bIdx = bi === -1 ? teamOrder.length : bi;
+    return aIdx - bIdx;
+  });
 
   if(!people.length){
     document.getElementById('dbdContent').innerHTML =
@@ -2152,11 +2252,9 @@ function renderDbdOverallGrid(){
     return;
   }
 
-  // Build a team colour lookup per person
+  // Build team colour lookup from personTeamKey already computed above
   const personTeamColor = {};
-  ['g','james','damo'].forEach(tk=>{
-    (APP.teams[tk]||[]).forEach(name=>{ personTeamColor[name] = TEAM_COLORS[tk]; });
-  });
+  Object.entries(personTeamKey).forEach(([name, tk]) => { personTeamColor[name] = TEAM_COLORS[tk]; });
 
   // Entry lookup
   const lookup = {};
