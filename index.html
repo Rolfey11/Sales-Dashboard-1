@@ -1844,7 +1844,7 @@ function renderTeamAssign(container){
           <div class="set-title" style="color:${TEAM_COLORS[tk]}">${TEAM_LABELS[tk]}</div>
           <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:12px">${(APP.teams[tk]||[]).length} members assigned</div>
           <div style="display:flex;flex-direction:column;gap:6px">
-            ${APP.people.filter(p=>personTarget(p)>0).map(p=>{
+            ${APP.people.map(p=>{
               const inTeam = (APP.teams[tk]||[]).includes(p.name);
               return `<label class="member-toggle ${inTeam?'selected':''}">
                 <input type="checkbox" ${inTeam?'checked':''} onchange="toggleTeamMember('${tk}','${p.name}',this.checked)" style="width:14px;height:14px">
@@ -1852,7 +1852,7 @@ function renderTeamAssign(container){
                 ${teamKeys.filter(t=>t!==tk&&(APP.teams[t]||[]).includes(p.name)).map(t=>`<span style="font-size:9px;color:${TEAM_COLORS[t]};margin-left:auto">${TEAM_LABELS[t]}</span>`).join('')}
               </label>`;
             }).join('')}
-            ${APP.people.filter(p=>personTarget(p)>0).length===0?'<div style="color:var(--text3);font-size:12px">No consultants yet. Add them in Settings.</div>':''}
+            ${APP.people.length===0?'<div style="color:var(--text3);font-size:12px">No consultants yet. Add them in Settings.</div>':''}
           </div>
         </div>
       `).join('')}
