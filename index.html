@@ -454,6 +454,22 @@ input:focus,select:focus{border-color:var(--accent);}
       </div>
 
     </div>
+
+    <!-- MONTHLY TARGETS PER MONTH -->
+    <div class="set-card" style="grid-column:1/-1">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+        <div>
+          <div class="set-title">Monthly Targets</div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:3px">Set risk/day and working days per month. Values here override the global defaults above for that month only.</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="field-lbl" style="margin-bottom:0;white-space:nowrap">Month:</div>
+          <select id="mtOverrideMonth" onchange="renderMonthlyTargets()" style="width:200px"></select>
+        </div>
+      </div>
+      <div id="monthlyTargetsRows"></div>
+    </div>
+
     <div class="set-card">
       <div class="set-title">Month management</div>
       <div style="margin-bottom:10px"><div class="field-lbl">Active month</div><select id="activeMonthSel" onchange="setActiveMonth()" style="margin-bottom:10px"></select></div>
@@ -548,6 +564,7 @@ let APP = {
   bizTargets: {},
   holidays: {},
   sickness: {},
+  monthOverrides: {},
   manualElapsed: null
 };
 
@@ -575,6 +592,24 @@ function setEntries(monthKey, entries){
 
 // ── target calculation: riskPerDay × daysT ─────────────────────────
 function personTarget(p){ return Math.round((p.riskPerDay||0) * (p.daysT||0)); }
+
+// ── Month-aware person config: merges global defaults with per-month override ─
+function getPersonForMonth(p, mk){
+  if(!mk) return p;
+  const ovr = (APP.monthOverrides[mk] || {})[p.name];
+  if(!ovr) return p;
+  return {
+    ...p,
+    riskPerDay: ovr.riskPerDay !== undefined ? ovr.riskPerDay : (p.riskPerDay||0),
+    daysT:      ovr.daysT      !== undefined ? ovr.daysT      : (p.daysT||0)
+  };
+}
+
+// Month-aware target
+function personTargetForMonth(p, mk){
+  const ep = getPersonForMonth(p, mk);
+  return Math.round((ep.riskPerDay||0) * (ep.daysT||0));
+}
 
 // ── CALENDAR: count Mon–Fri working days from 1st of month to today ─
 // ═══════════════════════════════════════════════════════════════════
@@ -689,42 +724,38 @@ function calWorkDaysTeam(mk){ return calWorkDays(mk, null); }
 function calcStats(monthKey){
   const entries = getEntries(monthKey);
 
-  // (calDays computed per-person below, inside map)
-
   return APP.people.map(p=>{
+    const ep = getPersonForMonth(p, monthKey); // effective person for this month
+
     const mine = entries.filter(e=>e.name===p.name);
 
     // ── actuals (purely from logged entries) ─────────────────────
     const revMTD = mine.reduce((s,e)=>s+(e.revenue||0), 0);
     const nmMTD  = mine.reduce((s,e)=>s+(e.nm||0), 0);
 
-    // ── fixed targets from settings ──────────────────────────────
-    const target   = personTarget(p);             // riskPerDay × daysT
-    const nmTarget = parseFloat(((p.daysT||0) * 1.75).toFixed(2)); // daysT × 1.75
+    // ── fixed targets from effective (month-aware) config ────────
+    const target   = Math.round((ep.riskPerDay||0) * (ep.daysT||0));
+    const nmTarget = parseFloat(((ep.daysT||0) * 1.75).toFixed(2));
 
     // calendar working days elapsed for this person (holidays excluded)
     const calDays = calWorkDays(monthKey, p.name);
 
     // ── COP (next working day checkpoint) ────────────────────────
-    // COP Risk = (calDays × riskPerDay + riskPerDay) − revMTD
-    const copRev = (calDays * (p.riskPerDay||0) + (p.riskPerDay||0)) - revMTD;
-
-    // COP NM = (calDays × 1.75 + 1.75) − nmMTD
+    const copRev = (calDays * (ep.riskPerDay||0) + (ep.riskPerDay||0)) - revMTD;
     const copNm  = (calDays * 1.75 + 1.75) - nmMTD;
 
     // ── percentages ──────────────────────────────────────────────
     const revPct = target>0   ? Math.round(revMTD  / target   * 100) : 0;
-    const nmTargetFixed = (p.daysT||0) * 1.75;
+    const nmTargetFixed = (ep.daysT||0) * 1.75;
     const nmPct  = nmTargetFixed>0 ? Math.round(nmMTD / nmTargetFixed * 100) : 0;
 
     const riskAhead = copRev <= 0;
     const nmAhead   = copNm  <= 0;
 
-    // count of distinct logged dates (for display only, not used in calcs)
     const loggedDays = new Set(mine.filter(e=>(e.revenue||0)>0||(e.nm||0)>0).map(e=>e.date)).size;
 
     return {
-      ...p, target, revMTD, nmMTD, loggedDays, calDays, nmTarget,
+      ...ep, name: p.name, target, revMTD, nmMTD, loggedDays, calDays, nmTarget,
       copRev, copNm, revPct, nmPct, riskAhead, nmAhead
     };
   });
@@ -1229,6 +1260,8 @@ function renderSettings(){
   const daysEl = document.getElementById('newDays');
   if(rpdEl) rpdEl.oninput = updateNewPreview;
   if(daysEl) daysEl.oninput = updateNewPreview;
+
+  renderMonthlyTargets();
 }
 
 function updateNewPreview(){
@@ -1268,6 +1301,148 @@ function addPerson(){
   showToast(name+' added');
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// MONTHLY TARGET OVERRIDES
+// APP.monthOverrides[monthKey][personName] = { riskPerDay, daysT }
+// ═══════════════════════════════════════════════════════════════════
+function renderMonthlyTargets(){
+  const selEl = document.getElementById('mtOverrideMonth');
+  const mk    = (selEl && selEl.value) ? selEl.value : APP.activeMonth;
+  const ovrs  = (APP.monthOverrides && APP.monthOverrides[mk]) || {};
+  const people = APP.people;
+  const container = document.getElementById('monthlyTargetsRows');
+  if(!container) return;
+
+  if(!people.length){
+    container.innerHTML = '<div style="color:var(--text3);font-size:12px;font-family:var(--fm);padding:8px 0">No consultants yet — add them in the Consultants section above.</div>';
+    return;
+  }
+
+  const overrideCount = people.filter(p => {
+    const o = ovrs[p.name]||{};
+    return o.riskPerDay !== undefined || o.daysT !== undefined;
+  }).length;
+
+  // Column headers — same layout as pcfg-head but with 5 cols
+  let html = `<div style="display:grid;grid-template-columns:130px 100px 90px 110px 36px;gap:8px;margin-bottom:8px;">
+    <div class="th">Name</div>
+    <div class="th">Risk/day (£)</div>
+    <div class="th">Work days</div>
+    <div class="th">Monthly target</div>
+    <div></div>
+  </div>`;
+
+  people.forEach(p => {
+    const ovr        = ovrs[p.name] || {};
+    const hasOvrRpd  = ovr.riskPerDay !== undefined;
+    const hasOvrDays = ovr.daysT      !== undefined;
+    const hasAnyOvr  = hasOvrRpd || hasOvrDays;
+
+    // Effective values for this month
+    const effRpd  = hasOvrRpd  ? ovr.riskPerDay : (p.riskPerDay||0);
+    const effDays = hasOvrDays ? ovr.daysT      : (p.daysT||0);
+    const effTgt  = Math.round(effRpd * effDays);
+
+    const safeName = p.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+
+    // Subtle "using global" vs "overridden" indicator on each field
+    const rpdStyle  = hasOvrRpd  ? 'border-color:var(--accent);background:rgba(94,156,245,0.07)' : '';
+    const daysStyle = hasOvrDays ? 'border-color:var(--accent);background:rgba(94,156,245,0.07)' : '';
+    const tgtColor  = hasAnyOvr  ? 'var(--accent)' : 'var(--green)';
+
+    html += `<div class="pcfg-row" style="grid-template-columns:130px 100px 90px 110px 36px">
+      <div style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px">
+        ${p.name}
+        ${hasAnyOvr ? '<span style="font-size:9px;font-weight:700;background:rgba(94,156,245,0.15);color:var(--accent);padding:2px 6px;border-radius:10px;letter-spacing:.04em;text-transform:uppercase">custom</span>' : ''}
+      </div>
+      <div class="inp-wrap">
+        <span class="inp-pre">£</span>
+        <input type="number" class="inp-pl" step="50" min="0"
+          value="${effRpd}"
+          style="${rpdStyle}"
+          data-mto-id="${mk}__${p.name}__rpd"
+          oninput="saveMonthOverride('${mk}','${safeName}','riskPerDay',this.value)"
+          placeholder="${p.riskPerDay||0}">
+      </div>
+      <input type="number" step="0.5" min="0"
+        value="${effDays}"
+        style="${daysStyle}"
+        data-mto-id="${mk}__${p.name}__days"
+        oninput="saveMonthOverride('${mk}','${safeName}','daysT',this.value)"
+        placeholder="${p.daysT||0}">
+      <div style="font-size:13px;font-weight:700;font-family:var(--fm);color:${tgtColor};display:flex;align-items:center">£${effTgt.toLocaleString()}</div>
+      <button class="icon-btn" title="Reset to global defaults"
+        style="${hasAnyOvr ? '' : 'opacity:.25;pointer-events:none'}"
+        onclick="clearMonthOverride('${mk}','${safeName}')">↺</button>
+    </div>`;
+  });
+
+  // Footer summary
+  const teamEffTgt    = people.reduce((s,p)=>{ const o=ovrs[p.name]||{}; const r=o.riskPerDay!==undefined?o.riskPerDay:(p.riskPerDay||0); const d=o.daysT!==undefined?o.daysT:(p.daysT||0); return s+Math.round(r*d); },0);
+  const teamGlobalTgt = people.reduce((s,p)=>s+personTarget(p), 0);
+
+  html += `<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">Team total for <span style="color:var(--text);font-weight:600">${monthLabel(mk)}</span></div>
+    <div style="font-size:20px;font-weight:700;font-family:var(--fm);color:${overrideCount>0?'var(--accent)':'var(--green)'}">£${teamEffTgt.toLocaleString()}</div>
+    ${overrideCount>0
+      ? `<div style="font-size:11px;color:var(--text3);font-family:var(--fm)">global default: £${teamGlobalTgt.toLocaleString()} &nbsp;·&nbsp; <span style="color:var(--accent)">${overrideCount} custom override${overrideCount!==1?'s':''}</span></div>
+         <button class="btn btn-s" style="font-size:11px;padding:5px 10px;margin-left:auto" onclick="clearAllMonthOverrides('${mk}')">Reset all to global</button>`
+      : `<div style="font-size:11px;color:var(--text3);font-family:var(--fm)">using global defaults</div>`
+    }
+  </div>`;
+
+  container.innerHTML = html;
+}
+
+function saveMonthOverride(mk, name, field, rawVal){
+  if(!APP.monthOverrides) APP.monthOverrides = {};
+  if(!APP.monthOverrides[mk]) APP.monthOverrides[mk] = {};
+  if(!APP.monthOverrides[mk][name]) APP.monthOverrides[mk][name] = {};
+  const val = parseFloat(rawVal);
+  if(rawVal === '' || isNaN(val)){
+    // blank → remove the override for this field only
+    delete APP.monthOverrides[mk][name][field];
+    if(!Object.keys(APP.monthOverrides[mk][name]).length) delete APP.monthOverrides[mk][name];
+    if(!Object.keys(APP.monthOverrides[mk]).length) delete APP.monthOverrides[mk];
+  } else {
+    APP.monthOverrides[mk][name][field] = val;
+  }
+  saveApp();
+  // Update just the target cell and badge for this row without losing input focus
+  _refreshMonthlyTargetRow(mk, name);
+}
+
+function _refreshMonthlyTargetRow(mk, name){
+  // Re-render the whole monthly targets section but restore focus afterwards
+  const focused = document.activeElement;
+  const focusedId = focused ? focused.getAttribute('data-mto-id') : null;
+  const selStart  = focused && focused.selectionStart !== undefined ? focused.selectionStart : null;
+
+  renderMonthlyTargets();
+
+  // Restore focus
+  if(focusedId){
+    const el = document.querySelector(`[data-mto-id="${focusedId}"]`);
+    if(el){ el.focus(); if(selStart!==null && el.setSelectionRange) el.setSelectionRange(selStart, selStart); }
+  }
+}
+  if(APP.monthOverrides && APP.monthOverrides[mk]){
+    delete APP.monthOverrides[mk][name];
+    if(!Object.keys(APP.monthOverrides[mk]).length) delete APP.monthOverrides[mk];
+  }
+  saveApp();
+  renderMonthlyTargets();
+  showToast('Override cleared for '+name);
+}
+
+function clearAllMonthOverrides(mk){
+  if(!confirm('Clear all monthly overrides for '+monthLabel(mk)+'? Consultants will revert to their global defaults.')) return;
+  if(APP.monthOverrides) delete APP.monthOverrides[mk];
+  saveApp();
+  renderMonthlyTargets();
+  showToast('All overrides cleared for '+monthLabel(mk));
+}
+
 function setActiveMonth(){
   APP.activeMonth = document.getElementById('activeMonthSel').value;
   saveApp();
@@ -1280,9 +1455,11 @@ function setGlobalMonth(){
   if(!val) return;
   APP.activeMonth = val;
   saveApp();
-  // sync the settings selector too
+  // sync the settings selectors too
   const s = document.getElementById('activeMonthSel');
   if(s) s.value = val;
+  const mo = document.getElementById('mtOverrideMonth');
+  if(mo){ mo.value = val; renderMonthlyTargets(); }
   // re-render current page
   const pg = document.querySelector('.page.active');
   if(pg){ showPage(pg.id.replace('page-','')); }
@@ -1315,7 +1492,7 @@ function createNewMonth(){
 
 function clearAllData(){
   if(!confirm('Delete ALL data and consultants? This cannot be undone.')) return;
-  APP={people:[],months:{},activeMonth:todayKey(),teams:{g:[],james:[],damo:[]},bizTargets:{},holidays:{},sickness:{},manualElapsed:null};
+  APP={people:[],months:{},activeMonth:todayKey(),teams:{g:[],james:[],damo:[]},bizTargets:{},holidays:{},sickness:{},monthOverrides:{},manualElapsed:null};
   APP.months[APP.activeMonth]={entries:[]};
   saveApp();
   populateAllSelects();
@@ -1330,7 +1507,7 @@ function clearAllData(){
 function populateAllSelects(){
   const months = allMonthKeys();
 
-  ['entryMonth','lbMonth','histMonth','activeMonthSel','holMonth','bizMonth','teamsMonth','dbdMonth'].forEach(id=>{
+  ['entryMonth','lbMonth','histMonth','activeMonthSel','holMonth','bizMonth','teamsMonth','dbdMonth','mtOverrideMonth'].forEach(id=>{
     const el = document.getElementById(id);
     if(!el) return;
     const cur = el.value || APP.activeMonth;
@@ -1972,10 +2149,11 @@ function renderPersonTracker(name){
   if(!p){ document.getElementById('dbdContent').innerHTML='<div class="empty">Person not found.</div>'; return; }
 
   const today     = new Date().toISOString().slice(0,10);
-  const riskPerDay= p.riskPerDay||0;
+  const ep        = getPersonForMonth(p, mk);  // effective config for this month
+  const riskPerDay= ep.riskPerDay||0;
   const nmPerDay  = 1.75;
-  const target    = personTarget(p);
-  const nmTarget  = parseFloat(((p.daysT||0)*1.75).toFixed(2));
+  const target    = Math.round(riskPerDay * (ep.daysT||0));
+  const nmTarget  = parseFloat(((ep.daysT||0)*1.75).toFixed(2));
   const teamKey   = _dbdTeam;
   const color     = TEAM_COLORS[teamKey]||'var(--accent)';
 
@@ -2241,7 +2419,7 @@ function exportHistoryCSV(){
   const rows = [['Month','Date','Consultant','Revenue (£)','Needs Met','MTD Revenue (£)','MTD NM','% of Target']];
   rows_data.forEach(e => {
     const p      = APP.people.find(x=>x.name===e.name)||{riskPerDay:0,daysT:0};
-    const target = personTarget(p);
+    const target = personTargetForMonth(p, mk);
     const mtdRev = all.filter(x=>x.name===e.name&&x.date<=e.date).reduce((s,x)=>s+(x.revenue||0),0);
     const mtdNm  = all.filter(x=>x.name===e.name&&x.date<=e.date).reduce((s,x)=>s+(x.nm||0),0);
     const pct    = target>0?Math.round(mtdRev/target*100):0;
@@ -2281,15 +2459,16 @@ document.getElementById('navDate').textContent =
   new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
 
 function _applyDefaults(){
-  if(!APP.months)     APP.months = {};
-  if(!APP.activeMonth) APP.activeMonth = todayKey();
+  if(!APP.months)        APP.months = {};
+  if(!APP.activeMonth)   APP.activeMonth = todayKey();
   if(!APP.months[APP.activeMonth]) APP.months[APP.activeMonth]={entries:[]};
-  if(!APP.teams)      APP.teams = {g:[],james:[],damo:[]};
-  if(!APP.bizTargets) APP.bizTargets = {};
-  if(!APP.holidays)   APP.holidays = {};
-  if(!APP.sickness)   APP.sickness = {};
+  if(!APP.teams)         APP.teams = {g:[],james:[],damo:[]};
+  if(!APP.bizTargets)    APP.bizTargets = {};
+  if(!APP.holidays)      APP.holidays = {};
+  if(!APP.sickness)      APP.sickness = {};
+  if(!APP.monthOverrides) APP.monthOverrides = {};
   if(APP.manualElapsed == null) APP.manualElapsed = null;
-  if(!APP.people)     APP.people = [];
+  if(!APP.people)        APP.people = [];
 }
 
 setSyncStatus('connecting');
