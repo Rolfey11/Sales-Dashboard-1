@@ -634,6 +634,11 @@ function todayKey(){
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
 }
 
+// Always use local date (not UTC) to avoid BST/timezone off-by-one
+function _localDateStr(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
 let APP = {
   people: [],
   months: {},
@@ -740,7 +745,7 @@ function calWorkDays(mk, personName){
       while(counted < base){
         const dow = cursor.getDay();
         if(dow !== 0 && dow !== 6){
-          const ds = cursor.toISOString().slice(0,10);
+          const ds = _localDateStr(cursor);
           if(isBankHoliday(ds)) { /* bank holidays not in the base count */ }
           else if(allOff.includes(ds)) offInWindow++;
           else counted++;
@@ -765,7 +770,7 @@ function calWorkDays(mk, personName){
   while(cursor <= cutoff){
     const dow = cursor.getDay();
     if(dow !== 0 && dow !== 6){
-      const ds = cursor.toISOString().slice(0,10);
+      const ds = _localDateStr(cursor);
       if(!allOff.includes(ds) && !isBankHoliday(ds)) count++;
     }
     cursor.setDate(cursor.getDate()+1);
@@ -1144,7 +1149,7 @@ function renderDashboard(){
 function renderEntryPage(){
   populateAllSelects();
   const dateEl = document.getElementById('entryDate');
-  if(!dateEl.value) dateEl.value = new Date().toISOString().slice(0,10);
+  if(!dateEl.value) dateEl.value = _localDateStr(new Date());
   dateEl.onchange = buildEntryRows;
   buildEntryRows();
 }
@@ -1755,7 +1760,7 @@ function workingDatesInMonth(mk){
   while(cursor.getMonth()===m-1){
     const dow=cursor.getDay();
     if(dow!==0&&dow!==6){
-      const ds=cursor.toISOString().slice(0,10);
+      const ds=_localDateStr(cursor);
       if(!isBankHoliday(ds)) days.push(ds);
     }
     cursor.setDate(cursor.getDate()+1);
@@ -1797,7 +1802,7 @@ function renderBizTarget(){
   const nmRemaining  = nmTarget  - totalNM;
 
   // Today's run rate
-  const today = new Date().toISOString().slice(0,10);
+  const today = _localDateStr(new Date());
   const peopleToday = active.filter(p=>!getHols(mk,p.name).includes(today)).length;
   const todayRunRate = peopleToday * rpp;
 
@@ -1837,7 +1842,7 @@ function renderBizTarget(){
 
   // Build daily run rate rows
   const wdDates  = workingDatesInMonth(mk);
-  const today2   = new Date().toISOString().slice(0,10);
+  const today2   = _localDateStr(new Date());
   const pastDates= wdDates.filter(d=>d<=today2);
   const byDate   = {};
   entries.forEach(e=>{
@@ -2115,7 +2120,7 @@ function renderDbdContent(){
 function renderDbdOverallGrid(){
   const mk      = document.getElementById('dbdMonth').value || APP.activeMonth;
   const entries = getEntries(mk);
-  const today   = new Date().toISOString().slice(0,10);
+  const today   = _localDateStr(new Date());
 
   document.getElementById('dbd-sub').textContent = 'Overall · ' + monthLabel(mk);
   document.getElementById('dbdBackBtn').style.display = 'none';
@@ -2276,7 +2281,7 @@ function renderDbdTeamGrid(teamKey){
   const mk      = document.getElementById('dbdMonth').value || APP.activeMonth;
   const members = (APP.teams||{})[teamKey] || [];
   const entries = getEntries(mk);
-  const today   = new Date().toISOString().slice(0,10);
+  const today   = _localDateStr(new Date());
   const label   = TEAM_LABELS[teamKey] || teamKey;
   const color   = TEAM_COLORS[teamKey] || 'var(--accent)';
 
@@ -2470,7 +2475,7 @@ function renderPersonTracker(name){
   const p       = APP.people.find(x=>x.name===name);
   if(!p){ document.getElementById('dbdContent').innerHTML='<div class="empty">Person not found.</div>'; return; }
 
-  const today     = new Date().toISOString().slice(0,10);
+  const today     = _localDateStr(new Date());
   const ep        = getPersonForMonth(p, mk);  // effective config for this month
   const riskPerDay= ep.riskPerDay||0;
   const nmPerDay  = 1.75;
@@ -2590,7 +2595,7 @@ function exportDbdCSV(){
     const p       = APP.people.find(x=>x.name===name);
     if(!p){ showToast('Person not found','err'); return; }
     const riskPerDay = p.riskPerDay||0;
-    const today  = new Date().toISOString().slice(0,10);
+    const today  = _localDateStr(new Date());
     const wdDates= workingDatesInMonth(mk).filter(ds=>ds<=today);
     const lookup = {};
     entries.filter(e=>e.name===name).forEach(e=>{ lookup[e.date]={revenue:e.revenue||0,nm:e.nm||0}; });
@@ -2614,7 +2619,7 @@ function exportDbdCSV(){
     const members = (APP.teams||{})[teamKey]||[];
     const entries = getEntries(mk);
     const people  = APP.people.filter(p=>members.includes(p.name)&&personTarget(p)>0);
-    const today   = new Date().toISOString().slice(0,10);
+    const today   = _localDateStr(new Date());
     const wdDates = workingDatesInMonth(mk).filter(ds=>ds<=today);
     const lookup  = {};
     entries.forEach(e=>{ if(!lookup[e.name]) lookup[e.name]={}; lookup[e.name][e.date]={revenue:e.revenue||0,nm:e.nm||0}; });
@@ -3264,7 +3269,7 @@ function exportBizCSV(){
   const byDate  = {};
   entries.forEach(e => { if(!byDate[e.date]) byDate[e.date]=0; byDate[e.date]+=(e.revenue||0); });
   const wdDates = workingDatesInMonth(mk);
-  const today   = new Date().toISOString().slice(0,10);
+  const today   = _localDateStr(new Date());
   const rows = [['Month','Date','People Working','Run Rate (£)','Actual Revenue (£)','Variance (£)','Rev Target','NM Target']];
   let cumRev=0, cumRR=0;
   wdDates.filter(d=>d<=today).forEach(ds => {
