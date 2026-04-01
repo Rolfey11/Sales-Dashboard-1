@@ -1310,12 +1310,10 @@ function _renderMtMonthList(){
       return o.riskPerDay !== undefined || o.daysT !== undefined;
     }).length;
     const isActive = mk === APP.activeMonth;
-    // Team target for this month
+    // Team target for this month — sum of each person's month-specific values
     const teamTgt = APP.people.reduce((s,p)=>{
-      const o = ovrs[p.name]||{};
-      const r = o.riskPerDay !== undefined ? o.riskPerDay : (p.riskPerDay||0);
-      const d = o.daysT      !== undefined ? o.daysT      : (p.daysT||0);
-      return s + Math.round(r*d);
+      const ep = getPersonForMonth(p, mk);
+      return s + Math.round((ep.riskPerDay||0) * (ep.daysT||0));
     }, 0);
 
     html += `<button onclick="_mtOpenMonth('${mk}')" style="
@@ -1420,18 +1418,16 @@ function _renderMtConsultants(mk){
 
   // Footer: team total
   const teamEffTgt = people.reduce((s,p)=>{
-    const o = ovrs[p.name]||{};
-    const r = o.riskPerDay !== undefined ? o.riskPerDay : (p.riskPerDay||0);
-    const d = o.daysT      !== undefined ? o.daysT      : (p.daysT||0);
-    return s + Math.round(r*d);
+    const ep = getPersonForMonth(p, mk);
+    return s + Math.round((ep.riskPerDay||0) * (ep.daysT||0));
   }, 0);
-  const overrideCount = people.filter(p=>{ const o=ovrs[p.name]||{}; return o.riskPerDay!==undefined||o.daysT!==undefined; }).length;
+  const configuredCount = people.filter(p=>{ const ep=getPersonForMonth(p,mk); return (ep.riskPerDay||0)>0 || (ep.daysT||0)>0; }).length;
 
   html += `<div id="mto-footer-${mk}" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap">
     <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">Team total</div>
-    <div style="font-size:20px;font-weight:700;font-family:var(--fm);color:${overrideCount>0?'var(--accent)':'var(--text3)'}">${overrideCount>0?'£'+teamEffTgt.toLocaleString():'—'}</div>
-    <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">${overrideCount>0?overrideCount+' consultant'+(overrideCount!==1?'s':'')+' configured':'Fill in the fields above to set targets for this month'}</div>
-    ${overrideCount>0?`<button class="btn btn-s" style="font-size:11px;padding:5px 10px;margin-left:auto" onclick="clearAllMonthOverrides('${mk}')">Reset all</button>`:''}
+    <div style="font-size:20px;font-weight:700;font-family:var(--fm);color:${configuredCount>0?'var(--green)':'var(--text3)'}">${configuredCount>0?'£'+teamEffTgt.toLocaleString():'—'}</div>
+    <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">${configuredCount>0?configuredCount+' consultant'+(configuredCount!==1?'s':'')+' configured':'Fill in the fields above to set targets for this month'}</div>
+    ${configuredCount>0?`<button class="btn btn-s" style="font-size:11px;padding:5px 10px;margin-left:auto" onclick="clearAllMonthOverrides('${mk}')">Reset all</button>`:''}
   </div>`;
 
   container.innerHTML = html;
@@ -1459,16 +1455,14 @@ function saveMonthOverride(mk, name, field, rawVal){
   // Update just the target cell for this person (avoid re-render losing focus)
   const p    = APP.people.find(x=>x.name===name);
   if(!p) return;
-  const ovr  = (APP.monthOverrides[mk]||{})[name]||{};
-  const hasR = ovr.riskPerDay !== undefined;
-  const hasD = ovr.daysT      !== undefined;
-  const effR = hasR ? ovr.riskPerDay : (p.riskPerDay||0);
-  const effD = hasD ? ovr.daysT      : (p.daysT||0);
+  const ep   = getPersonForMonth(p, mk);
+  const hasR = (APP.monthOverrides[mk]||{})[name]?.riskPerDay !== undefined;
+  const hasD = (APP.monthOverrides[mk]||{})[name]?.daysT !== undefined;
   const tgtEl = document.getElementById('mto-tgt-'+mk+'-'+name.replace(/\s+/g,'_'));
   if(tgtEl){
     if(hasR || hasD){
-      tgtEl.textContent = '£'+(Math.round(effR*effD)).toLocaleString();
-      tgtEl.style.color = 'var(--accent)';
+      tgtEl.textContent = '£'+(Math.round((ep.riskPerDay||0)*(ep.daysT||0))).toLocaleString();
+      tgtEl.style.color = 'var(--green)';
     } else {
       tgtEl.textContent = '—';
       tgtEl.style.color = 'var(--text3)';
@@ -1481,20 +1475,17 @@ function saveMonthOverride(mk, name, field, rawVal){
 function _refreshMtFooter(mk){
   const footer = document.getElementById('mto-footer-'+mk);
   if(!footer) return;
-  const ovrs = (APP.monthOverrides && APP.monthOverrides[mk]) || {};
   const people = APP.people;
   const teamEffTgt = people.reduce((s,p)=>{
-    const o = ovrs[p.name]||{};
-    const r = o.riskPerDay !== undefined ? o.riskPerDay : (p.riskPerDay||0);
-    const d = o.daysT      !== undefined ? o.daysT      : (p.daysT||0);
-    return s + Math.round(r*d);
+    const ep = getPersonForMonth(p, mk);
+    return s + Math.round((ep.riskPerDay||0) * (ep.daysT||0));
   }, 0);
-  const overrideCount = people.filter(p=>{ const o=ovrs[p.name]||{}; return o.riskPerDay!==undefined||o.daysT!==undefined; }).length;
+  const configuredCount = people.filter(p=>{ const ep=getPersonForMonth(p,mk); return (ep.riskPerDay||0)>0||(ep.daysT||0)>0; }).length;
   footer.innerHTML = `
     <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">Team total</div>
-    <div style="font-size:20px;font-weight:700;font-family:var(--fm);color:${overrideCount>0?'var(--accent)':'var(--text3)'}">${overrideCount>0?'£'+teamEffTgt.toLocaleString():'—'}</div>
-    <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">${overrideCount>0?overrideCount+' consultant'+(overrideCount!==1?'s':'')+' configured':'Fill in the fields above to set targets for this month'}</div>
-    ${overrideCount>0?`<button class="btn btn-s" style="font-size:11px;padding:5px 10px;margin-left:auto" onclick="clearAllMonthOverrides('${mk}')">Reset all</button>`:''}
+    <div style="font-size:20px;font-weight:700;font-family:var(--fm);color:${configuredCount>0?'var(--green)':'var(--text3)'}">${configuredCount>0?'£'+teamEffTgt.toLocaleString():'—'}</div>
+    <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">${configuredCount>0?configuredCount+' consultant'+(configuredCount!==1?'s':'')+' configured':'Fill in the fields above to set targets for this month'}</div>
+    ${configuredCount>0?`<button class="btn btn-s" style="font-size:11px;padding:5px 10px;margin-left:auto" onclick="clearAllMonthOverrides('${mk}')">Reset all</button>`:''}
   `;
 }
 
