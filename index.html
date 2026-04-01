@@ -1991,13 +1991,29 @@ function renderTeamDashboard(container, teamKey){
   const elapsed    = APP.manualElapsed || calWorkDaysTeam(mk);
   const ahead      = stats.filter(p=>p.riskAhead).length;
 
-  // Team COP — use per-person stats so we only count people who have
-  // actually started working this month (calDays > 0) and use month-aware RPD
-  const activeStats = stats.filter(s => s.target > 0 && s.calDays > 0);
-  const teamRPD   = activeStats.reduce((s,p)=>s+(p.riskPerDay||0), 0);
-  const teamCopRev = teamRevMTD - (teamRPD*(elapsed+1));
+  // ── Team COP Revenue ─────────────────────────────────────────────
+  // Formula: (people IN today × their RPD) − team revenue MTD
+  // "IN today" = NOT on planned holiday or bank holiday (sickness = still in for COP)
+  const today_cop    = _localDateStr(new Date());
   const teamNmTarget = teamPeople.reduce((s,p)=>s+(getPersonForMonth(p,mk).daysT||0)*1.75,0);
-  const teamCopNm  = teamNmMTD - ((activeStats.reduce((s,p)=>s+(p.daysT||0),0)/(activeStats.length||1))*1.75*(elapsed+1));
+
+  let todayTeamRPD = 0, todayTeamNmRate = 0, todayWorkingCount = 0;
+  teamPeople.forEach(p => {
+    const st  = getDayStatus(mk, p.name, today_cop);
+    const isOff = st==='hol' || st==='bh';
+    if(!isOff){
+      todayTeamRPD    += (getPersonForMonth(p,mk).riskPerDay||0);
+      todayTeamNmRate += 1.75;
+      todayWorkingCount++;
+    }
+  });
+
+  // COP Rev: gap between what today's working team should bring AND what's already been done MTD
+  // Positive = still needed, Negative = MTD revenue already exceeds today's required total
+  const teamCopRev = todayTeamRPD - teamRevMTD;
+  const teamCopNm  = todayTeamNmRate - teamNmMTD;
+
+  const activeStats = stats.filter(s => s.target > 0);
 
   const TEAM_IMGS = { g: TEAM_G_IMG, james: TEAM_JAMES_IMG, damo: TEAM_DAMO_IMG };
   const teamImg = TEAM_IMGS[teamKey];
@@ -2107,8 +2123,8 @@ function renderTeamDashboard(container, teamKey){
         <div class="kpi-val">${teamNmMTD}</div>
         <div class="kpi-sub">target: ${teamNmTarget.toFixed(1)}</div></div>
       <div class="kpi-card"><div class="kpi-label">COP Revenue</div>
-        <div class="kpi-val ${teamCopRev>=0?'g':'r'}">${teamCopRev>=0?'+':''}£${Math.round(Math.abs(teamCopRev)).toLocaleString()}</div>
-        <div class="kpi-sub">${teamCopRev>=0?'ahead':'behind'} of checkpoint</div></div>
+        <div class="kpi-val ${teamCopRev<=0?'g':'r'}">${teamCopRev<=0?'+':''}£${Math.round(Math.abs(teamCopRev)).toLocaleString()}</div>
+        <div class="kpi-sub">${teamCopRev<=0?'MTD already covers today':'still needed today'} · ${todayWorkingCount} in × £${Math.round(todayTeamRPD/Math.max(todayWorkingCount,1)).toLocaleString()}/person</div></div>
       <div class="kpi-card"><div class="kpi-label">On Track</div>
         <div class="kpi-val ${ahead>=stats.length/2?'g':'a'}">${ahead} / ${stats.length}</div>
         <div class="kpi-sub">ahead on risk COP</div></div>
@@ -2118,19 +2134,27 @@ function renderTeamDashboard(container, teamKey){
         const rbc=p.riskAhead?'#2dce89':p.revPct>=75?'#fbb83a':'#f5365c';
         const nbc=p.nmAhead?'#2dce89':p.nmPct>=75?'#fbb83a':'#f5365c';
         const cardCls=p.riskAhead&&p.nmAhead?'ab':!p.riskAhead&&!p.nmAhead?'bb':'mx';
+        // Individual COP for team view: RPD if working today, else 0, minus their MTD revenue
+        const pSt = getDayStatus(mk, p.name, today_cop);
+        const pOff = pSt==='hol' || pSt==='bh';
+        const pRPD = pOff ? 0 : (getPersonForMonth(APP.people.find(x=>x.name===p.name)||p, mk).riskPerDay||0);
+        const indivCopRev = pRPD - p.revMTD;
+        const indivCopNm  = (pOff ? 0 : 1.75) - p.nmMTD;
+        const indivRevAhead = indivCopRev <= 0;
+        const indivNmAhead  = indivCopNm  <= 0;
         return `<div class="p-card ${cardCls}" style="border-top-color:${color}">
-          <div class="p-name">${p.name}</div>
+          <div class="p-name">${p.name}${pOff?` <span style="font-size:9px;font-weight:700;color:var(--red);background:var(--red-bg);padding:2px 5px;border-radius:3px">${pSt==='hol'?'HOL':'BH'}</span>`:''}</div>
           <div class="p-rev">£${Math.round(p.revMTD).toLocaleString()}</div>
           <div class="p-sub">${p.revPct}% of £${p.target.toLocaleString()}</div>
           <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(p.revPct,100)}%;background:${rbc}"></div></div>
-          <div class="p-row"><span class="p-lbl">COP risk</span><span class="p-val ${p.riskAhead?'g':'r'}">${p.riskAhead?'+'+fmt(p.copRev)+' ahead':fmt(p.copRev)+' needed'}</span></div>
+          <div class="p-row"><span class="p-lbl">COP today</span><span class="p-val ${indivRevAhead?'g':'r'}">${pOff?'<span style="color:var(--text3)">off today</span>':indivRevAhead?'+'+fmt(Math.abs(indivCopRev))+' covered':fmt(indivCopRev)+' needed'}</span></div>
           <div class="pdiv"></div>
           <div class="p-row"><span class="p-lbl">NM MTD</span><span class="p-val">${p.nmMTD} / ${parseFloat((p.daysT*1.75).toFixed(1))}</span></div>
           <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(p.nmPct,100)}%;background:${nbc}"></div></div>
-          <div class="p-row"><span class="p-lbl">COP NM</span><span class="p-val ${p.nmAhead?'g':'r'}">${p.nmAhead?Math.abs(p.copNm).toFixed(1)+' ahead':p.copNm.toFixed(1)+' needed'}</span></div>
+          <div class="p-row"><span class="p-lbl">COP NM today</span><span class="p-val ${indivNmAhead?'g':'r'}">${pOff?'<span style="color:var(--text3)">off today</span>':indivNmAhead?Math.abs(indivCopNm).toFixed(1)+' covered':indivCopNm.toFixed(1)+' needed'}</span></div>
           <div class="pills">
-            <span class="pill ${p.riskAhead?'pg':'pr'}">${p.riskAhead?'Risk ahead':'Risk behind'}</span>
-            <span class="pill ${p.nmAhead?'pg':'pr'}">${p.nmAhead?'NM ahead':'NM behind'}</span>
+            <span class="pill ${indivRevAhead?'pg':'pr'}">${pOff?'Off today':indivRevAhead?'COP covered':'COP needed'}</span>
+            <span class="pill ${indivNmAhead?'pg':'pr'}">${pOff?'':indivNmAhead?'NM covered':'NM needed'}</span>
           </div>
         </div>`;
       }).join('')}
