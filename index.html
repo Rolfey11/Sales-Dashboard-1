@@ -435,6 +435,11 @@ input:focus,select:focus{border-color:var(--accent);}
   </div>
   <div class="settings-grid">
 
+    <!-- Monthly targets — full width, month picker → consultant table -->
+    <div class="set-card" style="grid-column:1/-1" id="mtCard">
+      <div id="mtContent"></div>
+    </div>
+
     <!-- Consultant names only -->
     <div class="set-card">
       <div class="set-title">Consultants</div>
@@ -458,11 +463,6 @@ input:focus,select:focus{border-color:var(--accent);}
       <div class="set-title" style="color:var(--red)">Danger zone</div>
       <p style="font-size:12px;color:var(--text3);margin-bottom:14px;font-family:var(--fm);">This will permanently erase all data.</p>
       <button class="btn btn-d btn-w" onclick="clearAllData()">Clear all data</button>
-    </div>
-
-    <!-- Monthly targets — full width, month picker → consultant table -->
-    <div class="set-card" style="grid-column:1/-1" id="mtCard">
-      <div id="mtContent"></div>
     </div>
 
   </div>
