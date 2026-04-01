@@ -397,7 +397,8 @@ input:focus,select:focus{border-color:var(--accent);}
     </div>
   </div>
   <div class="sub-nav" id="dbdSubNav">
-    <button class="sub-tab active" onclick="switchDbdTab('g')">Team G</button>
+    <button class="sub-tab active" onclick="switchDbdTab('overall')">Overall</button>
+    <button class="sub-tab" onclick="switchDbdTab('g')">Team G</button>
     <button class="sub-tab" onclick="switchDbdTab('james')">Team James</button>
     <button class="sub-tab" onclick="switchDbdTab('damo')">Team Damo</button>
   </div>
@@ -1982,14 +1983,15 @@ function renderTeamDashboard(container, teamKey){
 // ═══════════════════════════════════════════════════════════════════
 // DAY BY DAY
 // ═══════════════════════════════════════════════════════════════════
-let _dbdTeam = 'g';
+let _dbdTeam = 'overall';
 let _dbdPerson = null; // null = team grid view, string = individual view
 
 function switchDbdTab(team){
   _dbdTeam = team;
   _dbdPerson = null;
+  const labelMap = {...TEAM_LABELS, overall:'Overall'};
   document.querySelectorAll('#dbdSubNav .sub-tab').forEach(b=>{
-    b.classList.toggle('active', b.textContent.trim() === (TEAM_LABELS[team]||team));
+    b.classList.toggle('active', b.textContent.trim() === (labelMap[team]||team));
   });
   document.getElementById('dbdBackBtn').style.display = 'none';
   renderDbdContent();
@@ -2009,9 +2011,171 @@ function renderDayByDay(){
 function renderDbdContent(){
   if(_dbdPerson){
     renderPersonTracker(_dbdPerson);
+  } else if(_dbdTeam === 'overall'){
+    renderDbdOverallGrid();
   } else {
     renderDbdTeamGrid(_dbdTeam);
   }
+}
+
+// ── Overall grid (all consultants across all teams) ──────────────────
+function renderDbdOverallGrid(){
+  const mk      = document.getElementById('dbdMonth').value || APP.activeMonth;
+  const entries = getEntries(mk);
+  const today   = new Date().toISOString().slice(0,10);
+
+  document.getElementById('dbd-sub').textContent = 'Overall · ' + monthLabel(mk);
+  document.getElementById('dbdBackBtn').style.display = 'none';
+
+  const [y,m] = mk.split('-').map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const allDays = [];
+  for(let d=1; d<=daysInMonth; d++){
+    const ds = y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const dow = new Date(y,m-1,d).getDay();
+    allDays.push({ ds, isWE: dow===0||dow===6 });
+  }
+
+  // All consultants that have a target set for this month
+  const people = APP.people.filter(p => personTargetForMonth(p, mk) > 0);
+
+  if(!people.length){
+    document.getElementById('dbdContent').innerHTML =
+      '<div class="empty"><div class="empty-icon">📊</div><div>No consultants have targets set for this month. Go to Settings → Monthly Targets.</div></div>';
+    return;
+  }
+
+  // Build a team colour lookup per person
+  const personTeamColor = {};
+  ['g','james','damo'].forEach(tk=>{
+    (APP.teams[tk]||[]).forEach(name=>{ personTeamColor[name] = TEAM_COLORS[tk]; });
+  });
+
+  // Entry lookup
+  const lookup = {};
+  entries.forEach(e=>{
+    if(!lookup[e.name]) lookup[e.name]={};
+    lookup[e.name][e.date] = {revenue: e.revenue||0, nm: e.nm||0};
+  });
+
+  let html = '<div class="dbd-wrap"><table class="dbd-table"><thead><tr>';
+  html += '<th class="dbd-th name-col" style="min-width:90px">Date</th>';
+  people.forEach(p=>{
+    const col = personTeamColor[p.name] || 'var(--accent)';
+    html += `<th class="dbd-th" style="min-width:90px;cursor:pointer;white-space:nowrap" onclick="dbdOpenPerson('${p.name.replace(/'/g,"\\'")}')">
+      <span style="color:${col};margin-right:3px">▶</span>${p.name}
+    </th>`;
+  });
+  html += '<th class="dbd-th" style="min-width:90px">Overall Total</th>';
+  html += '</tr></thead><tbody>';
+
+  allDays.forEach(({ds, isWE})=>{
+    const isToday = ds === today;
+    const isBH = isBankHoliday(ds);
+    const rowBg = isToday ? 'background:rgba(131,5,68,0.07);' : '';
+    const borderStyle = isToday ? 'border-top:2px solid var(--accent);border-bottom:2px solid var(--accent);' : '';
+    html += `<tr style="${rowBg}${borderStyle}">`;
+
+    const dateLabel = new Date(ds).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+    if(isWE){
+      html += `<td class="dbd-td name-col" style="color:var(--text3);cursor:default;font-size:14px;background:#1e2330">${dateLabel}</td>`;
+    } else if(isBH){
+      html += `<td class="dbd-td name-col cell-bh" style="cursor:default;font-size:14px">${dateLabel} <span style="font-size:11px;font-weight:800;color:#830544;letter-spacing:.04em">· BH</span></td>`;
+    } else {
+      html += `<td class="dbd-td name-col" style="color:var(--text2);cursor:default;font-size:14px">${dateLabel}</td>`;
+    }
+
+    let dayRev = 0, dayNm = 0;
+    people.forEach(p=>{
+      const ep = getPersonForMonth(p, mk);
+      const e = (lookup[p.name]||{})[ds];
+      const hasEntry = e && (e.revenue > 0 || e.nm > 0);
+
+      if(isWE){
+        html += '<td class="dbd-td we">—</td>';
+        if(hasEntry){ dayRev += e.revenue||0; dayNm += e.nm||0; }
+        return;
+      }
+
+      const dayStatus = getDayStatus(mk, p.name, ds);
+      const isOff = dayStatus==='hol'||dayStatus==='sick'||dayStatus==='bh';
+      const cellCls = dayStatus==='hol'?'cell-hol':dayStatus==='sick'?'cell-sick':dayStatus==='bh'?'cell-bh':'';
+      const statusLabel = dayStatus==='hol'?'HOL':dayStatus==='sick'?'SICK':dayStatus==='bh'?'BH':'';
+      const statusCol = dayStatus==='hol'?'var(--red)':dayStatus==='sick'?'var(--amber)':'#830544';
+      const col = personTeamColor[p.name] || 'var(--accent)';
+
+      if(hasEntry){ dayRev += e.revenue||0; dayNm += e.nm||0; }
+
+      if(isOff && hasEntry){
+        const hitRR = e.revenue >= (ep.riskPerDay||0);
+        html += `<td class="dbd-td ${cellCls}"><div class="dbd-cell">
+          <span class="dbd-status-label" style="color:${statusCol}">${statusLabel}</span>
+          <span class="dbd-rev ${hitRR?'dbd-hit':'dbd-miss'}">£${Math.round(e.revenue).toLocaleString()}</span>
+          <span class="dbd-nm">${e.nm} NM</span>
+        </div></td>`;
+      } else if(isOff){
+        html += `<td class="dbd-td ${cellCls}"><span class="dbd-status-label" style="color:${statusCol}">${statusLabel}</span></td>`;
+      } else if(hasEntry){
+        const hitRR = e.revenue >= (ep.riskPerDay||0);
+        html += `<td class="dbd-td"><div class="dbd-cell">
+          <span class="dbd-rev ${hitRR?'dbd-hit':'dbd-miss'}">£${Math.round(e.revenue).toLocaleString()}</span>
+          <span class="dbd-nm">${e.nm} NM</span>
+        </div></td>`;
+      } else {
+        html += `<td class="dbd-td"><span class="dbd-empty">${ds > today?'·':'—'}</span></td>`;
+      }
+    });
+
+    if(isWE){
+      html += '<td class="dbd-td total-col we">—</td>';
+    } else if(dayRev===0 && dayNm===0){
+      html += `<td class="dbd-td total-col"><span class="dbd-empty">—</span></td>`;
+    } else {
+      html += `<td class="dbd-td total-col"><div class="dbd-cell">
+        <span class="dbd-rev" style="color:var(--accent)">£${Math.round(dayRev).toLocaleString()}</span>
+        <span class="dbd-nm">${dayNm} NM</span>
+      </div></td>`;
+    }
+    html += '</tr>';
+  });
+
+  // MTD totals row
+  html += `<tr style="background:var(--surface2)">`;
+  html += `<td class="dbd-td name-col" style="font-size:13px;color:var(--text3);font-weight:700;cursor:default">MTD TOTAL</td>`;
+  let grandRev = 0, grandNm = 0;
+  people.forEach(p=>{
+    const pL = lookup[p.name]||{};
+    let mtdRev=0, mtdNm=0;
+    allDays.forEach(({ds})=>{ if(pL[ds]){ mtdRev+=pL[ds].revenue; mtdNm+=pL[ds].nm; } });
+    const tgt    = personTargetForMonth(p, mk);
+    const revPct = tgt>0 ? Math.round(mtdRev/tgt*100) : 0;
+    const pctCol = revPct>=100?'var(--green)':revPct>=75?'var(--amber)':'var(--red)';
+    grandRev += mtdRev; grandNm += mtdNm;
+    html += `<td class="dbd-td total-col"><div class="dbd-cell">
+      <span class="dbd-rev" style="color:var(--green)">£${Math.round(mtdRev).toLocaleString()}</span>
+      <span class="dbd-nm">${mtdNm} NM</span>
+      <span style="font-size:9px;color:${pctCol};font-weight:700">${revPct}%</span>
+    </div></td>`;
+  });
+  const totalTgt = people.reduce((s,p)=>s+personTargetForMonth(p,mk),0);
+  const totalPct = totalTgt>0?Math.round(grandRev/totalTgt*100):0;
+  const tPctCls  = totalPct>=100?'var(--green)':totalPct>=75?'var(--amber)':'var(--red)';
+  html += `<td class="dbd-td total-col"><div class="dbd-cell">
+    <span class="dbd-rev" style="color:var(--accent)">£${Math.round(grandRev).toLocaleString()}</span>
+    <span class="dbd-nm">${grandNm} NM</span>
+    <span style="font-size:9px;color:${tPctCls};font-weight:700">${totalPct}%</span>
+  </div></td>`;
+  html += '</tr></tbody></table></div>';
+
+  html += `<div style="display:flex;gap:16px;font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:8px;flex-wrap:wrap">
+    <span style="display:flex;align-items:center;gap:6px"><span style="color:var(--green);font-weight:700">£x</span> Hit daily run rate</span>
+    <span style="display:flex;align-items:center;gap:6px"><span style="color:var(--red);font-weight:700">£x</span> Below daily run rate</span>
+    <span style="display:flex;align-items:center;gap:6px"><span style="color:var(--text3)">—</span> No entry logged</span>
+    <span style="display:flex;align-items:center;gap:6px"><span style="color:var(--accent);font-weight:700">▶ Name</span> Click to see individual tracker</span>
+    ${['g','james','damo'].map(tk=>`<span style="display:flex;align-items:center;gap:4px"><span style="color:${TEAM_COLORS[tk]};font-weight:700">▶</span> ${TEAM_LABELS[tk]}</span>`).join('')}
+  </div>`;
+
+  document.getElementById('dbdContent').innerHTML = html;
 }
 
 // ── Team grid ───────────────────────────────────────────────────────
@@ -2035,7 +2199,7 @@ function renderDbdTeamGrid(teamKey){
     allDays.push({ ds, d, dow, isWE: dow===0||dow===6, dayLtr:['S','M','T','W','T','F','S'][dow] });
   }
 
-  const people = APP.people.filter(p => members.includes(p.name) && personTarget(p)>0);
+  const people = APP.people.filter(p => members.includes(p.name) && personTargetForMonth(p, mk)>0);
 
   if(!people.length){
     document.getElementById('dbdContent').innerHTML =
@@ -2109,7 +2273,8 @@ function renderDbdTeamGrid(teamKey){
 
       if(isOff && hasEntry){
         // Full-cell colour + both status label and entry
-        const hitRR = e.revenue >= (p.riskPerDay||0);
+        const ep = getPersonForMonth(p, mk);
+        const hitRR = e.revenue >= (ep.riskPerDay||0);
         html += `<td class="dbd-td ${cellCls}">
           <div class="dbd-cell">
             <span class="dbd-status-label" style="color:${statusCol}">${statusLabel}</span>
@@ -2123,7 +2288,8 @@ function renderDbdTeamGrid(teamKey){
           <span class="dbd-status-label" style="color:${statusCol}">${statusLabel}</span>
         </td>`;
       } else if(hasEntry){
-        const hitRR = e.revenue >= (p.riskPerDay||0);
+        const ep = getPersonForMonth(p, mk);
+        const hitRR = e.revenue >= (ep.riskPerDay||0);
         html += `<td class="dbd-td">
           <div class="dbd-cell">
             <span class="dbd-rev ${hitRR?'dbd-hit':'dbd-miss'}">£${Math.round(e.revenue).toLocaleString()}</span>
@@ -2161,7 +2327,7 @@ function renderDbdTeamGrid(teamKey){
     const pL = lookup[p.name]||{};
     let mtdRev=0, mtdNm=0;
     allDays.forEach(({ds})=>{ if(pL[ds]){ mtdRev+=pL[ds].revenue; mtdNm+=pL[ds].nm; } });
-    const tgt    = personTarget(p);
+    const tgt    = personTargetForMonth(p, mk);
     const revPct = tgt>0 ? Math.round(mtdRev/tgt*100) : 0;
     const pctCol = revPct>=100?'var(--green)':revPct>=75?'var(--amber)':'var(--red)';
     grandRev += mtdRev; grandNm += mtdNm;
@@ -2173,7 +2339,7 @@ function renderDbdTeamGrid(teamKey){
       </div>
     </td>`;
   });
-  const teamTgt = people.reduce((s,p)=>s+personTarget(p),0);
+  const teamTgt = people.reduce((s,p)=>s+personTargetForMonth(p,mk),0);
   const teamPct = teamTgt>0?Math.round(grandRev/teamTgt*100):0;
   const tPctCls = teamPct>=100?'var(--green)':teamPct>=75?'var(--amber)':'var(--red)';
   html += `<td class="dbd-td total-col">
