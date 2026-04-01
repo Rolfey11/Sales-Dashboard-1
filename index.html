@@ -431,45 +431,40 @@ input:focus,select:focus{border-color:var(--accent);}
 <!-- SETTINGS -->
 <div class="page" id="page-settings">
   <div class="section-head">
-    <div><div class="section-title">Settings</div><div class="section-sub">Configure consultants, targets, and months</div></div>
+    <div><div class="section-title">Settings</div><div class="section-sub">Manage consultants and monthly targets</div></div>
   </div>
   <div class="settings-grid">
-    <div class="set-card" style="grid-column:1/-1">
+
+    <!-- Consultant names only -->
+    <div class="set-card">
       <div class="set-title">Consultants</div>
-      <div class="calc-note" style="margin-bottom:14px">Monthly target = Risk Per Day × Working Days &nbsp;·&nbsp; NM target = Working Days × 1.75 &nbsp;·&nbsp; COP uses calendar working days elapsed today as the baseline</div>
-      <div class="pcfg-head">
-        <div class="th">Name</div>
-        <div class="th">Risk/day (£)</div>
-        <div class="th">Work days</div>
-        <div class="th">Monthly target</div>
-        <div></div>
-      </div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:14px">Add or remove consultant names. Set their targets per month below.</div>
       <div id="personConfigRows"></div>
-      <div style="display:grid;grid-template-columns:110px 90px 80px 90px 36px;gap:8px;margin-top:12px;">
-        <input type="text" id="newName" placeholder="Name">
-        <input type="number" id="newRPD" placeholder="1200" step="50">
-        <input type="number" id="newDays" placeholder="22" step="0.5">
-        <div style="font-size:12px;color:var(--text3);font-family:var(--fm);display:flex;align-items:center;" id="newCalcPreview">—</div>
-        <button class="btn btn-p" onclick="addPerson()" style="padding:8px;font-size:16px;">+</button>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <input type="text" id="newName" placeholder="Consultant name" style="flex:1">
+        <button class="btn btn-p" onclick="addPerson()" style="padding:8px 14px;font-size:13px;">+ Add</button>
       </div>
-
     </div>
 
-    <!-- MONTHLY TARGETS PER MONTH -->
-    <div class="set-card" style="grid-column:1/-1" id="mtCard">
-      <div id="mtContent"></div>
-    </div>
-
+    <!-- Month management -->
     <div class="set-card">
       <div class="set-title">Month management</div>
-      <div style="margin-bottom:10px"><div class="field-lbl">Active month</div><select id="activeMonthSel" onchange="setActiveMonth()" style="margin-bottom:10px"></select></div>
-      <button class="btn btn-p btn-w" onclick="openNewMonthModal()" style="margin-bottom:8px">+ Create new month</button>
+      <div style="margin-bottom:12px"><div class="field-lbl">Active month</div><select id="activeMonthSel" onchange="setActiveMonth()"></select></div>
+      <button class="btn btn-p btn-w" onclick="openNewMonthModal()">+ Create new month</button>
     </div>
+
+    <!-- Danger zone -->
     <div class="set-card">
       <div class="set-title" style="color:var(--red)">Danger zone</div>
       <p style="font-size:12px;color:var(--text3);margin-bottom:14px;font-family:var(--fm);">This will permanently erase all data.</p>
       <button class="btn btn-d btn-w" onclick="clearAllData()">Clear all data</button>
     </div>
+
+    <!-- Monthly targets — full width, month picker → consultant table -->
+    <div class="set-card" style="grid-column:1/-1" id="mtCard">
+      <div id="mtContent"></div>
+    </div>
+
   </div>
 </div>
 
@@ -583,15 +578,16 @@ function setEntries(monthKey, entries){
 // ── target calculation: riskPerDay × daysT ─────────────────────────
 function personTarget(p){ return Math.round((p.riskPerDay||0) * (p.daysT||0)); }
 
-// ── Month-aware person config: merges global defaults with per-month override ─
+// ── Month-aware person config: uses per-month override exclusively ──
+// Global p.riskPerDay / p.daysT are legacy fields, not used for display.
+// If no override exists for this month, returns 0/0 (unset).
 function getPersonForMonth(p, mk){
-  if(!mk) return p;
-  const ovr = (APP.monthOverrides[mk] || {})[p.name];
-  if(!ovr) return p;
+  if(!mk) return {...p, riskPerDay:0, daysT:0};
+  const ovr = (APP.monthOverrides && APP.monthOverrides[mk] && APP.monthOverrides[mk][p.name]) || {};
   return {
     ...p,
-    riskPerDay: ovr.riskPerDay !== undefined ? ovr.riskPerDay : (p.riskPerDay||0),
-    daysT:      ovr.daysT      !== undefined ? ovr.daysT      : (p.daysT||0)
+    riskPerDay: ovr.riskPerDay !== undefined ? ovr.riskPerDay : 0,
+    daysT:      ovr.daysT      !== undefined ? ovr.daysT      : 0
   };
 }
 
@@ -1234,31 +1230,17 @@ function renderSettings(){
   populateAllSelects();
   document.getElementById('activeMonthSel').value = APP.activeMonth;
 
-  document.getElementById('personConfigRows').innerHTML = APP.people.map((p,i)=>{
-    const tgt = personTarget(p);
-    return `<div class="pcfg-row">
-      <input type="text"   value="${p.name}"       onchange="updatePerson(${i},'name',this.value)">
-      <input type="number" value="${p.riskPerDay||0}" step="50" onchange="updatePerson(${i},'riskPerDay',+this.value)" placeholder="1200">
-      <input type="number" value="${p.daysT||0}"   step="0.5"  onchange="updatePerson(${i},'daysT',+this.value)" placeholder="22">
-      <div style="font-size:12px;color:var(--green);font-family:var(--fm);display:flex;align-items:center;">£${tgt.toLocaleString()}</div>
-      <button class="icon-btn" onclick="removePerson(${i})" title="Remove">✕</button>
-    </div>`;
-  }).join('');
-
-  // wire new-person preview inputs
-  const rpdEl = document.getElementById('newRPD');
-  const daysEl = document.getElementById('newDays');
-  if(rpdEl) rpdEl.oninput = updateNewPreview;
-  if(daysEl) daysEl.oninput = updateNewPreview;
+  // Name-only rows — no risk/day or work days here
+  document.getElementById('personConfigRows').innerHTML = APP.people.length
+    ? APP.people.map((p,i)=>`
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">
+        <input type="text" value="${p.name}" style="flex:1"
+          onchange="updatePerson(${i},'name',this.value)">
+        <button class="icon-btn" onclick="removePerson(${i})" title="Remove">✕</button>
+      </div>`).join('')
+    : '<div style="font-size:12px;color:var(--text3);font-family:var(--fm);margin-bottom:8px">No consultants yet.</div>';
 
   renderMonthlyTargets();
-}
-
-function updateNewPreview(){
-  const r = parseFloat(document.getElementById('newRPD').value)||0;
-  const d = parseFloat(document.getElementById('newDays').value)||0;
-  const el = document.getElementById('newCalcPreview');
-  if(el) el.textContent = (r&&d) ? '£'+(r*d).toLocaleString() : '—';
 }
 
 function updatePerson(i, field, val){
@@ -1277,17 +1259,12 @@ function removePerson(i){
 
 function addPerson(){
   const name = document.getElementById('newName').value.trim();
-  const rpd  = parseFloat(document.getElementById('newRPD').value)||0;
-  const days = parseFloat(document.getElementById('newDays').value)||22;
   if(!name){ showToast('Enter a name','err'); return; }
   if(APP.people.find(p=>p.name===name)){ showToast('Name already exists','err'); return; }
-  APP.people.push({name, riskPerDay:rpd, daysT:days});
+  APP.people.push({name, riskPerDay:0, daysT:0});
   saveApp();
   renderSettings();
   document.getElementById('newName').value='';
-  document.getElementById('newRPD').value='';
-  document.getElementById('newDays').value='';
-  document.getElementById('newCalcPreview').textContent='—';
   showToast(name+' added');
 }
 
@@ -1419,23 +1396,23 @@ function _renderMtConsultants(mk){
     html += `<div class="pcfg-row" style="grid-template-columns:130px 100px 90px 110px 36px">
       <div style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px">
         ${p.name}
-        ${hasAnyOvr ? '<span style="font-size:9px;font-weight:700;background:rgba(94,156,245,0.15);color:var(--accent);padding:2px 6px;border-radius:10px;letter-spacing:.04em;text-transform:uppercase">set</span>' : ''}
+        ${hasAnyOvr ? '<span style="font-size:9px;font-weight:700;background:rgba(45,206,137,0.15);color:var(--green);padding:2px 6px;border-radius:10px;letter-spacing:.04em;text-transform:uppercase">set</span>' : ''}
       </div>
       <div class="inp-wrap">
         <span class="inp-pre">£</span>
         <input type="number" class="inp-pl" step="50" min="0"
           value="${rpdVal}"
-          placeholder="${p.riskPerDay||0}"
+          placeholder="e.g. 1200"
           data-mto-id="${mk}__${p.name}__rpd"
           oninput="saveMonthOverride('${mk}','${safeName}','riskPerDay',this.value)">
       </div>
       <input type="number" step="0.5" min="0"
         value="${daysVal}"
-        placeholder="${p.daysT||0}"
+        placeholder="e.g. 21"
         data-mto-id="${mk}__${p.name}__days"
         oninput="saveMonthOverride('${mk}','${safeName}','daysT',this.value)">
       <div id="mto-tgt-${mk}-${p.name.replace(/\s+/g,'_')}" style="font-size:13px;font-weight:700;font-family:var(--fm);color:${tgtColor};display:flex;align-items:center">${tgtText}</div>
-      <button class="icon-btn" title="Clear — revert to global defaults"
+      <button class="icon-btn" title="Clear this month's targets"
         style="${hasAnyOvr ? '' : 'opacity:.2;pointer-events:none'}"
         onclick="clearMonthOverride('${mk}','${safeName}')">↺</button>
     </div>`;
