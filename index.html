@@ -456,18 +456,8 @@ input:focus,select:focus{border-color:var(--accent);}
     </div>
 
     <!-- MONTHLY TARGETS PER MONTH -->
-    <div class="set-card" style="grid-column:1/-1">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
-        <div>
-          <div class="set-title">Monthly Targets</div>
-          <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:3px">Set risk/day and working days per month. Values here override the global defaults above for that month only.</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px">
-          <div class="field-lbl" style="margin-bottom:0;white-space:nowrap">Month:</div>
-          <select id="mtOverrideMonth" onchange="renderMonthlyTargets()" style="width:200px"></select>
-        </div>
-      </div>
-      <div id="monthlyTargetsRows"></div>
+    <div class="set-card" style="grid-column:1/-1" id="mtCard">
+      <div id="mtContent"></div>
     </div>
 
     <div class="set-card">
@@ -1303,28 +1293,103 @@ function addPerson(){
 
 // ═══════════════════════════════════════════════════════════════════
 // MONTHLY TARGET OVERRIDES
+// Two levels: month picker → consultant table for that month
 // APP.monthOverrides[monthKey][personName] = { riskPerDay, daysT }
 // ═══════════════════════════════════════════════════════════════════
-function renderMonthlyTargets(){
-  const selEl = document.getElementById('mtOverrideMonth');
-  const mk    = (selEl && selEl.value) ? selEl.value : APP.activeMonth;
-  const ovrs  = (APP.monthOverrides && APP.monthOverrides[mk]) || {};
-  const people = APP.people;
-  const container = document.getElementById('monthlyTargetsRows');
-  if(!container) return;
+let _mtSelectedMonth = null; // null = show month list, string = editing that month
 
-  if(!people.length){
-    container.innerHTML = '<div style="color:var(--text3);font-size:12px;font-family:var(--fm);padding:8px 0">No consultants yet — add them in the Consultants section above.</div>';
+function renderMonthlyTargets(){
+  const container = document.getElementById('mtContent');
+  if(!container) return;
+  if(_mtSelectedMonth){
+    _renderMtConsultants(_mtSelectedMonth);
+  } else {
+    _renderMtMonthList();
+  }
+}
+
+function _renderMtMonthList(){
+  const container = document.getElementById('mtContent');
+  const months = allMonthKeys();
+
+  let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+    <div>
+      <div class="set-title">Monthly Targets</div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:3px">Select a month to set each consultant's risk/day and working days for that month.</div>
+    </div>
+  </div>`;
+
+  if(!months.length){
+    html += `<div style="color:var(--text3);font-size:12px;font-family:var(--fm);padding:12px 0">No months created yet. Use "Month management" below to create one.</div>`;
+    container.innerHTML = html;
     return;
   }
 
-  const overrideCount = people.filter(p => {
-    const o = ovrs[p.name]||{};
-    return o.riskPerDay !== undefined || o.daysT !== undefined;
-  }).length;
+  html += `<div style="display:flex;flex-wrap:wrap;gap:10px;">`;
+  months.forEach(mk => {
+    const ovrs = (APP.monthOverrides && APP.monthOverrides[mk]) || {};
+    const customCount = APP.people.filter(p => {
+      const o = ovrs[p.name]||{};
+      return o.riskPerDay !== undefined || o.daysT !== undefined;
+    }).length;
+    const isActive = mk === APP.activeMonth;
+    // Team target for this month
+    const teamTgt = APP.people.reduce((s,p)=>{
+      const o = ovrs[p.name]||{};
+      const r = o.riskPerDay !== undefined ? o.riskPerDay : (p.riskPerDay||0);
+      const d = o.daysT      !== undefined ? o.daysT      : (p.daysT||0);
+      return s + Math.round(r*d);
+    }, 0);
 
-  // Column headers — same layout as pcfg-head but with 5 cols
-  let html = `<div style="display:grid;grid-template-columns:130px 100px 90px 110px 36px;gap:8px;margin-bottom:8px;">
+    html += `<button onclick="_mtOpenMonth('${mk}')" style="
+      background:var(--surface2);border:1px solid ${isActive?'var(--accent)':'var(--border2)'};
+      border-radius:10px;padding:14px 18px;cursor:pointer;text-align:left;
+      transition:border-color .15s,background .15s;min-width:160px;
+      color:var(--text);font-family:var(--fh);"
+      onmouseover="this.style.background='var(--surface3)'"
+      onmouseout="this.style.background='var(--surface2)'">
+      <div style="font-size:14px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:8px">
+        ${monthLabel(mk)}
+        ${isActive ? '<span style="font-size:9px;font-weight:700;background:rgba(94,156,245,0.15);color:var(--accent);padding:2px 6px;border-radius:10px;letter-spacing:.04em">ACTIVE</span>' : ''}
+      </div>
+      <div style="font-size:12px;font-family:var(--fm);color:var(--green);margin-bottom:4px">£${teamTgt.toLocaleString()}</div>
+      <div style="font-size:10px;font-family:var(--fm);color:${customCount>0?'var(--accent)':'var(--text3)'}">
+        ${customCount>0 ? `${customCount} custom override${customCount!==1?'s':''}` : 'using global defaults'}
+      </div>
+    </button>`;
+  });
+
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+function _mtOpenMonth(mk){
+  _mtSelectedMonth = mk;
+  _renderMtConsultants(mk);
+}
+
+function _renderMtConsultants(mk){
+  const container = document.getElementById('mtContent');
+  const ovrs  = (APP.monthOverrides && APP.monthOverrides[mk]) || {};
+  const people = APP.people;
+
+  // Header with back button
+  let html = `<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+    <button class="btn btn-s" onclick="_mtBack()" style="padding:7px 12px;font-size:12px">← Back</button>
+    <div>
+      <div class="set-title" style="margin-bottom:0">${monthLabel(mk)}</div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:2px">Set risk/day and working days for each consultant — these apply only to ${monthLabel(mk)}</div>
+    </div>
+  </div>`;
+
+  if(!people.length){
+    html += `<div style="color:var(--text3);font-size:12px;font-family:var(--fm)">No consultants yet — add them in the Consultants section above.</div>`;
+    container.innerHTML = html;
+    return;
+  }
+
+  // Column headers
+  html += `<div style="display:grid;grid-template-columns:130px 100px 90px 110px 36px;gap:8px;margin-bottom:8px;">
     <div class="th">Name</div>
     <div class="th">Risk/day (£)</div>
     <div class="th">Work days</div>
@@ -1338,60 +1403,66 @@ function renderMonthlyTargets(){
     const hasOvrDays = ovr.daysT      !== undefined;
     const hasAnyOvr  = hasOvrRpd || hasOvrDays;
 
-    // Effective values for this month
+    // Show override value if set, else blank (new month) or global default
+    const rpdVal  = hasOvrRpd  ? ovr.riskPerDay : '';
+    const daysVal = hasOvrDays ? ovr.daysT      : '';
+
+    // Preview target: use set value or fall back to global for live calc
     const effRpd  = hasOvrRpd  ? ovr.riskPerDay : (p.riskPerDay||0);
     const effDays = hasOvrDays ? ovr.daysT      : (p.daysT||0);
-    const effTgt  = Math.round(effRpd * effDays);
+    const effTgt  = (hasOvrRpd || hasOvrDays) ? Math.round(effRpd * effDays) : null;
 
     const safeName = p.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-
-    // Subtle "using global" vs "overridden" indicator on each field
-    const rpdStyle  = hasOvrRpd  ? 'border-color:var(--accent);background:rgba(94,156,245,0.07)' : '';
-    const daysStyle = hasOvrDays ? 'border-color:var(--accent);background:rgba(94,156,245,0.07)' : '';
-    const tgtColor  = hasAnyOvr  ? 'var(--accent)' : 'var(--green)';
+    const tgtColor = hasAnyOvr ? 'var(--accent)' : 'var(--text3)';
+    const tgtText  = effTgt !== null ? '£'+effTgt.toLocaleString() : '—';
 
     html += `<div class="pcfg-row" style="grid-template-columns:130px 100px 90px 110px 36px">
       <div style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px">
         ${p.name}
-        ${hasAnyOvr ? '<span style="font-size:9px;font-weight:700;background:rgba(94,156,245,0.15);color:var(--accent);padding:2px 6px;border-radius:10px;letter-spacing:.04em;text-transform:uppercase">custom</span>' : ''}
+        ${hasAnyOvr ? '<span style="font-size:9px;font-weight:700;background:rgba(94,156,245,0.15);color:var(--accent);padding:2px 6px;border-radius:10px;letter-spacing:.04em;text-transform:uppercase">set</span>' : ''}
       </div>
       <div class="inp-wrap">
         <span class="inp-pre">£</span>
         <input type="number" class="inp-pl" step="50" min="0"
-          value="${effRpd}"
-          style="${rpdStyle}"
+          value="${rpdVal}"
+          placeholder="${p.riskPerDay||0}"
           data-mto-id="${mk}__${p.name}__rpd"
-          oninput="saveMonthOverride('${mk}','${safeName}','riskPerDay',this.value)"
-          placeholder="${p.riskPerDay||0}">
+          oninput="saveMonthOverride('${mk}','${safeName}','riskPerDay',this.value)">
       </div>
       <input type="number" step="0.5" min="0"
-        value="${effDays}"
-        style="${daysStyle}"
+        value="${daysVal}"
+        placeholder="${p.daysT||0}"
         data-mto-id="${mk}__${p.name}__days"
-        oninput="saveMonthOverride('${mk}','${safeName}','daysT',this.value)"
-        placeholder="${p.daysT||0}">
-      <div style="font-size:13px;font-weight:700;font-family:var(--fm);color:${tgtColor};display:flex;align-items:center">£${effTgt.toLocaleString()}</div>
-      <button class="icon-btn" title="Reset to global defaults"
-        style="${hasAnyOvr ? '' : 'opacity:.25;pointer-events:none'}"
+        oninput="saveMonthOverride('${mk}','${safeName}','daysT',this.value)">
+      <div id="mto-tgt-${mk}-${p.name.replace(/\s+/g,'_')}" style="font-size:13px;font-weight:700;font-family:var(--fm);color:${tgtColor};display:flex;align-items:center">${tgtText}</div>
+      <button class="icon-btn" title="Clear — revert to global defaults"
+        style="${hasAnyOvr ? '' : 'opacity:.2;pointer-events:none'}"
         onclick="clearMonthOverride('${mk}','${safeName}')">↺</button>
     </div>`;
   });
 
-  // Footer summary
-  const teamEffTgt    = people.reduce((s,p)=>{ const o=ovrs[p.name]||{}; const r=o.riskPerDay!==undefined?o.riskPerDay:(p.riskPerDay||0); const d=o.daysT!==undefined?o.daysT:(p.daysT||0); return s+Math.round(r*d); },0);
-  const teamGlobalTgt = people.reduce((s,p)=>s+personTarget(p), 0);
+  // Footer: team total
+  const teamEffTgt = people.reduce((s,p)=>{
+    const o = ovrs[p.name]||{};
+    const r = o.riskPerDay !== undefined ? o.riskPerDay : (p.riskPerDay||0);
+    const d = o.daysT      !== undefined ? o.daysT      : (p.daysT||0);
+    return s + Math.round(r*d);
+  }, 0);
+  const overrideCount = people.filter(p=>{ const o=ovrs[p.name]||{}; return o.riskPerDay!==undefined||o.daysT!==undefined; }).length;
 
-  html += `<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-    <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">Team total for <span style="color:var(--text);font-weight:600">${monthLabel(mk)}</span></div>
-    <div style="font-size:20px;font-weight:700;font-family:var(--fm);color:${overrideCount>0?'var(--accent)':'var(--green)'}">£${teamEffTgt.toLocaleString()}</div>
-    ${overrideCount>0
-      ? `<div style="font-size:11px;color:var(--text3);font-family:var(--fm)">global default: £${teamGlobalTgt.toLocaleString()} &nbsp;·&nbsp; <span style="color:var(--accent)">${overrideCount} custom override${overrideCount!==1?'s':''}</span></div>
-         <button class="btn btn-s" style="font-size:11px;padding:5px 10px;margin-left:auto" onclick="clearAllMonthOverrides('${mk}')">Reset all to global</button>`
-      : `<div style="font-size:11px;color:var(--text3);font-family:var(--fm)">using global defaults</div>`
-    }
+  html += `<div id="mto-footer-${mk}" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">Team total</div>
+    <div style="font-size:20px;font-weight:700;font-family:var(--fm);color:${overrideCount>0?'var(--accent)':'var(--text3)'}">${overrideCount>0?'£'+teamEffTgt.toLocaleString():'—'}</div>
+    <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">${overrideCount>0?overrideCount+' consultant'+(overrideCount!==1?'s':'')+' configured':'Fill in the fields above to set targets for this month'}</div>
+    ${overrideCount>0?`<button class="btn btn-s" style="font-size:11px;padding:5px 10px;margin-left:auto" onclick="clearAllMonthOverrides('${mk}')">Reset all</button>`:''}
   </div>`;
 
   container.innerHTML = html;
+}
+
+function _mtBack(){
+  _mtSelectedMonth = null;
+  _renderMtMonthList();
 }
 
 function saveMonthOverride(mk, name, field, rawVal){
@@ -1400,7 +1471,6 @@ function saveMonthOverride(mk, name, field, rawVal){
   if(!APP.monthOverrides[mk][name]) APP.monthOverrides[mk][name] = {};
   const val = parseFloat(rawVal);
   if(rawVal === '' || isNaN(val)){
-    // blank → remove the override for this field only
     delete APP.monthOverrides[mk][name][field];
     if(!Object.keys(APP.monthOverrides[mk][name]).length) delete APP.monthOverrides[mk][name];
     if(!Object.keys(APP.monthOverrides[mk]).length) delete APP.monthOverrides[mk];
@@ -1408,23 +1478,47 @@ function saveMonthOverride(mk, name, field, rawVal){
     APP.monthOverrides[mk][name][field] = val;
   }
   saveApp();
-  // Update just the target cell and badge for this row without losing input focus
-  _refreshMonthlyTargetRow(mk, name);
+
+  // Update just the target cell for this person (avoid re-render losing focus)
+  const p    = APP.people.find(x=>x.name===name);
+  if(!p) return;
+  const ovr  = (APP.monthOverrides[mk]||{})[name]||{};
+  const hasR = ovr.riskPerDay !== undefined;
+  const hasD = ovr.daysT      !== undefined;
+  const effR = hasR ? ovr.riskPerDay : (p.riskPerDay||0);
+  const effD = hasD ? ovr.daysT      : (p.daysT||0);
+  const tgtEl = document.getElementById('mto-tgt-'+mk+'-'+name.replace(/\s+/g,'_'));
+  if(tgtEl){
+    if(hasR || hasD){
+      tgtEl.textContent = '£'+(Math.round(effR*effD)).toLocaleString();
+      tgtEl.style.color = 'var(--accent)';
+    } else {
+      tgtEl.textContent = '—';
+      tgtEl.style.color = 'var(--text3)';
+    }
+  }
+  // Update footer team total
+  _refreshMtFooter(mk);
 }
 
-function _refreshMonthlyTargetRow(mk, name){
-  // Re-render the whole monthly targets section but restore focus afterwards
-  const focused = document.activeElement;
-  const focusedId = focused ? focused.getAttribute('data-mto-id') : null;
-  const selStart  = focused && focused.selectionStart !== undefined ? focused.selectionStart : null;
-
-  renderMonthlyTargets();
-
-  // Restore focus
-  if(focusedId){
-    const el = document.querySelector(`[data-mto-id="${focusedId}"]`);
-    if(el){ el.focus(); if(selStart!==null && el.setSelectionRange) el.setSelectionRange(selStart, selStart); }
-  }
+function _refreshMtFooter(mk){
+  const footer = document.getElementById('mto-footer-'+mk);
+  if(!footer) return;
+  const ovrs = (APP.monthOverrides && APP.monthOverrides[mk]) || {};
+  const people = APP.people;
+  const teamEffTgt = people.reduce((s,p)=>{
+    const o = ovrs[p.name]||{};
+    const r = o.riskPerDay !== undefined ? o.riskPerDay : (p.riskPerDay||0);
+    const d = o.daysT      !== undefined ? o.daysT      : (p.daysT||0);
+    return s + Math.round(r*d);
+  }, 0);
+  const overrideCount = people.filter(p=>{ const o=ovrs[p.name]||{}; return o.riskPerDay!==undefined||o.daysT!==undefined; }).length;
+  footer.innerHTML = `
+    <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">Team total</div>
+    <div style="font-size:20px;font-weight:700;font-family:var(--fm);color:${overrideCount>0?'var(--accent)':'var(--text3)'}">${overrideCount>0?'£'+teamEffTgt.toLocaleString():'—'}</div>
+    <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">${overrideCount>0?overrideCount+' consultant'+(overrideCount!==1?'s':'')+' configured':'Fill in the fields above to set targets for this month'}</div>
+    ${overrideCount>0?`<button class="btn btn-s" style="font-size:11px;padding:5px 10px;margin-left:auto" onclick="clearAllMonthOverrides('${mk}')">Reset all</button>`:''}
+  `;
 }
 
 function clearMonthOverride(mk, name){
@@ -1433,16 +1527,16 @@ function clearMonthOverride(mk, name){
     if(!Object.keys(APP.monthOverrides[mk]).length) delete APP.monthOverrides[mk];
   }
   saveApp();
-  renderMonthlyTargets();
-  showToast('Override cleared for '+name);
+  _renderMtConsultants(mk);
+  showToast('Reset to global defaults');
 }
 
 function clearAllMonthOverrides(mk){
-  if(!confirm('Clear all monthly overrides for '+monthLabel(mk)+'? Consultants will revert to their global defaults.')) return;
+  if(!confirm('Reset all targets for '+monthLabel(mk)+'? All consultants will use global defaults.')) return;
   if(APP.monthOverrides) delete APP.monthOverrides[mk];
   saveApp();
-  renderMonthlyTargets();
-  showToast('All overrides cleared for '+monthLabel(mk));
+  _renderMtConsultants(mk);
+  showToast('All targets reset for '+monthLabel(mk));
 }
 
 function setActiveMonth(){
@@ -1457,11 +1551,9 @@ function setGlobalMonth(){
   if(!val) return;
   APP.activeMonth = val;
   saveApp();
-  // sync the settings selectors too
+  // sync the settings selector too
   const s = document.getElementById('activeMonthSel');
   if(s) s.value = val;
-  const mo = document.getElementById('mtOverrideMonth');
-  if(mo){ mo.value = val; renderMonthlyTargets(); }
   // re-render current page
   const pg = document.querySelector('.page.active');
   if(pg){ showPage(pg.id.replace('page-','')); }
@@ -1487,6 +1579,7 @@ function createNewMonth(){
   APP.activeMonth=key;
   saveApp();
   populateAllSelects();
+  _mtSelectedMonth = null; // go back to month list so new month appears
   renderSettings();
   closeModal();
   showToast('Created '+monthLabel(key));
@@ -1509,7 +1602,7 @@ function clearAllData(){
 function populateAllSelects(){
   const months = allMonthKeys();
 
-  ['entryMonth','lbMonth','histMonth','activeMonthSel','holMonth','bizMonth','teamsMonth','dbdMonth','mtOverrideMonth'].forEach(id=>{
+  ['entryMonth','lbMonth','histMonth','activeMonthSel','holMonth','bizMonth','teamsMonth','dbdMonth'].forEach(id=>{
     const el = document.getElementById(id);
     if(!el) return;
     const cur = el.value || APP.activeMonth;
