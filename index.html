@@ -915,7 +915,7 @@ function renderHoliday(){
   const mk = document.getElementById('holMonth').value || APP.activeMonth;
   const [y, m] = mk.split('-').map(Number);
   const daysInMonth = new Date(y, m, 0).getDate();
-  const people = APP.people.filter(p => personTarget(p) > 0);
+  const people = APP.people.filter(p => personTargetForMonth(p, mk) > 0);
 
   if(!people.length){
     document.getElementById('holTbl').innerHTML = '<tr><td style="padding:24px;color:var(--text3);font-family:var(--fm)">No consultants set up yet.</td></tr>';
@@ -1991,11 +1991,13 @@ function renderTeamDashboard(container, teamKey){
   const elapsed    = APP.manualElapsed || calWorkDaysTeam(mk);
   const ahead      = stats.filter(p=>p.riskAhead).length;
 
-  // Team COP
-  const teamRPD   = teamPeople.reduce((s,p)=>s+(p.riskPerDay||0),0);
+  // Team COP — use per-person stats so we only count people who have
+  // actually started working this month (calDays > 0) and use month-aware RPD
+  const activeStats = stats.filter(s => s.target > 0 && s.calDays > 0);
+  const teamRPD   = activeStats.reduce((s,p)=>s+(p.riskPerDay||0), 0);
   const teamCopRev = teamRevMTD - (teamRPD*(elapsed+1));
-  const teamNmTarget = teamPeople.reduce((s,p)=>s+(p.daysT||0)*1.75,0);
-  const teamCopNm  = teamNmMTD - ((teamPeople.reduce((s,p)=>s+(p.daysT||0),0)/teamPeople.length||0)*1.75*(elapsed+1));
+  const teamNmTarget = teamPeople.reduce((s,p)=>s+(getPersonForMonth(p,mk).daysT||0)*1.75,0);
+  const teamCopNm  = teamNmMTD - ((activeStats.reduce((s,p)=>s+(p.daysT||0),0)/(activeStats.length||1))*1.75*(elapsed+1));
 
   const TEAM_IMGS = { g: TEAM_G_IMG, james: TEAM_JAMES_IMG, damo: TEAM_DAMO_IMG };
   const teamImg = TEAM_IMGS[teamKey];
