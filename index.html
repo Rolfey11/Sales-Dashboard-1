@@ -1991,15 +1991,29 @@ function renderTeamDashboard(container, teamKey){
   const elapsed    = APP.manualElapsed || calWorkDaysTeam(mk);
   const ahead      = stats.filter(p=>p.riskAhead).length;
 
-  // Team COP — sum each person's individual copRev which already accounts for
-  // their specific working days elapsed (holidays/BH excluded) × their own RPD.
-  // This means people on holiday don't inflate the team checkpoint, and people
-  // with different RPDs or different holiday patterns are all handled correctly.
-  // Formula per person: ((calDays + 1) × riskPerDay) − revMTD
-  // Team COP = sum of all individual copRevs = sum((calDays_i+1)×rpd_i) − teamRevMTD
-  const teamCopRev = stats.filter(s => s.target > 0).reduce((s,p) => s + p.copRev, 0);
+  // Team COP — walk through each working date day 1 → elapsed+1,
+  // on each date sum the RPD of team members who were actually in
+  // (not on planned holiday, sickness, or bank holiday), accumulate
+  // that as the run-rate checkpoint, then subtract MTD revenue.
+  const wdates = workingDatesInMonth(mk);
+  const checkpointDates = wdates.slice(0, elapsed + 1);
+  let teamCumulativeRR = 0;
+  let teamCumulativeNmRR = 0;
+  checkpointDates.forEach(ds => {
+    teamPeople.forEach(p => {
+      const ep  = getPersonForMonth(p, mk);
+      const rpd = ep.riskPerDay || 0;
+      if(rpd === 0) return; // person has no target this month
+      const status = getDayStatus(mk, p.name, ds);
+      if(status !== 'hol' && status !== 'sick' && status !== 'bh'){
+        teamCumulativeRR   += rpd;
+        teamCumulativeNmRR += 1.75;
+      }
+    });
+  });
+  const teamCopRev = teamCumulativeRR - teamRevMTD;
   const teamNmTarget = teamPeople.reduce((s,p)=>s+(getPersonForMonth(p,mk).daysT||0)*1.75,0);
-  const teamCopNm  = stats.filter(s => s.target > 0).reduce((s,p) => s + p.copNm, 0);
+  const teamCopNm  = teamCumulativeNmRR - teamNmMTD;
 
   const TEAM_IMGS = { g: TEAM_G_IMG, james: TEAM_JAMES_IMG, damo: TEAM_DAMO_IMG };
   const teamImg = TEAM_IMGS[teamKey];
