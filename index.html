@@ -1342,9 +1342,50 @@ function renderSettings(){
 }
 
 function updatePerson(i, field, val){
+  const oldName = APP.people[i].name;
   APP.people[i][field] = val;
+
+  // If the name changed, propagate the rename everywhere it's stored by name
+  if(field === 'name' && val && val !== oldName){
+    const newName = val;
+
+    // 1. All monthly entries
+    Object.keys(APP.months||{}).forEach(mk=>{
+      const entries = (APP.months[mk]||{}).entries||[];
+      entries.forEach(e=>{ if(e.name===oldName) e.name=newName; });
+    });
+
+    // 2. Team assignments
+    Object.keys(APP.teams||{}).forEach(tk=>{
+      APP.teams[tk] = (APP.teams[tk]||[]).map(n=>n===oldName?newName:n);
+    });
+
+    // 3. Holidays
+    Object.keys(APP.holidays||{}).forEach(mk=>{
+      if(APP.holidays[mk][oldName]!==undefined){
+        APP.holidays[mk][newName] = APP.holidays[mk][oldName];
+        delete APP.holidays[mk][oldName];
+      }
+    });
+
+    // 4. Sickness
+    Object.keys(APP.sickness||{}).forEach(mk=>{
+      if(APP.sickness[mk][oldName]!==undefined){
+        APP.sickness[mk][newName] = APP.sickness[mk][oldName];
+        delete APP.sickness[mk][oldName];
+      }
+    });
+
+    // 5. Monthly target overrides
+    Object.keys(APP.monthOverrides||{}).forEach(mk=>{
+      if(APP.monthOverrides[mk][oldName]!==undefined){
+        APP.monthOverrides[mk][newName] = APP.monthOverrides[mk][oldName];
+        delete APP.monthOverrides[mk][oldName];
+      }
+    });
+  }
+
   saveApp();
-  // refresh the target preview in that row
   renderSettings();
 }
 
@@ -1991,8 +2032,9 @@ function renderTeamDashboard(container, teamKey){
   const elapsed    = APP.manualElapsed || calWorkDaysTeam(mk);
   const ahead      = stats.filter(p=>p.riskAhead).length;
 
+  // Team COP — use per-person stats so we only count people who have
+  // teamCopRev and teamCopNm are derived from the daily loop below
   const teamNmTarget = teamPeople.reduce((s,p)=>s+(getPersonForMonth(p,mk).daysT||0)*1.75,0);
-  // teamCopRev and teamCopNm are set after the table loop below
 
   const TEAM_IMGS = { g: TEAM_G_IMG, james: TEAM_JAMES_IMG, damo: TEAM_DAMO_IMG };
   const teamImg = TEAM_IMGS[teamKey];
@@ -2054,7 +2096,7 @@ function renderTeamDashboard(container, teamKey){
     </tr>`;
   });
 
-  // COP = last row's MTD Diff — cumulative run rate minus cumulative actual
+  // COP = last row's MTD Diff — always matches the bottom of the daily breakdown
   const teamCopRev = cumActual - cumRR;
   const teamCopNm  = cumNmActual - cumNmRR;
 
@@ -2095,7 +2137,7 @@ function renderTeamDashboard(container, teamKey){
         <div style="font-size:13px;color:var(--text3);font-family:var(--fm);margin-top:2px">${members.length} members · ${monthLabel(mk)}</div>
       </div>
     </div>
-    <div class="kpi-row" style="grid-template-columns:repeat(5,1fr)">
+    <div class="kpi-row" style="grid-template-columns:repeat(6,1fr)">
       <div class="kpi-card"><div class="kpi-label">Team Revenue MTD</div>
         <div class="kpi-val ${teamPct>=100?'g':teamPct>=75?'a':'r'}">£${Math.round(teamRevMTD).toLocaleString()}</div>
         <div class="kpi-sub">${teamPct}% of £${teamTgt.toLocaleString()}</div></div>
@@ -2105,6 +2147,9 @@ function renderTeamDashboard(container, teamKey){
       <div class="kpi-card"><div class="kpi-label">Team NM MTD</div>
         <div class="kpi-val">${teamNmMTD}</div>
         <div class="kpi-sub">target: ${teamNmTarget.toFixed(1)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">COP NM</div>
+        <div class="kpi-val ${teamCopNm>=0?'g':'r'}">${teamCopNm>=0?'+':''}${teamCopNm.toFixed(1)}</div>
+        <div class="kpi-sub">${teamCopNm>=0?'ahead':'behind'} of checkpoint</div></div>
       <div class="kpi-card"><div class="kpi-label">COP Revenue</div>
         <div class="kpi-val ${teamCopRev>=0?'g':'r'}">${teamCopRev>=0?'+':''}£${Math.round(Math.abs(teamCopRev)).toLocaleString()}</div>
         <div class="kpi-sub">${teamCopRev>=0?'ahead':'behind'} of checkpoint</div></div>
