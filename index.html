@@ -302,13 +302,18 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 <div class="page active" id="page-dashboard">
   <div class="section-head">
     <div><div class="section-title">Team Overview</div><div class="section-sub" id="dash-sub"></div></div>
-    <div style="display:flex;gap:8px">
+    <div style="display:flex;gap:8px;align-items:center">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:11px;color:var(--text3);font-family:var(--fm);white-space:nowrap">Working days elapsed:</span>
+        <select id="elapsedDaysSel" onchange="setElapsedDays(this.value)" style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:5px 10px;font-size:13px;font-weight:700;font-family:var(--fm);color:var(--text);outline:none;cursor:pointer;width:70px;"></select>
+      </div>
       <button class="btn btn-s" onclick="exportDashboardCSV()">↓ Export CSV</button>
       <button class="btn btn-s" onclick="showPage('entry')">+ Add today's numbers</button>
     </div>
   </div>
-  <div class="kpi-row" id="kpiRow"></div>
+  <div class="kpi-row" id="kpiRow" style="grid-template-columns:repeat(6,1fr)"></div>
   <div class="cards-grid" id="cardsGrid"></div>
+  <div id="dashDailyTable"></div>
   <div class="charts-row">
     <div class="chart-card"><div class="chart-title">Daily team revenue</div><div class="chart-sub">vs daily run rate target</div><div style="position:relative;height:220px"><canvas id="cDailyRev"></canvas></div></div>
     <div class="chart-card"><div class="chart-title">Cumulative revenue</div><div class="chart-sub">actual vs target trajectory</div><div style="position:relative;height:220px"><canvas id="cCumul"></canvas></div></div>
@@ -1077,37 +1082,71 @@ function renderDashboard(){
   const mk     = APP.activeMonth;
   const stats  = calcStats(mk);
   const active = stats.filter(s=>s.target>0);
-  const teamTgt = APP.people.reduce((s,p)=>s+personTarget(p),0);
+  const teamTgt  = active.reduce((s,p)=>s+p.target,0);
   const totalRev = active.reduce((s,p)=>s+p.revMTD,0);
   const totalNM  = active.reduce((s,p)=>s+p.nmMTD,0);
   const pct      = teamTgt>0 ? Math.round(totalRev/teamTgt*100) : 0;
   const ahead    = active.filter(p=>p.riskAhead).length;
-  const revGap   = totalRev - teamTgt;
+  const elapsed  = APP.manualElapsed!=null ? APP.manualElapsed : calWorkDaysTeam(mk);
 
-  const calDaysDisplay = calWorkDaysTeam(mk);
+  // Populate elapsed days selector
+  const elSel = document.getElementById('elapsedDaysSel');
+  if(elSel){
+    elSel.innerHTML = Array.from({length:31},(_,i)=>i)
+      .map(n=>`<option value="${n}"${n===elapsed?' selected':''}>${n}</option>`).join('');
+  }
+
+  // NM target = sum of each active person's daysT × 1.75
+  const nmTarget = active.reduce((s,p)=>s+(p.daysT||0)*1.75, 0);
+
+  // COP — same day-by-day loop as teams tab (matches MTD Diff at bottom of teams table)
+  const today2   = _localDateStr(new Date());
+  const wdDates  = workingDatesInMonth(mk).filter(ds => ds <= today2);
+  const allPeople= APP.people.filter(p=>personTargetForMonth(p,mk)>0);
+
+  // Build entry lookup for all active people
+  const entries  = getEntries(mk);
+  let cumActual=0, cumRR=0, cumNmActual=0, cumNmRR=0;
+  wdDates.forEach(ds=>{
+    let dayRR=0, dayNmRR=0;
+    allPeople.forEach(p=>{
+      const ep  = getPersonForMonth(p,mk);
+      const rpd = ep.riskPerDay||0;
+      if(!rpd) return;
+      const st = getDayStatus(mk, p.name, ds);
+      if(st!=='hol'&&st!=='bh'){ dayRR+=rpd; dayNmRR+=1.75; }
+    });
+    const dayActual = entries.filter(e=>e.date===ds).reduce((s,e)=>s+(e.revenue||0),0);
+    const dayNm     = entries.filter(e=>e.date===ds).reduce((s,e)=>s+(e.nm||0),0);
+    cumActual  += dayActual;
+    cumRR      += dayRR;
+    cumNmActual+= dayNm;
+    cumNmRR    += dayNmRR;
+  });
+  const teamCopRev = cumActual - cumRR;
+  const teamCopNm  = cumNmActual - cumNmRR;
 
   document.getElementById('dash-sub').textContent = monthLabel(mk)+' · '+new Date().toLocaleDateString('en-GB');
 
   document.getElementById('kpiRow').innerHTML=`
-    <div class="kpi-card"><div class="kpi-label">Team revenue MTD</div>
+    <div class="kpi-card"><div class="kpi-label">Team Revenue MTD</div>
       <div class="kpi-val ${pct>=100?'g':pct>=75?'a':'r'}">£${Math.round(totalRev).toLocaleString()}</div>
-      <div class="kpi-sub">${pct}% of £${teamTgt.toLocaleString()} target</div></div>
-    <div class="kpi-card"><div class="kpi-label">Team target</div>
+      <div class="kpi-sub">${pct}% of £${teamTgt.toLocaleString()}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Team Target</div>
       <div class="kpi-val">£${teamTgt.toLocaleString()}</div>
-      <div class="kpi-sub">${active.length} active consultants</div></div>
-    <div class="kpi-card"><div class="kpi-label">Working days elapsed</div>
-      <div style="margin:4px 0 4px">
-        <select onchange="setElapsedDays(this.value)" style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:5px 10px;font-size:18px;font-weight:700;font-family:var(--fm);color:var(--text);outline:none;cursor:pointer;">
-          ${Array.from({length:31},(_,i)=>i).map(n=>`<option value="${n}"${n===(APP.manualElapsed!=null?APP.manualElapsed:calWorkDaysTeam(mk))?' selected':''}>${n}</option>`).join('')}
-        </select>
-      </div>
-      <div class="kpi-sub">Select elapsed working days</div></div>
-    <div class="kpi-card"><div class="kpi-label">Total needs met</div>
+      <div class="kpi-sub">${active.length} consultants</div></div>
+    <div class="kpi-card"><div class="kpi-label">Team NM MTD</div>
       <div class="kpi-val">${totalNM}</div>
-      <div class="kpi-sub">deals logged MTD</div></div>
-    <div class="kpi-card"><div class="kpi-label">On track</div>
+      <div class="kpi-sub">target: ${nmTarget.toFixed(1)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">COP NM</div>
+      <div class="kpi-val ${teamCopNm>=0?'g':'r'}">${teamCopNm>=0?'+':''}${teamCopNm.toFixed(1)}</div>
+      <div class="kpi-sub">${teamCopNm>=0?'ahead':'behind'} of checkpoint</div></div>
+    <div class="kpi-card"><div class="kpi-label">COP Revenue</div>
+      <div class="kpi-val ${teamCopRev>=0?'g':'r'}">${teamCopRev>=0?'+':''}£${Math.round(Math.abs(teamCopRev)).toLocaleString()}</div>
+      <div class="kpi-sub">${teamCopRev>=0?'ahead':'behind'} of checkpoint</div></div>
+    <div class="kpi-card"><div class="kpi-label">On Track</div>
       <div class="kpi-val ${ahead>=active.length/2?'g':'a'}">${ahead} / ${active.length}</div>
-      <div class="kpi-sub">consultants ahead on risk COP</div></div>`;
+      <div class="kpi-sub">ahead on risk COP</div></div>`;
 
   if(active.length===0){
     document.getElementById('cardsGrid').innerHTML=`<div class="empty" style="grid-column:1/-1">
@@ -1139,6 +1178,84 @@ function renderDashboard(){
       </div>`;
     }).join('');
   }
+
+  // ── Daily Breakdown table (same logic as Teams tab) ──────────────
+  const dayLookupDash = {};
+  entries.forEach(e=>{
+    if(!dayLookupDash[e.date]) dayLookupDash[e.date]={rev:0,nm:0};
+    dayLookupDash[e.date].rev += (e.revenue||0);
+    dayLookupDash[e.date].nm  += (e.nm||0);
+  });
+
+  let dashTableRows='', dCumActual=0, dCumRR=0, dCumNmActual=0, dCumNmRR=0;
+  const memberRPDsDash = allPeople.map(p=>({ name:p.name, rpd:(getPersonForMonth(p,mk).riskPerDay||0) }));
+
+  wdDates.forEach(ds=>{
+    let dayRR=0, dayNmRR=0;
+    memberRPDsDash.forEach(({name,rpd})=>{
+      const st = getDayStatus(mk,name,ds);
+      if(st!=='hol'&&st!=='bh'){ dayRR+=rpd; dayNmRR+=1.75; }
+    });
+    const dayActual = (dayLookupDash[ds]||{}).rev||0;
+    const dayNm     = (dayLookupDash[ds]||{}).nm||0;
+    dCumActual  += dayActual;
+    dCumRR      += dayRR;
+    dCumNmActual+= dayNm;
+    dCumNmRR    += dayNmRR;
+
+    const diff        = dayActual - dayRR;
+    const nmDiff      = dayNm - dayNmRR;
+    const mtdDiff     = dCumActual - dCumRR;
+    const nmMtdDiff   = dCumNmActual - dCumNmRR;
+    const diffCls     = diff>=0?'var(--green)':'var(--red)';
+    const nmDiffCls   = nmDiff>=0?'var(--green)':'var(--red)';
+    const mtdDiffCls  = mtdDiff>=0?'var(--green)':'var(--red)';
+    const dateLabel   = new Date(ds).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+
+    dashTableRows += `<tr style="border-bottom:1px solid var(--border);font-size:12px;font-family:var(--fm);">
+      <td style="padding:8px 14px;color:var(--text2);white-space:nowrap">${dateLabel}</td>
+      <td style="padding:8px 14px;text-align:right;color:${dayActual>0?'var(--text)':'var(--text3)'};font-weight:600">£${Math.round(dayActual).toLocaleString()}</td>
+      <td style="padding:8px 14px;text-align:right;color:var(--text3)">£${Math.round(dayRR).toLocaleString()}</td>
+      <td style="padding:8px 14px;text-align:right;color:${diffCls};font-weight:600">${diff>=0?'+':''}£${Math.round(diff).toLocaleString()}</td>
+      <td style="padding:8px 14px;text-align:right;color:${dayNm>0?'var(--text)':'var(--text3)'};">${dayNm}</td>
+      <td style="padding:8px 14px;text-align:right;color:var(--text3)">${dayNmRR.toFixed(2)}</td>
+      <td style="padding:8px 14px;text-align:right;color:${nmDiffCls};font-weight:600">${nmDiff>=0?'+':''}${nmDiff.toFixed(2)}</td>
+      <td style="padding:8px 14px;text-align:right;color:var(--accent);font-weight:700">£${Math.round(dCumActual).toLocaleString()}</td>
+      <td style="padding:8px 14px;text-align:right;color:var(--text3)">£${Math.round(dCumRR).toLocaleString()}</td>
+      <td style="padding:8px 14px;text-align:right;color:${mtdDiffCls};font-weight:700">${mtdDiff>=0?'+':''}£${Math.round(mtdDiff).toLocaleString()}</td>
+    </tr>`;
+  });
+
+  const thS  = `style="padding:9px 14px;background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;font-family:var(--fm);white-space:nowrap;border-bottom:1px solid var(--border);"`;
+  const thSR = `style="padding:9px 14px;background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;font-family:var(--fm);white-space:nowrap;text-align:right;border-bottom:1px solid var(--border);"`;
+
+  const dashDailyTable = wdDates.length ? `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:24px">
+      <div style="padding:14px 18px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+        <div style="font-size:13px;font-weight:700">Daily Breakdown</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">revenue · run rate · needs met · MTD cumulative</div>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;min-width:780px">
+          <thead><tr>
+            <th ${thS}>Date</th>
+            <th ${thSR}>Rev Total</th>
+            <th ${thSR}>Rev Run Rate</th>
+            <th ${thSR}>Rev Diff</th>
+            <th ${thSR}>NM Total</th>
+            <th ${thSR}>NM Run Rate</th>
+            <th ${thSR}>NM Diff</th>
+            <th ${thSR} style="border-left:2px solid var(--border2);padding:9px 14px;background:var(--surface2);color:var(--accent);font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;font-family:var(--fm);white-space:nowrap;text-align:right;border-bottom:1px solid var(--border);">MTD Revenue</th>
+            <th ${thSR}>MTD Run Rate</th>
+            <th ${thSR}>MTD Diff</th>
+          </tr></thead>
+          <tbody>${dashTableRows}</tbody>
+        </table>
+      </div>
+    </div>` : '';
+
+  const dashTableEl = document.getElementById('dashDailyTable');
+  if(dashTableEl) dashTableEl.innerHTML = dashDailyTable;
 
   setTimeout(()=>renderDashCharts(mk), 50);
 }
