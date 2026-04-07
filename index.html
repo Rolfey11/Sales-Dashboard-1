@@ -278,6 +278,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <button class="nav-tab" onclick="showPage('teams')">Teams</button>
       <button class="nav-tab" onclick="showPage('summary')">Consultant Summary</button>
       <button class="nav-tab" onclick="showPage('entry')">Daily Entry</button>
+      <button class="nav-tab" onclick="showPage('monthlysummary')">Monthly Summary</button>
       <button class="nav-tab" onclick="showPage('leaderboard')">Leaderboard</button>
       <button class="nav-tab" onclick="showPage('history')">History</button>
       <button class="nav-tab" onclick="showPage('daybyday')">Day by Day</button>
@@ -430,6 +431,20 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
   </div>
 </div>
 
+<!-- MONTHLY CONSULTANT SUMMARY -->
+<div class="page" id="page-monthlysummary">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Monthly Consultant Summary</div>
+      <div class="section-sub" id="mcs-sub"></div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select id="mcsMonth" onchange="renderMonthlySummary()" style="width:180px"></select>
+    </div>
+  </div>
+  <div id="mcsContent"></div>
+</div>
+
 <!-- LEADERBOARD -->
 <div class="page" id="page-leaderboard">
   <div class="section-head">
@@ -564,6 +579,20 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     </div>
 
   </div>
+</div>
+
+<!-- PERSON PROFILE -->
+<div class="page" id="page-person">
+  <div class="section-head">
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="btn btn-s" onclick="closePerson()">← Dashboard</button>
+      <div>
+        <div class="section-title" id="person-title">Consultant Profile</div>
+        <div class="section-sub" id="person-sub"></div>
+      </div>
+    </div>
+  </div>
+  <div id="personContent"></div>
 </div>
 
 <!-- NEW MONTH MODAL -->
@@ -1230,8 +1259,8 @@ function renderDashboard(){
       const nbc=p.nmAhead?'#2dce89':p.nmPct>=75?'#fbb83a':'#f5365c';
       const copRevStr=p.riskAhead?`+${fmt(p.copRev)} ahead`:`${fmt(p.copRev)} needed`;
       const copNmStr =p.nmAhead  ?`${Math.abs(p.copNm).toFixed(1)} ahead`:`${p.copNm.toFixed(1)} needed`;
-      return `<div class="p-card ${cardCls}">
-        <div class="p-name">${p.name}</div>
+      return `<div class="p-card ${cardCls}" onclick="openPerson('${p.name.replace(/'/g,"\\'")}',this)" style="cursor:pointer;" title="Click to view full profile">
+        <div class="p-name" style="display:flex;align-items:center;justify-content:space-between">${p.name}<span style="font-size:9px;color:var(--text3);font-weight:400">view profile ↗</span></div>
         <div class="p-rev">£${Math.round(p.revMTD).toLocaleString()}</div>
         <div class="p-sub">${p.revPct}% of £${p.target.toLocaleString()}</div>
         <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(p.revPct,100)}%;background:${rbc}"></div></div>
@@ -1897,7 +1926,7 @@ function clearAllData(){
 function populateAllSelects(){
   const months = allMonthKeys();
 
-  ['entryMonth','lbMonth','histMonth','activeMonthSel','holMonth','bizMonth','teamsMonth','dbdMonth'].forEach(id=>{
+  ['entryMonth','lbMonth','histMonth','activeMonthSel','holMonth','bizMonth','teamsMonth','dbdMonth','mcsMonth'].forEach(id=>{
     const el = document.getElementById(id);
     if(!el) return;
     const cur = el.value || APP.activeMonth;
@@ -1937,6 +1966,7 @@ function showPage(id){
   if(id==='teams')      { populateAllSelects(); renderTeams(); }
   if(id==='summary')     renderConsultantSummary();
   if(id==='entry')       renderEntryPage();
+  if(id==='monthlysummary'){ populateAllSelects(); renderMonthlySummary(); }
   if(id==='leaderboard'){ populateAllSelects(); renderLeaderboard(); }
   if(id==='history')    { populateAllSelects(); renderHistory(); }
   if(id==='daybyday')  { populateAllSelects(); renderDayByDay(); }
@@ -1945,8 +1975,145 @@ function showPage(id){
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// ELAPSED DAYS
+// MONTHLY CONSULTANT SUMMARY
 // ═══════════════════════════════════════════════════════════════════
+function renderMonthlySummary(){
+  populateAllSelects();
+  const mk     = document.getElementById('mcsMonth').value || APP.activeMonth;
+  const stats  = calcStats(mk).filter(s=>s.target>0);
+
+  document.getElementById('mcs-sub').textContent = monthLabel(mk) + ' · sorted by revenue';
+
+  if(!stats.length){
+    document.getElementById('mcsContent').innerHTML='<div class="empty"><div class="empty-icon">📋</div><div>No consultants with targets set for this month.</div></div>';
+    return;
+  }
+
+  // Sort by revMTD descending
+  const sorted = [...stats].sort((a,b)=>b.revMTD-a.revMTD);
+
+  // Find team for each person
+  function getTeam(name){
+    const k = Object.keys(APP.teams||{}).find(k=>(APP.teams[k]||[]).includes(name));
+    return k ? TEAM_LABELS[k] : '—';
+  }
+
+  // COP per person — using same daily loop as Teams tab
+  function personCOP(name){
+    return calcTeamCOP(mk,[name]);
+  }
+
+  const thS = `style="padding:11px 14px;background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);white-space:nowrap;border-bottom:1px solid var(--border);text-align:right;"`;
+  const thSL= `style="padding:11px 14px;background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);white-space:nowrap;border-bottom:1px solid var(--border);text-align:left;"`;
+
+  const rows = sorted.map((p,i)=>{
+    const cop      = personCOP(p.name);
+    const revDiff  = p.revMTD - p.target;           // negative = behind, positive = ahead
+    const nmDiff   = p.nmMTD  - p.nmTarget;
+    const hitTarget= p.revMTD >= p.target;
+    const teamLabel= getTeam(p.name);
+    const teamKey  = Object.keys(APP.teams||{}).find(k=>(APP.teams[k]||[]).includes(p.name));
+    const teamCol  = teamKey ? TEAM_COLORS[teamKey] : 'var(--text3)';
+
+    // Row background when target hit
+    const rowBg = hitTarget
+      ? 'background:rgba(45,206,137,0.08);border-left:3px solid #2dce89;'
+      : i%2===0 ? '' : 'background:rgba(255,255,255,0.015);';
+
+    // Difference coloring: negative (behind target) = red, positive (ahead) = green
+    const revDiffCol = revDiff>=0 ? 'var(--green)' : 'var(--red)';
+    const nmDiffCol  = nmDiff>=0  ? 'var(--green)' : 'var(--red)';
+    // COP: positive = ahead = green, negative = behind = red
+    const copNmCol  = cop.copNm>=0  ? 'var(--green)' : 'var(--red)';
+    const copRevCol = cop.copRev>=0 ? 'var(--green)' : 'var(--red)';
+
+    const rankCol = i===0?'#fbb83a':i===1?'#9aa5b4':i===2?'#c97d44':'var(--text3)';
+
+    return `<tr style="border-bottom:1px solid var(--border);${rowBg}transition:background .15s;" onmouseover="if(!${hitTarget})this.style.background='var(--surface2)'" onmouseout="this.style.background='${hitTarget?'rgba(45,206,137,0.08)':''}'">
+      <td style="padding:11px 14px;font-family:var(--fm);font-size:11px;font-weight:700;color:${rankCol};width:30px">${i+1}</td>
+      <td style="padding:11px 14px;font-size:13px;font-weight:700;white-space:nowrap">${p.name}${hitTarget?` <span style="font-size:11px;color:var(--green)">✓</span>`:''}</td>
+      <td style="padding:11px 14px;font-size:12px;font-family:var(--fm)"><span style="color:${teamCol};font-weight:600">${teamLabel}</span></td>
+      <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;color:var(--text2)">£${p.target.toLocaleString()}</td>
+      <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:13px;font-weight:700;color:${p.revPct>=100?'var(--green)':p.revPct>=75?'var(--amber)':'var(--text)'}">£${Math.round(p.revMTD).toLocaleString()}</td>
+      <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;font-weight:700;color:${revDiffCol}">${revDiff>=0?'+':''}£${Math.round(Math.abs(revDiff)).toLocaleString()}</td>
+      <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;color:var(--text2)">${p.nmTarget.toFixed(1)}</td>
+      <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:13px;font-weight:700;color:${p.nmPct>=100?'var(--green)':p.nmPct>=75?'var(--amber)':'var(--text)'}">${p.nmMTD}</td>
+      <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;font-weight:700;color:${nmDiffCol}">${nmDiff>=0?'+':''}${Math.abs(nmDiff).toFixed(1)}</td>
+      <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;font-weight:700;color:${copNmCol}">${cop.copNm>=0?'+':''}${cop.copNm.toFixed(1)}</td>
+      <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;font-weight:700;color:${copRevCol}">${cop.copRev>=0?'+':''}£${Math.round(Math.abs(cop.copRev)).toLocaleString()}</td>
+      <td style="padding:11px 14px;text-align:center;width:36px">${hitTarget?`<span style="font-size:16px">✓</span>`:''}</td>
+    </tr>`;
+  }).join('');
+
+  // Totals row
+  const totRev    = sorted.reduce((s,p)=>s+p.revMTD,0);
+  const totTgt    = sorted.reduce((s,p)=>s+p.target,0);
+  const totNm     = sorted.reduce((s,p)=>s+p.nmMTD,0);
+  const totNmTgt  = sorted.reduce((s,p)=>s+p.nmTarget,0);
+  const totDiff   = totRev - totTgt;
+  const totNmDiff = totNm  - totNmTgt;
+  const allCOP    = calcTeamCOP(mk, sorted.map(p=>p.name));
+  const hitCount  = sorted.filter(p=>p.revMTD>=p.target).length;
+
+  document.getElementById('mcsContent').innerHTML = `
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <div class="kpi-card" style="flex:1;min-width:140px"><div class="kpi-label">Total Revenue MTD</div>
+        <div class="kpi-val ${totTgt>0&&totRev/totTgt>=1?'g':totTgt>0&&totRev/totTgt>=.75?'a':'r'}">£${Math.round(totRev).toLocaleString()}</div>
+        <div class="kpi-sub">${totTgt>0?Math.round(totRev/totTgt*100):0}% of £${totTgt.toLocaleString()}</div></div>
+      <div class="kpi-card" style="flex:1;min-width:140px"><div class="kpi-label">Total NM MTD</div>
+        <div class="kpi-val">${totNm}</div>
+        <div class="kpi-sub">target: ${totNmTgt.toFixed(1)}</div></div>
+      <div class="kpi-card" style="flex:1;min-width:140px"><div class="kpi-label">Targets Hit</div>
+        <div class="kpi-val ${hitCount===sorted.length?'g':hitCount>0?'a':'r'}">${hitCount} / ${sorted.length}</div>
+        <div class="kpi-sub">consultants on target</div></div>
+      <div class="kpi-card" style="flex:1;min-width:140px"><div class="kpi-label">Team COP Rev</div>
+        <div class="kpi-val ${allCOP.copRev>=0?'g':'r'}">${allCOP.copRev>=0?'+':''}£${Math.round(Math.abs(allCOP.copRev)).toLocaleString()}</div>
+        <div class="kpi-sub">${allCOP.copRev>=0?'ahead':'behind'} of checkpoint</div></div>
+      <div class="kpi-card" style="flex:1;min-width:140px"><div class="kpi-label">Team COP NM</div>
+        <div class="kpi-val ${allCOP.copNm>=0?'g':'r'}">${allCOP.copNm>=0?'+':''}${allCOP.copNm.toFixed(1)}</div>
+        <div class="kpi-sub">${allCOP.copNm>=0?'ahead':'behind'} of checkpoint</div></div>
+    </div>
+
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;min-width:780px">
+        <thead><tr>
+          <th ${thSL} style="width:30px">#</th>
+          <th ${thSL}>Name</th>
+          <th ${thSL}>Team</th>
+          <th ${thS}>Target Rev</th>
+          <th ${thS}>Current Rev</th>
+          <th ${thS}>Difference</th>
+          <th ${thS}>Target NM</th>
+          <th ${thS}>Actual NM</th>
+          <th ${thS}>Difference</th>
+          <th ${thS}>COP NM</th>
+          <th ${thS}>COP Rev</th>
+          <th ${thSL} style="width:36px"></th>
+        </tr></thead>
+        <tbody>
+          ${rows}
+          <tr style="background:var(--surface2);border-top:2px solid var(--border2)">
+            <td colspan="3" style="padding:11px 14px;font-size:11px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase">Team Total</td>
+            <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;color:var(--text2)">£${totTgt.toLocaleString()}</td>
+            <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:13px;font-weight:700;color:var(--green)">£${Math.round(totRev).toLocaleString()}</td>
+            <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;font-weight:700;color:${totDiff>=0?'var(--green)':'var(--red)'}">${totDiff>=0?'+':''}£${Math.round(Math.abs(totDiff)).toLocaleString()}</td>
+            <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;color:var(--text2)">${totNmTgt.toFixed(1)}</td>
+            <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:13px;font-weight:700;color:var(--text)">${totNm}</td>
+            <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;font-weight:700;color:${totNmDiff>=0?'var(--green)':'var(--red)'}">${totNmDiff>=0?'+':''}${Math.abs(totNmDiff).toFixed(1)}</td>
+            <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;font-weight:700;color:${allCOP.copNm>=0?'var(--green)':'var(--red)'}">${allCOP.copNm>=0?'+':''}${allCOP.copNm.toFixed(1)}</td>
+            <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;font-weight:700;color:${allCOP.copRev>=0?'var(--green)':'var(--red)'}">${allCOP.copRev>=0?'+':''}£${Math.round(Math.abs(allCOP.copRev)).toLocaleString()}</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:20px;font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:10px;flex-wrap:wrap">
+      <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:2px;background:rgba(45,206,137,0.08);border:1px solid rgba(45,206,137,0.3);display:inline-block"></span>Target hit — full row green</span>
+      <span><span style="color:var(--green);font-weight:700">+</span> Difference / COP = ahead &nbsp;·&nbsp; <span style="color:var(--red);font-weight:700">−</span> = behind</span>
+    </div>`;
+}
+
+
 function setElapsedDays(val){
   const n = parseInt(val);
   APP.manualElapsed = isNaN(n) ? null : n;
@@ -3707,6 +3874,280 @@ function exportHolidayCSV(){
 
 // close modal on overlay click
 document.getElementById('monthModal').addEventListener('click', function(e){ if(e.target===this) closeModal(); });
+
+// ═══════════════════════════════════════════════════════════════════
+// CONSULTANT PROFILE (click from dashboard card)
+// ═══════════════════════════════════════════════════════════════════
+let _personName = null;
+
+function openPerson(name){
+  _personName = name;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-person').classList.add('active');
+  renderPersonProfile(name);
+}
+
+function closePerson(){
+  _personName = null;
+  showPage('dashboard');
+}
+
+function renderPersonProfile(name){
+  const mk      = APP.activeMonth;
+  const p       = APP.people.find(x=>x.name===name);
+  if(!p){ document.getElementById('personContent').innerHTML='<div class="empty">Person not found.</div>'; return; }
+
+  const ep         = getPersonForMonth(p, mk);
+  const riskPerDay = ep.riskPerDay||0;
+  const daysT      = ep.daysT||0;
+  const target     = Math.round(riskPerDay * daysT);
+  const nmTarget   = parseFloat((daysT * 1.75).toFixed(2));
+
+  const entries    = getEntries(mk);
+  const mine       = entries.filter(e=>e.name===name);
+  const today      = _localDateStr(new Date());
+  const wdDates    = workingDatesInMonth(mk).filter(ds=>ds<=today);
+  const allWD      = workingDatesInMonth(mk);
+
+  const lookup = {};
+  mine.forEach(e=>{ lookup[e.date]={revenue:e.revenue||0,nm:e.nm||0}; });
+
+  const revMTD = mine.reduce((s,e)=>s+(e.revenue||0),0);
+  const nmMTD  = mine.reduce((s,e)=>s+(e.nm||0),0);
+  const revPct = target>0?Math.round(revMTD/target*100):0;
+  const nmPct  = nmTarget>0?Math.round(nmMTD/nmTarget*100):0;
+
+  // Team
+  const teamKey   = Object.keys(APP.teams||{}).find(k=>(APP.teams[k]||[]).includes(name))||null;
+  const teamLabel = teamKey ? TEAM_LABELS[teamKey] : 'Unassigned';
+  const teamColor = teamKey ? TEAM_COLORS[teamKey] : 'var(--accent)';
+
+  // Day analysis
+  let cumRev=0, cumTgt=0, cumNm=0, cumNmTgt=0;
+  let daysLogged=0, daysHit=0, daysMissed=0, daysNoEntry=0, daysOff=0;
+  const dailyRevs=[], dailyCumRev=[], dailyCumTgt=[], dailyLabels=[];
+
+  let tableRows = '';
+  wdDates.forEach(ds=>{
+    const e      = lookup[ds]||{revenue:0,nm:0};
+    const rev    = e.revenue||0;
+    const nm     = e.nm||0;
+    const status = getDayStatus(mk,name,ds);
+    const isOff  = status==='hol'||status==='sick'||status==='bh';
+    const isHol  = status==='hol';
+    const isSick = status==='sick';
+    const isBH   = status==='bh';
+
+    if(!isOff) cumTgt   += riskPerDay;
+    if(!isOff) cumNmTgt += 1.75;
+    cumRev += rev;
+    cumNm  += nm;
+
+    // day analysis counters
+    if(isOff){ daysOff++; }
+    else if(rev>0){
+      daysLogged++;
+      if(rev>=riskPerDay) daysHit++; else daysMissed++;
+    } else { daysNoEntry++; }
+
+    const mDiff    = cumRev - cumTgt;
+    const mDiffCls = mDiff>=0?'var(--green)':'var(--red)';
+    const runRate  = isOff ? 0 : riskPerDay;
+    const pct      = runRate>0 ? Math.round(rev/runRate*100) : (rev>0?100:0);
+    const pctCls   = pct>=100?'var(--green)':pct>=75?'var(--amber)':'var(--red)';
+    const nmDiff   = cumNm - cumNmTgt;
+    const isToday  = ds===today;
+    const dayName  = new Date(ds).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+
+    let statusBadge = '';
+    if(isHol)  statusBadge = `<span style="font-size:9px;font-weight:800;color:var(--red);background:var(--red-bg);padding:2px 6px;border-radius:3px">HOL</span>`;
+    if(isSick) statusBadge = `<span style="font-size:9px;font-weight:800;color:var(--amber);background:var(--amber-bg);padding:2px 6px;border-radius:3px">SICK</span>`;
+    if(isBH)   statusBadge = `<span style="font-size:9px;font-weight:800;color:#830544;background:rgba(131,5,68,0.12);padding:2px 6px;border-radius:3px">BH</span>`;
+
+    const rowBg = isHol?'background:rgba(245,54,92,0.05);':isSick?'background:rgba(251,184,58,0.05);':isBH?'background:rgba(131,5,68,0.05);':isToday?'background:rgba(94,156,245,0.06);border-left:2px solid var(--accent);':'';
+
+    tableRows += `<tr style="border-bottom:1px solid var(--border);${rowBg}">
+      <td style="padding:8px 12px;white-space:nowrap;font-family:var(--fm);font-size:12px;color:var(--text2)">${dayName} ${statusBadge}</td>
+      <td style="padding:8px 12px;text-align:right;font-family:var(--fm);font-size:12px;color:${rev>0?'var(--green)':'var(--text3)'};font-weight:600">${rev>0?'£'+Math.round(rev).toLocaleString():'—'}</td>
+      <td style="padding:8px 12px;text-align:right;font-family:var(--fm);font-size:12px;color:var(--text3)">${isOff?'—':'£'+runRate.toLocaleString()}</td>
+      <td style="padding:8px 12px;text-align:right;font-family:var(--fm);font-size:12px;color:${pctCls};font-weight:600">${isOff?'—':pct+'%'}</td>
+      <td style="padding:8px 12px;text-align:right;font-family:var(--fm);font-size:12px;color:${nm>0?'var(--text)':'var(--text3)'}">${nm>0?nm:'—'}</td>
+      <td style="padding:8px 12px;text-align:right;font-family:var(--fm);font-size:12px;color:${teamColor};font-weight:700">£${Math.round(cumRev).toLocaleString()}</td>
+      <td style="padding:8px 12px;text-align:right;font-family:var(--fm);font-size:12px;color:var(--text3)">£${Math.round(cumTgt).toLocaleString()}</td>
+      <td style="padding:8px 12px;text-align:right;font-family:var(--fm);font-size:12px;color:${mDiffCls};font-weight:700">${mDiff>=0?'+':''}£${Math.round(Math.abs(mDiff)).toLocaleString()}</td>
+      <td style="padding:8px 12px;text-align:right;font-family:var(--fm);font-size:12px;color:${nmDiff>=0?'var(--green)':'var(--red)'};font-weight:600">${nmDiff>=0?'+':''}${nmDiff.toFixed(1)}</td>
+    </tr>`;
+
+    dailyLabels.push(dayName.slice(0,6));
+    dailyRevs.push(Math.round(rev));
+    dailyCumRev.push(Math.round(cumRev));
+    dailyCumTgt.push(Math.round(cumTgt));
+  });
+
+  // Remaining days & projected finish
+  const daysLeft    = allWD.filter(ds=>ds>today).length;
+  const revRemaining= Math.max(0, target - revMTD);
+  const dailyNeeded = daysLeft>0 ? Math.round(revRemaining/daysLeft) : 0;
+  const projected   = daysLeft>0 && wdDates.length>0
+    ? Math.round(revMTD + (revMTD/wdDates.length)*daysLeft)
+    : revMTD;
+  const projPct     = target>0?Math.round(projected/target*100):0;
+  const projCls     = projPct>=100?'var(--green)':projPct>=75?'var(--amber)':'var(--red)';
+
+  // COP using same logic as Teams tab (single person = one member team)
+  const cop = calcTeamCOP(mk,[name]);
+
+  // Consistency rate
+  const totalWorking = daysLogged + daysMissed + daysNoEntry;
+  const consistency  = totalWorking>0?Math.round(daysHit/totalWorking*100):0;
+  const bestDay      = mine.length ? mine.reduce((a,b)=>(b.revenue||0)>(a.revenue||0)?b:a) : null;
+  const avgRev       = daysLogged>0 ? Math.round(revMTD/daysLogged) : 0;
+
+  document.getElementById('person-title').textContent = name;
+  document.getElementById('person-sub').textContent = teamLabel + ' · ' + monthLabel(mk);
+
+  document.getElementById('personContent').innerHTML = `
+
+    <!-- KPI strip -->
+    <div style="display:grid;grid-template-columns:repeat(8,1fr);gap:10px;margin-bottom:20px">
+      <div class="kpi-card"><div class="kpi-label">Revenue MTD</div>
+        <div class="kpi-val ${revPct>=100?'g':revPct>=75?'a':'r'}">£${Math.round(revMTD).toLocaleString()}</div>
+        <div class="kpi-sub">${revPct}% of £${target.toLocaleString()}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Monthly Target</div>
+        <div class="kpi-val">£${target.toLocaleString()}</div>
+        <div class="kpi-sub">£${riskPerDay.toLocaleString()} / day</div></div>
+      <div class="kpi-card"><div class="kpi-label">COP Revenue</div>
+        <div class="kpi-val ${cop.copRev>=0?'g':'r'}">${cop.copRev>=0?'+':''}£${Math.round(Math.abs(cop.copRev)).toLocaleString()}</div>
+        <div class="kpi-sub">${cop.copRev>=0?'ahead':'behind'} of checkpoint</div></div>
+      <div class="kpi-card"><div class="kpi-label">Rev Remaining</div>
+        <div class="kpi-val a">£${revRemaining.toLocaleString()}</div>
+        <div class="kpi-sub">${daysLeft} days left · £${dailyNeeded.toLocaleString()} / day needed</div></div>
+      <div class="kpi-card"><div class="kpi-label">NM MTD</div>
+        <div class="kpi-val ${nmPct>=100?'g':nmPct>=75?'a':'r'}">${nmMTD}</div>
+        <div class="kpi-sub">${nmPct}% of ${nmTarget}</div></div>
+      <div class="kpi-card"><div class="kpi-label">COP NM</div>
+        <div class="kpi-val ${cop.copNm>=0?'g':'r'}">${cop.copNm>=0?'+':''}${cop.copNm.toFixed(1)}</div>
+        <div class="kpi-sub">${cop.copNm>=0?'ahead':'behind'} of checkpoint</div></div>
+      <div class="kpi-card"><div class="kpi-label">Projected Finish</div>
+        <div class="kpi-val" style="color:${projCls}">£${projected.toLocaleString()}</div>
+        <div class="kpi-sub">${projPct}% of target at current pace</div></div>
+      <div class="kpi-card"><div class="kpi-label">Hit Rate</div>
+        <div class="kpi-val ${consistency>=80?'g':consistency>=50?'a':'r'}">${consistency}%</div>
+        <div class="kpi-sub">${daysHit} / ${totalWorking} days hit run rate</div></div>
+    </div>
+
+    <!-- Progress bar -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-size:12px;font-weight:700">Progress to target</span>
+        <span style="font-size:12px;font-family:var(--fm);color:var(--text2)">£${Math.round(revMTD).toLocaleString()} of £${target.toLocaleString()} (${revPct}%)</span>
+      </div>
+      <div style="height:8px;background:var(--surface3);border-radius:4px;overflow:hidden;position:relative">
+        <div style="height:100%;width:${Math.min(revPct,100)}%;background:${revPct>=100?'#2dce89':revPct>=75?'#fbb83a':'#5e9cf5'};border-radius:4px;transition:width .6s"></div>
+        ${daysLeft>0&&target>0?`<div style="position:absolute;top:0;height:100%;width:2px;background:rgba(255,255,255,0.3);left:${Math.min(Math.round(wdDates.length/(wdDates.length+daysLeft)*100),100)}%"></div>`:''}
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--text3);font-family:var(--fm)">
+        <span>Start</span><span style="color:var(--text2)">▲ today (${Math.round(wdDates.length/(wdDates.length+daysLeft||1)*100)}% through month)</span><span>End of month</span>
+      </div>
+    </div>
+
+    <!-- Day analysis + charts -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:20px">
+      <!-- Day breakdown summary -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px">
+        <div style="font-size:12px;font-weight:700;margin-bottom:14px">Day breakdown</div>
+        ${[
+          ['Days hit run rate',   daysHit,     'var(--green)'],
+          ['Days missed run rate',daysMissed,  'var(--red)'],
+          ['Days no entry',       daysNoEntry, 'var(--text3)'],
+          ['Days off / BH',       daysOff,     'var(--amber)'],
+          ['Avg revenue (logged days)', avgRev>0?'£'+avgRev.toLocaleString():'-', 'var(--text2)'],
+          ['Best single day', bestDay?'£'+Math.round(bestDay.revenue).toLocaleString()+' ('+bestDay.date.slice(5).replace('-','/')+')':'-', teamColor]
+        ].map(([lbl,val,col])=>`
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
+            <span style="font-size:12px;color:var(--text3);font-family:var(--fm)">${lbl}</span>
+            <span style="font-size:12px;font-weight:700;font-family:var(--fm);color:${col}">${val}</span>
+          </div>`).join('')}
+      </div>
+
+      <!-- Daily revenue chart -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px">
+        <div style="font-size:12px;font-weight:700;margin-bottom:4px">Daily revenue</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:12px">vs daily run rate</div>
+        <div style="position:relative;height:160px"><canvas id="cPersonDaily"></canvas></div>
+      </div>
+
+      <!-- Cumulative chart -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px">
+        <div style="font-size:12px;font-weight:700;margin-bottom:4px">Cumulative revenue</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:12px">actual vs run rate trajectory</div>
+        <div style="position:relative;height:160px"><canvas id="cPersonCumul"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Day-by-day table -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:24px">
+      <div style="padding:14px 18px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+        <div style="font-size:13px;font-weight:700">Day-by-day tracker</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">revenue · run rate · cumulative · NM running total</div>
+      </div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;min-width:700px">
+          <thead><tr style="background:var(--surface2);border-bottom:1px solid var(--border)">
+            <th style="padding:9px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap">Date</th>
+            <th style="padding:9px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap">Revenue</th>
+            <th style="padding:9px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap">Run Rate</th>
+            <th style="padding:9px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap">% of RR</th>
+            <th style="padding:9px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap">NM</th>
+            <th style="padding:9px 12px;text-align:right;font-size:10px;font-weight:700;color:${teamColor};font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap;border-left:2px solid var(--border2)">Cumul Rev</th>
+            <th style="padding:9px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap">Cumul Target</th>
+            <th style="padding:9px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap">MTD Diff</th>
+            <th style="padding:9px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap">NM Diff</th>
+          </tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div style="display:flex;gap:16px;font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:8px;flex-wrap:wrap">
+      <span>MTD Diff = cumulative actual vs cumulative run rate target</span>
+      <span>NM Diff = cumulative NM vs cumulative NM target</span>
+      <span style="color:var(--accent)">▌ today's row highlighted in blue</span>
+    </div>
+  `;
+
+  // Render charts
+  setTimeout(()=>{
+    destroyChart('personDaily'); destroyChart('personCumul');
+    const rrLine = dailyLabels.map(()=>riskPerDay);
+    _charts.personDaily = new Chart(document.getElementById('cPersonDaily'),{
+      type:'bar',
+      data:{labels:dailyLabels,datasets:[
+        {data:dailyRevs,backgroundColor:dailyRevs.map((v,i)=>v>=(rrLine[i]||0)?'#2dce89':'#5e9cf5'),borderRadius:3,barPercentage:0.7},
+        {data:rrLine,type:'line',borderColor:'rgba(245,54,92,.6)',borderWidth:1.5,pointRadius:0,borderDash:[4,3],fill:false,tension:0}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'£'+Math.round(c.parsed.y).toLocaleString()}}},
+        scales:{x:{ticks:{color:tickCol,font:{size:9},maxRotation:45,autoSkip:true},grid:{display:false}},y:{ticks:{color:tickCol,font:{size:9},callback:v=>'£'+Math.round(v/1000)+'k'},grid:{color:gridCol}}}
+      }
+    });
+    _charts.personCumul = new Chart(document.getElementById('cPersonCumul'),{
+      type:'line',
+      data:{labels:dailyLabels,datasets:[
+        {data:dailyCumRev,borderColor:teamColor,backgroundColor:teamColor+'18',borderWidth:2,pointRadius:2,fill:true,tension:0.3},
+        {data:dailyCumTgt,borderColor:'rgba(245,54,92,.5)',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false,tension:0}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'£'+Math.round(c.parsed.y).toLocaleString()}}},
+        scales:{x:{ticks:{color:tickCol,font:{size:9},maxRotation:45,autoSkip:true},grid:{display:false}},y:{ticks:{color:tickCol,font:{size:9},callback:v=>'£'+Math.round(v/1000)+'k'},grid:{color:gridCol}}}
+      }
+    });
+  },50);
+}
+
+
 
 // ─── INIT ──────────────────────────────────────────────────────────
 document.getElementById('navDate').textContent =
