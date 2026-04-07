@@ -2241,6 +2241,7 @@ function renderMonthlySummary(){
       <td style="padding:11px 14px;font-family:var(--fm);font-size:11px;font-weight:700;color:${rankCol};width:30px">${i+1}</td>
       <td style="padding:11px 14px;font-size:13px;font-weight:700;white-space:nowrap">${p.name}${hitTarget?` <span style="font-size:11px;color:var(--green)">✓</span>`:''}</td>
       <td style="padding:11px 14px;font-size:12px;font-family:var(--fm)"><span style="color:${teamCol};font-weight:600">${teamLabel}</span></td>
+      <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:13px;font-weight:700;color:var(--text2)">${p.loggedDays}</td>
       <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:13px;font-weight:700;color:${revToday>0?'var(--blue)':'var(--text3)'};border-left:2px solid var(--border2);">${revToday>0?'£'+Math.round(revToday).toLocaleString():'—'}</td>
       <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;color:var(--text2)">£${p.target.toLocaleString()}</td>
       <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:13px;font-weight:700;color:${p.revPct>=100?'var(--green)':p.revPct>=75?'var(--amber)':'var(--text)'}">£${Math.round(p.revMTD).toLocaleString()}</td>
@@ -2292,6 +2293,7 @@ function renderMonthlySummary(){
           <th ${thSL} style="width:30px">#</th>
           <th ${thSL}>Name</th>
           <th ${thSL}>Team</th>
+          <th ${thS}>Worked Days</th>
           <th ${thS} style="padding:11px 14px;background:var(--surface2);color:var(--blue);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);white-space:nowrap;border-bottom:1px solid var(--border);text-align:right;border-left:2px solid var(--border2);">Rev Today</th>
           <th ${thS}>Target Rev</th>
           <th ${thS}>Current Rev</th>
@@ -2307,6 +2309,7 @@ function renderMonthlySummary(){
           ${rows}
           <tr style="background:var(--surface2);border-top:2px solid var(--border2)">
             <td colspan="3" style="padding:11px 14px;font-size:11px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase">Team Total</td>
+            <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;color:var(--text3)">—</td>
             <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:13px;font-weight:700;color:${totRevToday>0?'var(--blue)':'var(--text3)'};border-left:2px solid var(--border2);">${totRevToday>0?'£'+Math.round(totRevToday).toLocaleString():'—'}</td>
             <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;color:var(--text2)">£${totTgt.toLocaleString()}</td>
             <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:13px;font-weight:700;color:var(--green)">£${Math.round(totRev).toLocaleString()}</td>
