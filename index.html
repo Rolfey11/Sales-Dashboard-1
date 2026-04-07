@@ -2181,92 +2181,135 @@ function showPage(id){
 // ═══════════════════════════════════════════════════════════════════
 // MONTHLY CONSULTANT SUMMARY
 // ═══════════════════════════════════════════════════════════════════
+// ── Monthly Summary sort state (persists across re-renders) ──────────
+let _mcsSortCol = 'revMTD', _mcsSortDir = -1; // -1=desc, 1=asc
+
+function setMcsSort(col){
+  if(_mcsSortCol===col) _mcsSortDir*=-1;
+  else { _mcsSortCol=col; _mcsSortDir=-1; }
+  renderMonthlySummary();
+}
+
 function renderMonthlySummary(){
   populateAllSelects();
   const mk     = document.getElementById('mcsMonth').value || APP.activeMonth;
   const stats  = calcStats(mk).filter(s=>s.target>0);
 
-  document.getElementById('mcs-sub').textContent = monthLabel(mk) + ' · sorted by revenue';
+  const sortLabels = {
+    revMTD:'revenue',name:'name',team:'team',loggedDays:'worked days',
+    revToday:'today\'s rev',target:'target rev',revDiff:'rev diff',
+    nmTarget:'NM target',nmMTD:'NM actual',nmDiff:'NM diff',copNm:'COP NM',copRev:'COP Rev'
+  };
+  document.getElementById('mcs-sub').textContent =
+    monthLabel(mk) + ' · sorted by ' + (sortLabels[_mcsSortCol]||_mcsSortCol) + (_mcsSortDir===1?' ↑':' ↓');
 
   if(!stats.length){
     document.getElementById('mcsContent').innerHTML='<div class="empty"><div class="empty-icon">📋</div><div>No consultants with targets set for this month.</div></div>';
     return;
   }
 
-  // Sort by revMTD descending
-  const sorted = [...stats].sort((a,b)=>b.revMTD-a.revMTD);
-
-  // Find team for each person
+  // Helpers
   function getTeam(name){
     const k = Object.keys(APP.teams||{}).find(k=>(APP.teams[k]||[]).includes(name));
     return k ? TEAM_LABELS[k] : '—';
   }
+  function personCOP(name){ return calcTeamCOP(mk,[name]); }
 
-  // COP per person — using same daily loop as Teams tab
-  function personCOP(name){
-    return calcTeamCOP(mk,[name]);
-  }
+  // Pre-compute full row data so we can sort on any field
+  const todayStr     = _localDateStr(new Date());
+  const monthEntries = ((APP.months[mk]||{}).entries||[]);
 
-  const thS = `style="padding:11px 14px;background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);white-space:nowrap;border-bottom:1px solid var(--border);text-align:right;"`;
-  const thSL= `style="padding:11px 14px;background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);white-space:nowrap;border-bottom:1px solid var(--border);text-align:left;"`;
-
-  const rows = sorted.map((p,i)=>{
+  const rowData = stats.map(p=>{
     const cop      = personCOP(p.name);
-    // Today's revenue for this consultant (entries on today's date in selected month)
-    const _todayStr = _localDateStr(new Date());
-    const _monthEntries = ((APP.months[mk]||{}).entries||[]);
-    const revToday = _monthEntries.filter(e=>e.name===p.name && e.date===_todayStr).reduce((s,e)=>s+(e.revenue||0),0);
-    const revDiff  = p.revMTD - p.target;           // negative = behind, positive = ahead
+    const revToday = monthEntries.filter(e=>e.name===p.name&&e.date===todayStr).reduce((s,e)=>s+(e.revenue||0),0);
+    const revDiff  = p.revMTD - p.target;
     const nmDiff   = p.nmMTD  - p.nmTarget;
-    const hitTarget= p.revMTD >= p.target;
     const teamLabel= getTeam(p.name);
     const teamKey  = Object.keys(APP.teams||{}).find(k=>(APP.teams[k]||[]).includes(p.name));
     const teamCol  = teamKey ? TEAM_COLORS[teamKey] : 'var(--text3)';
+    return { ...p, cop, revToday, revDiff, nmDiff, teamLabel, teamKey, teamCol };
+  });
 
-    // Row background when target hit
+  // Sort by active column
+  const sortFns = {
+    name:       r => r.name.toLowerCase(),
+    team:       r => r.teamLabel.toLowerCase(),
+    loggedDays: r => r.loggedDays,
+    revToday:   r => r.revToday,
+    target:     r => r.target,
+    revMTD:     r => r.revMTD,
+    revDiff:    r => r.revDiff,
+    nmTarget:   r => r.nmTarget,
+    nmMTD:      r => r.nmMTD,
+    nmDiff:     r => r.nmDiff,
+    copNm:      r => r.cop.copNm,
+    copRev:     r => r.cop.copRev,
+  };
+  const sfn = sortFns[_mcsSortCol] || sortFns.revMTD;
+  const sorted = [...rowData].sort((a,b)=>{
+    const va=sfn(a), vb=sfn(b);
+    return typeof va==='string' ? va.localeCompare(vb)*_mcsSortDir : (va-vb)*_mcsSortDir;
+  });
+
+  // Header builder — clickable, shows sort arrow on active column
+  function th(col, label, align='right', extraStyle=''){
+    const active  = _mcsSortCol===col;
+    const arrow   = active ? (_mcsSortDir===1?' ↑':' ↓') : '';
+    const col_txt = active ? 'var(--accent)' : 'var(--text3)';
+    const bg_ext  = active ? 'background:rgba(94,156,245,0.07);' : '';
+    const base    = `padding:11px 14px;background:var(--surface2);${bg_ext}color:${col_txt};font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);white-space:nowrap;border-bottom:1px solid var(--border);text-align:${align};cursor:pointer;user-select:none;transition:color .15s;${extraStyle}`;
+    return `<th style="${base}" onclick="setMcsSort('${col}')" title="Sort by ${label}">${label}${arrow}</th>`;
+  }
+  // Non-sortable header (rank #, hit ✓)
+  function thS(label, align='left', extraStyle=''){
+    const base = `padding:11px 14px;background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);white-space:nowrap;border-bottom:1px solid var(--border);text-align:${align};${extraStyle}`;
+    return `<th style="${base}">${label}</th>`;
+  }
+
+  // Build rows
+  const rows = sorted.map((p,i)=>{
+    const hitTarget  = p.revMTD >= p.target;
+    const revDiffCol = p.revDiff>=0 ? 'var(--green)' : 'var(--red)';
+    const nmDiffCol  = p.nmDiff>=0  ? 'var(--green)' : 'var(--red)';
+    const copNmCol   = p.cop.copNm>=0  ? 'var(--green)' : 'var(--red)';
+    const copRevCol  = p.cop.copRev>=0 ? 'var(--green)' : 'var(--red)';
+    const rankCol    = _mcsSortCol==='revMTD'
+      ? (i===0?'#fbb83a':i===1?'#9aa5b4':i===2?'#c97d44':'var(--text3)')
+      : 'var(--text3)';
     const rowBg = hitTarget
       ? 'background:rgba(45,206,137,0.08);border-left:3px solid #2dce89;'
       : i%2===0 ? '' : 'background:rgba(255,255,255,0.015);';
 
-    // Difference coloring: negative (behind target) = red, positive (ahead) = green
-    const revDiffCol = revDiff>=0 ? 'var(--green)' : 'var(--red)';
-    const nmDiffCol  = nmDiff>=0  ? 'var(--green)' : 'var(--red)';
-    // COP: positive = ahead = green, negative = behind = red
-    const copNmCol  = cop.copNm>=0  ? 'var(--green)' : 'var(--red)';
-    const copRevCol = cop.copRev>=0 ? 'var(--green)' : 'var(--red)';
-
-    const rankCol = i===0?'#fbb83a':i===1?'#9aa5b4':i===2?'#c97d44':'var(--text3)';
-
-    return `<tr style="border-bottom:1px solid var(--border);${rowBg}transition:background .15s;" onmouseover="if(!${hitTarget})this.style.background='var(--surface2)'" onmouseout="this.style.background='${hitTarget?'rgba(45,206,137,0.08)':''}'">
+    return `<tr style="border-bottom:1px solid var(--border);${rowBg}transition:background .15s;"
+        onmouseover="if(!${hitTarget})this.style.background='var(--surface2)'"
+        onmouseout="this.style.background='${hitTarget?'rgba(45,206,137,0.08)':''}'">
       <td style="padding:11px 14px;font-family:var(--fm);font-size:11px;font-weight:700;color:${rankCol};width:30px">${i+1}</td>
       <td style="padding:11px 14px;font-size:13px;font-weight:700;white-space:nowrap">${p.name}${hitTarget?` <span style="font-size:11px;color:var(--green)">✓</span>`:''}</td>
-      <td style="padding:11px 14px;font-size:12px;font-family:var(--fm)"><span style="color:${teamCol};font-weight:600">${teamLabel}</span></td>
+      <td style="padding:11px 14px;font-size:12px;font-family:var(--fm)"><span style="color:${p.teamCol};font-weight:600">${p.teamLabel}</span></td>
       <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:13px;font-weight:700;color:var(--text2)">${p.loggedDays}</td>
-      <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:13px;font-weight:700;color:${revToday>0?'var(--blue)':'var(--text3)'};border-left:2px solid var(--border2);">${revToday>0?'£'+Math.round(revToday).toLocaleString():'—'}</td>
+      <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:13px;font-weight:700;color:${p.revToday>0?'var(--blue)':'var(--text3)'};border-left:2px solid var(--border2);">${p.revToday>0?'£'+Math.round(p.revToday).toLocaleString():'—'}</td>
       <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;color:var(--text2)">£${p.target.toLocaleString()}</td>
       <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:13px;font-weight:700;color:${p.revPct>=100?'var(--green)':p.revPct>=75?'var(--amber)':'var(--text)'}">£${Math.round(p.revMTD).toLocaleString()}</td>
-      <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;font-weight:700;color:${revDiffCol}">${revDiff>=0?'+':''}£${Math.round(Math.abs(revDiff)).toLocaleString()}</td>
+      <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;font-weight:700;color:${revDiffCol}">${p.revDiff>=0?'+':''}£${Math.round(Math.abs(p.revDiff)).toLocaleString()}</td>
       <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;color:var(--text2)">${p.nmTarget.toFixed(1)}</td>
       <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:13px;font-weight:700;color:${p.nmPct>=100?'var(--green)':p.nmPct>=75?'var(--amber)':'var(--text)'}">${p.nmMTD}</td>
-      <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;font-weight:700;color:${nmDiffCol}">${nmDiff>=0?'+':''}${Math.abs(nmDiff).toFixed(1)}</td>
-      <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;font-weight:700;color:${copNmCol}">${cop.copNm>=0?'+':''}${cop.copNm.toFixed(1)}</td>
-      <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;font-weight:700;color:${copRevCol}">${cop.copRev>=0?'+':''}£${Math.round(Math.abs(cop.copRev)).toLocaleString()}</td>
+      <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;font-weight:700;color:${nmDiffCol}">${p.nmDiff>=0?'+':''}${Math.abs(p.nmDiff).toFixed(1)}</td>
+      <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;font-weight:700;color:${copNmCol}">${p.cop.copNm>=0?'+':''}${p.cop.copNm.toFixed(1)}</td>
+      <td style="padding:11px 14px;text-align:right;font-family:var(--fm);font-size:12px;font-weight:700;color:${copRevCol}">${p.cop.copRev>=0?'+':''}£${Math.round(Math.abs(p.cop.copRev)).toLocaleString()}</td>
       <td style="padding:11px 14px;text-align:center;width:36px">${hitTarget?`<span style="font-size:16px">✓</span>`:''}</td>
     </tr>`;
   }).join('');
 
-  // Totals row
-  const totRev    = sorted.reduce((s,p)=>s+p.revMTD,0);
-  const _todayStrTot = _localDateStr(new Date());
-  const _monthEntriesTot = ((APP.months[mk]||{}).entries||[]);
-  const totRevToday = sorted.reduce((s,p)=>s+_monthEntriesTot.filter(e=>e.name===p.name&&e.date===_todayStrTot).reduce((a,e)=>a+(e.revenue||0),0),0);
-  const totTgt    = sorted.reduce((s,p)=>s+p.target,0);
-  const totNm     = sorted.reduce((s,p)=>s+p.nmMTD,0);
-  const totNmTgt  = sorted.reduce((s,p)=>s+p.nmTarget,0);
-  const totDiff   = totRev - totTgt;
-  const totNmDiff = totNm  - totNmTgt;
-  const allCOP    = calcTeamCOP(mk, sorted.map(p=>p.name));
-  const hitCount  = sorted.filter(p=>p.revMTD>=p.target).length;
+  // Totals row (always over full dataset, not just visible sorted order)
+  const totRev     = rowData.reduce((s,p)=>s+p.revMTD,0);
+  const totRevToday= rowData.reduce((s,p)=>s+p.revToday,0);
+  const totTgt     = rowData.reduce((s,p)=>s+p.target,0);
+  const totNm      = rowData.reduce((s,p)=>s+p.nmMTD,0);
+  const totNmTgt   = rowData.reduce((s,p)=>s+p.nmTarget,0);
+  const totDiff    = totRev - totTgt;
+  const totNmDiff  = totNm  - totNmTgt;
+  const allCOP     = calcTeamCOP(mk, rowData.map(p=>p.name));
+  const hitCount   = rowData.filter(p=>p.revMTD>=p.target).length;
 
   document.getElementById('mcsContent').innerHTML = `
     <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
@@ -2277,7 +2320,7 @@ function renderMonthlySummary(){
         <div class="kpi-val">${totNm}</div>
         <div class="kpi-sub">target: ${totNmTgt.toFixed(1)}</div></div>
       <div class="kpi-card" style="flex:1;min-width:140px"><div class="kpi-label">Targets Hit</div>
-        <div class="kpi-val ${hitCount===sorted.length?'g':hitCount>0?'a':'r'}">${hitCount} / ${sorted.length}</div>
+        <div class="kpi-val ${hitCount===rowData.length?'g':hitCount>0?'a':'r'}">${hitCount} / ${rowData.length}</div>
         <div class="kpi-sub">consultants on target</div></div>
       <div class="kpi-card" style="flex:1;min-width:140px"><div class="kpi-label">Team COP Rev</div>
         <div class="kpi-val ${allCOP.copRev>=0?'g':'r'}">${allCOP.copRev>=0?'+':''}£${Math.round(Math.abs(allCOP.copRev)).toLocaleString()}</div>
@@ -2288,22 +2331,22 @@ function renderMonthlySummary(){
     </div>
 
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
-      <table style="width:100%;border-collapse:collapse;min-width:780px">
+      <table style="width:100%;border-collapse:collapse;min-width:900px">
         <thead><tr>
-          <th ${thSL} style="width:30px">#</th>
-          <th ${thSL}>Name</th>
-          <th ${thSL}>Team</th>
-          <th ${thS}>Worked Days</th>
-          <th ${thS} style="padding:11px 14px;background:var(--surface2);color:var(--blue);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);white-space:nowrap;border-bottom:1px solid var(--border);text-align:right;border-left:2px solid var(--border2);">Rev Today</th>
-          <th ${thS}>Target Rev</th>
-          <th ${thS}>Current Rev</th>
-          <th ${thS}>Difference</th>
-          <th ${thS}>Target NM</th>
-          <th ${thS}>Actual NM</th>
-          <th ${thS}>Difference</th>
-          <th ${thS}>COP NM</th>
-          <th ${thS}>COP Rev</th>
-          <th ${thSL} style="width:36px"></th>
+          ${thS('#','left','width:30px')}
+          ${th('name','Name','left')}
+          ${th('team','Team','left')}
+          ${th('loggedDays','Worked Days')}
+          ${th('revToday','Rev Today','right','border-left:2px solid var(--border2);color:${_mcsSortCol==="revToday"?"var(--accent)":"var(--blue)"};')}
+          ${th('target','Target Rev')}
+          ${th('revMTD','Current Rev')}
+          ${th('revDiff','Difference')}
+          ${th('nmTarget','Target NM')}
+          ${th('nmMTD','Actual NM')}
+          ${th('nmDiff','NM Diff')}
+          ${th('copNm','COP NM')}
+          ${th('copRev','COP Rev')}
+          ${thS('','left','width:36px')}
         </tr></thead>
         <tbody>
           ${rows}
@@ -2327,6 +2370,7 @@ function renderMonthlySummary(){
     <div style="display:flex;gap:20px;font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:10px;flex-wrap:wrap">
       <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:2px;background:rgba(45,206,137,0.08);border:1px solid rgba(45,206,137,0.3);display:inline-block"></span>Target hit — full row green</span>
       <span><span style="color:var(--green);font-weight:700">+</span> Difference / COP = ahead &nbsp;·&nbsp; <span style="color:var(--red);font-weight:700">−</span> = behind</span>
+      <span style="color:var(--accent)">↑↓ Click any column header to sort</span>
     </div>`;
 }
 
