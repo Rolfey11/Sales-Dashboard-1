@@ -312,6 +312,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     </div>
   </div>
   <div class="kpi-row" id="kpiRow" style="grid-template-columns:repeat(6,1fr)"></div>
+  <div id="teamSummaryRow" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px"></div>
   <div class="cards-grid" id="cardsGrid"></div>
   <div id="dashDailyTable"></div>
   <div class="charts-row">
@@ -1076,6 +1077,40 @@ function renderDashCharts(mk){
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// SHARED TEAM COP HELPER — same logic as renderTeamDashboard daily loop
+// Returns { copRev, copNm, cumActual, cumNmActual }
+// ═══════════════════════════════════════════════════════════════════
+function calcTeamCOP(mk, memberNames){
+  const entries    = getEntries(mk);
+  const teamPeople = APP.people.filter(p=>memberNames.includes(p.name));
+  const memberRPDs = teamPeople.map(p=>({ name:p.name, rpd:(getPersonForMonth(p,mk).riskPerDay||0) }));
+  const today2     = _localDateStr(new Date());
+  const wdDates    = workingDatesInMonth(mk).filter(ds=>ds<=today2);
+
+  const dayLookup = {};
+  entries.forEach(e=>{
+    if(!memberNames.includes(e.name)) return;
+    if(!dayLookup[e.date]) dayLookup[e.date]={rev:0,nm:0};
+    dayLookup[e.date].rev += (e.revenue||0);
+    dayLookup[e.date].nm  += (e.nm||0);
+  });
+
+  let cumActual=0, cumRR=0, cumNmActual=0, cumNmRR=0;
+  wdDates.forEach(ds=>{
+    let dayRR=0, dayNmRR=0;
+    memberRPDs.forEach(({name,rpd})=>{
+      const st = getDayStatus(mk,name,ds);
+      if(st!=='hol'&&st!=='bh'){ dayRR+=rpd; dayNmRR+=1.75; }
+    });
+    cumActual   += (dayLookup[ds]||{}).rev||0;
+    cumRR       += dayRR;
+    cumNmActual += (dayLookup[ds]||{}).nm||0;
+    cumNmRR     += dayNmRR;
+  });
+  return { copRev: cumActual-cumRR, copNm: cumNmActual-cumNmRR, cumActual, cumNmActual };
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════════════════════════
 function renderDashboard(){
@@ -1147,6 +1182,42 @@ function renderDashboard(){
     <div class="kpi-card"><div class="kpi-label">On Track</div>
       <div class="kpi-val ${ahead>=active.length/2?'g':'a'}">${ahead} / ${active.length}</div>
       <div class="kpi-sub">ahead on risk COP</div></div>`;
+
+  // ── Team summary strips ──────────────────────────────────────────
+  const teamDefs = [
+    {key:'g',    label:'Team G'},
+    {key:'james',label:'Team James'},
+    {key:'damo', label:'Team Damo'}
+  ];
+  const teamSummaryRow = document.getElementById('teamSummaryRow');
+  if(teamSummaryRow){
+    teamSummaryRow.innerHTML = teamDefs.map(({key,label})=>{
+      const members = (APP.teams&&APP.teams[key])||[];
+      const ts = stats.filter(s=>members.includes(s.name)&&s.target>0);
+      if(!ts.length) return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:12px;font-weight:700;color:var(--text3)">${label}</span>
+        <span style="font-size:11px;color:var(--text3);font-family:var(--fm)">No members assigned</span></div>`;
+      const tRev  = ts.reduce((s,p)=>s+p.revMTD,0);
+      const tTgt  = ts.reduce((s,p)=>s+p.target,0);
+      const tNm   = ts.reduce((s,p)=>s+p.nmMTD,0);
+      const revPct= tTgt>0?Math.round(tRev/tTgt*100):0;
+
+      // Use same daily-loop logic as the Teams tab
+      const cop = calcTeamCOP(mk, members);
+      const revCls = cop.copRev>=0?'var(--green)':'var(--red)';
+      const nmCls  = cop.copNm>=0?'var(--green)':'var(--red)';
+      const copRevLbl = cop.copRev>=0?`+${fmt(Math.abs(cop.copRev))} ahead`:`${fmt(Math.abs(cop.copRev))} needed`;
+      const copNmLbl  = cop.copNm>=0?`+${Math.abs(cop.copNm).toFixed(1)} ahead`:`${Math.abs(cop.copNm).toFixed(1)} needed`;
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <span style="font-size:12px;font-weight:700;min-width:80px">${label}</span>
+        <span style="font-size:11px;color:var(--text3);font-family:var(--fm)">${ts.length} members</span>
+        <span style="font-size:11px;font-family:var(--fm);color:var(--text2)">Rev MTD <span style="color:var(--text);font-weight:700">£${Math.round(tRev).toLocaleString()}</span> <span style="color:var(--text3)">(${revPct}%)</span></span>
+        <span style="font-size:11px;font-family:var(--fm);color:var(--text2)">NM MTD <span style="color:var(--text);font-weight:700">${tNm}</span></span>
+        <span style="font-size:11px;font-family:var(--fm)">COP Rev <span style="color:${revCls};font-weight:700">${copRevLbl}</span></span>
+        <span style="font-size:11px;font-family:var(--fm)">COP NM <span style="color:${nmCls};font-weight:700">${copNmLbl}</span></span>
+      </div>`;
+    }).join('');
+  }
 
   if(active.length===0){
     document.getElementById('cardsGrid').innerHTML=`<div class="empty" style="grid-column:1/-1">
