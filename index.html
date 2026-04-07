@@ -641,12 +641,8 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 
 <script>
 // ═══════════════════════════════════════════════════════════════════
-// AUTH — password gate
-// To change the password, update the PASS_HASH below.
-// Generate a new hash at: https://emn178.github.io/online-tools/sha256.html
-// Default password is:  Lloyds2024!
 // ═══════════════════════════════════════════════════════════════════
-const PASS_HASH = '45ff71820a65df2b8d245fe7ef8f50a9e2295401762d014731aa13ec5e22fdde';
+const PASS_HASH = '04f5b70888c0c4bf5956cbca32acbd8701ae8d1d83db91fed942861c56934775';
 
 async function _sha256(str){
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
