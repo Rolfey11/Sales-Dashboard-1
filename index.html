@@ -46,6 +46,22 @@ body{background:var(--bg);color:var(--text);font-family:var(--fh);min-height:100
 .login-err{font-size:12px;color:var(--red);font-family:var(--fm);margin-top:8px;min-height:18px;text-align:center;}
 .login-lock{font-size:32px;margin-bottom:20px;text-align:center;}
 
+/* DIVISION SELECTOR */
+#divisionScreen{position:fixed;inset:0;background:var(--bg);z-index:9998;display:flex;align-items:center;justify-content:center;}
+#divisionScreen.hidden{display:none;}
+.div-box{width:720px;max-width:94vw;padding:40px;}
+.div-title{font-size:22px;font-weight:700;letter-spacing:.04em;margin-bottom:4px;}
+.div-title span{color:var(--accent);}
+.div-sub{font-size:12px;color:var(--text3);font-family:var(--fm);margin-bottom:36px;}
+.div-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.div-btn{background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:24px 16px;cursor:pointer;text-align:center;transition:all .18s;display:flex;flex-direction:column;align-items:center;gap:10px;}
+.div-btn:hover{border-color:var(--accent);background:var(--surface2);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3);}
+.div-btn.active-div{border-color:var(--accent);box-shadow:0 0 0 2px rgba(94,156,245,.25);}
+.div-icon{font-size:28px;line-height:1;}
+.div-name{font-size:14px;font-weight:700;letter-spacing:.01em;}
+.div-desc{font-size:11px;color:var(--text3);font-family:var(--fm);line-height:1.5;}
+.div-badge{font-size:9px;font-weight:700;background:rgba(94,156,245,0.15);color:var(--accent);padding:2px 8px;border-radius:10px;letter-spacing:.04em;text-transform:uppercase;}
+
 /* NAV */
 nav{position:sticky;top:0;z-index:100;background:rgba(11,12,16,0.96);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;gap:16px;overflow-x:auto;}
 .nav-brand{font-size:15px;font-weight:700;letter-spacing:.06em;white-space:nowrap;}
@@ -298,6 +314,48 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
   </div>
 </div>
 
+<!-- DIVISION SELECTOR -->
+<div id="divisionScreen" class="hidden">
+  <div class="div-box">
+    <div style="text-align:center;margin-bottom:32px">
+      <div class="div-title">PERF<span>.</span>DASH</div>
+      <div class="div-sub">Select your division to continue</div>
+    </div>
+    <div class="div-grid">
+      <div class="div-btn" onclick="selectDivision('branch')">
+        <div class="div-icon">🏦</div>
+        <div class="div-name">Branch</div>
+        <div class="div-desc">Branch guidance sales team</div>
+      </div>
+      <div class="div-btn" onclick="selectDivision('d2c')">
+        <div class="div-icon">💻</div>
+        <div class="div-name">D2C</div>
+        <div class="div-desc">Direct to consumer team</div>
+      </div>
+      <div class="div-btn" onclick="selectDivision('guidance')">
+        <div class="div-icon">🔗</div>
+        <div class="div-name">Single Tie Guidance</div>
+        <div class="div-desc">Single tie guidance advisors</div>
+      </div>
+      <div class="div-btn" onclick="selectDivision('retail')">
+        <div class="div-icon">🏪</div>
+        <div class="div-name">Retail / Digital</div>
+        <div class="div-desc">Retail and digital channel</div>
+      </div>
+      <div class="div-btn" onclick="selectDivision('advice')">
+        <div class="div-icon">💼</div>
+        <div class="div-name">Advice</div>
+        <div class="div-desc">Full advice team</div>
+      </div>
+      <div class="div-btn" onclick="selectDivision('core')">
+        <div class="div-icon">⭐</div>
+        <div class="div-name">Core</div>
+        <div class="div-desc">Core team</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <nav>
   <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0">
     <div class="nav-brand">PERF<span>.</span>DASH</div>
@@ -313,6 +371,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <button class="nav-tab" onclick="showPage('daybyday')">Day by Day</button>
       <button class="nav-tab" onclick="showPage('holiday')">Holiday</button>
       <button class="nav-tab" onclick="showPage('settings')">Settings</button>
+      <button class="nav-tab" onclick="showPage('manageroverview')" id="managerOverviewTab" style="color:var(--amber);margin-left:8px;border-left:1px solid var(--border2);padding-left:14px;">⭐ Manager Overview</button>
     </div>
     <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
       <span style="font-size:10px;font-weight:600;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">Month</span>
@@ -320,6 +379,11 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     </div>
   </div>
   <div style="display:flex;align-items:center;gap:14px;flex-shrink:0">
+    <div id="divisionBadge" style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);transition:border-color .15s;" onclick="switchDivision()" title="Switch division">
+      <span id="divisionIcon" style="font-size:14px"></span>
+      <span id="divisionLabel" style="font-size:11px;font-weight:700;font-family:var(--fm);color:var(--text2)"></span>
+      <span style="font-size:10px;color:var(--text3)">⇄</span>
+    </div>
     <div id="syncStatus" style="display:flex;align-items:center;gap:6px;font-family:var(--fm);font-size:11px;color:var(--text3)">
       <span id="syncDot" style="width:7px;height:7px;border-radius:50%;background:var(--text3);display:inline-block;transition:background .3s"></span>
       <span id="syncLabel">connecting…</span>
@@ -637,11 +701,35 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
   </div>
 </div>
 
+<!-- MANAGER OVERVIEW -->
+<div class="page" id="page-manageroverview">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Manager Overview</div>
+      <div class="section-sub" id="mo-sub">Live performance across all divisions</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select id="moMonth" onchange="renderManagerOverview()" style="width:180px"></select>
+    </div>
+  </div>
+  <div id="moContent"><div class="empty"><div class="empty-icon">📊</div><div>Loading division data…</div></div></div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
 // ═══════════════════════════════════════════════════════════════════
+// DIVISION CONFIG
 // ═══════════════════════════════════════════════════════════════════
+const DIVISIONS = {
+  branch:   { label:'Branch',             icon:'🏦', dbKey:'perfDash2' },
+  d2c:      { label:'D2C',                icon:'💻', dbKey:'perfDash2_d2c' },
+  guidance: { label:'Single Tie Guidance',icon:'🔗', dbKey:'perfDash2_guidance' },
+  retail:   { label:'Retail / Digital',   icon:'🏪', dbKey:'perfDash2_retail' },
+  advice:   { label:'Advice',             icon:'💼', dbKey:'perfDash2_advice' },
+  core:     { label:'Core',               icon:'⭐', dbKey:'perfDash2_core' }
+};
+
 const PASS_HASH = '04f5b70888c0c4bf5956cbca32acbd8701ae8d1d83db91fed942861c56934775';
 
 async function _sha256(str){
@@ -658,7 +746,13 @@ async function attemptLogin(){
     sessionStorage.setItem('pd_auth','1');
     document.getElementById('loginScreen').classList.add('hidden');
     err.textContent='';
-    _initApp();
+    // Show division selector (or auto-load if division already chosen)
+    const savedDiv = sessionStorage.getItem('pd_division');
+    if(savedDiv && DIVISIONS[savedDiv]){
+      selectDivision(savedDiv);
+    } else {
+      document.getElementById('divisionScreen').classList.remove('hidden');
+    }
   } else {
     err.textContent='Incorrect password. Please try again.';
     document.getElementById('loginPwd').value='';
@@ -666,9 +760,30 @@ async function attemptLogin(){
   }
 }
 
-// Check if already authenticated this session
-if(sessionStorage.getItem('pd_auth')==='1'){
-  document.getElementById('loginScreen').classList.add('hidden');
+function selectDivision(key){
+  sessionStorage.setItem('pd_division', key);
+  document.getElementById('divisionScreen').classList.add('hidden');
+  // Update nav badge
+  const div = DIVISIONS[key];
+  document.getElementById('divisionIcon').textContent  = div.icon;
+  document.getElementById('divisionLabel').textContent = div.label;
+  // Highlight active div button
+  document.querySelectorAll('.div-btn').forEach(b=>b.classList.remove('active-div'));
+  const idx = Object.keys(DIVISIONS).indexOf(key);
+  const btns = document.querySelectorAll('.div-btn');
+  if(btns[idx]) btns[idx].classList.add('active-div');
+  _initApp(key);
+}
+
+function switchDivision(){
+  if(_currentDbRef){ _currentDbRef.off(); _currentDbRef = null; _dbRef = null; }
+  _appInited = false;
+  _currentDivKey = 'branch';
+  // Clear rendered content so stale data isn't visible while new division loads
+  document.getElementById('kpiRow').innerHTML    = '';
+  document.getElementById('cardsGrid').innerHTML = '';
+  document.getElementById('teamSummaryRow').innerHTML = '';
+  document.getElementById('divisionScreen').classList.remove('hidden');
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -689,13 +804,33 @@ const FIREBASE_CONFIG = {
 };
 
 firebase.initializeApp(FIREBASE_CONFIG);
-const _db    = firebase.database();
-const _dbRef = _db.ref('perfDash2');
+const _db = firebase.database();
+
+let _currentDbRef  = null;
+let _currentDivKey = 'branch';
+
+// _dbRef is a proxy so all existing code using _dbRef still works
+const _dbRefProxy = new Proxy({}, {
+  get(_, prop){ return _currentDbRef ? _currentDbRef[prop].bind(_currentDbRef) : ()=>{}; }
+});
+// Alias used throughout the app
+let _dbRef = null;
 
 let _appInited = false;
-function _initApp(){
+function _initApp(divKey){
   if(_appInited) return;
   _appInited = true;
+  _currentDivKey = divKey || 'branch';
+  const dbKey = (DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey;
+  _currentDbRef = _db.ref(dbKey);
+  _dbRef = _currentDbRef;
+  // Reset APP to blank slate so previous division data doesn't bleed through
+  APP = {
+    people:[], months:{}, activeMonth:todayKey(),
+    teams:{g:[],james:[],damo:[]}, bizTargets:{},
+    holidays:{}, sickness:{}, monthOverrides:{}, manualElapsed:null
+  };
+  setSyncStatus('connecting');
   _startFirebase();
 }
 
@@ -1993,7 +2128,7 @@ function clearAllData(){
 function populateAllSelects(){
   const months = allMonthKeys();
 
-  ['entryMonth','lbMonth','histMonth','activeMonthSel','holMonth','bizMonth','teamsMonth','dbdMonth','mcsMonth'].forEach(id=>{
+  ['entryMonth','lbMonth','histMonth','activeMonthSel','holMonth','bizMonth','teamsMonth','dbdMonth','mcsMonth','moMonth'].forEach(id=>{
     const el = document.getElementById(id);
     if(!el) return;
     const cur = el.value || APP.activeMonth;
@@ -2027,18 +2162,20 @@ function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
-  document.querySelector(`.nav-tab[onclick="showPage('${id}')"]`).classList.add('active');
-  if(id==='dashboard')   renderDashboard();
-  if(id==='biz')        { populateAllSelects(); renderBizTarget(); }
-  if(id==='teams')      { populateAllSelects(); renderTeams(); }
-  if(id==='summary')     renderConsultantSummary();
-  if(id==='entry')       renderEntryPage();
-  if(id==='monthlysummary'){ populateAllSelects(); renderMonthlySummary(); }
-  if(id==='leaderboard'){ populateAllSelects(); renderLeaderboard(); }
-  if(id==='history')    { populateAllSelects(); renderHistory(); }
-  if(id==='daybyday')  { populateAllSelects(); renderDayByDay(); }
-  if(id==='holiday')    { populateAllSelects(); renderHoliday(); }
-  if(id==='settings')    renderSettings();
+  const tabEl = document.querySelector(`.nav-tab[onclick="showPage('${id}')"]`);
+  if(tabEl) tabEl.classList.add('active');
+  if(id==='dashboard')       renderDashboard();
+  if(id==='biz')            { populateAllSelects(); renderBizTarget(); }
+  if(id==='teams')          { populateAllSelects(); renderTeams(); }
+  if(id==='summary')         renderConsultantSummary();
+  if(id==='entry')           renderEntryPage();
+  if(id==='monthlysummary') { populateAllSelects(); renderMonthlySummary(); }
+  if(id==='leaderboard')    { populateAllSelects(); renderLeaderboard(); }
+  if(id==='history')        { populateAllSelects(); renderHistory(); }
+  if(id==='daybyday')       { populateAllSelects(); renderDayByDay(); }
+  if(id==='holiday')        { populateAllSelects(); renderHoliday(); }
+  if(id==='settings')        renderSettings();
+  if(id==='manageroverview'){ populateAllSelects(); renderManagerOverview(); }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -2180,10 +2317,251 @@ function renderMonthlySummary(){
     </div>`;
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// MANAGER OVERVIEW — cross-division performance
+// ═══════════════════════════════════════════════════════════════════
+function renderManagerOverview(){
+  const mk = document.getElementById('moMonth').value || APP.activeMonth;
+  document.getElementById('mo-sub').textContent = 'Live performance across all divisions · ' + monthLabel(mk);
+  const content = document.getElementById('moContent');
+  content.innerHTML = `<div class="empty"><div style="font-size:20px;margin-bottom:8px">⏳</div><div>Loading all divisions…</div></div>`;
 
+  const divKeys = Object.keys(DIVISIONS);
+  const promises = divKeys.map(key=>{
+    const dbKey = DIVISIONS[key].dbKey;
+    return _db.ref(dbKey).once('value').then(snap=>{
+      const data = snap.val() || {};
+      // Apply same defaults as main app
+      if(!data.people)        data.people        = [];
+      if(!data.months)        data.months        = {};
+      if(!data.teams)         data.teams         = {g:[],james:[],damo:[]};
+      if(!data.holidays)      data.holidays      = {};
+      if(!data.sickness)      data.sickness      = {};
+      if(!data.monthOverrides)data.monthOverrides= {};
+      if(data.manualElapsed==null) data.manualElapsed = null;
+      return { key, data };
+    }).catch(()=>({ key, data:{ people:[], months:{}, teams:{g:[],james:[],damo:[]}, holidays:{}, sickness:{}, monthOverrides:{}, manualElapsed:null } }));
+  });
+
+  Promise.all(promises).then(results=>{
+    // Helper: compute stats for a division dataset
+    function divStats(data){
+      const entries = ((data.months||{})[mk]||{entries:[]}).entries;
+      const today   = _localDateStr(new Date());
+      const wdAll   = workingDatesInMonth(mk);
+      const wdPast  = wdAll.filter(ds=>ds<=today);
+
+      return (data.people||[]).map(p=>{
+        const ovr    = ((data.monthOverrides||{})[mk]||{})[p.name]||{};
+        const rpd    = ovr.riskPerDay!==undefined ? ovr.riskPerDay : (p.riskPerDay||0);
+        const daysT  = ovr.daysT!==undefined      ? ovr.daysT      : (p.daysT||0);
+        const target = Math.round(rpd*daysT);
+        const nmTgt  = parseFloat((daysT*1.75).toFixed(2));
+        if(!target) return null;
+
+        const mine   = entries.filter(e=>e.name===p.name);
+        const revMTD = mine.reduce((s,e)=>s+(e.revenue||0),0);
+        const nmMTD  = mine.reduce((s,e)=>s+(e.nm||0),0);
+        const revPct = target>0?Math.round(revMTD/target*100):0;
+
+        // COP — day loop same as Teams tab
+        const hols   = ((data.holidays||{})[mk]||{})[p.name]||[];
+        const sick   = ((data.sickness||{})[mk]||{})[p.name]||[];
+        const dayLookup = {};
+        mine.forEach(e=>{ dayLookup[e.date]=(e.revenue||0); });
+        const nmLookup = {};
+        mine.forEach(e=>{ nmLookup[e.date]=(e.nm||0); });
+        let cumA=0,cumRR=0,cumNmA=0,cumNmRR=0;
+        wdPast.forEach(ds=>{
+          const isBH  = isBankHoliday(ds);
+          const isOff = hols.includes(ds)||isBH;
+          if(!isOff){ cumRR+=rpd; cumNmRR+=1.75; }
+          cumA   += dayLookup[ds]||0;
+          cumNmA += nmLookup[ds]||0;
+        });
+        return { name:p.name, target, revMTD, nmMTD, revPct, nmTgt,
+                 copRev:cumA-cumRR, copNm:cumNmA-cumNmRR };
+      }).filter(Boolean);
+    }
+
+    // Build per-division summaries
+    const divSummaries = results.map(({key,data})=>{
+      const stats   = divStats(data);
+      const div     = DIVISIONS[key];
+      const totRev  = stats.reduce((s,p)=>s+p.revMTD,0);
+      const totTgt  = stats.reduce((s,p)=>s+p.target,0);
+      const totNm   = stats.reduce((s,p)=>s+p.nmMTD,0);
+      const totNmTgt= stats.reduce((s,p)=>s+p.nmTgt,0);
+      const copRev  = stats.reduce((s,p)=>s+p.copRev,0);
+      const copNm   = stats.reduce((s,p)=>s+p.copNm,0);
+      const revPct  = totTgt>0?Math.round(totRev/totTgt*100):0;
+      const hit     = stats.filter(p=>p.revMTD>=p.target).length;
+      const isActive= key===_currentDivKey;
+      return { key, div, stats, totRev, totTgt, totNm, totNmTgt, copRev, copNm, revPct, hit, isActive };
+    });
+
+    // Grand totals across all divisions
+    const grandRev    = divSummaries.reduce((s,d)=>s+d.totRev,0);
+    const grandTgt    = divSummaries.reduce((s,d)=>s+d.totTgt,0);
+    const grandNm     = divSummaries.reduce((s,d)=>s+d.totNm,0);
+    const grandNmTgt  = divSummaries.reduce((s,d)=>s+d.totNmTgt,0);
+    const grandCopRev = divSummaries.reduce((s,d)=>s+d.copRev,0);
+    const grandCopNm  = divSummaries.reduce((s,d)=>s+d.copNm,0);
+    const grandPct    = grandTgt>0?Math.round(grandRev/grandTgt*100):0;
+    const grandHit    = divSummaries.reduce((s,d)=>s+d.hit,0);
+    const grandTotal  = divSummaries.reduce((s,d)=>s+d.stats.length,0);
+
+    const thS  = `style="padding:10px 14px;background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);white-space:nowrap;border-bottom:1px solid var(--border);text-align:right;"`;
+    const thSL = `style="padding:10px 14px;background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);white-space:nowrap;border-bottom:1px solid var(--border);text-align:left;"`;
+    const tdR  = `style="padding:10px 14px;text-align:right;font-family:var(--fm);font-size:12px;"`;
+    const tdL  = `style="padding:10px 14px;text-align:left;font-family:var(--fm);font-size:12px;"`;
+
+    // Division KPI cards
+    const divCards = divSummaries.map(d=>{
+      const pct    = d.totTgt>0?Math.round(d.totRev/d.totTgt*100):0;
+      const pctCls = pct>=100?'var(--green)':pct>=75?'var(--amber)':'var(--red)';
+      const copCol = d.copRev>=0?'var(--green)':'var(--red)';
+      const border = d.isActive ? '2px solid var(--accent)' : '1px solid var(--border)';
+      return `<div style="background:var(--surface);border:${border};border-radius:var(--radius);padding:16px 18px;position:relative;${d.isActive?'box-shadow:0 0 0 1px rgba(94,156,245,.2)':''}">
+        ${d.isActive?`<div style="position:absolute;top:10px;right:10px;font-size:9px;font-weight:700;background:rgba(94,156,245,0.15);color:var(--accent);padding:2px 7px;border-radius:10px;letter-spacing:.04em">CURRENT</div>`:''}
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <span style="font-size:20px">${d.div.icon}</span>
+          <span style="font-size:13px;font-weight:700">${d.div.label}</span>
+        </div>
+        <div style="font-size:22px;font-weight:700;font-family:var(--fm);color:${pctCls};margin-bottom:2px">£${Math.round(d.totRev).toLocaleString()}</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:10px">${pct}% of £${d.totTgt.toLocaleString()}</div>
+        <div style="height:4px;background:var(--surface3);border-radius:2px;overflow:hidden;margin-bottom:10px">
+          <div style="height:100%;width:${Math.min(pct,100)}%;background:${pctCls};border-radius:2px;"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;font-family:var(--fm);margin-bottom:4px">
+          <span style="color:var(--text3)">NM MTD</span>
+          <span style="color:var(--text);font-weight:600">${d.totNm} <span style="color:var(--text3);font-weight:400">/ ${d.totNmTgt.toFixed(1)}</span></span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;font-family:var(--fm);margin-bottom:4px">
+          <span style="color:var(--text3)">COP Rev</span>
+          <span style="color:${copCol};font-weight:700">${d.copRev>=0?'+':''}£${Math.round(Math.abs(d.copRev)).toLocaleString()}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;font-family:var(--fm);margin-bottom:4px">
+          <span style="color:var(--text3)">COP NM</span>
+          <span style="color:${d.copNm>=0?'var(--green)':'var(--red)'};font-weight:700">${d.copNm>=0?'+':''}${d.copNm.toFixed(1)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;font-family:var(--fm);margin-bottom:0">
+          <span style="color:var(--text3)">On target</span>
+          <span style="color:${d.hit===d.stats.length&&d.stats.length>0?'var(--green)':'var(--text2)'};font-weight:600">${d.hit} / ${d.stats.length}</span>
+        </div>
+      </div>`;
+    }).join('');
+
+    // All-consultant table across all divisions
+    const allPeople = divSummaries.flatMap(d=>
+      d.stats.map(p=>({...p, divKey:d.key, divLabel:d.div.label, divIcon:d.div.icon }))
+    ).sort((a,b)=>b.revMTD-a.revMTD);
+
+    const consultantRows = allPeople.length ? allPeople.map((p,i)=>{
+      const hitTarget = p.revMTD>=p.target;
+      const revDiff   = p.revMTD-p.target;
+      const nmDiff    = p.nmMTD-p.nmTgt;
+      const rowBg     = hitTarget?'background:rgba(45,206,137,0.07);border-left:3px solid #2dce89;':'';
+      const rankCol   = i===0?'#fbb83a':i===1?'#9aa5b4':i===2?'#c97d44':'var(--text3)';
+      return `<tr style="border-bottom:1px solid var(--border);${rowBg}">
+        <td ${tdL} style="font-size:11px;font-weight:700;color:${rankCol};padding:10px 14px">${i+1}</td>
+        <td ${tdL} style="font-size:13px;font-weight:700;padding:10px 14px">${p.name}${hitTarget?' <span style="color:var(--green)">✓</span>':''}</td>
+        <td ${tdL} style="padding:10px 14px"><span style="font-size:11px;background:var(--surface2);padding:3px 8px;border-radius:20px;font-family:var(--fm)">${p.divIcon} ${p.divLabel}</span></td>
+        <td ${tdR} style="color:var(--text2)">${p.revPct}%</td>
+        <td ${tdR} style="color:var(--text2)">£${p.target.toLocaleString()}</td>
+        <td ${tdR} style="font-weight:700;color:${p.revPct>=100?'var(--green)':p.revPct>=75?'var(--amber)':'var(--text)'}">£${Math.round(p.revMTD).toLocaleString()}</td>
+        <td ${tdR} style="font-weight:700;color:${revDiff>=0?'var(--green)':'var(--red)'}">${revDiff>=0?'+':''}£${Math.round(Math.abs(revDiff)).toLocaleString()}</td>
+        <td ${tdR} style="color:var(--text2)">${p.nmTgt.toFixed(1)}</td>
+        <td ${tdR} style="font-weight:600">${p.nmMTD}</td>
+        <td ${tdR} style="font-weight:700;color:${nmDiff>=0?'var(--green)':'var(--red)'}">${nmDiff>=0?'+':''}${Math.abs(nmDiff).toFixed(1)}</td>
+        <td ${tdR} style="font-weight:700;color:${p.copNm>=0?'var(--green)':'var(--red)'}">${p.copNm>=0?'+':''}${p.copNm.toFixed(1)}</td>
+        <td ${tdR} style="font-weight:700;color:${p.copRev>=0?'var(--green)':'var(--red)'}">${p.copRev>=0?'+':''}£${Math.round(Math.abs(p.copRev)).toLocaleString()}</td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="12" style="padding:32px;text-align:center;color:var(--text3);font-family:var(--fm)">No consultant data found across any division for this month.</td></tr>`;
+
+    content.innerHTML = `
+      <!-- Grand total KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px">
+        <div class="kpi-card"><div class="kpi-label">Total Rev — All Divisions</div>
+          <div class="kpi-val ${grandPct>=100?'g':grandPct>=75?'a':'r'}">£${Math.round(grandRev).toLocaleString()}</div>
+          <div class="kpi-sub">${grandPct}% of £${grandTgt.toLocaleString()}</div></div>
+        <div class="kpi-card"><div class="kpi-label">Total NM — All Divisions</div>
+          <div class="kpi-val">${grandNm}</div>
+          <div class="kpi-sub">target: ${grandNmTgt.toFixed(1)}</div></div>
+        <div class="kpi-card"><div class="kpi-label">On Target</div>
+          <div class="kpi-val ${grandHit===grandTotal&&grandTotal>0?'g':grandHit>0?'a':'r'}">${grandHit} / ${grandTotal}</div>
+          <div class="kpi-sub">consultants across all divisions</div></div>
+        <div class="kpi-card"><div class="kpi-label">Divisions Active</div>
+          <div class="kpi-val">${divSummaries.filter(d=>d.stats.length>0).length} / ${divSummaries.length}</div>
+          <div class="kpi-sub">with consultant data</div></div>
+        <div class="kpi-card"><div class="kpi-label">Overall COP Rev</div>
+          <div class="kpi-val ${grandCopRev>=0?'g':'r'}">${grandCopRev>=0?'+':''}£${Math.round(Math.abs(grandCopRev)).toLocaleString()}</div>
+          <div class="kpi-sub">${grandCopRev>=0?'ahead':'behind'} of checkpoint</div></div>
+        <div class="kpi-card"><div class="kpi-label">Overall COP NM</div>
+          <div class="kpi-val ${grandCopNm>=0?'g':'r'}">${grandCopNm>=0?'+':''}${grandCopNm.toFixed(1)}</div>
+          <div class="kpi-sub">${grandCopNm>=0?'ahead':'behind'} of checkpoint</div></div>
+      </div>
+
+      <!-- Per-division cards -->
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px">
+        ${divCards}
+      </div>
+
+      <!-- All consultants table -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px">
+        <div style="padding:14px 18px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+          <div style="font-size:13px;font-weight:700">All Consultants</div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">sorted by revenue MTD · all divisions combined</div>
+          <div style="margin-left:auto;font-size:11px;font-family:var(--fm);color:var(--text3)">${allPeople.length} consultants</div>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;min-width:860px">
+            <thead><tr>
+              <th ${thSL} style="width:28px">#</th>
+              <th ${thSL}>Name</th>
+              <th ${thSL}>Division</th>
+              <th ${thS}>% Target</th>
+              <th ${thS}>Target Rev</th>
+              <th ${thS}>Current Rev</th>
+              <th ${thS}>Difference</th>
+              <th ${thS}>Target NM</th>
+              <th ${thS}>Actual NM</th>
+              <th ${thS}>NM Diff</th>
+              <th ${thS}>COP NM</th>
+              <th ${thS}>COP Rev</th>
+            </tr></thead>
+            <tbody>${consultantRows}</tbody>
+            <tr style="background:var(--surface2);border-top:2px solid var(--border2)">
+              <td colspan="3" style="padding:10px 14px;font-size:11px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase">Grand Total</td>
+              <td ${tdR} style="font-weight:700;color:${grandPct>=100?'var(--green)':grandPct>=75?'var(--amber)':'var(--red)'}">${grandPct}%</td>
+              <td ${tdR} style="color:var(--text2)">£${grandTgt.toLocaleString()}</td>
+              <td ${tdR} style="font-weight:700;color:var(--green)">£${Math.round(grandRev).toLocaleString()}</td>
+              <td ${tdR} style="font-weight:700;color:${grandRev-grandTgt>=0?'var(--green)':'var(--red)'}">${grandRev-grandTgt>=0?'+':''}£${Math.round(Math.abs(grandRev-grandTgt)).toLocaleString()}</td>
+              <td ${tdR} style="color:var(--text2)">${grandNmTgt.toFixed(1)}</td>
+              <td ${tdR} style="font-weight:700">${grandNm}</td>
+              <td ${tdR} style="font-weight:700;color:${grandNm-grandNmTgt>=0?'var(--green)':'var(--red)'}">${grandNm-grandNmTgt>=0?'+':''}${Math.abs(grandNm-grandNmTgt).toFixed(1)}</td>
+              <td ${tdR} style="font-weight:700;color:${grandCopNm>=0?'var(--green)':'var(--red)'}">${grandCopNm>=0?'+':''}${grandCopNm.toFixed(1)}</td>
+              <td ${tdR} style="font-weight:700;color:${grandCopRev>=0?'var(--green)':'var(--red)'}">${grandCopRev>=0?'+':''}£${Math.round(Math.abs(grandCopRev)).toLocaleString()}</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">
+        <span style="color:var(--green);font-weight:700">+</span> = ahead of target &nbsp;·&nbsp;
+        <span style="color:var(--red);font-weight:700">−</span> = behind target &nbsp;·&nbsp;
+        <span style="color:var(--accent)">CURRENT</span> = your active division &nbsp;·&nbsp;
+        Data refreshed each time you open this tab
+      </div>`;
+  });
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+// ELAPSED DAYS
+// ═══════════════════════════════════════════════════════════════════
 function setElapsedDays(val){
-  const n = parseInt(val);
-  APP.manualElapsed = isNaN(n) ? null : n;
+  const n2 = parseInt(val);
+  APP.manualElapsed = isNaN(n2) ? null : n2;
   saveApp();
   renderDashboard();
 }
@@ -4233,8 +4611,6 @@ function _applyDefaults(){
   if(!APP.people)        APP.people = [];
 }
 
-setSyncStatus('connecting');
-
 function _startFirebase(){
 // Load once, then subscribe to real-time updates
 _dbRef.once('value').then(snap=>{
@@ -4253,7 +4629,6 @@ _dbRef.once('value').then(snap=>{
     APP = remote;
     _applyDefaults();
     setSyncStatus('live');
-    // Re-render the currently active page, but skip if user has an input focused
     if(document.activeElement && ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
     const pg = document.querySelector('.page.active');
     if(pg){
@@ -4270,8 +4645,16 @@ _dbRef.once('value').then(snap=>{
 });
 }
 
-// Auto-start if already authenticated (page reload case)
-if(sessionStorage.getItem('pd_auth')==='1') _initApp();
+// ── Session restore — runs after ALL functions are defined ──────────
+if(sessionStorage.getItem('pd_auth')==='1'){
+  document.getElementById('loginScreen').classList.add('hidden');
+  const savedDiv = sessionStorage.getItem('pd_division');
+  if(savedDiv && DIVISIONS[savedDiv]){
+    selectDivision(savedDiv);
+  } else {
+    document.getElementById('divisionScreen').classList.remove('hidden');
+  }
+}
 </script>
 </body>
 </html>
