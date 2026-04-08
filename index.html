@@ -23,9 +23,31 @@
   --fh:'Syne',sans-serif;--fm:'DM Mono',monospace;
   --radius:12px;
   --shadow:0 4px 24px rgba(0,0,0,.35);
+  --nav-bg:rgba(11,12,16,0.96);
+}
+[data-theme="light"]{
+  --bg:#f0f2f6;--surface:#ffffff;--surface2:#f5f7fa;--surface3:#e8eaf0;
+  --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.15);
+  --text:#1a1d2e;--text2:#4a5068;--text3:#8a90a2;
+  --green:#1aaa6e;--green-bg:rgba(26,170,110,0.1);
+  --red:#d92f53;--red-bg:rgba(217,47,83,0.1);
+  --amber:#d97a0a;--amber-bg:rgba(217,122,10,0.1);
+  --blue:#3a7fe0;--blue-bg:rgba(58,127,224,0.1);
+  --purple:#7c5ce0;--purple-bg:rgba(124,92,224,0.1);
+  --accent:#3a7fe0;
+  --shadow:0 4px 24px rgba(0,0,0,.12);
+  --nav-bg:rgba(255,255,255,0.97);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--text);font-family:var(--fh);min-height:100vh;overflow-x:hidden;}
+body{background:var(--bg);color:var(--text);font-family:var(--fh);min-height:100vh;overflow-x:hidden;transition:background .25s,color .25s;}
+
+/* THEME TOGGLE */
+.theme-toggle{display:flex;align-items:center;gap:7px;flex-shrink:0;}
+.theme-toggle-label{font-size:10px;font-weight:600;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;}
+.toggle-track{position:relative;width:40px;height:22px;border-radius:11px;background:var(--surface3);border:1px solid var(--border2);cursor:pointer;transition:background .2s;}
+.toggle-track.on{background:var(--accent);}
+.toggle-knob{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.3);transition:transform .2s;}
+.toggle-track.on .toggle-knob{transform:translateX(18px);}
 ::-webkit-scrollbar{width:6px;height:6px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:3px;}
@@ -63,7 +85,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--fh);min-height:100
 .div-badge{font-size:9px;font-weight:700;background:rgba(94,156,245,0.15);color:var(--accent);padding:2px 8px;border-radius:10px;letter-spacing:.04em;text-transform:uppercase;}
 
 /* NAV */
-nav{position:sticky;top:0;z-index:100;background:rgba(11,12,16,0.96);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:8px 20px 0;display:flex;flex-direction:column;gap:0;}
+nav{position:sticky;top:0;z-index:100;background:var(--nav-bg);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:8px 20px 0;display:flex;flex-direction:column;gap:0;transition:background .25s;}
 .nav-row1{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:40px;flex-wrap:nowrap;}
 .nav-row2{display:flex;align-items:center;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:0;}
 .nav-row2::-webkit-scrollbar{display:none;}
@@ -367,6 +389,13 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
         <span style="font-size:10px;font-weight:600;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">Month</span>
         <select id="globalMonthSel" onchange="setGlobalMonth()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:4px 8px;font-size:12px;font-family:var(--fm);color:var(--text);outline:none;cursor:pointer;min-width:130px;"></select>
+      </div>
+      <div class="theme-toggle" title="Toggle light/dark mode">
+        <span class="theme-toggle-label" id="themeLabel">Dark</span>
+        <div class="toggle-track" id="themeToggleTrack" onclick="toggleTheme()">
+          <div class="toggle-knob"></div>
+        </div>
+        <span class="theme-toggle-label" style="color:var(--amber)">Light</span>
       </div>
       <div id="divisionBadge" style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);transition:border-color .15s;flex-shrink:0;" onclick="switchDivision()" title="Switch division">
         <span id="divisionIcon" style="font-size:14px"></span>
@@ -5046,6 +5075,29 @@ function renderPersonProfile(name){
 }
 
 
+
+// ─── THEME TOGGLE ──────────────────────────────────────────────────
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const next = isLight ? 'dark' : 'light';
+  applyTheme(next);
+  localStorage.setItem('pd_theme', next);
+}
+function applyTheme(theme){
+  const track = document.getElementById('themeToggleTrack');
+  const label = document.getElementById('themeLabel');
+  if(theme === 'light'){
+    document.documentElement.setAttribute('data-theme','light');
+    if(track) track.classList.add('on');
+    if(label) label.textContent = 'Dark';
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+    if(track) track.classList.remove('on');
+    if(label) label.textContent = 'Dark';
+  }
+}
+// Restore saved theme on load
+(function(){ applyTheme(localStorage.getItem('pd_theme') || 'dark'); })();
 
 // ─── INIT ──────────────────────────────────────────────────────────
 document.getElementById('navDate').textContent =
