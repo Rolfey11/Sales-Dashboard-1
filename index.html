@@ -239,12 +239,12 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 .btn-d{background:var(--red-bg);color:var(--red);border:1px solid rgba(245,54,92,.2);}.btn-d:hover{background:rgba(245,54,92,.2);}
 .btn-w{width:100%;}
 .entry-table{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
-.et-head{display:grid;grid-template-columns:130px 1fr 100px 80px 100px 110px;gap:0;padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);}
+.et-head{display:grid;grid-template-columns:130px 1fr 80px 1.5fr 100px;gap:0;padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);}
 .th{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);}
-.et-row{display:grid;grid-template-columns:130px 1fr 100px 80px 100px 110px;gap:8px;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;}
+.et-row{display:grid;grid-template-columns:130px 1fr 80px 1.5fr 100px;gap:8px;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;}
 .et-row:last-child{border-bottom:none;}
 @media(max-width:768px){
-  .et-head,.et-row{grid-template-columns:90px 1fr 80px 60px 80px 80px;gap:5px;padding:8px 10px;}
+  .et-head,.et-row{grid-template-columns:90px 1fr 60px 1.2fr 80px;gap:5px;padding:8px 10px;}
 }
 .et-name{font-size:13px;font-weight:600;}
 .inp-wrap{position:relative;}
@@ -761,7 +761,6 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
         <div class="th">Today's NM</div>
         <div class="th" style="color:var(--accent)">+ Add Rev</div>
         <div class="th" style="color:var(--accent)">+ Add NM</div>
-        <div class="th">MTD Totals</div>
       </div>
       <div id="entryRows"></div>
     </div>
@@ -1943,11 +1942,6 @@ function buildEntryRows(){
       <input type="number" id="addnm_${p.name}" placeholder="0" step="1" min="0"
         oninput="updateEntryPreview('${safeName}')"
         style="background:var(--blue-bg);border:1px solid var(--accent);border-radius:8px;padding:9px 12px;font-size:13px;font-family:var(--fm);color:var(--accent);outline:none;width:100%;">
-      <!-- MTD preview -->
-      <div class="et-mtd" id="etmtd_${p.name}">
-        <span style="color:var(--green)">£${Math.round(mtdRevFull).toLocaleString()}</span> · ${pct}%<br>
-        <span style="color:var(--text2)">${mtdNmFull} NM</span>
-      </div>
     </div>`;
   }).join('');
 
