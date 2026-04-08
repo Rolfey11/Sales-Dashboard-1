@@ -425,6 +425,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <button class="nav-tab" onclick="showPage('settings')">Settings</button>
       <button class="nav-tab" onclick="showPage('manageroverview')" id="managerOverviewTab" style="color:var(--amber);margin-left:8px;border-left:1px solid var(--border2);padding-left:14px;">⭐ Manager Overview</button>
       <button class="nav-tab" onclick="showPage('dailysend')" id="dailySendTab" style="color:#fff;background:#6b0d2d;margin-left:4px;border-radius:6px 6px 0 0;font-weight:700;">📤 Daily Send</button>
+      <button class="nav-tab" onclick="showPage('staffperf')" id="staffPerfTab" style="color:#fff;background:#1a4040;margin-left:4px;border-radius:6px 6px 0 0;font-weight:700;">📋 Staff Performance</button>
     </div>
   </div>
 </nav>
@@ -751,6 +752,61 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     </div>
   </div>
   <div id="dsContent"><div class="empty"><div class="empty-icon">📤</div><div>Loading…</div></div></div>
+</div>
+
+<!-- STAFF PERFORMANCE -->
+<div class="page" id="page-staffperf">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Staff Performance</div>
+      <div class="section-sub" id="sp-sub">Annual performance breakdown by consultant — revenue & needs met</div>
+    </div>
+  </div>
+
+  <!-- Selector bar -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:20px;display:flex;gap:20px;align-items:flex-end;flex-wrap:wrap;">
+    <div>
+      <div class="field-lbl" style="margin-bottom:6px">Year</div>
+      <select id="spYearSel" onchange="onSpYearChange()" style="width:100px">
+        <option value="2024">2024</option>
+        <option value="2025">2025</option>
+        <option value="2026" selected>2026</option>
+        <option value="2027">2027</option>
+        <option value="2028">2028</option>
+      </select>
+    </div>
+    <div>
+      <div class="field-lbl" style="margin-bottom:6px">Division</div>
+      <select id="spDivSel" onchange="loadSpDivision()" style="width:180px">
+        <option value="">— Select division —</option>
+        <option value="branch">🏦 Branch</option>
+        <option value="d2c">💻 D2C</option>
+        <option value="guidance">🔗 Single Tie Guidance</option>
+        <option value="retail">🏪 Retail / Digital</option>
+        <option value="advice">💼 Advice</option>
+        <option value="core">⭐ Core</option>
+      </select>
+    </div>
+    <div>
+      <div class="field-lbl" style="margin-bottom:6px">Team</div>
+      <select id="spTeamSel" onchange="onSpTeamChange()" style="width:160px">
+        <option value="all">All Teams</option>
+      </select>
+    </div>
+    <div>
+      <div class="field-lbl" style="margin-bottom:6px">Consultant / View</div>
+      <select id="spConsSel" onchange="renderSpTable()" style="width:220px">
+        <option value="all">📊 All Consultants (Combined)</option>
+      </select>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+      <button class="btn btn-s" onclick="exportSpCSV()" style="font-size:12px">↓ Export CSV</button>
+    </div>
+  </div>
+
+  <div id="spContent">
+    <div class="empty"><div class="empty-icon">👤</div><div>Select a division above to begin.</div></div>
+  </div>
 </div>
 
 <!-- MANAGER OVERVIEW -->
@@ -2229,6 +2285,7 @@ function showPage(id){
   if(id==='settings')        renderSettings();
   if(id==='manageroverview'){ populateAllSelects(); renderManagerOverview(); }
   if(id==='dailysend')     { populateAllSelects(); renderDailySend(); }
+  if(id==='staffperf')     { renderStaffPerf(); }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -2797,6 +2854,349 @@ function renderDailySend(){
       _charts.cDsStNm   = new Chart(document.getElementById('cDsStNm'),   makeChartCfg(stDivKeys,  true));
     }, 80);
   });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// STAFF PERFORMANCE
+// ═══════════════════════════════════════════════════════════════════
+const SP_MONTH_NAMES= ['January','February','March','April','May','June',
+                       'July','August','September','October','November','December'];
+let _spDivData = null;
+let _spDivKey  = null;
+
+function _spMonths(){
+  const yr = document.getElementById('spYearSel')?.value || new Date().getFullYear();
+  return Array.from({length:12},(_,i)=>`${yr}-${String(i+1).padStart(2,'0')}`);
+}
+
+function onSpYearChange(){
+  // Re-populate consultant list and re-render for the new year
+  if(_spDivData) { _populateSpCons(); renderSpTable(); }
+}
+
+function renderStaffPerf(){
+  // Default year selector to current year
+  const yrSel = document.getElementById('spYearSel');
+  if(yrSel && !yrSel.dataset.init){
+    yrSel.value = new Date().getFullYear();
+    yrSel.dataset.init = '1';
+  }
+  // Pre-select current division if none chosen
+  const sel = document.getElementById('spDivSel');
+  if(sel && !sel.value && _currentDivKey){
+    sel.value = _currentDivKey;
+    loadSpDivision();
+  }
+}
+
+function loadSpDivision(){
+  const key = document.getElementById('spDivSel').value;
+  if(!key) return;
+  _spDivKey  = key;
+  _spDivData = null;
+  document.getElementById('spContent').innerHTML =
+    '<div class="empty"><div style="font-size:20px">⏳</div><div>Loading division data…</div></div>';
+
+  const dbKey = DIVISIONS[key].dbKey;
+  _db.ref(dbKey).once('value').then(snap => {
+    const data = snap.val() || {};
+    if(!data.people)          data.people          = [];
+    if(!data.months)          data.months          = {};
+    if(!data.monthOverrides)  data.monthOverrides  = {};
+    if(!data.teams)           data.teams           = {g:[],james:[],damo:[]};
+    _spDivData = data;
+    _populateSpSelectors();
+    renderSpTable();
+  }).catch(() => {
+    document.getElementById('spContent').innerHTML =
+      '<div class="empty"><div>Failed to load division data.</div></div>';
+  });
+}
+
+function _populateSpSelectors(){
+  if(!_spDivData) return;
+  const data = _spDivData;
+  const teams = data.teams || {};
+
+  // Team selector
+  const teamSel = document.getElementById('spTeamSel');
+  const prevTeam = teamSel.value || 'all';
+  const teamEntries = Object.entries(teams).filter(([,m]) => m && m.length > 0);
+  teamSel.innerHTML = '<option value="all">All Teams</option>' +
+    teamEntries.map(([k]) => `<option value="${k}">${TEAM_LABELS[k]||k}</option>`).join('');
+  teamSel.value = prevTeam;
+
+  // Consultant selector
+  _populateSpCons();
+}
+
+function _populateSpCons(){
+  if(!_spDivData) return;
+  const data = _spDivData;
+  const teamFilter = document.getElementById('spTeamSel').value;
+  const consSel = document.getElementById('spConsSel');
+  const prev = consSel.value || 'all';
+
+  let people = (data.people || []).slice();
+  if(teamFilter !== 'all'){
+    const members = (data.teams||{})[teamFilter] || [];
+    people = people.filter(p => members.includes(p.name));
+  }
+  // Only show people who have at least one month configured
+  const active = people.filter(p =>
+    _spMonths().some(mk => {
+      const ovr = ((data.monthOverrides||{})[mk]||{})[p.name]||{};
+      return ovr.riskPerDay !== undefined && ovr.daysT !== undefined
+        && ovr.riskPerDay > 0 && ovr.daysT > 0;
+    })
+  );
+
+  consSel.innerHTML =
+    '<option value="all">📊 All Consultants (Combined)</option>' +
+    '<option value="__div__" disabled>── Individual ──</option>' +
+    active.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+  // restore previous or fallback
+  if([...consSel.options].some(o => o.value === prev)) consSel.value = prev;
+  else consSel.value = 'all';
+}
+
+function onSpTeamChange(){
+  _populateSpCons();
+  renderSpTable();
+}
+
+function renderSpTable(){
+  if(!_spDivData){ return; }
+  const data       = _spDivData;
+  const teamFilter = document.getElementById('spTeamSel').value;
+  const consFilter = document.getElementById('spConsSel').value;
+
+  let people = (data.people || []).slice();
+  if(teamFilter !== 'all'){
+    const members = (data.teams||{})[teamFilter] || [];
+    people = people.filter(p => members.includes(p.name));
+  }
+  if(consFilter !== 'all' && consFilter !== '__div__'){
+    people = people.filter(p => p.name === consFilter);
+  }
+
+  if(!people.length){
+    document.getElementById('spContent').innerHTML =
+      '<div class="empty"><div>No consultants found for this selection.</div></div>';
+    return;
+  }
+
+  // ── Title ──────────────────────────────────────────────────────────
+  const divLabel  = DIVISIONS[_spDivKey].label;
+  const teamLabel = teamFilter !== 'all' ? (TEAM_LABELS[teamFilter]||teamFilter) : 'All Teams';
+  const consLabel = consFilter !== 'all' && consFilter !== '__div__'
+    ? consFilter + ' — Consultant'
+    : 'All Consultants (Combined)';
+  const headerTitle = `${divLabel}  ·  ${teamLabel}  ·  ${consLabel}`;
+
+  const yr = document.getElementById('spYearSel')?.value || new Date().getFullYear();
+  document.getElementById('sp-sub').textContent = `${yr} performance breakdown by consultant — revenue & needs met`;
+
+  // ── Build monthly data — always all 12 months ──────────────────────
+  const allMonthlyData = _spMonths().map((mk, idx) => {
+    let target = 0, actual = 0, nmTarget = 0, nmActual = 0;
+    people.forEach(p => {
+      const ovr   = ((data.monthOverrides||{})[mk]||{})[p.name] || {};
+      const rpd   = ovr.riskPerDay !== undefined ? ovr.riskPerDay : 0;
+      const daysT = ovr.daysT      !== undefined ? ovr.daysT      : 0;
+      if(rpd > 0 && daysT > 0){
+        target   += Math.round(rpd * daysT);
+        nmTarget += daysT * 1.75;
+      }
+      const mine = ((data.months||{})[mk]||{entries:[]}).entries.filter(e => e.name === p.name);
+      actual   += mine.reduce((s,e)=>s+(e.revenue||0),0);
+      nmActual += mine.reduce((s,e)=>s+(e.nm||0),0);
+    });
+    const hasData = target > 0 || actual > 0 || nmActual > 0;
+    const diff   = actual - target;
+    const pct    = target > 0 ? Math.round(actual/target*100) : null;
+    const nmDiff = nmActual - nmTarget;
+    const nmPct  = nmTarget > 0 ? Math.round(nmActual/nmTarget*100) : null;
+    return { mk, idx, target, actual, diff, pct, nmTarget, nmActual, nmDiff, nmPct, hasData };
+  });
+
+  // All 12 months always shown
+  const monthlyData = allMonthlyData;
+
+  // Quarter helper — works on filtered months by matching their original idx
+  function qTotals(qIdx){
+    const rows = monthlyData.filter(r => Math.floor(r.idx/3) === qIdx);
+    const t = {target:0,actual:0,nmTarget:0,nmActual:0};
+    rows.forEach(r=>{ t.target+=r.target; t.actual+=r.actual; t.nmTarget+=r.nmTarget; t.nmActual+=r.nmActual; });
+    t.diff   = t.actual - t.target;
+    t.nmDiff = t.nmActual - t.nmTarget;
+    t.pct    = t.target  > 0 ? Math.round(t.actual/t.target*100)  : null;
+    t.nmPct  = t.nmTarget> 0 ? Math.round(t.nmActual/t.nmTarget*100) : null;
+    return t;
+  }
+
+  // Annual totals
+  const tot = { target:0, actual:0, nmTarget:0, nmActual:0 };
+  monthlyData.forEach(r=>{ tot.target+=r.target; tot.actual+=r.actual; tot.nmTarget+=r.nmTarget; tot.nmActual+=r.nmActual; });
+  tot.diff   = tot.actual - tot.target;
+  tot.nmDiff = tot.nmActual - tot.nmTarget;
+  tot.pct    = tot.target  > 0 ? Math.round(tot.actual/tot.target*100)    : null;
+  tot.nmPct  = tot.nmTarget> 0 ? Math.round(tot.nmActual/tot.nmTarget*100): null;
+
+  // ── Style helpers ──────────────────────────────────────────────────
+  const HDR   = '#1a4040';
+  const fmtGBP = v => '£'+parseFloat(v).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fmtNm  = v => parseFloat(v).toLocaleString('en-GB',{minimumFractionDigits:1,maximumFractionDigits:1});
+  const fmtPct = v => v === null ? '—' : v+'%';
+  const cellS  = (bg,bold) => `style="padding:6px 10px;background:${bg};border:1px solid #000;text-align:center;font-size:12px;${bold?'font-weight:700;':''}color:#111;"`;
+  const nameS  = bg => `style="padding:6px 14px;background:${bg};border:1px solid #000;text-align:left;font-size:12px;font-weight:600;color:#111;white-space:nowrap;"`;
+  const thS    = `style="padding:8px 10px;background:${HDR};color:#fff;border:1px solid #222;text-align:center;font-size:11px;font-weight:700;white-space:nowrap;"`;
+  const thLS   = `style="padding:8px 14px;background:${HDR};color:#fff;border:1px solid #222;text-align:left;font-size:11px;font-weight:700;white-space:nowrap;min-width:110px;"`;
+
+  // ── Build rows — always all 4 quarters, all 12 months ─────────────
+  let rowsHtml = '';
+  [0,1,2,3].forEach(qIdx => {
+    const qLabel   = ['Q1','Q2','Q3','Q4'][qIdx];
+    const qt       = qTotals(qIdx);
+    const qRevBg   = qt.diff >= 0 ? '#c8f2d8' : '#f8d0d0';
+    const qNmBg    = qt.nmDiff >= 0 ? '#c8f2d8' : '#f8d0d0';
+    const qMonths  = monthlyData.filter(r => Math.floor(r.idx/3) === qIdx);
+    const rowspan  = qMonths.length; // always 3
+
+    qMonths.forEach((r, mi) => {
+      const rowBg     = mi % 2 === 0 ? '#ffffff' : '#f5f7fb';
+      const emptyBg   = '#f0f2f6';
+      const revDiffBg = !r.hasData ? emptyBg : r.diff  >= 0 ? '#c8f2d8' : '#f8d0d0';
+      const nmDiffBg  = !r.hasData ? emptyBg : r.nmTarget === 0 ? '#fff8ee'
+                       : r.nmDiff >= 0 ? '#c8f2d8' : '#f8d0d0';
+      const empty     = `style="padding:6px 10px;background:${emptyBg};border:1px solid #ccc;text-align:center;font-size:12px;color:#bbb;"`;
+
+      const qRevCell = mi === 0
+        ? `<td rowspan="${rowspan}" style="padding:6px 10px;background:${qRevBg};border:1px solid #000;text-align:center;font-size:12px;font-weight:700;color:#111;vertical-align:middle;">
+             <div style="font-size:10px;font-weight:600;color:#555;margin-bottom:3px">${qLabel}</div>
+             ${qt.actual > 0 ? fmtGBP(qt.actual) : '—'}<br>
+             <span style="font-size:10px;color:#555">${fmtPct(qt.pct)}</span>
+           </td>` : '';
+      const qNmCell = mi === 0
+        ? `<td rowspan="${rowspan}" style="padding:6px 10px;background:${qNmBg};border:1px solid #000;text-align:center;font-size:12px;font-weight:700;color:#111;vertical-align:middle;">
+             <div style="font-size:10px;font-weight:600;color:#555;margin-bottom:3px">${qLabel}</div>
+             ${qt.nmActual > 0 ? fmtNm(qt.nmActual) : '—'}<br>
+             <span style="font-size:10px;color:#555">${fmtPct(qt.nmPct)}</span>
+           </td>` : '';
+
+      if(!r.hasData){
+        rowsHtml += `<tr>
+          <td ${nameS(emptyBg)} style="padding:6px 14px;background:${emptyBg};border:1px solid #ccc;text-align:left;font-size:12px;font-weight:400;color:#aaa;">${SP_MONTH_NAMES[r.idx]}</td>
+          <td ${empty}>—</td>
+          <td ${empty}>—</td>
+          <td ${empty}>—</td>
+          <td ${empty}>—</td>
+          ${qRevCell}
+          <td ${empty}>—</td>
+          <td ${empty}>—</td>
+          <td ${empty}>—</td>
+          <td ${empty}>—</td>
+          ${qNmCell}
+        </tr>`;
+      } else {
+        rowsHtml += `<tr>
+          <td ${nameS(rowBg)}>${SP_MONTH_NAMES[r.idx]}</td>
+          <td ${cellS(rowBg,false)}>${r.target > 0 ? fmtGBP(r.target) : '£0.00'}</td>
+          <td ${cellS(rowBg,false)}>${r.actual > 0 ? fmtGBP(r.actual) : '£0.00'}</td>
+          <td ${cellS(revDiffBg,true)}>${fmtGBP(r.diff)}</td>
+          <td ${cellS(revDiffBg,false)}>${r.target > 0 ? fmtPct(r.pct) : '—'}</td>
+          ${qRevCell}
+          <td ${cellS(rowBg,false)}>${r.nmTarget > 0 ? fmtNm(r.nmTarget) : '0'}</td>
+          <td ${cellS(rowBg,false)}>${r.nmActual}</td>
+          <td ${cellS(nmDiffBg,true)}>${fmtNm(r.nmDiff)}</td>
+          <td ${cellS(nmDiffBg,false)}>${r.nmTarget > 0 ? fmtPct(r.nmPct) : '—'}</td>
+          ${qNmCell}
+        </tr>`;
+      }
+    });
+
+    // Quarter separator
+    rowsHtml += `<tr><td colspan="11" style="height:4px;background:#d8dde6;border:none;padding:0"></td></tr>`;
+  });
+
+  // Total row
+  const totRevBg = tot.diff >= 0 ? '#a8e6c0' : '#f5b0b0';
+  const totNmBg  = tot.nmDiff >= 0 ? '#a8e6c0' : '#f5b0b0';
+  rowsHtml += `<tr>
+    <td style="padding:8px 14px;background:${HDR};color:#fff;border:1px solid #222;font-size:12px;font-weight:700;">Annual Total</td>
+    <td ${cellS('#e0e4ec',true)}>${fmtGBP(tot.target)}</td>
+    <td ${cellS('#e0e4ec',true)}>${fmtGBP(tot.actual)}</td>
+    <td ${cellS(totRevBg,true)}>${fmtGBP(tot.diff)}</td>
+    <td ${cellS(totRevBg,true)}>${fmtPct(tot.pct)}</td>
+    <td ${cellS('#e0e4ec',false)}></td>
+    <td ${cellS('#e0e4ec',true)}>${fmtNm(tot.nmTarget)}</td>
+    <td ${cellS('#e0e4ec',true)}>${tot.nmActual}</td>
+    <td ${cellS(totNmBg,true)}>${fmtNm(tot.nmDiff)}</td>
+    <td ${cellS(totNmBg,true)}>${fmtPct(tot.nmPct)}</td>
+    <td ${cellS('#e0e4ec',false)}></td>
+  </tr>`;
+
+  // ── Render ────────────────────────────────────────────────────────
+  document.getElementById('spContent').innerHTML = `
+    <div style="background:${HDR};color:#fff;padding:11px 18px;border-radius:8px 8px 0 0;font-size:13px;font-weight:700;letter-spacing:.02em;">
+      ${headerTitle}
+    </div>
+    <div style="background:#fff;border-radius:0 0 8px 8px;overflow-x:auto;box-shadow:0 2px 16px rgba(0,0,0,.18);">
+      <table style="border-collapse:collapse;width:100%;font-family:Calibri,Arial,sans-serif;min-width:760px;">
+        <thead>
+          <tr>
+            <th ${thLS}> </th>
+            <th ${thS}>Target</th>
+            <th ${thS}>Actual</th>
+            <th ${thS}>Difference</th>
+            <th ${thS}>Percentage</th>
+            <th ${thS}>Quarter</th>
+            <th ${thS}>NM Target</th>
+            <th ${thS}>NM Actual</th>
+            <th ${thS}>NM Difference</th>
+            <th ${thS}>NM Percentage</th>
+            <th ${thS}>Quarter</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:var(--text3);font-family:var(--fm)">
+      <span style="color:#2dce89;font-weight:700">■</span> Above target &nbsp;·&nbsp;
+      <span style="color:#f5365c;font-weight:700">■</span> Below target &nbsp;·&nbsp;
+      Quarter cells show combined actual + % for that quarter
+    </div>`;
+}
+
+// ── CSV export ────────────────────────────────────────────────────
+function exportSpCSV(){
+  if(!_spDivData){ showToast('No data loaded','err'); return; }
+  const teamFilter = document.getElementById('spTeamSel').value;
+  const consFilter = document.getElementById('spConsSel').value;
+  let people = (_spDivData.people||[]).slice();
+  if(teamFilter!=='all'){ const m=(_spDivData.teams||{})[teamFilter]||[]; people=people.filter(p=>m.includes(p.name)); }
+  if(consFilter!=='all'&&consFilter!=='__div__') people=people.filter(p=>p.name===consFilter);
+  let csv = 'Month,Target,Actual,Difference,Percentage,NM Target,NM Actual,NM Difference,NM Percentage\n';
+  _spMonths().forEach((mk,i)=>{
+    let tgt=0,act=0,nmT=0,nmA=0;
+    people.forEach(p=>{
+      const ovr=(((_spDivData.monthOverrides||{})[mk])||{})[p.name]||{};
+      const rpd=ovr.riskPerDay!==undefined?ovr.riskPerDay:0;
+      const dt=ovr.daysT!==undefined?ovr.daysT:0;
+      if(rpd>0&&dt>0){ tgt+=Math.round(rpd*dt); nmT+=dt*1.75; }
+      const mine=(((_spDivData.months||{})[mk])||{entries:[]}).entries.filter(e=>e.name===p.name);
+      act+=mine.reduce((s,e)=>s+(e.revenue||0),0);
+      nmA+=mine.reduce((s,e)=>s+(e.nm||0),0);
+    });
+    const pct=tgt>0?Math.round(act/tgt*100):'—';
+    const nmPct=nmT>0?Math.round(nmA/nmT*100):'—';
+    csv+=`${SP_MONTH_NAMES[i]},${tgt.toFixed(2)},${act.toFixed(2)},${(act-tgt).toFixed(2)},${pct}%,${nmT.toFixed(1)},${nmA},${(nmA-nmT).toFixed(1)},${nmPct}%\n`;
+  });
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='staff_performance_2026.csv';
+  a.click();
+  showToast('CSV exported');
 }
 
 // ═══════════════════════════════════════════════════════════════════
