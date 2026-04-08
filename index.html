@@ -631,6 +631,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     <button class="nav-tab" onclick="showPage('manageroverview')" id="managerOverviewTab" style="color:var(--amber);">⭐ Manager Overview</button>
     <button class="nav-tab" onclick="showPage('dailysend')" id="dailySendTab" style="color:#fff;background:#6b0d2d;border-radius:6px 6px 0 0;font-weight:700;">📤 Daily Send</button>
     <button class="nav-tab" onclick="showPage('staffperf')" id="staffPerfTab" style="color:#fff;background:#1a4040;border-radius:6px 6px 0 0;font-weight:700;">📋 Staff Performance</button>
+    <button class="nav-tab" onclick="showPage('compliance')" id="complianceTab" style="color:#fff;background:#1a3060;border-radius:6px 6px 0 0;font-weight:700;">🛡 Compliance</button>
   </div>
 </nav>
 
@@ -1011,6 +1012,140 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 
   <div id="spContent">
     <div class="empty"><div class="empty-icon">👤</div><div>Select a division above to begin.</div></div>
+  </div>
+</div>
+
+<!-- COMPLIANCE -->
+<div class="page" id="page-compliance">
+  <div class="section-head">
+    <div><div class="section-title">🛡 Compliance</div><div class="section-sub">Single Tie Guidance — Call Assessment Form</div></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-s" onclick="showComplianceView('form');clearComplianceForm(false);" id="compFormBtn" style="font-size:12px">📋 New Assessment</button>
+      <button class="btn btn-s" onclick="showComplianceView('archive')" id="compArchiveBtn" style="font-size:12px">📂 Archive</button>
+    </div>
+  </div>
+
+  <!-- FORM VIEW -->
+  <div id="compFormView">
+    <!-- Header fields -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:16px;color:var(--accent)">Assessment Details</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
+        <div>
+          <div class="field-lbl">Team</div>
+          <select id="cf_team" onchange="updateCompColleagues()">
+            <option value="">— Select team —</option>
+            <option value="g">Team G</option>
+            <option value="james">Team James</option>
+            <option value="damo">Team Damo</option>
+          </select>
+        </div>
+        <div>
+          <div class="field-lbl">Colleague Name</div>
+          <select id="cf_colleague">
+            <option value="">— Select team first —</option>
+          </select>
+        </div>
+        <div><div class="field-lbl">Assessor</div><input type="text" id="cf_assessor" placeholder="Your name"></div>
+        <div><div class="field-lbl">Client Surname</div><input type="text" id="cf_client" placeholder="Client surname"></div>
+        <div><div class="field-lbl">Brand</div><input type="text" id="cf_brand" placeholder="e.g. Halifax"></div>
+        <div><div class="field-lbl">Lead Source</div><input type="text" id="cf_leadsource" placeholder="e.g. Inbound"></div>
+        <div><div class="field-lbl">Date on Risk</div><input type="date" id="cf_dateonrisk"></div>
+        <div><div class="field-lbl">Date of Observation</div><input type="date" id="cf_dateobs"></div>
+        <div><div class="field-lbl">FMP/CRM Reference</div><input type="text" id="cf_fmpref" placeholder="Reference number"></div>
+        <div><div class="field-lbl">Colleague Level</div><input type="text" id="cf_level" placeholder="e.g. Senior"></div>
+        <div><div class="field-lbl">Call Duration</div><input type="text" id="cf_duration" placeholder="e.g. 32 mins"></div>
+      </div>
+    </div>
+
+    <!-- Sections -->
+    <div id="compSections"></div>
+
+    <!-- Overall Outcomes -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:16px;color:var(--accent)">Overall Outcomes</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px;">
+        <div>
+          <div class="field-lbl">Initial Outcome</div>
+          <select id="cf_initial_outcome">
+            <option value="">— Select —</option>
+            <option value="Pass">Pass</option>
+            <option value="Fail">Fail</option>
+            <option value="Pass with Development">Pass with Development</option>
+          </select>
+        </div>
+        <div>
+          <div class="field-lbl">Regulatory Compliant</div>
+          <select id="cf_reg_compliant">
+            <option value="">— Select —</option>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+          </select>
+        </div>
+        <div>
+          <div class="field-lbl">Process Compliance</div>
+          <select id="cf_proc_compliant">
+            <option value="">— Select —</option>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+        <div>
+          <div class="field-lbl">Outcome Rationale</div>
+          <textarea id="cf_outcome_rationale" rows="3" style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none;resize:vertical;" placeholder="Enter outcome rationale…"></textarea>
+        </div>
+        <div>
+          <div class="field-lbl">Regulatory Fail Rationale</div>
+          <textarea id="cf_regfail_rationale" rows="3" style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none;resize:vertical;" placeholder="Enter regulatory fail rationale (if applicable)…"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notes From Transcript -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:20px;">
+      <div class="field-lbl" style="margin-bottom:8px">Notes From Transcript</div>
+      <textarea id="cf_transcript_notes" rows="5" style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none;resize:vertical;" placeholder="Enter notes from transcript…"></textarea>
+    </div>
+
+    <!-- Submit -->
+    <div style="display:flex;gap:12px;align-items:center">
+      <button class="btn btn-p" onclick="submitCompliance()" style="padding:12px 32px;font-size:14px;font-weight:700;">✓ Submit Assessment</button>
+      <button class="btn btn-s" onclick="clearComplianceForm()">Clear Form</button>
+      <div id="compSubmitMsg" style="font-size:12px;font-family:var(--fm);color:var(--green);"></div>
+    </div>
+  </div>
+
+  <!-- ARCHIVE VIEW -->
+  <div id="compArchiveView" style="display:none;">
+    <!-- Filters -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:16px;display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;">
+      <div><div class="field-lbl">Colleague</div><input type="text" id="arc_colleague" placeholder="Filter by name…" oninput="renderArchive()" style="width:160px"></div>
+      <div><div class="field-lbl">Team</div><input type="text" id="arc_team" placeholder="Filter by team…" oninput="renderArchive()" style="width:130px"></div>
+      <div><div class="field-lbl">Assessor</div><input type="text" id="arc_assessor" placeholder="Filter by assessor…" oninput="renderArchive()" style="width:140px"></div>
+      <div><div class="field-lbl">Outcome</div>
+        <select id="arc_outcome" onchange="renderArchive()" style="width:160px">
+          <option value="">All Outcomes</option>
+          <option value="Pass">Pass</option>
+          <option value="Fail">Fail</option>
+          <option value="Pass with Development">Pass with Development</option>
+        </select>
+      </div>
+      <div><div class="field-lbl">Reg Compliant</div>
+        <select id="arc_reg" onchange="renderArchive()" style="width:120px">
+          <option value="">All</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+      </div>
+      <div><div class="field-lbl">Date From</div><input type="date" id="arc_from" onchange="renderArchive()" style="width:140px"></div>
+      <div><div class="field-lbl">Date To</div><input type="date" id="arc_to" onchange="renderArchive()" style="width:140px"></div>
+      <button class="btn btn-s" onclick="clearArchiveFilters()" style="font-size:12px">Clear Filters</button>
+      <button class="btn btn-s" onclick="exportComplianceCSV()" style="font-size:12px;margin-left:auto">↓ Export CSV</button>
+    </div>
+    <div id="arcStats" style="margin-bottom:12px;font-size:12px;color:var(--text3);font-family:var(--fm);"></div>
+    <div id="arcContent"></div>
   </div>
 </div>
 
@@ -2499,6 +2634,7 @@ function showPage(id){
   if(id==='manageroverview'){ populateAllSelects(); renderManagerOverview(); }
   if(id==='dailysend')     { populateAllSelects(); renderDailySend(); }
   if(id==='staffperf')     { renderStaffPerf(); }
+  if(id==='compliance')    { renderCompliancePage(); }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -3412,6 +3548,423 @@ function exportSpCSV(){
   const a=document.createElement('a');
   a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
   a.download='staff_performance_2026.csv';
+  a.click();
+  showToast('CSV exported');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// COMPLIANCE — Call Assessment Form
+// ═══════════════════════════════════════════════════════════════════
+const COMP_SECTIONS = [
+  {
+    key:'s1', title:'Section 1 — Products & Services',
+    notesId:'cf_notes_s1',
+    items:[
+      {num:1, text:'ID&V Completed - We are speaking to the correct customer'},
+      {num:2, text:'Customer Need Understood'},
+      {num:3, text:'Key Product & Services Information Provided'},
+      {num:4, text:'Customer Made Informed Choice'},
+      {num:5, text:'Medical Application Completed Fully & Accurately'},
+    ]
+  },
+  {
+    key:'s2', title:'Section 2 — Price & Value',
+    notesId:'cf_notes_s2',
+    items:[
+      {num:6, text:'Price / Premium Given & Understood'},
+      {num:7, text:'Insurer, Product and Other Benefits Provided'},
+      {num:8, text:'Key Price Related Admin Completed'},
+    ]
+  },
+  {
+    key:'s3', title:'Section 3 — Consumer Understanding',
+    notesId:'cf_notes_s3',
+    items:[
+      {num:9,  text:'All Regulatory / Mandatory Scripting was Provided and Understood'},
+      {num:10, text:'Clear Explanations Provided at Key Stages'},
+      {num:11, text:'Clear Indicators the Customer Understood the Information Provided'},
+      {num:12, text:'All Additional Disclosures Provided'},
+    ]
+  },
+  {
+    key:'s4', title:'Section 4 — Consumer Support',
+    notesId:'cf_notes_s4',
+    items:[
+      {num:13, text:'Were All Post Sale Tasks Completed'},
+      {num:14, text:'Files Password Protected (If Applicable)'},
+      {num:15, text:'Identification — Where customer vulnerability or a support need has been indicated, has the colleague recognised this, acknowledged the disclosure and demonstrated sensitivity and empathy?'},
+      {num:16, text:'Exploration — Where customer vulnerability or a support need has been indicated, has the colleague used appropriate questioning to understand the practical and emotional impacts along with the timeframe/duration?'},
+      {num:17, text:'Support — Where a support need has been indicated, has the colleague met this need through appropriate recommendations and signposting all options available so the customer can make an informed choice regarding next steps?'},
+      {num:18, text:'Record — Where customer vulnerability or a support need has been indicated, has the colleague explained the reason for capture to the customer, obtained permission to record detail and updated appropriately?'},
+      {num:19, text:'Customer expressed dissatisfaction / complained and was supported by the colleague'},
+    ]
+  }
+];
+
+let _arcData = []; // cached archive records
+
+function renderCompliancePage(){
+  showComplianceView('form');
+  _buildCompSections();
+  clearComplianceForm(false);
+}
+
+function updateCompColleagues(){
+  const teamKey = document.getElementById('cf_team')?.value || '';
+  const sel = document.getElementById('cf_colleague');
+  if(!sel) return;
+  if(!teamKey){
+    sel.innerHTML = '<option value="">— Select team first —</option>';
+    return;
+  }
+  const members = (APP.teams&&APP.teams[teamKey]) || [];
+  const people  = APP.people.filter(p => members.includes(p.name));
+  if(!people.length){
+    sel.innerHTML = '<option value="">No consultants in this team</option>';
+    return;
+  }
+  sel.innerHTML = '<option value="">— Select colleague —</option>' +
+    people.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+}
+
+function _buildCompSections(){
+  const container = document.getElementById('compSections');
+  if(!container) return;
+  const outcomeOpts = `<option value="">—</option><option value="Pass">Pass</option><option value="Fail">Fail</option><option value="N/A">N/A</option>`;
+  container.innerHTML = COMP_SECTIONS.map(sec => `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:14px;color:var(--accent)">${sec.title}</div>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:14px;">
+        <thead>
+          <tr style="background:var(--surface2);border-bottom:1px solid var(--border)">
+            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;width:36px">#</th>
+            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;">Test Point</th>
+            <th style="padding:8px 12px;text-align:center;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;width:120px">Outcome</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${sec.items.map(item => `
+          <tr style="border-bottom:1px solid var(--border);" id="cfrow_${item.num}">
+            <td style="padding:10px 12px;font-size:12px;font-family:var(--fm);color:var(--text3);font-weight:700;">${item.num}</td>
+            <td style="padding:10px 12px;font-size:13px;line-height:1.5;">${item.text}</td>
+            <td style="padding:8px 12px;text-align:center;">
+              <select id="cf_item_${item.num}" onchange="highlightCompRow(${item.num})" style="width:100%;text-align:center;font-weight:700;">
+                ${outcomeOpts}
+              </select>
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      <div>
+        <div class="field-lbl" style="margin-bottom:6px">Section Notes</div>
+        <textarea id="${sec.notesId}" rows="2" style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none;resize:vertical;" placeholder="Notes for ${sec.title}…"></textarea>
+      </div>
+    </div>`).join('');
+}
+
+function highlightCompRow(num){
+  const sel = document.getElementById('cf_item_'+num);
+  const row = document.getElementById('cfrow_'+num);
+  if(!sel||!row) return;
+  const v = sel.value;
+  row.style.background = v==='Pass' ? 'rgba(45,206,137,0.07)' : v==='Fail' ? 'rgba(245,54,92,0.07)' : '';
+  sel.style.color = v==='Pass' ? 'var(--green)' : v==='Fail' ? 'var(--red)' : v==='N/A' ? 'var(--text3)' : 'var(--text)';
+}
+
+function showComplianceView(view){
+  document.getElementById('compFormView').style.display    = view==='form'    ? '' : 'none';
+  document.getElementById('compArchiveView').style.display = view==='archive' ? '' : 'none';
+  document.getElementById('compFormBtn').classList.toggle('active', view==='form');
+  document.getElementById('compArchiveBtn').classList.toggle('active', view==='archive');
+  if(view==='archive') loadAndRenderArchive();
+}
+
+function _getCompFormData(){
+  const data = {
+    id:          Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+    submittedAt: new Date().toISOString(),
+    team:        (()=>{ const s=document.getElementById('cf_team'); return s ? (TEAM_LABELS[s.value]||s.value||'') : ''; })(),
+    teamKey:     document.getElementById('cf_team')?.value||'',
+    colleague:   document.getElementById('cf_colleague')?.value?.trim()||'',
+    assessor:    document.getElementById('cf_assessor')?.value?.trim()||'',
+    client:      document.getElementById('cf_client')?.value?.trim()||'',
+    brand:       document.getElementById('cf_brand')?.value?.trim()||'',
+    leadSource:  document.getElementById('cf_leadsource')?.value?.trim()||'',
+    dateOnRisk:  document.getElementById('cf_dateonrisk')?.value||'',
+    dateObs:     document.getElementById('cf_dateobs')?.value||'',
+    fmpRef:      document.getElementById('cf_fmpref')?.value?.trim()||'',
+    level:       document.getElementById('cf_level')?.value?.trim()||'',
+    duration:    document.getElementById('cf_duration')?.value?.trim()||'',
+    initialOutcome:    document.getElementById('cf_initial_outcome')?.value||'',
+    regCompliant:      document.getElementById('cf_reg_compliant')?.value||'',
+    procCompliant:     document.getElementById('cf_proc_compliant')?.value||'',
+    outcomeRationale:  document.getElementById('cf_outcome_rationale')?.value?.trim()||'',
+    regFailRationale:  document.getElementById('cf_regfail_rationale')?.value?.trim()||'',
+    transcriptNotes:   document.getElementById('cf_transcript_notes')?.value?.trim()||'',
+    sectionNotes: {
+      s1: document.getElementById('cf_notes_s1')?.value?.trim()||'',
+      s2: document.getElementById('cf_notes_s2')?.value?.trim()||'',
+      s3: document.getElementById('cf_notes_s3')?.value?.trim()||'',
+      s4: document.getElementById('cf_notes_s4')?.value?.trim()||'',
+    },
+    items:{}
+  };
+  COMP_SECTIONS.forEach(sec => sec.items.forEach(item => {
+    data.items[item.num] = document.getElementById('cf_item_'+item.num)?.value||'';
+  }));
+  return data;
+}
+
+function submitCompliance(){
+  const d = _getCompFormData();
+  if(!d.colleague){ showToast('Please enter a colleague name','err'); return; }
+  if(!d.dateObs){   showToast('Please enter a date of observation','err'); return; }
+
+  // Save to Firebase under compliance/submissions
+  const ref = _dbRef ? _db.ref((DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey+'/compliance/'+d.id) : null;
+  const msg = document.getElementById('compSubmitMsg');
+  if(msg) msg.textContent = 'Saving…';
+
+  const save = ref
+    ? ref.set(d).then(()=>{ showToast('Assessment submitted ✓'); if(msg) msg.textContent='Saved ✓ '+new Date().toLocaleTimeString('en-GB'); clearComplianceForm(true); })
+        .catch(()=>{ showToast('Save failed — check connection','err'); if(msg) msg.textContent=''; })
+    : Promise.resolve().then(()=>{ showToast('Not connected to database','err'); if(msg) msg.textContent=''; });
+  return save;
+}
+
+function clearComplianceForm(keepMeta){
+  // Always clear assessment content
+  ['cf_initial_outcome','cf_reg_compliant','cf_proc_compliant'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  ['cf_outcome_rationale','cf_regfail_rationale','cf_transcript_notes',
+   'cf_notes_s1','cf_notes_s2','cf_notes_s3','cf_notes_s4'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  // Reset all section item dropdowns and row highlighting
+  COMP_SECTIONS.forEach(sec=>sec.items.forEach(item=>{
+    const sel=document.getElementById('cf_item_'+item.num);
+    if(sel){ sel.value=''; sel.style.color=''; }
+    const row=document.getElementById('cfrow_'+item.num);
+    if(row) row.style.background='';
+  }));
+
+  if(!keepMeta){
+    // Clear header fields
+    ['cf_assessor','cf_client','cf_brand','cf_leadsource',
+     'cf_dateonrisk','cf_fmpref','cf_level','cf_duration'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.value='';
+    });
+    // Reset team and colleague dropdowns
+    const teamSel = document.getElementById('cf_team');
+    if(teamSel) teamSel.value = '';
+    const collSel = document.getElementById('cf_colleague');
+    if(collSel) collSel.innerHTML = '<option value="">— Select team first —</option>';
+    const submitMsg = document.getElementById('compSubmitMsg');
+    if(submitMsg) submitMsg.textContent = '';
+  }
+  // Always reset date of observation to today
+  const dobEl = document.getElementById('cf_dateobs');
+  if(dobEl) dobEl.value = _localDateStr(new Date());
+}
+
+function loadAndRenderArchive(){
+  const content = document.getElementById('arcContent');
+  content.innerHTML='<div class="empty"><div style="font-size:20px">⏳</div><div>Loading submissions…</div></div>';
+  const ref = _dbRef ? _db.ref((DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey+'/compliance') : null;
+  if(!ref){ content.innerHTML='<div class="empty"><div>Not connected.</div></div>'; return; }
+  ref.once('value').then(snap=>{
+    const val = snap.val()||{};
+    _arcData = Object.values(val).sort((a,b)=>b.submittedAt.localeCompare(a.submittedAt));
+    renderArchive();
+  }).catch(()=>{
+    content.innerHTML='<div class="empty"><div>Failed to load archive.</div></div>';
+  });
+}
+
+function renderArchive(){
+  const colleague = (document.getElementById('arc_colleague')?.value||'').toLowerCase().trim();
+  const team      = (document.getElementById('arc_team')?.value||'').toLowerCase().trim();
+  const assessor  = (document.getElementById('arc_assessor')?.value||'').toLowerCase().trim();
+  const outcome   = document.getElementById('arc_outcome')?.value||'';
+  const reg       = document.getElementById('arc_reg')?.value||'';
+  const fromDate  = document.getElementById('arc_from')?.value||'';
+  const toDate    = document.getElementById('arc_to')?.value||'';
+
+  let filtered = _arcData.filter(d=>{
+    if(colleague && !d.colleague?.toLowerCase().includes(colleague)) return false;
+    if(team      && !d.team?.toLowerCase().includes(team))           return false;
+    if(assessor  && !d.assessor?.toLowerCase().includes(assessor))   return false;
+    if(outcome   && d.initialOutcome !== outcome)                    return false;
+    if(reg       && d.regCompliant   !== reg)                        return false;
+    if(fromDate  && d.dateObs < fromDate)                            return false;
+    if(toDate    && d.dateObs > toDate)                              return false;
+    return true;
+  });
+
+  const statsEl = document.getElementById('arcStats');
+  const passCount = filtered.filter(d=>d.initialOutcome==='Pass').length;
+  const failCount = filtered.filter(d=>d.initialOutcome==='Fail').length;
+  const pwdCount  = filtered.filter(d=>d.initialOutcome==='Pass with Development').length;
+  const regFail   = filtered.filter(d=>d.regCompliant==='No').length;
+  if(statsEl) statsEl.innerHTML = `Showing <b>${filtered.length}</b> of <b>${_arcData.length}</b> submissions &nbsp;·&nbsp;
+    <span style="color:var(--green)">Pass: ${passCount}</span> &nbsp;·&nbsp;
+    <span style="color:var(--red)">Fail: ${failCount}</span> &nbsp;·&nbsp;
+    <span style="color:var(--amber)">Pass w/ Dev: ${pwdCount}</span> &nbsp;·&nbsp;
+    <span style="color:var(--red)">Reg Fail: ${regFail}</span>`;
+
+  const content = document.getElementById('arcContent');
+  if(!filtered.length){
+    content.innerHTML='<div class="empty"><div class="empty-icon">📂</div><div>No submissions match the current filters.</div></div>';
+    return;
+  }
+
+  const outCol = o => o==='Pass'?'var(--green)':o==='Fail'?'var(--red)':o==='Pass with Development'?'var(--amber)':'var(--text3)';
+  const thS = 'style="padding:9px 12px;background:var(--surface2);font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap;"';
+
+  content.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;min-width:800px;font-size:12px;font-family:var(--fm);">
+        <thead><tr>
+          <th ${thS}>Date Obs</th>
+          <th ${thS}>Colleague</th>
+          <th ${thS}>Team</th>
+          <th ${thS}>Assessor</th>
+          <th ${thS}>Brand</th>
+          <th ${thS}>Outcome</th>
+          <th ${thS}>Reg Compliant</th>
+          <th ${thS}>Process</th>
+          <th ${thS}>Actions</th>
+        </tr></thead>
+        <tbody>
+          ${filtered.map(d=>{
+            const rowBg = d.initialOutcome==='Pass' ? 'rgba(45,206,137,0.04)' : d.initialOutcome==='Fail' ? 'rgba(245,54,92,0.04)' : '';
+            return `<tr style="border-bottom:1px solid var(--border);background:${rowBg}">
+              <td style="padding:9px 12px;white-space:nowrap">${d.dateObs||'—'}</td>
+              <td style="padding:9px 12px;font-weight:600">${d.colleague||'—'}</td>
+              <td style="padding:9px 12px">${d.team||'—'}</td>
+              <td style="padding:9px 12px">${d.assessor||'—'}</td>
+              <td style="padding:9px 12px">${d.brand||'—'}</td>
+              <td style="padding:9px 12px;font-weight:700;color:${outCol(d.initialOutcome)}">${d.initialOutcome||'—'}</td>
+              <td style="padding:9px 12px;font-weight:600" style="color:${d.regCompliant==='Yes'?'var(--green)':d.regCompliant==='No'?'var(--red)':'var(--text3)'}">${d.regCompliant||'—'}</td>
+              <td style="padding:9px 12px;color:${d.procCompliant==='Yes'?'var(--green)':d.procCompliant==='No'?'var(--red)':'var(--text3)'}">${d.procCompliant||'—'}</td>
+              <td style="padding:9px 12px;white-space:nowrap">
+                <button class="btn btn-s" onclick="viewComplianceRecord('${d.id}')" style="font-size:11px;padding:4px 10px">View</button>
+                <button class="btn btn-d" onclick="deleteComplianceRecord('${d.id}')" style="font-size:11px;padding:4px 10px;margin-left:4px">Delete</button>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function viewComplianceRecord(id){
+  const d = _arcData.find(x=>x.id===id);
+  if(!d) return;
+  const outCol = o => o==='Pass'?'#1aaa6e':o==='Fail'?'#d92f53':o==='Pass with Development'?'#d4820a':'#888';
+  const itemRows = COMP_SECTIONS.map(sec=>`
+    <tr><td colspan="3" style="padding:6px 12px;background:#f0f2f6;font-weight:700;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#555;border:1px solid #ccc;">${sec.title}</td></tr>
+    ${sec.items.map(item=>{
+      const v = (d.items||{})[item.num]||'—';
+      const bg = v==='Pass'?'#f0faf5':v==='Fail'?'#fdf0f2':'#fff';
+      const col= v==='Pass'?'#1aaa6e':v==='Fail'?'#d92f53':v==='N/A'?'#888':'#333';
+      return `<tr style="background:${bg};border-bottom:1px solid #eee">
+        <td style="padding:6px 10px;font-size:11px;color:#888;font-weight:700;border:1px solid #ddd;width:28px">${item.num}</td>
+        <td style="padding:6px 12px;font-size:12px;border:1px solid #ddd">${item.text}</td>
+        <td style="padding:6px 12px;text-align:center;font-weight:700;color:${col};border:1px solid #ddd;white-space:nowrap">${v}</td>
+      </tr>`;
+    }).join('')}
+    ${(d.sectionNotes||{})[sec.key] ? `<tr><td colspan="3" style="padding:6px 12px;font-size:11px;color:#555;font-style:italic;border:1px solid #ddd;background:#fafafa">Notes: ${(d.sectionNotes||{})[sec.key]}</td></tr>` : ''}`
+  ).join('');
+
+  const win = window.open('','_blank','width=900,height=800,scrollbars=yes');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>Compliance Assessment — ${d.colleague}</title>
+    <style>body{font-family:Calibri,Arial,sans-serif;margin:0;padding:20px;background:#f5f5f5;}
+    .box{background:#fff;border-radius:8px;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.1);}
+    .hdr{background:#1a3060;color:#fff;padding:14px 20px;border-radius:8px;margin-bottom:16px;}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+    .lbl{font-size:10px;font-weight:700;color:#888;letter-spacing:.07em;text-transform:uppercase;margin-bottom:4px;}
+    .val{font-size:13px;font-weight:600;color:#1a2333;}
+    table{width:100%;border-collapse:collapse;}
+    @media print{body{padding:0}.no-print{display:none}}</style>
+  </head><body>
+  <div class="hdr"><div style="font-size:18px;font-weight:700">🛡 Compliance Assessment</div>
+    <div style="font-size:12px;opacity:.8;margin-top:4px">Single Tie Guidance · Submitted ${new Date(d.submittedAt).toLocaleString('en-GB')}</div></div>
+  <div class="box"><div class="grid">
+    <div><div class="lbl">Colleague</div><div class="val">${d.colleague||'—'}</div></div>
+    <div><div class="lbl">Team</div><div class="val">${d.team||'—'}</div></div>
+    <div><div class="lbl">Assessor</div><div class="val">${d.assessor||'—'}</div></div>
+    <div><div class="lbl">Client Surname</div><div class="val">${d.client||'—'}</div></div>
+    <div><div class="lbl">Brand</div><div class="val">${d.brand||'—'}</div></div>
+    <div><div class="lbl">Lead Source</div><div class="val">${d.leadSource||'—'}</div></div>
+    <div><div class="lbl">Date on Risk</div><div class="val">${d.dateOnRisk||'—'}</div></div>
+    <div><div class="lbl">Date of Observation</div><div class="val">${d.dateObs||'—'}</div></div>
+    <div><div class="lbl">FMP/CRM Ref</div><div class="val">${d.fmpRef||'—'}</div></div>
+    <div><div class="lbl">Colleague Level</div><div class="val">${d.level||'—'}</div></div>
+    <div><div class="lbl">Call Duration</div><div class="val">${d.duration||'—'}</div></div>
+  </div></div>
+  <div class="box"><table>${itemRows}</table></div>
+  <div class="box"><div class="grid">
+    <div><div class="lbl">Initial Outcome</div><div class="val" style="color:${outCol(d.initialOutcome)}">${d.initialOutcome||'—'}</div></div>
+    <div><div class="lbl">Regulatory Compliant</div><div class="val" style="color:${d.regCompliant==='Yes'?'#1aaa6e':'#d92f53'}">${d.regCompliant||'—'}</div></div>
+    <div><div class="lbl">Process Compliance</div><div class="val" style="color:${d.procCompliant==='Yes'?'#1aaa6e':'#d92f53'}">${d.procCompliant||'—'}</div></div>
+  </div>
+  ${d.outcomeRationale?`<div style="margin-top:12px"><div class="lbl">Outcome Rationale</div><div style="font-size:13px;color:#333;margin-top:4px">${d.outcomeRationale}</div></div>`:''}
+  ${d.regFailRationale?`<div style="margin-top:12px"><div class="lbl">Regulatory Fail Rationale</div><div style="font-size:13px;color:#d92f53;margin-top:4px">${d.regFailRationale}</div></div>`:''}
+  </div>
+  ${d.transcriptNotes?`<div class="box"><div class="lbl">Notes From Transcript</div><div style="font-size:13px;color:#333;margin-top:6px;white-space:pre-wrap">${d.transcriptNotes}</div></div>`:''}
+  <div class="no-print" style="text-align:center;margin-top:20px"><button onclick="window.print()" style="padding:10px 28px;background:#1a3060;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer">🖨 Print / Save PDF</button></div>
+  </body></html>`);
+  win.document.close();
+}
+
+function deleteComplianceRecord(id){
+  if(!confirm('Permanently delete this assessment? This cannot be undone.')) return;
+  const ref = _db.ref((DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey+'/compliance/'+id);
+  ref.remove().then(()=>{
+    _arcData = _arcData.filter(x=>x.id!==id);
+    renderArchive();
+    showToast('Assessment deleted');
+  }).catch(()=>showToast('Delete failed','err'));
+}
+
+function clearArchiveFilters(){
+  ['arc_colleague','arc_team','arc_assessor','arc_from','arc_to'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  ['arc_outcome','arc_reg'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  renderArchive();
+}
+
+function exportComplianceCSV(){
+  const colleague = (document.getElementById('arc_colleague')?.value||'').toLowerCase().trim();
+  const team      = (document.getElementById('arc_team')?.value||'').toLowerCase().trim();
+  const outcome   = document.getElementById('arc_outcome')?.value||'';
+  let rows = _arcData.filter(d=>{
+    if(colleague && !d.colleague?.toLowerCase().includes(colleague)) return false;
+    if(team && !d.team?.toLowerCase().includes(team)) return false;
+    if(outcome && d.initialOutcome !== outcome) return false;
+    return true;
+  });
+  const allItems = COMP_SECTIONS.flatMap(s=>s.items);
+  const headers = ['Date Obs','Colleague','Team','Assessor','Brand','Lead Source','FMP Ref','Colleague Level','Duration','Initial Outcome','Reg Compliant','Process Compliant','Outcome Rationale','Reg Fail Rationale',
+    ...allItems.map(i=>`Item ${i.num}`),'Transcript Notes','Submitted At'];
+  const esc = v => '"'+(v||'').replace(/"/g,'""')+'"';
+  let csv = headers.map(esc).join(',')+'\n';
+  rows.forEach(d=>{
+    csv += [d.dateObs,d.colleague,d.team,d.assessor,d.brand,d.leadSource,d.fmpRef,d.level,d.duration,
+      d.initialOutcome,d.regCompliant,d.procCompliant,d.outcomeRationale,d.regFailRationale,
+      ...allItems.map(i=>(d.items||{})[i.num]||''),
+      d.transcriptNotes, new Date(d.submittedAt).toLocaleString('en-GB')
+    ].map(esc).join(',')+'\n';
+  });
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='compliance_assessments.csv';
   a.click();
   showToast('CSV exported');
 }
