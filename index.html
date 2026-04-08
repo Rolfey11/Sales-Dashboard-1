@@ -25,21 +25,92 @@
   --shadow:0 4px 24px rgba(0,0,0,.35);
   --nav-bg:rgba(11,12,16,0.96);
 }
-[data-theme="light"]{
-  --bg:#f0f2f6;--surface:#ffffff;--surface2:#f5f7fa;--surface3:#e8eaf0;
-  --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.15);
-  --text:#1a1d2e;--text2:#4a5068;--text3:#8a90a2;
-  --green:#1aaa6e;--green-bg:rgba(26,170,110,0.1);
-  --red:#d92f53;--red-bg:rgba(217,47,83,0.1);
-  --amber:#d97a0a;--amber-bg:rgba(217,122,10,0.1);
-  --blue:#3a7fe0;--blue-bg:rgba(58,127,224,0.1);
-  --purple:#7c5ce0;--purple-bg:rgba(124,92,224,0.1);
-  --accent:#3a7fe0;
-  --shadow:0 4px 24px rgba(0,0,0,.12);
+/* ── THEMES ──────────────────────────────────────────────────────── */
+/* 1. Midnight (default dark) — already in :root */
+
+/* 2. Arctic Light */
+[data-theme="arctic"]{
+  --bg:#f0f4f8;--surface:#ffffff;--surface2:#e8eef5;--surface3:#d8e4ee;
+  --border:rgba(0,0,0,0.09);--border2:rgba(0,0,0,0.16);
+  --text:#1a2333;--text2:#4a5a72;--text3:#8a9ab5;
+  --green:#0ea86a;--green-bg:rgba(14,168,106,0.1);
+  --red:#e02d55;--red-bg:rgba(224,45,85,0.1);
+  --amber:#d4820a;--amber-bg:rgba(212,130,10,0.1);
+  --blue:#2b7de9;--blue-bg:rgba(43,125,233,0.1);
+  --purple:#6b4dd4;--purple-bg:rgba(107,77,212,0.1);
+  --accent:#2b7de9;--shadow:0 4px 24px rgba(0,0,0,.1);
   --nav-bg:rgba(255,255,255,0.97);
 }
+
+/* 3. Forest */
+[data-theme="forest"]{
+  --bg:#0d1a13;--surface:#122018;--surface2:#1a2d1f;--surface3:#213828;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#d6f0df;--text2:#7aad8c;--text3:#3d6b4f;
+  --green:#3dd68c;--green-bg:rgba(61,214,140,0.12);
+  --red:#ff5e6e;--red-bg:rgba(255,94,110,0.12);
+  --amber:#f9c74f;--amber-bg:rgba(249,199,79,0.12);
+  --blue:#56cfb2;--blue-bg:rgba(86,207,178,0.12);
+  --purple:#b39ddb;--purple-bg:rgba(179,157,219,0.12);
+  --accent:#3dd68c;--shadow:0 4px 24px rgba(0,0,0,.4);
+  --nav-bg:rgba(13,26,19,0.97);
+}
+
+/* 4. Crimson */
+[data-theme="crimson"]{
+  --bg:#130810;--surface:#1e0d1a;--surface2:#271223;--surface3:#33192d;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#f5e6f0;--text2:#c07090;--text3:#7a3a55;
+  --green:#3dd68c;--green-bg:rgba(61,214,140,0.12);
+  --red:#ff6b8a;--red-bg:rgba(255,107,138,0.12);
+  --amber:#fdb96b;--amber-bg:rgba(253,185,107,0.12);
+  --blue:#c084fc;--blue-bg:rgba(192,132,252,0.12);
+  --purple:#e879f9;--purple-bg:rgba(232,121,249,0.12);
+  --accent:#e879f9;--shadow:0 4px 24px rgba(0,0,0,.45);
+  --nav-bg:rgba(19,8,16,0.97);
+}
+
+/* 5. Ocean */
+[data-theme="ocean"]{
+  --bg:#050f1f;--surface:#0a1a30;--surface2:#0f2440;--surface3:#163050;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#d8eeff;--text2:#6aa0d0;--text3:#2e5a88;
+  --green:#2ddbb4;--green-bg:rgba(45,219,180,0.12);
+  --red:#f5546a;--red-bg:rgba(245,84,106,0.12);
+  --amber:#f9c840;--amber-bg:rgba(249,200,64,0.12);
+  --blue:#4db8ff;--blue-bg:rgba(77,184,255,0.12);
+  --purple:#a78bfa;--purple-bg:rgba(167,139,250,0.12);
+  --accent:#4db8ff;--shadow:0 4px 24px rgba(0,0,0,.5);
+  --nav-bg:rgba(5,15,31,0.97);
+}
+
+/* 6. Sandstone */
+[data-theme="sandstone"]{
+  --bg:#1c1610;--surface:#26200f;--surface2:#302a17;--surface3:#3d3520;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#f5edd8;--text2:#b09a6a;--text3:#70603a;
+  --green:#7ecf6a;--green-bg:rgba(126,207,106,0.12);
+  --red:#f07070;--red-bg:rgba(240,112,112,0.12);
+  --amber:#f5c842;--amber-bg:rgba(245,200,66,0.12);
+  --blue:#7eb8d4;--blue-bg:rgba(126,184,212,0.12);
+  --purple:#d4a0e0;--purple-bg:rgba(212,160,224,0.12);
+  --accent:#f5c842;--shadow:0 4px 24px rgba(0,0,0,.45);
+  --nav-bg:rgba(28,22,16,0.97);
+}
+
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:var(--fh);min-height:100vh;overflow-x:hidden;transition:background .25s,color .25s;}
+
+/* THEME SWATCHES */
+.theme-swatch{border-radius:10px;overflow:hidden;cursor:pointer;border:2px solid transparent;transition:all .2s;position:relative;}
+.theme-swatch:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.35);}
+.theme-swatch.active{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94,156,245,.25);}
+.theme-swatch-preview{height:64px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:3px;padding:8px;}
+.theme-swatch-bar{border-radius:3px;}
+.theme-swatch-foot{padding:8px 10px;display:flex;align-items:center;justify-content:space-between;}
+.theme-swatch-name{font-size:12px;font-weight:700;font-family:var(--fh);}
+.theme-swatch-check{font-size:14px;opacity:0;transition:opacity .15s;}
+.theme-swatch.active .theme-swatch-check{opacity:1;}
 
 /* THEME TOGGLE */
 .theme-toggle{display:flex;align-items:center;gap:7px;flex-shrink:0;}
@@ -331,6 +402,124 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 @media(max-width:1400px){.cards-grid{grid-template-columns:repeat(4,1fr);}}
 @media(max-width:1200px){.cards-grid{grid-template-columns:repeat(3,1fr);}.kpi-row{grid-template-columns:repeat(3,1fr);}}
 @media(max-width:900px){.cards-grid{grid-template-columns:repeat(2,1fr);}.charts-row{grid-template-columns:1fr;}.entry-layout{grid-template-columns:1fr;}.lb-grid{grid-template-columns:1fr;}.biz-grid{grid-template-columns:repeat(2,1fr);}.biz-input-row{grid-template-columns:1fr;}.sum-person-grid{grid-template-columns:1fr;}.settings-grid{grid-template-columns:1fr 1fr;}}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MOBILE — 768px and below
+   ═══════════════════════════════════════════════════════════════════ */
+@media(max-width:768px){
+  /* Nav */
+  nav{padding:5px 10px 0;}
+  .nav-row1{min-height:34px;gap:6px;}
+  .nav-brand{font-size:12px;}
+  .nav-date{display:none;}
+  .theme-toggle-label{display:none;}
+  #syncLabel{display:none;}
+  #divisionLabel{display:none;}
+  .globalMonthLabel{display:none;}
+  .nav-tab{font-size:10px;padding:5px 8px;}
+  .nav-row3{gap:2px;flex-wrap:wrap;padding:2px 0 0;}
+  #globalMonthSel{min-width:90px !important;font-size:11px;}
+
+  /* Pages */
+  .page{padding:10px;}
+  .section-head{flex-direction:column;align-items:flex-start;gap:8px;margin-bottom:14px;}
+  .section-head>div:last-child{width:100%;display:flex;flex-wrap:wrap;gap:6px;}
+  .section-title{font-size:16px;}
+  .section-sub{font-size:10px;}
+
+  /* KPI — 2 col */
+  .kpi-row{grid-template-columns:repeat(2,1fr) !important;gap:8px;margin-bottom:14px;}
+  .kpi-card{padding:11px 12px;}
+  .kpi-val{font-size:19px;}
+  .kpi-label{font-size:9px;margin-bottom:5px;letter-spacing:.06em;}
+  .kpi-sub{font-size:10px;}
+
+  /* Person cards — 1 col */
+  .cards-grid{grid-template-columns:1fr !important;gap:8px;margin-bottom:14px;}
+  .p-rev{font-size:18px;}
+
+  /* Charts — 1 col */
+  .charts-row{grid-template-columns:1fr !important;gap:10px;}
+
+  /* Team summary strips */
+  #teamSummaryRow{grid-template-columns:1fr !important;gap:8px;margin-bottom:12px;}
+  #teamSummaryRow>div{flex-wrap:wrap !important;gap:6px !important;}
+
+  /* Entry layout */
+  .entry-layout{grid-template-columns:1fr !important;}
+  .sidebar{position:static !important;top:auto !important;}
+
+  /* Settings */
+  .settings-grid{grid-template-columns:1fr !important;}
+  .set-card{grid-column:unset !important;}
+
+  /* Leaderboard */
+  .lb-grid{grid-template-columns:1fr !important;}
+
+  /* History — condensed cols */
+  .hist-head,.hist-row{grid-template-columns:65px 80px 75px 40px 70px 45px 45px 55px;font-size:10px;}
+
+  /* Division picker */
+  .div-grid{grid-template-columns:repeat(2,1fr) !important;}
+  .div-box{padding:20px 12px !important;}
+
+  /* Biz */
+  .biz-grid{grid-template-columns:repeat(2,1fr) !important;}
+  .biz-input-row{grid-template-columns:1fr !important;}
+
+  /* Sub-nav */
+  .sub-nav{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;}
+  .sub-tab{white-space:nowrap;flex-shrink:0;font-size:12px;padding:6px 10px;}
+
+  /* Buttons */
+  .btn{font-size:11px;padding:7px 12px;}
+
+  /* Selectors in Staff Perf / Daily Send */
+  #page-staffperf .section-head+div,
+  #page-dailysend .section-head+div{flex-direction:column !important;align-items:stretch !important;gap:10px !important;}
+  #spDivSel,#spTeamSel,#spConsSel,#spYearSel{width:100% !important;}
+
+  /* Monthly targets config rows */
+  .pcfg-row{grid-template-columns:1fr 75px 65px 80px 28px !important;}
+  .pcfg-head{grid-template-columns:1fr 75px 65px 80px 28px !important;}
+
+  /* Modal */
+  .modal{width:95vw !important;padding:18px !important;}
+  .modal-title{font-size:14px;}
+
+  /* Login box */
+  .login-box{padding:28px 20px !important;}
+
+  /* Holiday scroll */
+  #page-holiday .section-head+div+div{overflow-x:auto;}
+
+  /* Manager overview cards */
+  #moContent>div:first-child{grid-template-columns:repeat(2,1fr) !important;}
+  #moContent>div:nth-child(2){grid-template-columns:repeat(2,1fr) !important;}
+
+  /* Daily send chart grid */
+  #dsContent>div[style*="grid-template-columns:1fr 1fr"]{
+    display:grid !important;
+    grid-template-columns:1fr !important;
+    gap:10px !important;
+  }
+}
+
+/* ═══ Extra small — phones under 480px ══════════════════════════════ */
+@media(max-width:480px){
+  .kpi-val{font-size:16px;}
+  .kpi-card{padding:9px 10px;}
+  .p-rev{font-size:16px;}
+  .section-title{font-size:14px;}
+  .nav-tab{font-size:9px;padding:4px 6px;}
+  /* Prevent iOS auto-zoom on inputs */
+  select,input[type=date],input[type=number],input[type=text],textarea{font-size:16px !important;}
+  .hist-head,.hist-row{grid-template-columns:58px 70px 65px 38px 60px 40px 40px 48px;font-size:9px;}
+  .charts-row canvas{max-height:160px;}
+  #moContent>div:first-child{grid-template-columns:1fr !important;}
+  #moContent>div:nth-child(2){grid-template-columns:1fr !important;}
+  .div-grid{grid-template-columns:1fr 1fr !important;}
+}
 </style>
 <body>
 
@@ -690,6 +879,13 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     <div><div class="section-title">Settings</div><div class="section-sub">Manage consultants and monthly targets</div></div>
   </div>
   <div class="settings-grid">
+
+    <!-- Theme picker — full width -->
+    <div class="set-card" style="grid-column:1/-1">
+      <div class="set-title">🎨 Theme</div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:18px">Choose a visual theme for the dashboard. Your preference is saved automatically.</div>
+      <div id="themePickerGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;"></div>
+    </div>
 
     <!-- Monthly targets — full width, month picker → consultant table -->
     <div class="set-card" style="grid-column:1/-1" id="mtCard">
@@ -1866,6 +2062,7 @@ function deleteEntry(mk, date, name){
 function renderSettings(){
   populateAllSelects();
   document.getElementById('activeMonthSel').value = APP.activeMonth;
+  renderThemePicker();
 
   // Name-only rows — no risk/day or work days here
   document.getElementById('personConfigRows').innerHTML = APP.people.length
@@ -5488,28 +5685,58 @@ function renderPersonProfile(name){
 
 
 
-// ─── THEME TOGGLE ──────────────────────────────────────────────────
-function toggleTheme(){
-  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-  const next = isLight ? 'dark' : 'light';
-  applyTheme(next);
-  localStorage.setItem('pd_theme', next);
-}
-function applyTheme(theme){
+// ─── THEME SYSTEM ──────────────────────────────────────────────────
+const THEMES = {
+  midnight:  { name:'Midnight',   bg:'#0b0c10', surface:'#12141a', accent:'#5e9cf5',  bar1:'#5e9cf5', bar2:'#2dce89', bar3:'#fbb83a', bar4:'#f5365c', text:'#eef0f5', foot:'#12141a' },
+  arctic:    { name:'Arctic',     bg:'#f0f4f8', surface:'#ffffff',  accent:'#2b7de9',  bar1:'#2b7de9', bar2:'#0ea86a', bar3:'#d4820a', bar4:'#e02d55', text:'#1a2333', foot:'#e8eef5' },
+  forest:    { name:'Forest',     bg:'#0d1a13', surface:'#122018',  accent:'#3dd68c',  bar1:'#3dd68c', bar2:'#56cfb2', bar3:'#f9c74f', bar4:'#ff5e6e', text:'#d6f0df', foot:'#122018' },
+  crimson:   { name:'Crimson',    bg:'#130810', surface:'#1e0d1a',  accent:'#e879f9',  bar1:'#e879f9', bar2:'#c084fc', bar3:'#fdb96b', bar4:'#ff6b8a', text:'#f5e6f0', foot:'#1e0d1a' },
+  ocean:     { name:'Ocean',      bg:'#050f1f', surface:'#0a1a30',  accent:'#4db8ff',  bar1:'#4db8ff', bar2:'#2ddbb4', bar3:'#f9c840', bar4:'#f5546a', text:'#d8eeff', foot:'#0a1a30' },
+  sandstone: { name:'Sandstone',  bg:'#1c1610', surface:'#26200f',  accent:'#f5c842',  bar1:'#f5c842', bar2:'#7ecf6a', bar3:'#7eb8d4', bar4:'#f07070', text:'#f5edd8', foot:'#26200f' },
+};
+
+function applyTheme(themeKey){
+  const key = THEMES[themeKey] ? themeKey : 'midnight';
+  document.documentElement.setAttribute('data-theme', key === 'midnight' ? '' : key);
+  if(key === 'midnight') document.documentElement.removeAttribute('data-theme');
+  localStorage.setItem('pd_theme', key);
+  // Update nav toggle indicator
   const track = document.getElementById('themeToggleTrack');
   const label = document.getElementById('themeLabel');
-  if(theme === 'light'){
-    document.documentElement.setAttribute('data-theme','light');
-    if(track) track.classList.add('on');
-    if(label) label.textContent = 'Dark';
-  } else {
-    document.documentElement.removeAttribute('data-theme');
-    if(track) track.classList.remove('on');
-    if(label) label.textContent = 'Dark';
-  }
+  if(track) track.classList.toggle('on', key !== 'midnight');
+  if(label) label.textContent = THEMES[key]?.name || 'Midnight';
+  // Refresh swatch active state if settings open
+  document.querySelectorAll('.theme-swatch').forEach(el => {
+    el.classList.toggle('active', el.dataset.theme === key);
+  });
 }
+
+function renderThemePicker(){
+  const grid = document.getElementById('themePickerGrid');
+  if(!grid) return;
+  const current = localStorage.getItem('pd_theme') || 'midnight';
+  grid.innerHTML = Object.entries(THEMES).map(([key, t]) => `
+    <div class="theme-swatch${current === key ? ' active' : ''}" data-theme="${key}" onclick="applyTheme('${key}');renderThemePicker();" title="${t.name}">
+      <div class="theme-swatch-preview" style="background:${t.bg}">
+        <div class="theme-swatch-bar" style="background:${t.bar1}"></div>
+        <div class="theme-swatch-bar" style="background:${t.bar2}"></div>
+        <div class="theme-swatch-bar" style="background:${t.bar3};opacity:.8"></div>
+        <div class="theme-swatch-bar" style="background:${t.surface}"></div>
+      </div>
+      <div class="theme-swatch-foot" style="background:${t.foot}">
+        <span class="theme-swatch-name" style="color:${t.text}">${t.name}</span>
+        <span class="theme-swatch-check" style="color:${t.accent}">✓</span>
+      </div>
+    </div>`).join('');
+}
+
+function toggleTheme(){
+  const cur = localStorage.getItem('pd_theme') || 'midnight';
+  applyTheme(cur === 'midnight' ? 'arctic' : 'midnight');
+}
+
 // Restore saved theme on load
-(function(){ applyTheme(localStorage.getItem('pd_theme') || 'dark'); })();
+(function(){ applyTheme(localStorage.getItem('pd_theme') || 'midnight'); })();
 
 // ─── INIT ──────────────────────────────────────────────────────────
 document.getElementById('navDate').textContent =
