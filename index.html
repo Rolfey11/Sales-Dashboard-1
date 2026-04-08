@@ -89,6 +89,7 @@ nav{position:sticky;top:0;z-index:100;background:var(--nav-bg);backdrop-filter:b
 .nav-row1{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:40px;flex-wrap:nowrap;}
 .nav-row2{display:flex;align-items:center;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:0;}
 .nav-row2::-webkit-scrollbar{display:none;}
+.nav-row3{display:flex;align-items:center;gap:4px;padding:3px 0 0;border-top:1px solid var(--border);}
 .nav-brand{font-size:15px;font-weight:700;letter-spacing:.06em;white-space:nowrap;}
 .nav-brand span{color:var(--accent);}
 .nav-tabs{display:flex;gap:2px;flex-shrink:0;}
@@ -99,6 +100,7 @@ nav{position:sticky;top:0;z-index:100;background:var(--nav-bg);backdrop-filter:b
 
 /* PAGES */
 .page{display:none;padding:28px;}.page.active{display:block;}
+@media(max-width:700px){.page{padding:12px;}}
 /* HEADINGS */
 .section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
 .section-title{font-size:20px;font-weight:700;letter-spacing:-.01em;}
@@ -257,25 +259,32 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 .rr-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;grid-column:1/-1;}
 
 /* DAY BY DAY GRID */
-.dbd-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--border);margin-bottom:24px;}
-.dbd-table{border-collapse:collapse;font-family:var(--fm);font-size:13px;white-space:nowrap;min-width:100%;}
-.dbd-th{background:var(--surface2);color:var(--text3);font-weight:700;padding:12px 14px;border:1px solid var(--border);text-align:center;font-size:11px;letter-spacing:.06em;text-transform:uppercase;}
-.dbd-th.name-col{text-align:left;min-width:150px;position:sticky;left:0;z-index:2;background:var(--surface2);}
-.dbd-td{padding:10px 12px;border:1px solid var(--border);text-align:center;background:var(--surface);vertical-align:middle;min-width:80px;}
-.dbd-td.name-col{text-align:left;font-weight:600;font-size:13px;color:var(--text);background:var(--surface);padding:10px 16px;position:sticky;left:0;z-index:1;cursor:pointer;transition:background .15s;}
+.dbd-wrap{width:100%;border-radius:var(--radius);border:1px solid var(--border);margin-bottom:24px;overflow-x:auto;}
+.dbd-table{border-collapse:collapse;font-family:var(--fm);table-layout:fixed;width:100%;white-space:nowrap;}
+.dbd-th{background:var(--surface2);color:var(--text3);font-weight:700;padding:clamp(4px,1vw,12px) clamp(4px,0.8vw,10px);border:1px solid var(--border);text-align:center;font-size:clamp(9px,1.1vw,11px);letter-spacing:.04em;text-transform:uppercase;}
+.dbd-th.name-col{text-align:left;width:clamp(70px,12vw,150px);position:sticky;left:0;z-index:2;background:var(--surface2);}
+.dbd-td{padding:clamp(4px,0.8vw,10px) clamp(3px,0.6vw,12px);border:1px solid var(--border);text-align:center;background:var(--surface);vertical-align:middle;}
+.dbd-td.name-col{text-align:left;font-weight:600;font-size:clamp(10px,1.2vw,13px);color:var(--text);background:var(--surface);padding:clamp(4px,0.8vw,10px) clamp(6px,1vw,16px);position:sticky;left:0;z-index:1;cursor:pointer;transition:background .15s;}
 .dbd-td.name-col:hover{background:var(--surface3);color:var(--accent);}
-.dbd-td.we{background:#181d28;color:#404860;font-size:11px;font-weight:600;}
+.dbd-td.we{background:#181d28;color:#404860;font-size:clamp(9px,1vw,11px);font-weight:600;}
 .dbd-td.cell-hol{background:rgba(245,54,92,0.15);border-color:rgba(245,54,92,0.25);}
 .dbd-td.cell-sick{background:rgba(251,184,58,0.15);border-color:rgba(251,184,58,0.25);}
 .dbd-td.cell-bh{background:rgba(131,5,68,0.15);border-color:rgba(131,5,68,0.25);}
 .dbd-td.total-col{background:var(--surface2);font-weight:700;}
-.dbd-cell{display:flex;flex-direction:column;align-items:center;gap:3px;}
-.dbd-status-label{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;}
-.dbd-rev{font-size:13px;font-weight:700;}
-.dbd-nm{font-size:11px;color:var(--text3);}
+.dbd-cell{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.dbd-status-label{font-size:clamp(8px,0.9vw,10px);font-weight:800;letter-spacing:.06em;text-transform:uppercase;}
+.dbd-rev{font-size:clamp(10px,1.2vw,13px);font-weight:700;}
+.dbd-nm{font-size:clamp(9px,1vw,11px);color:var(--text3);}
 .dbd-hit{color:var(--green);}
 .dbd-miss{color:var(--red);}
-.dbd-empty{color:var(--text3);font-size:12px;}
+.dbd-empty{color:var(--text3);font-size:clamp(9px,1vw,12px);}
+@media(max-width:900px){
+  .dbd-th{font-size:9px;padding:4px 3px;letter-spacing:0;}
+  .dbd-td{padding:4px 3px;}
+  .dbd-td.name-col{font-size:10px;padding:4px 6px;}
+  .dbd-rev{font-size:10px;}
+  .dbd-nm{font-size:9px;}
+}
 
 /* Individual tracker */
 .itrk-table{width:100%;border-collapse:collapse;font-family:var(--fm);font-size:13px;}
@@ -409,7 +418,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <div class="nav-date" id="navDate"></div>
     </div>
   </div>
-  <!-- Row 2: Scrollable tabs -->
+  <!-- Row 2: Main scrollable tabs -->
   <div class="nav-row2">
     <div class="nav-tabs">
       <button class="nav-tab active" onclick="showPage('dashboard')">Dashboard</button>
@@ -423,10 +432,13 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <button class="nav-tab" onclick="showPage('daybyday')">Day by Day</button>
       <button class="nav-tab" onclick="showPage('holiday')">Holiday</button>
       <button class="nav-tab" onclick="showPage('settings')">Settings</button>
-      <button class="nav-tab" onclick="showPage('manageroverview')" id="managerOverviewTab" style="color:var(--amber);margin-left:8px;border-left:1px solid var(--border2);padding-left:14px;">⭐ Manager Overview</button>
-      <button class="nav-tab" onclick="showPage('dailysend')" id="dailySendTab" style="color:#fff;background:#6b0d2d;margin-left:4px;border-radius:6px 6px 0 0;font-weight:700;">📤 Daily Send</button>
-      <button class="nav-tab" onclick="showPage('staffperf')" id="staffPerfTab" style="color:#fff;background:#1a4040;margin-left:4px;border-radius:6px 6px 0 0;font-weight:700;">📋 Staff Performance</button>
     </div>
+  </div>
+  <!-- Row 3: Manager / reporting tabs -->
+  <div class="nav-row3">
+    <button class="nav-tab" onclick="showPage('manageroverview')" id="managerOverviewTab" style="color:var(--amber);">⭐ Manager Overview</button>
+    <button class="nav-tab" onclick="showPage('dailysend')" id="dailySendTab" style="color:#fff;background:#6b0d2d;border-radius:6px 6px 0 0;font-weight:700;">📤 Daily Send</button>
+    <button class="nav-tab" onclick="showPage('staffperf')" id="staffPerfTab" style="color:#fff;background:#1a4040;border-radius:6px 6px 0 0;font-weight:700;">📋 Staff Performance</button>
   </div>
 </nav>
 
@@ -3995,11 +4007,11 @@ function renderDbdOverallGrid(){
   html += '<th class="dbd-th name-col" style="min-width:90px">Date</th>';
   people.forEach(p=>{
     const col = personTeamColor[p.name] || 'var(--accent)';
-    html += `<th class="dbd-th" style="min-width:90px;cursor:pointer;white-space:nowrap" onclick="dbdOpenPerson('${p.name.replace(/'/g,"\\'")}')">
+    html += `<th class="dbd-th" style="cursor:pointer" onclick="dbdOpenPerson('${p.name.replace(/'/g,"\\'")}')">
       <span style="color:${col};margin-right:3px">▶</span>${p.name}
     </th>`;
   });
-  html += '<th class="dbd-th" style="min-width:90px">Overall Total</th>';
+  html += '<th class="dbd-th" style="">Overall Total</th>';
   html += '</tr></thead><tbody>';
 
   allDays.forEach(({ds, isWE})=>{
@@ -4155,7 +4167,7 @@ function renderDbdTeamGrid(teamKey){
 
   // Name headers across the top — clickable
   people.forEach(p=>{
-    html += `<th class="dbd-th" style="min-width:90px;cursor:pointer;white-space:nowrap" onclick="dbdOpenPerson('${p.name.replace(/'/g,"\\'")}')">
+    html += `<th class="dbd-th" style="cursor:pointer" onclick="dbdOpenPerson('${p.name.replace(/'/g,"\\'")}')">
       <span style="color:${color};margin-right:3px">▶</span>${p.name}
     </th>`;
   });
