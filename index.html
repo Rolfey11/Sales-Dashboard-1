@@ -63,11 +63,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--fh);min-height:100
 .div-badge{font-size:9px;font-weight:700;background:rgba(94,156,245,0.15);color:var(--accent);padding:2px 8px;border-radius:10px;letter-spacing:.04em;text-transform:uppercase;}
 
 /* NAV */
-nav{position:sticky;top:0;z-index:100;background:rgba(11,12,16,0.96);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;gap:16px;overflow-x:auto;}
+nav{position:sticky;top:0;z-index:100;background:rgba(11,12,16,0.96);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:8px 20px 0;display:flex;flex-direction:column;gap:0;}
+.nav-row1{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:40px;flex-wrap:nowrap;}
+.nav-row2{display:flex;align-items:center;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:0;}
+.nav-row2::-webkit-scrollbar{display:none;}
 .nav-brand{font-size:15px;font-weight:700;letter-spacing:.06em;white-space:nowrap;}
 .nav-brand span{color:var(--accent);}
-.nav-tabs{display:flex;gap:2px;}
-.nav-tab{background:none;border:none;color:var(--text3);font-family:var(--fh);font-size:12px;font-weight:600;padding:5px 12px;border-radius:6px;cursor:pointer;transition:all .15s;letter-spacing:.02em;white-space:nowrap;}
+.nav-tabs{display:flex;gap:2px;flex-shrink:0;}
+.nav-tab{background:none;border:none;color:var(--text3);font-family:var(--fh);font-size:12px;font-weight:600;padding:6px 12px;border-radius:6px 6px 0 0;cursor:pointer;transition:all .15s;letter-spacing:.02em;white-space:nowrap;flex-shrink:0;}
 .nav-tab:hover{color:var(--text2);background:var(--surface2);}
 .nav-tab.active{color:var(--text);background:var(--surface2);box-shadow:inset 0 -2px 0 var(--accent);}
 .nav-date{font-family:var(--fm);font-size:11px;color:var(--text3);white-space:nowrap;}
@@ -357,8 +360,28 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 </div>
 
 <nav>
-  <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0">
+  <!-- Row 1: Brand + right-side controls -->
+  <div class="nav-row1">
     <div class="nav-brand">PERF<span>.</span>DASH</div>
+    <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;flex-wrap:nowrap;">
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <span style="font-size:10px;font-weight:600;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">Month</span>
+        <select id="globalMonthSel" onchange="setGlobalMonth()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:4px 8px;font-size:12px;font-family:var(--fm);color:var(--text);outline:none;cursor:pointer;min-width:130px;"></select>
+      </div>
+      <div id="divisionBadge" style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);transition:border-color .15s;flex-shrink:0;" onclick="switchDivision()" title="Switch division">
+        <span id="divisionIcon" style="font-size:14px"></span>
+        <span id="divisionLabel" style="font-size:11px;font-weight:700;font-family:var(--fm);color:var(--text2)"></span>
+        <span style="font-size:10px;color:var(--text3)">⇄</span>
+      </div>
+      <div id="syncStatus" style="display:flex;align-items:center;gap:6px;font-family:var(--fm);font-size:11px;color:var(--text3);flex-shrink:0;">
+        <span id="syncDot" style="width:7px;height:7px;border-radius:50%;background:var(--text3);display:inline-block;transition:background .3s"></span>
+        <span id="syncLabel">connecting…</span>
+      </div>
+      <div class="nav-date" id="navDate"></div>
+    </div>
+  </div>
+  <!-- Row 2: Scrollable tabs -->
+  <div class="nav-row2">
     <div class="nav-tabs">
       <button class="nav-tab active" onclick="showPage('dashboard')">Dashboard</button>
       <button class="nav-tab" onclick="showPage('biz')">Business Target</button>
@@ -372,23 +395,8 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <button class="nav-tab" onclick="showPage('holiday')">Holiday</button>
       <button class="nav-tab" onclick="showPage('settings')">Settings</button>
       <button class="nav-tab" onclick="showPage('manageroverview')" id="managerOverviewTab" style="color:var(--amber);margin-left:8px;border-left:1px solid var(--border2);padding-left:14px;">⭐ Manager Overview</button>
+      <button class="nav-tab" onclick="showPage('dailysend')" id="dailySendTab" style="color:#fff;background:#6b0d2d;margin-left:4px;border-radius:6px 6px 0 0;font-weight:700;">📤 Daily Send</button>
     </div>
-    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-      <span style="font-size:10px;font-weight:600;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">Month</span>
-      <select id="globalMonthSel" onchange="setGlobalMonth()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:5px 10px;font-size:12px;font-family:var(--fm);color:var(--text);outline:none;cursor:pointer;min-width:140px;"></select>
-    </div>
-  </div>
-  <div style="display:flex;align-items:center;gap:14px;flex-shrink:0">
-    <div id="divisionBadge" style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);transition:border-color .15s;" onclick="switchDivision()" title="Switch division">
-      <span id="divisionIcon" style="font-size:14px"></span>
-      <span id="divisionLabel" style="font-size:11px;font-weight:700;font-family:var(--fm);color:var(--text2)"></span>
-      <span style="font-size:10px;color:var(--text3)">⇄</span>
-    </div>
-    <div id="syncStatus" style="display:flex;align-items:center;gap:6px;font-family:var(--fm);font-size:11px;color:var(--text3)">
-      <span id="syncDot" style="width:7px;height:7px;border-radius:50%;background:var(--text3);display:inline-block;transition:background .3s"></span>
-      <span id="syncLabel">connecting…</span>
-    </div>
-    <div class="nav-date" id="navDate"></div>
   </div>
 </nav>
 
@@ -699,6 +707,21 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <button class="btn btn-p" onclick="createNewMonth()">Create</button>
     </div>
   </div>
+</div>
+
+<!-- DAILY SEND -->
+<div class="page" id="page-dailysend">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Daily Send</div>
+      <div class="section-sub" id="ds-sub">Morning performance report — all divisions</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-s" onclick="window.print()">🖨 Print / Save PDF</button>
+      <select id="dsMonth" onchange="renderDailySend()" style="width:180px"></select>
+    </div>
+  </div>
+  <div id="dsContent"><div class="empty"><div class="empty-icon">📤</div><div>Loading…</div></div></div>
 </div>
 
 <!-- MANAGER OVERVIEW -->
@@ -2128,7 +2151,7 @@ function clearAllData(){
 function populateAllSelects(){
   const months = allMonthKeys();
 
-  ['entryMonth','lbMonth','histMonth','activeMonthSel','holMonth','bizMonth','teamsMonth','dbdMonth','mcsMonth','moMonth'].forEach(id=>{
+  ['entryMonth','lbMonth','histMonth','activeMonthSel','holMonth','bizMonth','teamsMonth','dbdMonth','mcsMonth','moMonth','dsMonth'].forEach(id=>{
     const el = document.getElementById(id);
     if(!el) return;
     const cur = el.value || APP.activeMonth;
@@ -2176,6 +2199,7 @@ function showPage(id){
   if(id==='holiday')        { populateAllSelects(); renderHoliday(); }
   if(id==='settings')        renderSettings();
   if(id==='manageroverview'){ populateAllSelects(); renderManagerOverview(); }
+  if(id==='dailysend')     { populateAllSelects(); renderDailySend(); }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -2372,6 +2396,378 @@ function renderMonthlySummary(){
       <span><span style="color:var(--green);font-weight:700">+</span> Difference / COP = ahead &nbsp;·&nbsp; <span style="color:var(--red);font-weight:700">−</span> = behind</span>
       <span style="color:var(--accent)">↑↓ Click any column header to sort</span>
     </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DAILY SEND — cross-division morning report (matches manager photo)
+// ═══════════════════════════════════════════════════════════════════
+function renderDailySend(){
+  populateAllSelects();
+  const mk = document.getElementById('dsMonth')?.value || APP.activeMonth;
+  document.getElementById('ds-sub').textContent = monthLabel(mk) + ' · ' + new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const content = document.getElementById('dsContent');
+  content.innerHTML = `<div class="empty"><div style="font-size:20px;margin-bottom:8px">⏳</div><div>Loading division data…</div></div>`;
+
+  // ── Working days ─────────────────────────────────────────────────
+  const allWD  = workingDatesInMonth(mk);
+  const totalWD    = allWD.length;
+  const elapsedWD  = APP.manualElapsed != null ? APP.manualElapsed : calWorkDaysTeam(mk);
+  const remainingWD = Math.max(0, totalWD - elapsedWD);
+  const elapsedPct  = totalWD > 0 ? Math.round(elapsedWD / totalWD * 100) : 0;
+
+  // ── Division groupings ────────────────────────────────────────────
+  const bauDivisions = [
+    { key:'core',     label:'Core Team' },
+    { key:'advice',   label:'Specialist Advice' },
+    { key:'guidance', label:'Specialist Guidance' },
+  ];
+  const stDivisions = [
+    { key:'branch',   label:'Single Tie Guidance - Branch' },
+    { key:'d2c',      label:'Single Tie Guidance - D2C' },
+    { key:'retail',   label:'SWs Digital/Retail' },
+  ];
+  const allDivKeys = [...bauDivisions, ...stDivisions].map(d => d.key);
+
+  // ── Fetch all division data (same pattern as Manager Overview) ────
+  const promises = allDivKeys.map(key => {
+    const dbKey = DIVISIONS[key].dbKey;
+    return _db.ref(dbKey).once('value')
+      .then(snap => {
+        const data = snap.val() || {};
+        if(!data.people)          data.people          = [];
+        if(!data.months)          data.months          = {};
+        if(!data.monthOverrides)  data.monthOverrides  = {};
+        if(!data.holidays)        data.holidays        = {};
+        if(!data.sickness)        data.sickness        = {};
+        return { key, data };
+      })
+      .catch(() => ({ key, data:{people:[],months:{},monthOverrides:{},holidays:{},sickness:{}} }));
+  });
+
+  Promise.all(promises).then(results => {
+    const byKey = {};
+    results.forEach(r => { byKey[r.key] = r.data; });
+
+    // ── Compute per-division metrics ─────────────────────────────────
+    function divMetrics(key){
+      const data    = byKey[key] || {};
+      const entries = ((data.months||{})[mk]||{entries:[]}).entries;
+      const ovrs    = (data.monthOverrides||{})[mk] || {};
+      const people  = (data.people||[]).filter(p => {
+        const ovr    = ovrs[p.name] || {};
+        const rpd    = ovr.riskPerDay !== undefined ? ovr.riskPerDay : (p.riskPerDay||0);
+        const daysT  = ovr.daysT      !== undefined ? ovr.daysT      : (p.daysT||0);
+        return rpd > 0 && daysT > 0;
+      });
+      let target = 0, nmTarget = 0;
+      people.forEach(p => {
+        const ovr   = ovrs[p.name] || {};
+        const rpd   = ovr.riskPerDay !== undefined ? ovr.riskPerDay : (p.riskPerDay||0);
+        const daysT = ovr.daysT      !== undefined ? ovr.daysT      : (p.daysT||0);
+        target   += Math.round(rpd * daysT);
+        nmTarget += daysT * 1.75;
+      });
+      const revMTD = entries.reduce((s,e)=>s+(e.revenue||0),0);
+      const nmMTD  = entries.reduce((s,e)=>s+(e.nm||0),0);
+      const toGo   = Math.max(0, target - revMTD);
+      const revPct = target > 0 ? Math.round(revMTD/target*100) : 0;
+      const nmPct  = nmTarget > 0 ? Math.round(nmMTD/nmTarget*100) : 0;
+      const nmToGo = Math.max(0, Math.round(nmTarget - nmMTD));
+      const riskPerDay     = remainingWD > 0 ? toGo / remainingWD : 0;
+      const nmTargetPerDay = totalWD > 0 ? nmTarget / totalWD : 0;
+      return { target, revMTD, toGo, riskPerDay, revPct, nmTarget, nmTargetPerDay, nmMTD, nmPct, nmToGo };
+    }
+
+    function sectionTotal(rows){
+      const t = {target:0,revMTD:0,toGo:0,nmTarget:0,nmMTD:0,nmToGo:0};
+      rows.forEach(r=>{ t.target+=r.m.target; t.revMTD+=r.m.revMTD; t.toGo+=r.m.toGo; t.nmTarget+=r.m.nmTarget; t.nmMTD+=r.m.nmMTD; t.nmToGo+=r.m.nmToGo; });
+      t.revPct         = t.target   > 0 ? Math.round(t.revMTD/t.target*100)   : 0;
+      t.nmPct          = t.nmTarget > 0 ? Math.round(t.nmMTD/t.nmTarget*100)  : 0;
+      t.riskPerDay     = remainingWD > 0 ? t.toGo / remainingWD                : 0;
+      t.nmTargetPerDay = totalWD > 0 ? t.nmTarget / totalWD                   : 0;
+      return t;
+    }
+
+    const bauRows = bauDivisions.map(d => ({...d, m: divMetrics(d.key)}));
+    const stRows  = stDivisions.map(d  => ({...d, m: divMetrics(d.key)}));
+    const bauTot  = sectionTotal(bauRows);
+    const stTot   = sectionTotal(stRows);
+
+    const grand = {
+      target : bauTot.target  + stTot.target,
+      revMTD : bauTot.revMTD  + stTot.revMTD,
+      toGo   : bauTot.toGo    + stTot.toGo,
+      nmTarget: bauTot.nmTarget + stTot.nmTarget,
+      nmMTD  : bauTot.nmMTD   + stTot.nmMTD,
+    };
+    grand.revPct = grand.target > 0 ? Math.round(grand.revMTD/grand.target*100) : 0;
+    grand.riskPerDay = remainingWD > 0 ? grand.toGo / remainingWD : 0;
+    grand.nmTargetPerDay = totalWD > 0 ? grand.nmTarget / totalWD : 0;
+    grand.nmPct  = grand.nmTarget > 0 ? Math.round(grand.nmMTD/grand.nmTarget*100) : 0;
+    grand.nmToGo = Math.max(0, Math.round(grand.nmTarget - grand.nmMTD));
+
+    // ── Helpers ──────────────────────────────────────────────────────
+    const fmtGBP = v => '£'+parseFloat(v).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const fmtRPD = v => '£'+parseFloat(v).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const fmtNm  = v => parseFloat(v).toLocaleString('en-GB',{minimumFractionDigits:0,maximumFractionDigits:1});
+
+    // ── Styles ───────────────────────────────────────────────────────
+    const tbl      = 'border-collapse:collapse;width:100%;font-family:Calibri,Arial,sans-serif;font-size:12px;color:#111;border:2px solid #000;';
+    const thBase   = 'padding:7px 10px;border:1px solid #000;text-align:center;font-weight:700;white-space:nowrap;color:#fff;';
+    const tdBase   = 'padding:6px 10px;border:1px solid #000;text-align:center;white-space:nowrap;color:#111;';
+    const tdLeft   = 'padding:6px 12px;border:1px solid #000;text-align:center;white-space:nowrap;font-weight:600;color:#111;';
+
+    // Section colours matching the photo
+    const bauHdr   = '#5d1030';   // dark burgundy
+    const stHdr    = '#1a4040';   // dark teal/green
+    const bauTeam  = '#7a1a3e';   // medium burgundy for team name cells
+    const stTeam   = '#1e5050';   // medium teal for team name cells
+    const bauTotBg = '#f2dce4';   // light pink for BAU totals
+    const stTotBg  = '#d4eaea';   // light teal for ST totals
+    const grandBg  = '#eeeeee';   // light grey for grand total
+    const amberBg  = '#fce8c3';   // amber fill for actual values
+    const nmAmber  = '#fce8c3';   // same for NM actual
+
+    // ── Row builder ──────────────────────────────────────────────────
+    function dataRow(label, m, teamBg, totBg, isTotal){
+      const nameBg   = isTotal ? totBg : teamBg;
+      const nameColor= isTotal ? '#333' : '#fff';
+      const rowBg    = isTotal ? totBg  : '#fff';
+      const nmTgtDisp = fmtNm(Math.round(m.nmTarget));
+      const nmTPD     = fmtNm(m.nmTargetPerDay);
+      return `<tr style="background:${rowBg}">
+        <td style="${tdLeft}background:${nameBg};color:${nameColor};font-weight:${isTotal?'700':'600'}">${label}</td>
+        <td style="${tdBase}background:${rowBg}">${fmtGBP(m.target)}</td>
+        <td style="${tdBase}background:${isTotal?rowBg:amberBg};font-weight:600">${fmtGBP(m.revMTD)}</td>
+        <td style="${tdBase}background:${rowBg}">${m.revPct}%</td>
+        <td style="${tdBase}background:${rowBg}">${fmtGBP(m.toGo)}</td>
+        <td style="${tdBase}background:${rowBg}">${fmtRPD(m.riskPerDay)}</td>
+        <td style="${tdBase}background:${rowBg}">${nmTgtDisp}</td>
+        <td style="${tdBase}background:${rowBg}">${nmTPD}</td>
+        <td style="${tdBase}background:${isTotal?rowBg:nmAmber};font-weight:600">${m.nmMTD}</td>
+        <td style="${tdBase}background:${rowBg}">${m.nmPct}%</td>
+        <td style="${tdBase}background:${rowBg}">${m.nmToGo}</td>
+      </tr>`;
+    }
+
+    function sectionHeader(label, bg){
+      return `<tr>
+        <td colspan="11" style="background:${bg};color:#fff;font-weight:700;font-size:13px;padding:8px 12px;border:1px solid ${bg};letter-spacing:.05em;text-transform:uppercase;text-align:center">${label}</td>
+      </tr>`;
+    }
+
+    function colHeaders(accentColor){
+      return `<tr style="background:${accentColor}">
+        <th style="${thBase}background:${accentColor};color:#fff;text-align:left;min-width:180px">Teams</th>
+        <th style="${thBase}background:${accentColor};color:#fff">Target</th>
+        <th style="${thBase}background:${accentColor};color:#fff">Actual</th>
+        <th style="${thBase}background:${accentColor};color:#fff">Percentage</th>
+        <th style="${thBase}background:${accentColor};color:#fff">To Go</th>
+        <th style="${thBase}background:${accentColor};color:#fff">Risk Per day required</th>
+        <th style="${thBase}background:${accentColor};color:#fff">Needs Met Target</th>
+        <th style="${thBase}background:${accentColor};color:#fff">NM Target Per Day</th>
+        <th style="${thBase}background:${accentColor};color:#fff">Needs Met Actual</th>
+        <th style="${thBase}background:${accentColor};color:#fff">Percentage</th>
+        <th style="${thBase}background:${accentColor};color:#fff">To Go</th>
+      </tr>`;
+    }
+
+    // ── Assemble grand total row ─────────────────────────────────────
+    const grandRow = `<tr style="background:${grandBg}">
+      <td style="${tdLeft}background:${grandBg};color:#333;font-weight:700">TOTAL</td>
+      <td style="${tdBase}background:${grandBg};font-weight:700">${fmtGBP(grand.target)}</td>
+      <td style="${tdBase}background:${grandBg};font-weight:700">${fmtGBP(grand.revMTD)}</td>
+      <td style="${tdBase}background:${grandBg};font-weight:700">${grand.revPct}%</td>
+      <td style="${tdBase}background:${grandBg};font-weight:700">${fmtGBP(grand.toGo)}</td>
+      <td style="${tdBase}background:${grandBg};font-weight:700">${fmtRPD(grand.riskPerDay)}</td>
+      <td style="${tdBase}background:${grandBg};font-weight:700">${fmtNm(Math.round(grand.nmTarget))}</td>
+      <td style="${tdBase}background:${grandBg};font-weight:700">${fmtNm(grand.nmTargetPerDay)}</td>
+      <td style="${tdBase}background:${grandBg};font-weight:700">${grand.nmMTD}</td>
+      <td style="${tdBase}background:${grandBg};font-weight:700">${grand.nmPct}%</td>
+      <td style="${tdBase}background:${grandBg};font-weight:700">${grand.nmToGo}</td>
+    </tr>`;
+
+    // ── Render ────────────────────────────────────────────────────────
+    content.innerHTML = `
+      <!-- Working days banner -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 24px;margin-bottom:20px;display:flex;gap:32px;align-items:center;flex-wrap:wrap">
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <div style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.09em;text-transform:uppercase">Working Days</div>
+          <div style="font-size:22px;font-weight:700;font-family:var(--fm)">${totalWD}</div>
+        </div>
+        <div style="width:1px;height:40px;background:var(--border)"></div>
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <div style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.09em;text-transform:uppercase">Working Days Gone</div>
+          <div style="display:flex;align-items:baseline;gap:8px">
+            <span style="font-size:22px;font-weight:700;font-family:var(--fm)">${elapsedWD}</span>
+            <span style="font-size:14px;font-weight:700;color:var(--amber);font-family:var(--fm)">${elapsedPct}%</span>
+          </div>
+        </div>
+        <div style="width:1px;height:40px;background:var(--border)"></div>
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <div style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.09em;text-transform:uppercase">Working Days To Go</div>
+          <div style="font-size:22px;font-weight:700;font-family:var(--fm)">${remainingWD}</div>
+        </div>
+        <div style="margin-left:auto;font-size:11px;color:var(--text3);font-family:var(--fm)">${monthLabel(mk)}</div>
+      </div>
+
+      <!-- Report table -->
+      <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.15);overflow-x:auto;">
+        <table style="${tbl}">
+          <!-- BAU Section -->
+          ${sectionHeader('Business As Usual', bauHdr)}
+          ${colHeaders(bauHdr)}
+          ${bauRows.map(r=>dataRow(r.label, r.m, bauTeam, bauTotBg, false)).join('')}
+          ${dataRow('BAU TOTALS', bauTot, bauTeam, bauTotBg, true)}
+
+          <!-- spacer -->
+          <tr><td colspan="11" style="padding:6px;background:#f0f0f0;border:none"></td></tr>
+
+          <!-- Single Tie Section -->
+          ${sectionHeader('SINGLE TIE', stHdr)}
+          ${colHeaders(stHdr)}
+          ${stRows.map(r=>dataRow(r.label, r.m, stTeam, stTotBg, false)).join('')}
+          ${dataRow('TOTAL', stTot, stTeam, stTotBg, true)}
+
+          <!-- spacer -->
+          <tr><td colspan="11" style="padding:6px;background:#f0f0f0;border:none"></td></tr>
+
+          <!-- Grand total -->
+          ${grandRow}
+        </table>
+      </div>
+
+      <div style="margin-top:12px;font-size:11px;color:var(--text3);font-family:var(--fm)">
+        Data pulled live from all divisions · 
+        <span style="color:${bauHdr}">■</span> Business As Usual (Core, Advice, Guidance) · 
+        <span style="color:${stHdr}">■</span> Single Tie (Branch, D2C, Retail/Digital)
+      </div>
+
+      <!-- Charts -->
+      <div style="margin-top:28px;margin-bottom:8px">
+        <div style="font-size:16px;font-weight:700;letter-spacing:-.01em;margin-bottom:4px">Progress Tracking</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">Cumulative % of monthly target vs working days elapsed % — dashed line = on-track pace</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div class="chart-card">
+          <div class="chart-title">BAU — Revenue % of Target</div>
+          <div class="chart-sub">Core · Advice · Guidance vs on-track pace</div>
+          <div style="position:relative;height:240px"><canvas id="cDsBauRev"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">BAU — Needs Met % of Target</div>
+          <div class="chart-sub">Core · Advice · Guidance vs on-track pace</div>
+          <div style="position:relative;height:240px"><canvas id="cDsBauNm"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Single Tie — Revenue % of Target</div>
+          <div class="chart-sub">Branch · D2C · Digital/Retail vs on-track pace</div>
+          <div style="position:relative;height:240px"><canvas id="cDsStRev"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Single Tie — Needs Met % of Target</div>
+          <div class="chart-sub">Branch · D2C · Digital/Retail vs on-track pace</div>
+          <div style="position:relative;height:240px"><canvas id="cDsStNm"></canvas></div>
+        </div>
+      </div>`;
+
+    // ── Build chart data ─────────────────────────────────────────────
+    // For each division: cumulative % of target at each elapsed working day
+    const elapsedDates = allWD.slice(0, elapsedWD);
+    const xLabels = elapsedDates.map(ds => {
+      const d = new Date(ds);
+      return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+    });
+    // On-track line: linear % for each elapsed day
+    const onTrackLine = elapsedDates.map((_,i) => parseFloat(((i+1)/totalWD*100).toFixed(1)));
+
+    function divChartData(key, useNm){
+      const data    = byKey[key] || {};
+      const entries = ((data.months||{})[mk]||{entries:[]}).entries;
+      const ovrs    = (data.monthOverrides||{})[mk] || {};
+      let target = 0, nmTarget = 0;
+      (data.people||[]).forEach(p => {
+        const ovr   = ovrs[p.name] || {};
+        const rpd   = ovr.riskPerDay !== undefined ? ovr.riskPerDay : (p.riskPerDay||0);
+        const daysT = ovr.daysT      !== undefined ? ovr.daysT      : (p.daysT||0);
+        if(rpd>0&&daysT>0){ target+=Math.round(rpd*daysT); nmTarget+=daysT*1.75; }
+      });
+      const base = useNm ? nmTarget : target;
+      if(!base) return elapsedDates.map(()=>0);
+      // Day-by-day lookup
+      const dayTotals = {};
+      entries.forEach(e=>{
+        if(!dayTotals[e.date]) dayTotals[e.date]={rev:0,nm:0};
+        dayTotals[e.date].rev += (e.revenue||0);
+        dayTotals[e.date].nm  += (e.nm||0);
+      });
+      let cumul = 0;
+      return elapsedDates.map(ds=>{
+        cumul += useNm ? ((dayTotals[ds]||{}).nm||0) : ((dayTotals[ds]||{}).rev||0);
+        return parseFloat((cumul/base*100).toFixed(1));
+      });
+    }
+
+    // Colours per division
+    const divColors = {
+      core:'#5e9cf5', advice:'#2dce89', guidance:'#fbb83a',
+      branch:'#a78bfa', d2c:'#f5365c', retail:'#11cdef'
+    };
+    const divShortLabels = {
+      core:'Core', advice:'Advice', guidance:'Guidance',
+      branch:'Branch', d2c:'D2C', retail:'Digital/Retail'
+    };
+
+    function makeChartCfg(divKeys, useNm){
+      const datasets = divKeys.map(key=>({
+        label: divShortLabels[key],
+        data:  divChartData(key, useNm),
+        borderColor: divColors[key],
+        backgroundColor: divColors[key]+'22',
+        borderWidth: 2,
+        pointRadius: 3,
+        fill: false,
+        tension: 0.3
+      }));
+      // On-track dashed line
+      datasets.push({
+        label:'On Track',
+        data: onTrackLine,
+        borderColor:'rgba(255,255,255,0.35)',
+        borderWidth: 1.5,
+        borderDash:[6,4],
+        pointRadius:0,
+        fill:false,
+        tension:0
+      });
+      return {
+        type:'line',
+        data:{ labels:xLabels, datasets },
+        options:{
+          responsive:true, maintainAspectRatio:false,
+          plugins:{
+            legend:{ display:true, position:'top', labels:{ color:'#8a8f9e', font:{size:10}, boxWidth:12, padding:10 } },
+            tooltip:{ callbacks:{ label: c => c.dataset.label+': '+c.parsed.y+'%' } }
+          },
+          scales:{
+            x:{ ticks:{ color:tickCol, font:{size:9}, maxRotation:45, autoSkip:true }, grid:{ color:gridCol } },
+            y:{ min:0, max:Math.max(100, ...divKeys.map(k=>Math.max(...divChartData(k,useNm)))+10),
+                ticks:{ color:tickCol, font:{size:9}, callback:v=>v+'%' }, grid:{ color:gridCol } }
+          }
+        }
+      };
+    }
+
+    setTimeout(()=>{
+      ['cDsBauRev','cDsBauNm','cDsStRev','cDsStNm'].forEach(id=>destroyChart(id));
+      const bauDivKeys = ['core','advice','guidance'];
+      const stDivKeys  = ['branch','d2c','retail'];
+      _charts.cDsBauRev = new Chart(document.getElementById('cDsBauRev'), makeChartCfg(bauDivKeys, false));
+      _charts.cDsBauNm  = new Chart(document.getElementById('cDsBauNm'),  makeChartCfg(bauDivKeys, true));
+      _charts.cDsStRev  = new Chart(document.getElementById('cDsStRev'),  makeChartCfg(stDivKeys,  false));
+      _charts.cDsStNm   = new Chart(document.getElementById('cDsStNm'),   makeChartCfg(stDivKeys,  true));
+    }, 80);
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════
