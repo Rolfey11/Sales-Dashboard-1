@@ -1091,7 +1091,6 @@ function selectDivision(key){
 function switchDivision(){
   if(_currentDbRef){ _currentDbRef.off(); _currentDbRef = null; _dbRef = null; }
   _appInited = false;
-  _currentDivKey = 'branch';
   // Clear rendered content so stale data isn't visible while new division loads
   document.getElementById('kpiRow').innerHTML    = '';
   document.getElementById('cardsGrid').innerHTML = '';
@@ -1505,7 +1504,7 @@ function renderHoliday(){
         const cls = status==='hol' ? 'on-hol' : status==='sick' ? 'on-sick' : '';
         const lbl = status==='hol' ? 'H' : status==='sick' ? 'S' : '';
         const title = status==='hol' ? 'Planned holiday' : status==='sick' ? 'Sickness/unplanned' : 'Click to mark holiday';
-        html += '<td class="hol-td"><div class="hol-cell '+cls+'" data-mk="'+mk+'" data-name="'+p.name+'" data-ds="'+ds+'" onclick="holClick(this)" title="'+title+'">'+lbl+'</div></td>';
+        html += '<td class="hol-td"><div class="hol-cell '+cls+'" data-mk="'+mk+'" data-name="'+p.name.replace(/"/g,'&quot;')+'" data-ds="'+ds+'" onclick="holClick(this)" title="'+title+'">'+lbl+'</div></td>';
       }
     });
     html += '<td class="hol-td" style="font-size:10px;font-family:var(--fm)"><span style="color:var(--red)">H:'+hols.length+'</span> <span style="color:var(--amber)">S:'+sick.length+'</span></td></tr>';
@@ -1890,7 +1889,7 @@ function buildEntryRows(){
   const date    = document.getElementById('entryDate').value;
   const mk      = APP.activeMonth;
   const entries = getEntries(mk);
-  const active  = APP.people.filter(p=>personTarget(p)>0);
+  const active  = APP.people.filter(p=>personTargetForMonth(p,mk)>0);
 
   if(active.length===0){
     document.getElementById('entryRows').innerHTML='<div class="empty"><div class="empty-icon">👤</div><div>No consultants set up yet. Go to Settings.</div></div>';
@@ -1902,13 +1901,6 @@ function buildEntryRows(){
     const ex = entries.find(e=>e.date===date && e.name===p.name);
     const todayRev = ex ? (ex.revenue||0) : 0;
     const todayNm  = ex ? (ex.nm||0) : 0;
-    const mtdRevExToday = entries.filter(e=>e.name===p.name && e.date!==date).reduce((s,e)=>s+(e.revenue||0),0);
-    const mtdNmExToday  = entries.filter(e=>e.name===p.name && e.date!==date).reduce((s,e)=>s+(e.nm||0),0);
-    const mtdRevFull = mtdRevExToday + todayRev;
-    const mtdNmFull  = mtdNmExToday  + todayNm;
-    const target = personTarget(p);
-    const pct    = target>0?Math.round(mtdRevFull/target*100):0;
-    const safeName = p.name.replace(/'/g,"\\'");
     return `<div class="et-row" id="etrow_${p.name.replace(/\s/g,'_')}">
       <div class="et-name">${p.name}</div>
       <!-- Today's saved revenue total -->
@@ -1916,24 +1908,20 @@ function buildEntryRows(){
         <span class="inp-pre">£</span>
         <input type="number" class="inp-pl" id="rev_${p.name}" placeholder="0.00" step="0.01" min="0"
           value="${todayRev||''}"
-          oninput="updateEntryPreview('${safeName}')"
           style="background:var(--surface2);">
       </div>
       <!-- Today's NM total -->
       <input type="number" id="nm_${p.name}" placeholder="0" step="1" min="0"
         value="${todayNm||''}"
-        oninput="updateEntryPreview('${safeName}')"
         style="background:var(--surface2);">
       <!-- Add-on revenue -->
       <div class="inp-wrap">
         <span class="inp-pre" style="color:var(--accent)">+£</span>
         <input type="number" class="inp-pl" id="addrev_${p.name}" placeholder="0.00" step="0.01" min="0"
-          oninput="updateEntryPreview('${safeName}')"
           style="background:var(--blue-bg);border-color:var(--accent);color:var(--accent);">
       </div>
       <!-- Add-on NM -->
       <input type="number" id="addnm_${p.name}" placeholder="0" step="1" min="0"
-        oninput="updateEntryPreview('${safeName}')"
         style="background:var(--blue-bg);border:1px solid var(--accent);border-radius:8px;padding:9px 12px;font-size:13px;font-family:var(--fm);color:var(--accent);outline:none;width:100%;">
     </div>`;
   }).join('');
@@ -1946,34 +1934,6 @@ function buildEntryRows(){
     `Date: <b>${date||'—'}</b><br>Day rev: £${Math.round(dayRev).toLocaleString()}<br>Day NM: ${dayNM}<br>Entries: ${dayEntries.length}`;
 }
 
-// Live preview: updates MTD column as user types in add fields
-function updateEntryPreview(pName){
-  const mk      = APP.activeMonth;
-  const date    = document.getElementById('entryDate').value;
-  const entries = getEntries(mk);
-  const p       = APP.people.find(x=>x.name===pName);
-  if(!p) return;
-
-  const baseRev = parseFloat(document.getElementById('rev_'+pName)?.value)||0;
-  const addRev  = parseFloat(document.getElementById('addrev_'+pName)?.value)||0;
-  const baseNm  = parseInt(document.getElementById('nm_'+pName)?.value)||0;
-  const addNm   = parseInt(document.getElementById('addnm_'+pName)?.value)||0;
-
-  const newDayRev = baseRev + addRev;
-  const newDayNm  = baseNm  + addNm;
-
-  const mtdExToday = entries.filter(e=>e.name===pName && e.date!==date).reduce((s,e)=>s+(e.revenue||0),0);
-  const nmExToday  = entries.filter(e=>e.name===pName && e.date!==date).reduce((s,e)=>s+(e.nm||0),0);
-  const newMtdRev  = mtdExToday + newDayRev;
-  const newMtdNm   = nmExToday  + newDayNm;
-  const target     = personTarget(p);
-  const pct        = target>0?Math.round(newMtdRev/target*100):0;
-
-  const mtdEl = document.getElementById('etmtd_'+pName);
-  if(mtdEl) mtdEl.innerHTML = `
-    <span style="color:var(--green)">£${Math.round(newMtdRev).toLocaleString()}</span> · ${pct}%<br>
-    <span style="color:var(--text2)">${newMtdNm} NM</span>`;
-}
 
 function saveAllEntries(){
   const date = document.getElementById('entryDate').value;
@@ -1981,7 +1941,7 @@ function saveAllEntries(){
   const mk = APP.activeMonth;
   // remove all existing entries for this date, then re-add with increments applied
   let entries = getEntries(mk).filter(e=>e.date!==date);
-  APP.people.filter(p=>personTarget(p)>0).forEach(p=>{
+  APP.people.filter(p=>personTargetForMonth(p,mk)>0).forEach(p=>{
     const baseRev = parseFloat(document.getElementById('rev_'+p.name)?.value)||0;
     const addRev  = parseFloat(document.getElementById('addrev_'+p.name)?.value)||0;
     const baseNm  = parseInt(document.getElementById('nm_'+p.name)?.value)||0;
@@ -3090,7 +3050,7 @@ function renderDailySend(){
           },
           scales:{
             x:{ ticks:{ color:tickCol, font:{size:9}, maxRotation:45, autoSkip:true }, grid:{ color:gridCol } },
-            y:{ min:0, max:Math.max(100, ...divKeys.map(k=>Math.max(...divChartData(k,useNm)))+10),
+            y:{ min:0, max:Math.max(100, ...divKeys.map(k=>Math.max(...divChartData(k,useNm)))) + 10,
                 ticks:{ color:tickCol, font:{size:9}, callback:v=>v+'%' }, grid:{ color:gridCol } }
           }
         }
@@ -3123,8 +3083,12 @@ function _spMonths(){
 }
 
 function onSpYearChange(){
-  // Re-populate consultant list and re-render for the new year
-  if(_spDivData) { _populateSpCons(); renderSpTable(); }
+  if(!_spDivData) return;
+  // Year change only affects which months we read — data is already loaded.
+  // Just refresh the consultant selector (month overrides may differ per year)
+  // and re-render the table.
+  _populateSpCons();
+  renderSpTable();
 }
 
 function renderStaffPerf(){
