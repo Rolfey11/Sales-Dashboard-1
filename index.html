@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cavendish</title>
+<title>JG Dash</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <!-- Firebase SDKs -->
@@ -124,7 +124,31 @@ body{background:var(--bg);color:var(--text);font-family:var(--fh);min-height:100
 ::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:3px;}
 ::-webkit-scrollbar-thumb:hover{background:var(--border2);}
 
-/* LOGIN */
+/* GREETING OVERLAY */
+#greetingOverlay{
+  position:fixed;inset:0;z-index:99999;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--bg);
+  opacity:0;pointer-events:none;
+  transition:opacity .35s ease;
+}
+#greetingOverlay.visible{ opacity:1;pointer-events:all; }
+#greetingOverlay.fade-out{ opacity:0;pointer-events:none; }
+.greeting-text{
+  font-family:var(--fh);font-size:clamp(32px,6vw,72px);font-weight:700;
+  letter-spacing:-.02em;text-align:center;line-height:1.1;
+  opacity:0;transform:translateY(24px);
+  transition:opacity .5s cubic-bezier(.16,1,.3,1), transform .5s cubic-bezier(.16,1,.3,1);
+}
+#greetingOverlay.visible .greeting-text{ opacity:1;transform:translateY(0); }
+.greeting-text span{ color:var(--accent); }
+.greeting-sub{
+  font-size:clamp(13px,2vw,18px);color:var(--text3);font-family:var(--fm);
+  margin-top:14px;letter-spacing:.04em;text-transform:uppercase;
+  opacity:0;transform:translateY(16px);
+  transition:opacity .45s .2s cubic-bezier(.16,1,.3,1), transform .45s .2s cubic-bezier(.16,1,.3,1);
+}
+#greetingOverlay.visible .greeting-sub{ opacity:1;transform:translateY(0); }
 #loginScreen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
 #loginScreen.hidden{display:none;}
 .login-box{background:var(--surface);border:1px solid var(--border2);border-radius:16px;padding:40px;width:360px;max-width:90vw;box-shadow:0 24px 64px rgba(0,0,0,.5);}
@@ -530,7 +554,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 <div id="loginScreen">
   <div class="login-box">
     <div class="login-lock">🔒</div>
-    <div class="login-brand">CAVENDISH<span style="color:var(--accent)">.</span></div>
+    <div class="login-brand">JG <span style="color:var(--accent)">Dash</span></div>
 
     <!-- Step 1: Password -->
     <div id="loginStep1">
@@ -576,7 +600,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 <div id="divisionScreen" class="hidden">
   <div class="div-box">
     <div style="text-align:center;margin-bottom:32px">
-      <div class="div-title">CAVENDISH<span style="color:var(--accent)">.</span></div>
+      <div class="div-title">JG <span style="color:var(--accent)">Dash</span></div>
       <div class="div-sub">Select your division to continue</div>
     </div>
     <div class="div-grid">
@@ -617,7 +641,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 <nav>
   <!-- Row 1: Brand + right-side controls -->
   <div class="nav-row1">
-    <div class="nav-brand">CAVENDISH<span style="color:var(--accent)">.</span></div>
+    <div class="nav-brand">JG <span style="color:var(--accent)">Dash</span></div>
     <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;flex-wrap:nowrap;">
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
         <span style="font-size:10px;font-weight:600;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">Month</span>
@@ -1389,7 +1413,32 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 
 <div class="toast" id="toast"></div>
 
+<div id="greetingOverlay">
+  <div style="text-align:center">
+    <div class="greeting-text" id="greetingText">Hello</div>
+    <div class="greeting-sub" id="greetingSub">Welcome back to JG Dash</div>
+  </div>
+</div>
+
 <script>
+// ── Greeting animation ──────────────────────────────────────────────
+function showGreeting(name){
+  const overlay = document.getElementById('greetingOverlay');
+  const text    = document.getElementById('greetingText');
+  const sub     = document.getElementById('greetingSub');
+  if(!overlay||!text) return;
+  const firstName = (name||'').split(' ')[0] || name;
+  text.innerHTML  = `Hello <span>${firstName}</span>`;
+  sub.textContent = 'Welcome back to JG Dash';
+  // Show
+  overlay.classList.remove('fade-out');
+  overlay.classList.add('visible');
+  // Hold for 1.8s then fade out
+  setTimeout(()=>{
+    overlay.classList.add('fade-out');
+    setTimeout(()=>overlay.classList.remove('visible','fade-out'), 400);
+  }, 1800);
+}
 // ═══════════════════════════════════════════════════════════════════
 // DIVISION CONFIG
 // ═══════════════════════════════════════════════════════════════════
@@ -1415,7 +1464,7 @@ const ROLE_ACCESS = {
   manager:    ['dashboard','biz','teams','summary','entry','monthlysummary','leaderboard',
                'history','daybyday','holiday','settings','manageroverview','staffperf','calloutcomes','consultantdaily'],
   compliance: ['compliance','calloutcomes'],
-  consultant: ['consultantdaily','teams','monthlysummary']
+  consultant: ['consultantdaily','teams','daybyday']
 };
 const ROLE_LABELS = { master:'Master', manager:'Manager', compliance:'Compliance', consultant:'Consultant' };
 const ROLE_COLORS = { master:'#e879f9', manager:'#5e9cf5', compliance:'#2dce89', consultant:'#fbb83a' };
@@ -1618,6 +1667,7 @@ function attemptPinLogin(){
     const logoutBtn = document.getElementById('logoutBtn');
     if(badge){ badge.style.display=''; badge.textContent='Admin · Master'; badge.style.color=ROLE_COLORS.master; }
     if(logoutBtn) logoutBtn.style.display='';
+    showGreeting('Admin');
     _startWithRole();
     return;
   }
@@ -1642,6 +1692,7 @@ function attemptPinLogin(){
   if(badge){ badge.style.display=''; badge.textContent=`${_currentUser?.name||''} · ${ROLE_LABELS[_currentUser?.role]||''}`; badge.style.color=ROLE_COLORS[_currentUser?.role]||'var(--text2)'; }
   if(logoutBtn) logoutBtn.style.display='';
   _adminLoginMode = false;
+  showGreeting(_currentUser.name);
   _startWithRole();
 }
 
@@ -7826,7 +7877,7 @@ function generateMonthlyReport(){
   <!-- Header -->
   <div style="background:linear-gradient(135deg,#11B67A,#0d9063);border-radius:12px;padding:24px 28px;margin-bottom:24px;color:#fff;display:flex;justify-content:space-between;align-items:flex-start;">
     <div>
-      <div style="font-size:24px;font-weight:700;letter-spacing:.04em;">CAVENDISH.</div>
+      <div style="font-size:24px;font-weight:700;letter-spacing:.04em;">JG Dash</div>
       <div style="font-size:16px;font-weight:700;margin-top:4px;">Monthly Performance Report</div>
       <div style="opacity:.8;margin-top:4px;font-size:12px;">${monthLabel(mk)} · ${div.label} · Generated ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>
     </div>
@@ -7900,7 +7951,7 @@ function generateMonthlyReport(){
     </table>
   </div>
 
-  <div style="font-size:10px;color:#aaa;text-align:center;margin-bottom:16px;">Cavendish Performance Dashboard · Confidential · ${new Date().toLocaleString('en-GB')}</div>
+  <div style="font-size:10px;color:#aaa;text-align:center;margin-bottom:16px;">JG Dash · Confidential · ${new Date().toLocaleString('en-GB')}</div>
 
   <div class="no-print" style="text-align:center;margin-top:8px;">
     <button onclick="window.print()" style="background:#11B67A;color:#fff;border:none;border-radius:8px;padding:12px 36px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px;">🖨 Print / Save as PDF</button>
