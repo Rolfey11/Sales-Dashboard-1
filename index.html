@@ -98,7 +98,7 @@
   --nav-bg:rgba(28,22,16,0.97);
 }
 
-/* 7. Cavendish — matches the Cavendish Online brand palette */
+/* 7. Cavendish — burgundy brand palette */
 [data-theme="cavendish"]{
   --bg:#f7f0f3;--surface:#ffffff;--surface2:#f0e6eb;--surface3:#e4d0d9;
   --border:rgba(131,5,68,0.1);--border2:rgba(131,5,68,0.2);
@@ -106,39 +106,30 @@
   --green:#00875a;--green-bg:rgba(0,135,90,0.1);
   --red:#c0183c;--red-bg:rgba(192,24,60,0.1);
   --amber:#b86a00;--amber-bg:rgba(184,106,0,0.1);
-  --blue:#7060a0;--blue-bg:rgba(112,96,160,0.1);
+  --blue:#5060a0;--blue-bg:rgba(80,96,160,0.1);
   --purple:#830544;--purple-bg:rgba(131,5,68,0.1);
   --accent:#830544;--shadow:0 4px 24px rgba(131,5,68,.15);
-  --nav-bg:rgba(131,5,68,0.97);
+  --nav-bg:#830544;
 }
-/* Cavendish: nav text should be white since nav-bg is dark burgundy */
 [data-theme="cavendish"] nav{background:var(--nav-bg);}
 [data-theme="cavendish"] .nav-brand,
 [data-theme="cavendish"] .nav-tab,
 [data-theme="cavendish"] .nav-date,
 [data-theme="cavendish"] #syncLabel,
-[data-theme="cavendish"] .theme-toggle-label{ color:rgba(255,255,255,0.85); }
-[data-theme="cavendish"] .nav-tab:hover{ background:rgba(255,255,255,0.12);color:#fff; }
-[data-theme="cavendish"] .nav-tab.active{ color:#fff;background:rgba(255,255,255,0.18);box-shadow:inset 0 -2px 0 #fff; }
-[data-theme="cavendish"] .nav-brand span{ color:#ffb3cf; }
-[data-theme="cavendish"] #syncDot{ background:rgba(255,255,255,0.5) !important; }
-[data-theme="cavendish"] #userRoleBadge{ background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.25);color:#fff; }
-[data-theme="cavendish"] #notifBell{ color:rgba(255,255,255,0.9); }
-[data-theme="cavendish"] #divisionBadge{ background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.25); }
-[data-theme="cavendish"] #divisionLabel{ color:rgba(255,255,255,0.9); }
-[data-theme="cavendish"] #logoutBtn{ background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.25);color:#fff; }
-[data-theme="cavendish"] .toggle-track{ background:rgba(255,255,255,0.2);border-color:rgba(255,255,255,0.3); }
-/* Cavendish: global month select in nav */
-[data-theme="cavendish"] #globalMonthSel{ background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.3);color:#fff; }
-/* Cavendish: login screen */
-[data-theme="cavendish"] #loginScreen{ background:var(--bg); }
-[data-theme="cavendish"] .login-box{ border-color:rgba(131,5,68,0.25);box-shadow:0 24px 64px rgba(131,5,68,.15); }
-[data-theme="cavendish"] .login-btn:hover{ background:#6b0438; }
-[data-theme="cavendish"] .btn-p:hover{ background:#6b0438; }
-/* Cavendish: card hover accents */
-[data-theme="cavendish"] .kpi-card:hover,
-[data-theme="cavendish"] .p-card:hover,
-[data-theme="cavendish"] .chart-card:hover{ border-color:rgba(131,5,68,0.3); }
+[data-theme="cavendish"] .theme-toggle-label{color:rgba(255,255,255,0.88);}
+[data-theme="cavendish"] .nav-tab:hover{background:rgba(255,255,255,0.14);color:#fff;}
+[data-theme="cavendish"] .nav-tab.active{color:#fff;background:rgba(255,255,255,0.2);box-shadow:inset 0 -2px 0 #fff;}
+[data-theme="cavendish"] .nav-brand span{color:#ffb3cf;}
+[data-theme="cavendish"] #syncDot{background:rgba(255,255,255,0.5)!important;}
+[data-theme="cavendish"] #userRoleBadge{background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.3);color:#fff;}
+[data-theme="cavendish"] #notifBell{color:rgba(255,255,255,0.9);}
+[data-theme="cavendish"] #divisionBadge{background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.3);}
+[data-theme="cavendish"] #divisionLabel{color:rgba(255,255,255,0.9);}
+[data-theme="cavendish"] #logoutBtn{background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.3);color:#fff;}
+[data-theme="cavendish"] #globalMonthSel{background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.3);color:#fff;}
+[data-theme="cavendish"] .toggle-track{background:rgba(255,255,255,0.25);border-color:rgba(255,255,255,0.4);}
+[data-theme="cavendish"] .btn-p:hover{background:#6b0438;}
+[data-theme="cavendish"] .login-btn:hover{background:#6b0438;}
 
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:var(--fh);min-height:100vh;overflow-x:hidden;transition:background .25s,color .25s;}
@@ -335,10 +326,11 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 
 /* HISTORY */
 .hist-table{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
-.hist-head{display:grid;grid-template-columns:90px 110px 100px 80px 100px 80px 80px 70px 90px;padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);}
-.hist-row{display:grid;grid-template-columns:90px 110px 100px 80px 100px 80px 80px 70px 90px;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;font-size:12px;font-family:var(--fm);}
+.hist-head{display:grid;grid-template-columns:100px 140px 100px 60px 120px 1fr 100px;padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);}
+.hist-row{display:grid;grid-template-columns:100px 140px 100px 60px 120px 1fr 100px;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;font-size:12px;font-family:var(--fm);}
 .hist-row:last-child{border-bottom:none;}
 .hist-row:hover{background:var(--surface2);}
+.hist-row.group-first{border-top:2px solid var(--border2);}
 .del-btn{background:none;border:1px solid var(--border2);color:var(--text3);font-size:11px;font-family:var(--fm);padding:4px 8px;border-radius:5px;cursor:pointer;transition:all .15s;}
 .del-btn:hover{border-color:var(--red);color:var(--red);}
 
@@ -907,7 +899,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 <!-- HISTORY -->
 <div class="page" id="page-history">
   <div class="section-head">
-    <div><div class="section-title">History</div><div class="section-sub">All logged daily entries</div></div>
+    <div><div class="section-title">History</div><div class="section-sub">Every individual deal — one row per submission</div></div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-s" onclick="exportHistoryCSV()">↓ Export CSV</button>
       <select id="histMonth" onchange="renderHistory()" style="width:180px"></select>
@@ -915,10 +907,14 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     </div>
   </div>
   <div class="hist-table">
-    <div class="hist-head">
-      <div class="th">Date</div><div class="th">Consultant</div><div class="th">Revenue</div>
-      <div class="th">NM</div><div class="th">MTD Rev</div><div class="th">MTD NM</div>
-      <div class="th">% target</div><div class="th">Action</div><div class="th">Approved By</div>
+    <div class="hist-head" style="display:grid;grid-template-columns:100px 140px 100px 60px 120px 1fr 100px;padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);">
+      <div class="th">Date / Time</div>
+      <div class="th">Consultant</div>
+      <div class="th">Revenue</div>
+      <div class="th">NM</div>
+      <div class="th">SWIFT Ref</div>
+      <div class="th">Approved / Entered By</div>
+      <div class="th">Action</div>
     </div>
     <div id="histRows"></div>
   </div>
@@ -1457,7 +1453,6 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 
 <div class="toast" id="toast"></div>
 
-<!-- GREETING OVERLAY -->
 <div id="greetingOverlay">
   <div style="text-align:center;padding:0 24px;">
     <div class="greeting-text" id="greetingText">Hello</div>
@@ -1466,23 +1461,20 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 </div>
 
 <script>
-// ── Greeting animation ──────────────────────────────────────────────
 function showGreeting(name){
   const overlay = document.getElementById('greetingOverlay');
   const text    = document.getElementById('greetingText');
   const sub     = document.getElementById('greetingSub');
-  if(!overlay || !text) return;
-  const firstName = (name || '').split(' ')[0] || name;
+  if(!overlay||!text) return;
+  const firstName = (name||'').split(' ')[0]||name;
   text.innerHTML  = `Hello <span>${firstName}</span>`;
   sub.textContent = 'Welcome back to JG Dash';
-  // Fade in
   overlay.classList.remove('fade-out');
   overlay.classList.add('visible');
-  // Hold 1.8s then fade out
   setTimeout(()=>{
     overlay.classList.add('fade-out');
-    setTimeout(()=>overlay.classList.remove('visible','fade-out'), 420);
-  }, 1800);
+    setTimeout(()=>overlay.classList.remove('visible','fade-out'),420);
+  },1800);
 }
 // ═══════════════════════════════════════════════════════════════════
 // DIVISION CONFIG
@@ -2731,39 +2723,62 @@ function renderHistory(){
   const mk     = document.getElementById('histMonth').value || APP.activeMonth;
   const person = document.getElementById('histPerson').value;
   const all    = getEntries(mk);
-  let rows     = [...all].sort((a,b)=>b.date.localeCompare(a.date)||a.name.localeCompare(b.name));
-  if(person&&person!=='all') rows=rows.filter(e=>e.name===person);
+  let entries  = [...all].sort((a,b)=>b.date.localeCompare(a.date)||a.name.localeCompare(b.name));
+  if(person&&person!=='all') entries=entries.filter(e=>e.name===person);
 
-  if(rows.length===0){
+  if(!entries.length){
     document.getElementById('histRows').innerHTML='<div class="empty"><div class="empty-icon">📋</div><div>No entries yet.</div></div>';
     return;
   }
 
-  // Load entryMeta for this month then render
   const metaRef = _entryMetaRef();
-  const renderWithMeta = (metaAll) => {
-    document.getElementById('histRows').innerHTML = rows.map(e=>{
-      const p = APP.people.find(x=>x.name===e.name)||{riskPerDay:0,daysT:0};
-      const target = personTargetForMonth(p, mk);
-      const mtdRev = all.filter(x=>x.name===e.name&&x.date<=e.date).reduce((s,x)=>s+(x.revenue||0),0);
-      const mtdNm  = all.filter(x=>x.name===e.name&&x.date<=e.date).reduce((s,x)=>s+(x.nm||0),0);
-      const pct    = target>0?Math.round(mtdRev/target*100):0;
-      const col    = pct>=100?'var(--green)':pct>=75?'var(--amber)':'var(--red)';
+
+  const renderWithMeta = (metaAll)=>{
+    const html = [];
+    entries.forEach(e=>{
       const nameKey = e.name.replace(/[^a-zA-Z0-9]/g,'_');
-      const meta   = metaAll?.[mk]?.[nameKey]?.[e.date];
-      const approvedBy = meta?.approvedBy ? `<span style="color:var(--green);font-size:11px">${meta.approvedBy}</span>` : '—';
-      return `<div class="hist-row">
-        <div>${e.date.slice(5).replace('-','/')}</div>
-        <div style="font-weight:500">${e.name}</div>
-        <div style="color:var(--green)">£${(e.revenue||0).toLocaleString()}</div>
-        <div>${e.nm||0}</div>
-        <div>£${Math.round(mtdRev).toLocaleString()}</div>
-        <div>${mtdNm}</div>
-        <div style="color:${col}">${pct}%</div>
-        <div><button class="del-btn" onclick="deleteEntry('${mk}','${e.date}','${e.name}')">remove</button></div>
-        <div style="font-size:11px;font-family:var(--fm)">${approvedBy}</div>
-      </div>`;
-    }).join('');
+      const meta    = metaAll?.[mk]?.[nameKey]?.[e.date];
+      const deals   = Array.isArray(e.deals) ? e.deals : [];
+
+      if(deals.length > 0){
+        // One row per individual deal
+        deals.forEach((d,di)=>{
+          const isFirst = di===0;
+          const timeStr = d.time ? new Date(d.time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '';
+          const approvedStr = d.enteredBy
+            ? `<span style="color:var(--green)">${d.enteredBy}</span>`
+            : (meta?.approvedBy ? `<span style="color:var(--green)">${meta.approvedBy}</span>` : '—');
+          html.push(`<div class="hist-row${isFirst?' group-first':''}">
+            <div style="line-height:1.4">
+              ${isFirst?`<span style="color:var(--text2)">${e.date.slice(5).replace('-','/')}</span>`:'<span style="color:var(--text3);font-size:10px">↳</span>'}
+              ${timeStr?`<div style="font-size:10px;color:var(--text3)">${timeStr}</div>`:''}
+            </div>
+            <div>${isFirst?`<span style="font-weight:600">${e.name}</span>`:`<span style="color:var(--text3);font-size:11px">${e.name}</span>`}</div>
+            <div style="color:var(--green);font-weight:700">£${parseFloat(d.rev||0).toLocaleString()}</div>
+            <div>${d.nm||0}</div>
+            <div style="color:var(--text3);font-size:11px">${d.swiftRef||'—'}</div>
+            <div style="font-size:11px">${approvedStr}</div>
+            <div>${isFirst?`<button class="del-btn" onclick="deleteEntry('${mk}','${e.date}','${e.name}')">remove</button>`:''}</div>
+          </div>`);
+        });
+      } else {
+        // Legacy entry — no deals array, show single row
+        const approvedStr = meta?.approvedBy
+          ? `<span style="color:var(--green)">${meta.approvedBy}</span>` : '—';
+        html.push(`<div class="hist-row group-first">
+          <div style="color:var(--text2)">${e.date.slice(5).replace('-','/')}</div>
+          <div style="font-weight:600">${e.name}</div>
+          <div style="color:var(--green);font-weight:700">£${parseFloat(e.revenue||0).toLocaleString()}</div>
+          <div>${e.nm||0}</div>
+          <div style="color:var(--text3);font-size:11px">—</div>
+          <div style="font-size:11px">${approvedStr}</div>
+          <div><button class="del-btn" onclick="deleteEntry('${mk}','${e.date}','${e.name}')">remove</button></div>
+        </div>`);
+      }
+    });
+
+    document.getElementById('histRows').innerHTML = html.join('') ||
+      '<div class="empty"><div class="empty-icon">📋</div><div>No entries yet.</div></div>';
   };
 
   if(metaRef){
@@ -5047,7 +5062,11 @@ function handleReview(id, action){
             date:    e.date,
             name:    e.consultantName,
             revenue: parseFloat(((existing?.revenue||0) + finalRev).toFixed(2)),
-            nm:      (existing?.nm||0) + finalNm
+            nm:      (existing?.nm||0) + finalNm,
+            deals:   [
+              ...(existing?.deals||[]),
+              { rev:finalRev, nm:finalNm, swiftRef:e.swiftRef||'', time:reviewedAt, enteredBy:e.consultantName }
+            ]
           };
           filtered.push(newEntry);
 
@@ -5164,17 +5183,42 @@ function renderConsultantDaily(){
       '<span style="font-size:9px;font-weight:700;background:rgba(245,54,92,.2);color:var(--red);padding:2px 7px;border-radius:10px;margin-left:6px">✕ Declined</span>') : '';
     const dayLabel = new Date(ds).toLocaleDateString('en-GB',{weekday:'short',day:'numeric'});
     const isManagerRole = (role==='manager'||role==='master');
-    tableRows += `<tr style="border-bottom:1px solid var(--border);background:${rowBg};">
+    const deals    = ent?.deals || [];
+    const hasDeals = deals.length > 0;
+    const dealRowId = `dr_${ds.replace(/-/g,'')}`;
+
+    // Revenue cell — clickable if deals exist
+    const revDisplay = ent?.revenue
+      ? `<span onclick="${hasDeals?`cdToggleDeals('${dealRowId}',this)`:'void(0)'}" style="cursor:${hasDeals?'pointer':'default'};color:var(--green);font-weight:700;display:inline-flex;align-items:center;gap:5px;">£${parseFloat(ent.revenue).toLocaleString()}${hasDeals?`<span id="${dealRowId}_badge" style="font-size:9px;background:var(--surface2);border:1px solid var(--border2);color:var(--text3);padding:1px 6px;border-radius:8px;font-family:var(--fm)">${deals.length}▾</span>`:''}</span>`
+      : (isWE||isBH||isFuture?'—':'');
+
+    // Expandable deal breakdown row (hidden by default)
+    const dealsRow = hasDeals ? `<tr id="${dealRowId}" style="display:none;background:var(--surface2);">
+      <td colspan="5" style="padding:4px 12px 12px 28px;">
+        <div style="border-left:3px solid var(--accent);padding-left:12px;margin-top:4px;">
+          <div style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px;">Individual Deals</div>
+          ${deals.map((d,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;font-family:var(--fm);">
+            <span style="color:var(--text3);min-width:16px;font-size:10px">${i+1}.</span>
+            <span style="color:var(--green);font-weight:700;min-width:80px">£${parseFloat(d.rev||0).toLocaleString()}</span>
+            <span style="color:var(--text2);min-width:55px">${d.nm||0} NM</span>
+            <span style="color:var(--text3);font-size:11px;flex:1">${d.swiftRef||''}</span>
+            <span style="color:var(--text3);font-size:10px">${d.time?new Date(d.time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):''}</span>
+          </div>`).join('')}
+        </div>
+      </td>
+    </tr>` : '';
+
+    tableRows += `<tr style="border-bottom:${hasDeals?'none':'1px solid var(--border)'};background:${rowBg};">
       <td style="padding:8px 12px;font-size:12px;font-family:var(--fm);white-space:nowrap;color:${isFuture?'var(--text3)':ds===today?'var(--accent)':'var(--text2)'};font-weight:${ds===today?'700':'400'}">${dayLabel}${isWE?' <span style="font-size:9px;color:var(--text3)">WE</span>':isBH?' <span style="font-size:9px;color:var(--red)">BH</span>':''}</td>
-      <td style="padding:8px 12px;text-align:right;font-family:var(--fm);font-size:12px;color:${ent?.revenue?'var(--green)':'var(--text3)'};font-weight:${ent?.revenue?'700':'400'}">${ent?.revenue ? '£'+parseFloat(ent.revenue).toLocaleString() : (isWE||isBH||isFuture?'—':'')}</td>
+      <td style="padding:8px 12px;text-align:right;font-family:var(--fm);font-size:12px;">${revDisplay}</td>
       <td style="padding:8px 12px;text-align:right;font-family:var(--fm);font-size:12px;color:${ent?.nm?'var(--text)':'var(--text3)'}">${ent?.nm||(!isWE&&!isBH&&!isFuture?'':' ')}</td>
       <td style="padding:8px 12px;font-size:12px;font-family:var(--fm);color:var(--text3)">${statusBadge}</td>
       <td style="padding:8px 12px;text-align:right">
         ${!isWE&&!isBH&&!isFuture&&role==='consultant'?`<button class="btn btn-s" onclick="openDailySubmit('${ds}')" style="font-size:11px;padding:3px 10px;">+ Submit</button>`:''}
         ${!isWE&&!isBH&&!isFuture&&isManagerRole&&pend?.status==='pending'?`<button class="btn btn-p" onclick="openReviewModal('${pend.id}')" style="font-size:11px;padding:3px 10px;">Review</button>`:''}
-        ${!isWE&&!isBH&&!isFuture&&isManagerRole?`<button class="btn btn-s" onclick="openManagerDirectEntry('${ds}','${myName.replace(/'/g,"\\'")}',${ent?.revenue||0},${ent?.nm||0})" style="font-size:11px;padding:3px 10px;color:var(--accent);border-color:var(--accent)">✎ Edit</button>`:''}
+        ${!isWE&&!isBH&&!isFuture&&isManagerRole?`<button class="btn btn-s" onclick="openManagerDirectEntry('${ds}','${myName.replace(/'/g,"\\'")}',0,0)" style="font-size:11px;padding:3px 10px;color:var(--accent);border-color:var(--accent)">+ Add</button>`:''}
       </td>
-    </tr>`;
+    </tr>${dealsRow}`;
   }
 
   content.innerHTML = `
@@ -5255,6 +5299,19 @@ function renderConsultantDaily(){
         </div>
       </div>
     </div>`;
+}
+
+// ── Toggle individual deal breakdown row ──────────────────────────
+function cdToggleDeals(rowId, badgeEl){
+  const row = document.getElementById(rowId);
+  if(!row) return;
+  const open = row.style.display !== 'none' && row.style.display !== '';
+  row.style.display = open ? 'none' : 'table-row';
+  const badge = document.getElementById(rowId+'_badge') || (badgeEl?.querySelector('span'));
+  if(badge){
+    const txt = badge.textContent;
+    badge.textContent = open ? txt.replace('▴','▾') : txt.replace('▾','▴');
+  }
 }
 
 // ── Submit form ───────────────────────────────────────────────────
@@ -5363,11 +5420,17 @@ function saveManagerDirectEntry(){
       : [];
     const filtered = existingArr.filter(en=>!(en.date===date&&en.name===name));
     const existing = existingArr.find(en=>en.date===date&&en.name===name);
+    const enteredBy = _currentUser?.name || 'Manager';
+    const dealTime  = new Date().toISOString();
     const newEntry = {
       date,
       name,
-      revenue: parseFloat(rev.toFixed(2)),
-      nm
+      revenue: parseFloat(((existing?.revenue||0) + rev).toFixed(2)),
+      nm:      (existing?.nm||0) + nm,
+      deals:   [
+        ...(existing?.deals||[]),
+        { rev:parseFloat(rev.toFixed(2)), nm, swiftRef:swift, time:dealTime, enteredBy }
+      ]
     };
     filtered.push(newEntry);
 
@@ -7385,19 +7448,22 @@ function exportHistoryCSV(){
   const mk     = document.getElementById('histMonth').value || APP.activeMonth;
   const person = document.getElementById('histPerson').value;
   const all    = getEntries(mk);
-  let rows_data = [...all].sort((a,b)=>a.date.localeCompare(b.date)||a.name.localeCompare(b.name));
-  if(person && person!=='all') rows_data = rows_data.filter(e=>e.name===person);
-  const rows = [['Month','Date','Consultant','Revenue (£)','Needs Met','MTD Revenue (£)','MTD NM','% of Target']];
-  rows_data.forEach(e => {
-    const p      = APP.people.find(x=>x.name===e.name)||{riskPerDay:0,daysT:0};
-    const target = personTargetForMonth(p, mk);
-    const mtdRev = all.filter(x=>x.name===e.name&&x.date<=e.date).reduce((s,x)=>s+(x.revenue||0),0);
-    const mtdNm  = all.filter(x=>x.name===e.name&&x.date<=e.date).reduce((s,x)=>s+(x.nm||0),0);
-    const pct    = target>0?Math.round(mtdRev/target*100):0;
-    rows.push([monthLabel(mk), e.date, e.name, e.revenue||0, e.nm||0, Math.round(mtdRev), mtdNm, pct+'%']);
+  let entries  = [...all].sort((a,b)=>a.date.localeCompare(b.date)||a.name.localeCompare(b.name));
+  if(person&&person!=='all') entries=entries.filter(e=>e.name===person);
+  const rows = [['Month','Date','Time','Consultant','Revenue (£)','Needs Met','SWIFT Ref','Entered / Approved By']];
+  entries.forEach(e=>{
+    const deals = Array.isArray(e.deals) ? e.deals : [];
+    if(deals.length){
+      deals.forEach(d=>{
+        const t = d.time ? new Date(d.time).toLocaleString('en-GB') : '';
+        rows.push([monthLabel(mk),e.date,t,e.name,d.rev||0,d.nm||0,d.swiftRef||'',d.enteredBy||'']);
+      });
+    } else {
+      rows.push([monthLabel(mk),e.date,'',e.name,e.revenue||0,e.nm||0,'','']);
+    }
   });
-  const suffix = person && person!=='all' ? '_'+person : '_all';
-  downloadCSV('history_'+mk+suffix+'.csv', rows);
+  const suffix = person&&person!=='all'?'_'+person:'_all';
+  downloadCSV('history_'+mk+suffix+'.csv',rows);
 }
 
 // Holiday — one row per consultant per day off for selected month
@@ -7701,9 +7767,9 @@ function renderPersonProfile(name){
 
 // ─── THEME SYSTEM ──────────────────────────────────────────────────
 const THEMES = {
+  cavendish: { name:'Cavendish',  bg:'#f7f0f3', surface:'#ffffff',  accent:'#830544',  bar1:'#830544', bar2:'#00875a', bar3:'#b86a00', bar4:'#c0183c', text:'#1a0810', foot:'#830544' },
   midnight:  { name:'Midnight',   bg:'#0b0c10', surface:'#12141a', accent:'#5e9cf5',  bar1:'#5e9cf5', bar2:'#2dce89', bar3:'#fbb83a', bar4:'#f5365c', text:'#eef0f5', foot:'#12141a' },
   arctic:    { name:'Arctic',     bg:'#f0f4f8', surface:'#ffffff',  accent:'#2b7de9',  bar1:'#2b7de9', bar2:'#0ea86a', bar3:'#d4820a', bar4:'#e02d55', text:'#1a2333', foot:'#e8eef5' },
-  cavendish: { name:'Cavendish',  bg:'#f7f0f3', surface:'#ffffff',  accent:'#830544',  bar1:'#830544', bar2:'#00875a', bar3:'#b86a00', bar4:'#c0183c', text:'#1a0810', foot:'#830544' },
   forest:    { name:'Forest',     bg:'#0d1a13', surface:'#122018',  accent:'#3dd68c',  bar1:'#3dd68c', bar2:'#56cfb2', bar3:'#f9c74f', bar4:'#ff5e6e', text:'#d6f0df', foot:'#122018' },
   crimson:   { name:'Crimson',    bg:'#130810', surface:'#1e0d1a',  accent:'#e879f9',  bar1:'#e879f9', bar2:'#c084fc', bar3:'#fdb96b', bar4:'#ff6b8a', text:'#f5e6f0', foot:'#1e0d1a' },
   ocean:     { name:'Ocean',      bg:'#050f1f', surface:'#0a1a30',  accent:'#4db8ff',  bar1:'#4db8ff', bar2:'#2ddbb4', bar3:'#f9c840', bar4:'#f5546a', text:'#d8eeff', foot:'#0a1a30' },
@@ -7718,7 +7784,7 @@ function applyTheme(themeKey){
   // Update nav toggle indicator
   const track = document.getElementById('themeToggleTrack');
   const label = document.getElementById('themeLabel');
-  if(track) track.classList.toggle('on', !['midnight','forest','crimson','ocean','sandstone'].includes(key));
+  if(track) track.classList.toggle('on', ['arctic','cavendish'].includes(key));
   if(label) label.textContent = THEMES[key]?.name || 'Midnight';
   // Refresh swatch active state if settings open
   document.querySelectorAll('.theme-swatch').forEach(el => {
@@ -7729,7 +7795,7 @@ function applyTheme(themeKey){
 function renderThemePicker(){
   const grid = document.getElementById('themePickerGrid');
   if(!grid) return;
-  const current = localStorage.getItem('pd_theme') || 'midnight';
+  const current = localStorage.getItem('pd_theme') || 'cavendish';
   grid.innerHTML = Object.entries(THEMES).map(([key, t]) => `
     <div class="theme-swatch${current === key ? ' active' : ''}" data-theme="${key}" onclick="applyTheme('${key}');renderThemePicker();" title="${t.name}">
       <div class="theme-swatch-preview" style="background:${t.bg}">
