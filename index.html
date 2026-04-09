@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JG Dash</title>
+<title>Cavendish</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <!-- Firebase SDKs -->
@@ -17,9 +17,9 @@
   --green:#2dce89;--green-bg:rgba(45,206,137,0.1);
   --red:#f5365c;--red-bg:rgba(245,54,92,0.1);
   --amber:#fbb83a;--amber-bg:rgba(251,184,58,0.1);
-  --blue:#5e9cf5;--blue-bg:rgba(94,156,245,0.1);
+  --blue:#5e9cf5;--blue-bg:rgba(131,5,68,0.1);
   --purple:#a78bfa;--purple-bg:rgba(167,139,250,0.1);
-  --accent:#5e9cf5;
+  --accent:#830544;
   --fh:'Syne',sans-serif;--fm:'DM Mono',monospace;
   --radius:12px;
   --shadow:0 4px 24px rgba(0,0,0,.35);
@@ -104,7 +104,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--fh);min-height:100
 /* THEME SWATCHES */
 .theme-swatch{border-radius:10px;overflow:hidden;cursor:pointer;border:2px solid transparent;transition:all .2s;position:relative;}
 .theme-swatch:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.35);}
-.theme-swatch.active{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94,156,245,.25);}
+.theme-swatch.active{border-color:var(--accent);box-shadow:0 0 0 3px rgba(131,5,68,.25);}
 .theme-swatch-preview{height:64px;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:3px;padding:8px;}
 .theme-swatch-bar{border-radius:3px;}
 .theme-swatch-foot{padding:8px 10px;display:flex;align-items:center;justify-content:space-between;}
@@ -124,31 +124,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--fh);min-height:100
 ::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:3px;}
 ::-webkit-scrollbar-thumb:hover{background:var(--border2);}
 
-/* GREETING OVERLAY */
-#greetingOverlay{
-  position:fixed;inset:0;z-index:99999;
-  display:flex;align-items:center;justify-content:center;
-  background:var(--bg);
-  opacity:0;pointer-events:none;
-  transition:opacity .35s ease;
-}
-#greetingOverlay.visible{ opacity:1;pointer-events:all; }
-#greetingOverlay.fade-out{ opacity:0;pointer-events:none; }
-.greeting-text{
-  font-family:var(--fh);font-size:clamp(32px,6vw,72px);font-weight:700;
-  letter-spacing:-.02em;text-align:center;line-height:1.1;
-  opacity:0;transform:translateY(24px);
-  transition:opacity .5s cubic-bezier(.16,1,.3,1), transform .5s cubic-bezier(.16,1,.3,1);
-}
-#greetingOverlay.visible .greeting-text{ opacity:1;transform:translateY(0); }
-.greeting-text span{ color:var(--accent); }
-.greeting-sub{
-  font-size:clamp(13px,2vw,18px);color:var(--text3);font-family:var(--fm);
-  margin-top:14px;letter-spacing:.04em;text-transform:uppercase;
-  opacity:0;transform:translateY(16px);
-  transition:opacity .45s .2s cubic-bezier(.16,1,.3,1), transform .45s .2s cubic-bezier(.16,1,.3,1);
-}
-#greetingOverlay.visible .greeting-sub{ opacity:1;transform:translateY(0); }
+/* LOGIN */
 #loginScreen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
 #loginScreen.hidden{display:none;}
 .login-box{background:var(--surface);border:1px solid var(--border2);border-radius:16px;padding:40px;width:360px;max-width:90vw;box-shadow:0 24px 64px rgba(0,0,0,.5);}
@@ -157,9 +133,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--fh);min-height:100
 .login-sub{font-size:12px;color:var(--text3);font-family:var(--fm);margin-bottom:32px;}
 .login-label{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;font-family:var(--fm);margin-bottom:8px;}
 .login-input{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:11px 14px;font-size:14px;font-family:var(--fm);color:var(--text);outline:none;transition:border-color .15s;margin-bottom:12px;}
-.login-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94,156,245,.1);}
+.login-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(131,5,68,.1);}
 .login-btn{width:100%;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:600;font-family:var(--fh);cursor:pointer;transition:background .15s;margin-top:4px;}
-.login-btn:hover{background:#4d8ee0;}
+.login-btn:hover{background:#6b0438;}
 .login-err{font-size:12px;color:var(--red);font-family:var(--fm);margin-top:8px;min-height:18px;text-align:center;}
 .login-lock{font-size:32px;margin-bottom:20px;text-align:center;}
 
@@ -173,11 +149,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--fh);min-height:100
 .div-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
 .div-btn{background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:24px 16px;cursor:pointer;text-align:center;transition:all .18s;display:flex;flex-direction:column;align-items:center;gap:10px;}
 .div-btn:hover{border-color:var(--accent);background:var(--surface2);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3);}
-.div-btn.active-div{border-color:var(--accent);box-shadow:0 0 0 2px rgba(94,156,245,.25);}
+.div-btn.active-div{border-color:var(--accent);box-shadow:0 0 0 2px rgba(131,5,68,.25);}
 .div-icon{font-size:28px;line-height:1;}
 .div-name{font-size:14px;font-weight:700;letter-spacing:.01em;}
 .div-desc{font-size:11px;color:var(--text3);font-family:var(--fm);line-height:1.5;}
-.div-badge{font-size:9px;font-weight:700;background:rgba(94,156,245,0.15);color:var(--accent);padding:2px 8px;border-radius:10px;letter-spacing:.04em;text-transform:uppercase;}
+.div-badge{font-size:9px;font-weight:700;background:rgba(131,5,68,0.15);color:var(--accent);padding:2px 8px;border-radius:10px;letter-spacing:.04em;text-transform:uppercase;}
 
 /* NAV */
 nav{position:sticky;top:0;z-index:100;background:var(--nav-bg);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:8px 20px 0;display:flex;flex-direction:column;gap:0;transition:background .25s;}
@@ -256,9 +232,9 @@ input[type=date],input[type=number],input[type=text],select{
   width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;
   padding:9px 12px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none;transition:border-color .15s;
 }
-input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94,156,245,.08);}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(131,5,68,.08);}
 .btn{display:inline-flex;align-items:center;justify-content:center;padding:9px 18px;border-radius:8px;font-family:var(--fh);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;gap:6px;}
-.btn-p{background:var(--accent);color:#fff;box-shadow:0 2px 12px rgba(94,156,245,.3);}.btn-p:hover{background:#4d8ee0;box-shadow:0 4px 18px rgba(94,156,245,.4);}
+.btn-p{background:var(--accent);color:#fff;box-shadow:0 2px 12px rgba(131,5,68,.3);}.btn-p:hover{background:#6b0438;box-shadow:0 4px 18px rgba(131,5,68,.4);}
 .btn-s{background:var(--surface2);color:var(--text2);border:1px solid var(--border2);}.btn-s:hover{color:var(--text);border-color:var(--border2);}
 .btn-d{background:var(--red-bg);color:var(--red);border:1px solid rgba(245,54,92,.2);}.btn-d:hover{background:rgba(245,54,92,.2);}
 .btn-w{width:100%;}
@@ -286,7 +262,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 .lb-rank.gold{color:#fbb83a;}.lb-rank.silver{color:#9aa5b4;}.lb-rank.bronze{color:#c97d44;}
 .lb-name{font-size:13px;font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .lb-bar-bg{flex:2;height:4px;background:var(--surface3);border-radius:2px;overflow:hidden;}
-.lb-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),#7eb8ff);}
+.lb-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),#c0547a);}
 .lb-val{font-size:12px;font-weight:700;font-family:var(--fm);white-space:nowrap;}
 
 /* HISTORY */
@@ -344,7 +320,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 /* MEMBER TOGGLE */
 .member-toggle{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);cursor:pointer;transition:all .15s;background:var(--surface2);}
 .member-toggle:hover{border-color:var(--border2);}
-.member-toggle.selected{border-color:var(--accent);background:var(--blue-bg);}
+.member-toggle.selected{border-color:var(--accent);background:rgba(131,5,68,0.1);}
 .member-toggle input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px;cursor:pointer;}
 
 /* BIZ TARGET */
@@ -554,7 +530,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 <div id="loginScreen">
   <div class="login-box">
     <div class="login-lock">🔒</div>
-    <div class="login-brand">JG <span style="color:var(--accent)">Dash</span></div>
+    <div class="login-brand">CAVENDISH<span style="color:var(--accent)">.</span></div>
 
     <!-- Step 1: Password -->
     <div id="loginStep1">
@@ -600,7 +576,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 <div id="divisionScreen" class="hidden">
   <div class="div-box">
     <div style="text-align:center;margin-bottom:32px">
-      <div class="div-title">JG <span style="color:var(--accent)">Dash</span></div>
+      <div class="div-title">CAVENDISH<span style="color:var(--accent)">.</span></div>
       <div class="div-sub">Select your division to continue</div>
     </div>
     <div class="div-grid">
@@ -641,7 +617,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 <nav>
   <!-- Row 1: Brand + right-side controls -->
   <div class="nav-row1">
-    <div class="nav-brand">JG <span style="color:var(--accent)">Dash</span></div>
+    <div class="nav-brand">CAVENDISH<span style="color:var(--accent)">.</span></div>
     <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;flex-wrap:nowrap;">
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
         <span style="font-size:10px;font-weight:600;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">Month</span>
@@ -1413,32 +1389,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 
 <div class="toast" id="toast"></div>
 
-<div id="greetingOverlay">
-  <div style="text-align:center">
-    <div class="greeting-text" id="greetingText">Hello</div>
-    <div class="greeting-sub" id="greetingSub">Welcome back to JG Dash</div>
-  </div>
-</div>
-
 <script>
-// ── Greeting animation ──────────────────────────────────────────────
-function showGreeting(name){
-  const overlay = document.getElementById('greetingOverlay');
-  const text    = document.getElementById('greetingText');
-  const sub     = document.getElementById('greetingSub');
-  if(!overlay||!text) return;
-  const firstName = (name||'').split(' ')[0] || name;
-  text.innerHTML  = `Hello <span>${firstName}</span>`;
-  sub.textContent = 'Welcome back to JG Dash';
-  // Show
-  overlay.classList.remove('fade-out');
-  overlay.classList.add('visible');
-  // Hold for 1.8s then fade out
-  setTimeout(()=>{
-    overlay.classList.add('fade-out');
-    setTimeout(()=>overlay.classList.remove('visible','fade-out'), 400);
-  }, 1800);
-}
 // ═══════════════════════════════════════════════════════════════════
 // DIVISION CONFIG
 // ═══════════════════════════════════════════════════════════════════
@@ -1667,7 +1618,6 @@ function attemptPinLogin(){
     const logoutBtn = document.getElementById('logoutBtn');
     if(badge){ badge.style.display=''; badge.textContent='Admin · Master'; badge.style.color=ROLE_COLORS.master; }
     if(logoutBtn) logoutBtn.style.display='';
-    showGreeting('Admin');
     _startWithRole();
     return;
   }
@@ -1692,7 +1642,6 @@ function attemptPinLogin(){
   if(badge){ badge.style.display=''; badge.textContent=`${_currentUser?.name||''} · ${ROLE_LABELS[_currentUser?.role]||''}`; badge.style.color=ROLE_COLORS[_currentUser?.role]||'var(--text2)'; }
   if(logoutBtn) logoutBtn.style.display='';
   _adminLoginMode = false;
-  showGreeting(_currentUser.name);
   _startWithRole();
 }
 
@@ -2182,7 +2131,7 @@ function renderDashCharts(mk){
   _charts.dailyRev = new Chart(document.getElementById('cDailyRev'),{
     type:'bar',
     data:{labels,datasets:[
-      {data:revs,backgroundColor:revs.map((v,i)=>v>=(tgtLine[i]||0)?'#2dce89':'#5e9cf5'),borderRadius:3,barPercentage:0.65},
+      {data:revs,backgroundColor:revs.map((v,i)=>v>=(tgtLine[i]||0)?'#2dce89':'#830544'),borderRadius:3,barPercentage:0.65},
       {data:tgtLine,type:'line',borderColor:'rgba(245,54,92,.6)',borderWidth:1.5,pointRadius:0,borderDash:[4,3],fill:false,tension:0}
     ]},
     options:{responsive:true,maintainAspectRatio:false,
@@ -2222,7 +2171,7 @@ function renderDashCharts(mk){
   _charts.revBar = new Chart(document.getElementById('cRevBar'),{
     type:'bar',
     data:{labels:pNames,datasets:[
-      {label:'Revenue',data:stats.map(s=>Math.round(s.revMTD)),backgroundColor:'#5e9cf5',borderRadius:3,barPercentage:0.4},
+      {label:'Revenue',data:stats.map(s=>Math.round(s.revMTD)),backgroundColor:'#830544',borderRadius:3,barPercentage:0.4},
       {label:'Target', data:stats.map(s=>s.target),backgroundColor:'rgba(255,255,255,.08)',borderRadius:3,barPercentage:0.4}
     ]},
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
@@ -2665,7 +2614,7 @@ function renderLeaderboard(){
 
   document.getElementById('lbGrid').innerHTML=`
     <div class="lb-card"><div class="lb-title">Revenue MTD</div>
-      ${lbRows(byRev,p=>'£'+Math.round(p.revMTD).toLocaleString(),p=>Math.round(p.revMTD/maxRev*100),()=>'#5e9cf5')}
+      ${lbRows(byRev,p=>'£'+Math.round(p.revMTD).toLocaleString(),p=>Math.round(p.revMTD/maxRev*100),()=>'#830544')}
     </div>
     <div class="lb-card"><div class="lb-title">Needs met MTD</div>
       ${lbRows(byNM,p=>p.nmMTD,p=>Math.round(p.nmMTD/maxNM*100),()=>'#2dce89')}
@@ -2883,7 +2832,7 @@ function _renderMtMonthList(){
       onmouseout="this.style.background='var(--surface2)'">
       <div style="font-size:14px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:8px">
         ${monthLabel(mk)}
-        ${isActive ? '<span style="font-size:9px;font-weight:700;background:rgba(94,156,245,0.15);color:var(--accent);padding:2px 6px;border-radius:10px;letter-spacing:.04em">ACTIVE</span>' : ''}
+        ${isActive ? '<span style="font-size:9px;font-weight:700;background:rgba(131,5,68,0.15);color:var(--accent);padding:2px 6px;border-radius:10px;letter-spacing:.04em">ACTIVE</span>' : ''}
       </div>
       <div style="font-size:12px;font-family:var(--fm);color:var(--green);margin-bottom:4px">£${teamTgt.toLocaleString()}</div>
       <div style="font-size:10px;font-family:var(--fm);color:${customCount>0?'var(--accent)':'var(--text3)'}">
@@ -3261,7 +3210,7 @@ function renderMonthlySummary(){
     const active  = _mcsSortCol===col;
     const arrow   = active ? (_mcsSortDir===1?' ↑':' ↓') : '';
     const col_txt = active ? 'var(--accent)' : 'var(--text3)';
-    const bg_ext  = active ? 'background:rgba(94,156,245,0.07);' : '';
+    const bg_ext  = active ? 'background:rgba(131,5,68,0.07);' : '';
     const base    = `padding:11px 14px;background:var(--surface2);${bg_ext}color:${col_txt};font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);white-space:nowrap;border-bottom:1px solid var(--border);text-align:${align};cursor:pointer;user-select:none;transition:color .15s;${extraStyle}`;
     return `<th style="${base}" onclick="setMcsSort('${col}')" title="Sort by ${label}">${label}${arrow}</th>`;
   }
@@ -5113,7 +5062,7 @@ function renderConsultantDaily(){
     const ent  = mine.find(e=>e.date===ds);
     const pend = myPending.find(e=>e.date===ds);
     const isFuture = ds > today;
-    const rowBg = isWE||isBH ? 'var(--surface3)' : ds===today ? 'rgba(94,156,245,0.07)' : '';
+    const rowBg = isWE||isBH ? 'var(--surface3)' : ds===today ? 'rgba(131,5,68,0.07)' : '';
     const statusBadge = pend ? (pend.status==='pending'?'<span style="font-size:9px;font-weight:700;background:rgba(251,184,58,.2);color:var(--amber);padding:2px 7px;border-radius:10px;margin-left:6px">⏳ Pending</span>':
       pend.status==='approved'||pend.status==='amended'?'<span style="font-size:9px;font-weight:700;background:rgba(45,206,137,.2);color:var(--green);padding:2px 7px;border-radius:10px;margin-left:6px">✓ Approved</span>':
       '<span style="font-size:9px;font-weight:700;background:rgba(245,54,92,.2);color:var(--red);padding:2px 7px;border-radius:10px;margin-left:6px">✕ Declined</span>') : '';
@@ -5143,7 +5092,7 @@ function renderConsultantDaily(){
           <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-left:auto">Submitted figures go to your team leader for approval</div>
         </div>` : ''}
         ${(role==='manager'||role==='master') ? `
-        <div style="background:linear-gradient(135deg,rgba(94,156,245,0.08),rgba(94,156,245,0.03));border:1px solid rgba(94,156,245,0.25);border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <div style="background:linear-gradient(135deg,rgba(131,5,68,0.08),rgba(131,5,68,0.03));border:1px solid rgba(131,5,68,0.25);border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
           <div>
             <div style="font-size:13px;font-weight:700;color:var(--accent)">Manager View — ${myName}</div>
             <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:2px">Click ✎ Edit on any row to add or update figures directly. No approval required.</div>
@@ -5277,7 +5226,7 @@ function openManagerDirectEntry(date, consultantName, existingRev, existingNm){
   const modal = document.getElementById('reviewModal');
   document.getElementById('reviewModalTitle').textContent = `📝 Add Entry — ${consultantName}`;
   document.getElementById('reviewModalBody').innerHTML = `
-    <div style="margin-bottom:10px;padding:8px 12px;background:rgba(94,156,245,0.1);border-left:3px solid var(--accent);border-radius:6px;font-size:11px;color:var(--accent);font-family:var(--fm);">
+    <div style="margin-bottom:10px;padding:8px 12px;background:rgba(131,5,68,0.1);border-left:3px solid var(--accent);border-radius:6px;font-size:11px;color:var(--accent);font-family:var(--fm);">
       ⚡ Manager entry — saves directly without approval
     </div>
     <div style="margin-bottom:14px">
@@ -5463,8 +5412,8 @@ function renderManagerOverview(){
       const pctCls = pct>=100?'var(--green)':pct>=75?'var(--amber)':'var(--red)';
       const copCol = d.copRev>=0?'var(--green)':'var(--red)';
       const border = d.isActive ? '2px solid var(--accent)' : '1px solid var(--border)';
-      return `<div style="background:var(--surface);border:${border};border-radius:var(--radius);padding:16px 18px;position:relative;${d.isActive?'box-shadow:0 0 0 1px rgba(94,156,245,.2)':''}">
-        ${d.isActive?`<div style="position:absolute;top:10px;right:10px;font-size:9px;font-weight:700;background:rgba(94,156,245,0.15);color:var(--accent);padding:2px 7px;border-radius:10px;letter-spacing:.04em">CURRENT</div>`:''}
+      return `<div style="background:var(--surface);border:${border};border-radius:var(--radius);padding:16px 18px;position:relative;${d.isActive?'box-shadow:0 0 0 1px rgba(131,5,68,.2)':''}">
+        ${d.isActive?`<div style="position:absolute;top:10px;right:10px;font-size:9px;font-weight:700;background:rgba(131,5,68,0.15);color:var(--accent);padding:2px 7px;border-radius:10px;letter-spacing:.04em">CURRENT</div>`:''}
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
           <span style="font-size:20px">${d.div.icon}</span>
           <span style="font-size:13px;font-weight:700">${d.div.label}</span>
@@ -5765,7 +5714,7 @@ function renderBizTarget(){
     _charts.bizDaily = new Chart(document.getElementById('cBizDaily'),{
       type:'bar',
       data:{labels:chartLabels,datasets:[
-        {label:'Actual',data:chartActual,backgroundColor:chartActual.map((v,i)=>v>=(chartRR[i]||0)?'#2dce89':'#5e9cf5'),borderRadius:3,barPercentage:0.65},
+        {label:'Actual',data:chartActual,backgroundColor:chartActual.map((v,i)=>v>=(chartRR[i]||0)?'#2dce89':'#830544'),borderRadius:3,barPercentage:0.65},
         {label:'Run Rate',data:chartRR,type:'line',borderColor:'rgba(245,54,92,.6)',borderWidth:1.5,pointRadius:0,borderDash:[4,3],fill:false,tension:0}
       ]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'£'+Math.round(c.parsed.y).toLocaleString()}}},
@@ -7181,7 +7130,7 @@ function _renderSumTrends(){
           labels:dowAvgs.map(x=>x.name),
           datasets:[{
             data:dowAvgs.map(x=>x.avgRev),
-            backgroundColor:dowAvgs.map(x=>x.d===bestDow?.d?'#2dce89':'#5e9cf5'),
+            backgroundColor:dowAvgs.map(x=>x.d===bestDow?.d?'#2dce89':'#830544'),
             borderRadius:4,barPercentage:.65
           }]
         },
@@ -7470,7 +7419,7 @@ function renderPersonProfile(name){
     if(isSick) statusBadge = `<span style="font-size:9px;font-weight:800;color:var(--amber);background:var(--amber-bg);padding:2px 6px;border-radius:3px">SICK</span>`;
     if(isBH)   statusBadge = `<span style="font-size:9px;font-weight:800;color:#830544;background:rgba(131,5,68,0.12);padding:2px 6px;border-radius:3px">BH</span>`;
 
-    const rowBg = isHol?'background:rgba(245,54,92,0.05);':isSick?'background:rgba(251,184,58,0.05);':isBH?'background:rgba(131,5,68,0.05);':isToday?'background:rgba(94,156,245,0.06);border-left:2px solid var(--accent);':'';
+    const rowBg = isHol?'background:rgba(245,54,92,0.05);':isSick?'background:rgba(251,184,58,0.05);':isBH?'background:rgba(131,5,68,0.05);':isToday?'background:rgba(131,5,68,0.06);border-left:2px solid var(--accent);':'';
 
     tableRows += `<tr style="border-bottom:1px solid var(--border);${rowBg}">
       <td style="padding:8px 12px;white-space:nowrap;font-family:var(--fm);font-size:12px;color:var(--text2)">${dayName} ${statusBadge}</td>
@@ -7549,7 +7498,7 @@ function renderPersonProfile(name){
         <span style="font-size:12px;font-family:var(--fm);color:var(--text2)">£${Math.round(revMTD).toLocaleString()} of £${target.toLocaleString()} (${revPct}%)</span>
       </div>
       <div style="height:8px;background:var(--surface3);border-radius:4px;overflow:hidden;position:relative">
-        <div style="height:100%;width:${Math.min(revPct,100)}%;background:${revPct>=100?'#2dce89':revPct>=75?'#fbb83a':'#5e9cf5'};border-radius:4px;transition:width .6s"></div>
+        <div style="height:100%;width:${Math.min(revPct,100)}%;background:${revPct>=100?'#2dce89':revPct>=75?'#fbb83a':'#830544'};border-radius:4px;transition:width .6s"></div>
         ${daysLeft>0&&target>0?`<div style="position:absolute;top:0;height:100%;width:2px;background:rgba(255,255,255,0.3);left:${Math.min(Math.round(wdDates.length/(wdDates.length+daysLeft)*100),100)}%"></div>`:''}
       </div>
       <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--text3);font-family:var(--fm)">
@@ -7630,7 +7579,7 @@ function renderPersonProfile(name){
     _charts.personDaily = new Chart(document.getElementById('cPersonDaily'),{
       type:'bar',
       data:{labels:dailyLabels,datasets:[
-        {data:dailyRevs,backgroundColor:dailyRevs.map((v,i)=>v>=(rrLine[i]||0)?'#2dce89':'#5e9cf5'),borderRadius:3,barPercentage:0.7},
+        {data:dailyRevs,backgroundColor:dailyRevs.map((v,i)=>v>=(rrLine[i]||0)?'#2dce89':'#830544'),borderRadius:3,barPercentage:0.7},
         {data:rrLine,type:'line',borderColor:'rgba(245,54,92,.6)',borderWidth:1.5,pointRadius:0,borderDash:[4,3],fill:false,tension:0}
       ]},
       options:{responsive:true,maintainAspectRatio:false,
@@ -7656,7 +7605,7 @@ function renderPersonProfile(name){
 
 // ─── THEME SYSTEM ──────────────────────────────────────────────────
 const THEMES = {
-  midnight:  { name:'Midnight',   bg:'#0b0c10', surface:'#12141a', accent:'#5e9cf5',  bar1:'#5e9cf5', bar2:'#2dce89', bar3:'#fbb83a', bar4:'#f5365c', text:'#eef0f5', foot:'#12141a' },
+  midnight:  { name:'Midnight',   bg:'#0b0c10', surface:'#12141a', accent:'#830544',  bar1:'#830544', bar2:'#2dce89', bar3:'#fbb83a', bar4:'#f5365c', text:'#eef0f5', foot:'#12141a' },
   arctic:    { name:'Arctic',     bg:'#f0f4f8', surface:'#ffffff',  accent:'#2b7de9',  bar1:'#2b7de9', bar2:'#0ea86a', bar3:'#d4820a', bar4:'#e02d55', text:'#1a2333', foot:'#e8eef5' },
   forest:    { name:'Forest',     bg:'#0d1a13', surface:'#122018',  accent:'#3dd68c',  bar1:'#3dd68c', bar2:'#56cfb2', bar3:'#f9c74f', bar4:'#ff5e6e', text:'#d6f0df', foot:'#122018' },
   crimson:   { name:'Crimson',    bg:'#130810', surface:'#1e0d1a',  accent:'#e879f9',  bar1:'#e879f9', bar2:'#c084fc', bar3:'#fdb96b', bar4:'#ff6b8a', text:'#f5e6f0', foot:'#1e0d1a' },
@@ -7877,7 +7826,7 @@ function generateMonthlyReport(){
   <!-- Header -->
   <div style="background:linear-gradient(135deg,#11B67A,#0d9063);border-radius:12px;padding:24px 28px;margin-bottom:24px;color:#fff;display:flex;justify-content:space-between;align-items:flex-start;">
     <div>
-      <div style="font-size:24px;font-weight:700;letter-spacing:.04em;">JG Dash</div>
+      <div style="font-size:24px;font-weight:700;letter-spacing:.04em;">CAVENDISH.</div>
       <div style="font-size:16px;font-weight:700;margin-top:4px;">Monthly Performance Report</div>
       <div style="opacity:.8;margin-top:4px;font-size:12px;">${monthLabel(mk)} · ${div.label} · Generated ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>
     </div>
@@ -7951,7 +7900,7 @@ function generateMonthlyReport(){
     </table>
   </div>
 
-  <div style="font-size:10px;color:#aaa;text-align:center;margin-bottom:16px;">JG Dash · Confidential · ${new Date().toLocaleString('en-GB')}</div>
+  <div style="font-size:10px;color:#aaa;text-align:center;margin-bottom:16px;">Cavendish Performance Dashboard · Confidential · ${new Date().toLocaleString('en-GB')}</div>
 
   <div class="no-print" style="text-align:center;margin-top:8px;">
     <button onclick="window.print()" style="background:#11B67A;color:#fff;border:none;border-radius:8px;padding:12px 36px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px;">🖨 Print / Save as PDF</button>
