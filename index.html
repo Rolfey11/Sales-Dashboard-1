@@ -5015,7 +5015,7 @@ function renderConsultantDaily(){
             ['Needs Met (MTD)', nmMTD, null],
             ['Risk Per Day (earned)', riskPerDay>0?'£'+Math.round(revMTD/Math.max(daysWorked,1)).toLocaleString():'—', null],
             null,
-            ['COP Risk Needed', copRiskNeeded>0?'£'+Math.round(copRiskNeeded).toLocaleString():<span style="color:var(--green)">Ahead</span>, null],
+            ['COP Risk Needed', copRiskNeeded>0?'£'+Math.round(copRiskNeeded).toLocaleString():'<span style="color:var(--green)">Ahead ✓</span>', null],
             ['COP NM Needed', copNmNeeded>0?copNmNeeded.toFixed(1):'Ahead', null],
             null,
             ['RPD Needed', rpdNeeded>0?'£'+Math.round(rpdNeeded).toLocaleString():'—', null],
