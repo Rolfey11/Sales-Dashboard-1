@@ -879,7 +879,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 <!-- HOLIDAY -->
 <div class="page" id="page-holiday">
   <div class="section-head">
-    <div><div class="section-title">Holiday Planner</div><div class="section-sub">Click once = planned holiday (excluded from COP &amp; run rate). Click twice = sickness/unplanned (excluded from COP &amp; run rate, target reduced). Click again to clear.</div></div>
+    <div><div class="section-title">Holiday Planner</div><div class="section-sub">Click once = planned holiday (excluded from COP & run rate). Click twice = sickness/unplanned (excluded from COP only, not from run rate). Click again to clear.</div></div>
     <button class="btn btn-s" onclick="exportHolidayCSV()">↓ Export CSV</button>
   </div>
   <div style="display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap">
@@ -894,7 +894,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
   </div>
   <div style="display:flex;gap:16px;font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:12px;flex-wrap:wrap">
     <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;background:var(--red-bg);border:1px solid rgba(245,54,92,.4);display:inline-block"></span>Planned holiday — excluded from COP &amp; run rate</span>
-    <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;background:rgba(251,184,58,0.15);border:1px solid rgba(251,184,58,.4);display:inline-block"></span>Sickness/unplanned — excluded from COP &amp; run rate, target reduced</span>
+    <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;background:rgba(251,184,58,0.15);border:1px solid rgba(251,184,58,.4);display:inline-block"></span>Sickness/unplanned — excluded from COP only</span>
     <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;background:rgba(131,5,68,0.15);border:1px solid rgba(131,5,68,.4);display:inline-block"></span>UK Bank Holiday — excluded from all targets &amp; run rate</span>
     <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;background:var(--surface3);border:1px solid var(--border);display:inline-block"></span>Weekend — already excluded</span>
   </div>
@@ -1415,7 +1415,7 @@ const ROLE_ACCESS = {
   manager:    ['dashboard','biz','teams','summary','entry','monthlysummary','leaderboard',
                'history','daybyday','holiday','settings','manageroverview','staffperf','calloutcomes','consultantdaily'],
   compliance: ['compliance','calloutcomes'],
-  consultant: ['consultantdaily','teams','daybyday']
+  consultant: ['consultantdaily','teams','monthlysummary']
 };
 const ROLE_LABELS = { master:'Master', manager:'Manager', compliance:'Compliance', consultant:'Consultant' };
 const ROLE_COLORS = { master:'#e879f9', manager:'#5e9cf5', compliance:'#2dce89', consultant:'#fbb83a' };
@@ -1953,8 +1953,7 @@ function calcStats(monthKey){
     // calendar working days elapsed for this person (holidays excluded)
     const calDays = calWorkDays(monthKey, p.name);
 
-    // ── COP (next working day checkpoint) — excludes holidays, BH and sick days ──
-    // Build personal elapsed days excluding sick (same as calWorkDays already does via getSick)
+    // ── COP (next working day checkpoint) ────────────────────────
     const copRev = (calDays * (ep.riskPerDay||0) + (ep.riskPerDay||0)) - revMTD;
     const copNm  = (calDays * 1.75 + 1.75) - nmMTD;
 
@@ -2224,8 +2223,7 @@ function calcTeamCOP(mk, memberNames){
     let dayRR=0, dayNmRR=0;
     memberRPDs.forEach(({name,rpd})=>{
       const st = getDayStatus(mk,name,ds);
-      // Exclude from run rate: planned holiday (hol), bank holiday (bh), AND sickness (sick)
-      if(st!=='hol'&&st!=='bh'&&st!=='sick'){ dayRR+=rpd; dayNmRR+=1.75; }
+      if(st!=='hol'&&st!=='bh'){ dayRR+=rpd; dayNmRR+=1.75; }
     });
     cumActual   += (dayLookup[ds]||{}).rev||0;
     cumRR       += dayRR;
@@ -2274,8 +2272,7 @@ function renderDashboard(){
       const rpd = ep.riskPerDay||0;
       if(!rpd) return;
       const st = getDayStatus(mk, p.name, ds);
-      // Exclude hol, bh, and sick from run rate
-      if(st!=='hol'&&st!=='bh'&&st!=='sick'){ dayRR+=rpd; dayNmRR+=1.75; }
+      if(st!=='hol'&&st!=='bh'){ dayRR+=rpd; dayNmRR+=1.75; }
     });
     const dayActual = entries.filter(e=>e.date===ds).reduce((s,e)=>s+(e.revenue||0),0);
     const dayNm     = entries.filter(e=>e.date===ds).reduce((s,e)=>s+(e.nm||0),0);
@@ -2391,7 +2388,7 @@ function renderDashboard(){
     let dayRR=0, dayNmRR=0;
     memberRPDsDash.forEach(({name,rpd})=>{
       const st = getDayStatus(mk,name,ds);
-      if(st!=='hol'&&st!=='bh'&&st!=='sick'){ dayRR+=rpd; dayNmRR+=1.75; }
+      if(st!=='hol'&&st!=='bh'){ dayRR+=rpd; dayNmRR+=1.75; }
     });
     const dayActual = (dayLookupDash[ds]||{}).rev||0;
     const dayNm     = (dayLookupDash[ds]||{}).nm||0;
@@ -5348,23 +5345,18 @@ function renderManagerOverview(){
         const ovr    = ((data.monthOverrides||{})[mk]||{})[p.name]||{};
         const rpd    = ovr.riskPerDay!==undefined ? ovr.riskPerDay : (p.riskPerDay||0);
         const daysT  = ovr.daysT!==undefined      ? ovr.daysT      : (p.daysT||0);
-        const hols   = ((data.holidays||{})[mk]||{})[p.name]||[];
-        const sick   = ((data.sickness||{})[mk]||{})[p.name]||[];
-
-        // Deduct sick working days from target (matches main calcStats behaviour)
-        const sickWorkDays = sick.filter(ds=>{
-          const dow = new Date(ds).getDay();
-          return dow!==0 && dow!==6 && !isBankHoliday(ds);
-        }).length;
-        const effectiveDaysT = Math.max(0, daysT - sickWorkDays);
-        const target = Math.round(rpd*effectiveDaysT);
-        const nmTgt  = parseFloat((effectiveDaysT*1.75).toFixed(2));
+        const target = Math.round(rpd*daysT);
+        const nmTgt  = parseFloat((daysT*1.75).toFixed(2));
         if(!target) return null;
 
         const mine   = entries.filter(e=>e.name===p.name);
         const revMTD = mine.reduce((s,e)=>s+(e.revenue||0),0);
         const nmMTD  = mine.reduce((s,e)=>s+(e.nm||0),0);
         const revPct = target>0?Math.round(revMTD/target*100):0;
+
+        // COP — day loop same as Teams tab
+        const hols   = ((data.holidays||{})[mk]||{})[p.name]||[];
+        const sick   = ((data.sickness||{})[mk]||{})[p.name]||[];
         const dayLookup = {};
         mine.forEach(e=>{ dayLookup[e.date]=(e.revenue||0); });
         const nmLookup = {};
@@ -5372,7 +5364,7 @@ function renderManagerOverview(){
         let cumA=0,cumRR=0,cumNmA=0,cumNmRR=0;
         wdPast.forEach(ds=>{
           const isBH  = isBankHoliday(ds);
-          const isOff = hols.includes(ds)||isBH||sick.includes(ds);
+          const isOff = hols.includes(ds)||isBH;
           if(!isOff){ cumRR+=rpd; cumNmRR+=1.75; }
           cumA   += dayLookup[ds]||0;
           cumNmA += nmLookup[ds]||0;
@@ -5584,15 +5576,11 @@ function saveBizTargets(){
   renderBizTarget();
 }
 
-// Count how many active consultants are working on a given date
-// Excludes: planned holiday AND sickness/unplanned (both reduce the team run rate)
+// Count how many active consultants are working on a given date (not on planned holiday — sickness does NOT reduce run rate)
 function peopleWorkingOnDate(mk, ds){
   if(isBankHoliday(ds)) return 0;
   const active = APP.people.filter(p=>personTargetForMonth(p,mk)>0);
-  return active.filter(p=>{
-    const st = getDayStatus(mk, p.name, ds);
-    return st !== 'hol' && st !== 'sick';
-  }).length;
+  return active.filter(p=>!getHols(mk,p.name).includes(ds)).length;
 }
 
 // Get all working dates in a month (Mon-Fri, excluding bank holidays)
@@ -5646,10 +5634,7 @@ function renderBizTarget(){
 
   // Today's run rate
   const today = _localDateStr(new Date());
-  const peopleToday = active.filter(p=>{
-    const st = getDayStatus(mk, p.name, today);
-    return st !== 'hol' && st !== 'sick';
-  }).length;
+  const peopleToday = active.filter(p=>!getHols(mk,p.name).includes(today)).length;
   const todayRunRate = peopleToday * rpp;
 
   const revPct = revTarget>0 ? Math.round(totalRev/revTarget*100) : 0;
@@ -5880,11 +5865,11 @@ function renderTeamDashboard(container, teamKey){
   let cumActual=0, cumRR=0, cumNmActual=0, cumNmRR=0;
   let tableRows='';
   wdDates.forEach(ds=>{
-    // How many members are working (not on planned holiday, BH, or sickness) and their combined RPD / NM rate
+    // How many members are working (not on planned holiday or BH) and their combined RPD / NM rate
     let dayRR=0, dayNmRR=0;
     memberRPDs.forEach(({name,rpd})=>{
       const st = getDayStatus(mk,name,ds);
-      if(st!=='hol'&&st!=='bh'&&st!=='sick'){
+      if(st!=='hol'&&st!=='bh'){
         dayRR    += rpd;
         dayNmRR  += 1.75;
       }
