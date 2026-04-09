@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Team Performance Dashboard</title>
+<title>Cavendish</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <!-- Firebase SDKs -->
@@ -530,13 +530,45 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 <div id="loginScreen">
   <div class="login-box">
     <div class="login-lock">🔒</div>
-    <div class="login-brand">PERF<span>.</span>DASH</div>
-    <div class="login-sub">Enter your team password to continue</div>
-    <div class="login-label">Password</div>
-    <input class="login-input" type="password" id="loginPwd" placeholder="Enter password"
-      onkeydown="if(event.key==='Enter')attemptLogin()">
-    <button class="login-btn" onclick="attemptLogin()">Sign in</button>
-    <div class="login-err" id="loginErr"></div>
+    <div class="login-brand">CAVENDISH<span style="color:var(--accent)">.</span></div>
+
+    <!-- Step 1: Password -->
+    <div id="loginStep1">
+      <div class="login-sub">Enter your team password to continue</div>
+      <div class="login-label">Password</div>
+      <input class="login-input" type="password" id="loginPwd" placeholder="Enter password"
+        onkeydown="if(event.key==='Enter')attemptLogin()">
+      <button class="login-btn" onclick="attemptLogin()">Continue →</button>
+      <div class="login-err" id="loginErr"></div>
+    </div>
+
+    <!-- Step 2: User selection -->
+    <div id="loginStep2" style="display:none">
+      <div class="login-sub">Select your name</div>
+      <div class="login-label">Who are you?</div>
+      <select class="login-input" id="loginUserSel" style="cursor:pointer;">
+        <option value="">— Select your name —</option>
+      </select>
+      <button class="login-btn" onclick="proceedToPin()" style="margin-top:8px">Continue →</button>
+      <button class="login-btn" style="background:var(--surface2);color:var(--text2);margin-top:6px;" onclick="backToPassword()">← Back</button>
+      <div class="login-err" id="loginErr2"></div>
+      <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);text-align:center;">
+        <button onclick="showAdminLogin()" style="background:none;border:none;color:var(--text3);font-size:11px;font-family:var(--fm);cursor:pointer;text-decoration:underline;padding:4px;">
+          Admin Login
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 3: PIN -->
+    <div id="loginStep3" style="display:none">
+      <div class="login-sub" id="loginPinLabel">Enter your PIN</div>
+      <div class="login-label">PIN</div>
+      <input class="login-input" type="password" id="loginPin" placeholder="Enter your PIN"
+        maxlength="8" onkeydown="if(event.key==='Enter')attemptPinLogin()">
+      <button class="login-btn" onclick="attemptPinLogin()">Sign In ✓</button>
+      <button class="login-btn" style="background:var(--surface2);color:var(--text2);margin-top:6px;" onclick="backToUserSelect()">← Back</button>
+      <div class="login-err" id="loginErr3"></div>
+    </div>
   </div>
 </div>
 
@@ -544,7 +576,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 <div id="divisionScreen" class="hidden">
   <div class="div-box">
     <div style="text-align:center;margin-bottom:32px">
-      <div class="div-title">PERF<span>.</span>DASH</div>
+      <div class="div-title">CAVENDISH<span style="color:var(--accent)">.</span></div>
       <div class="div-sub">Select your division to continue</div>
     </div>
     <div class="div-grid">
@@ -585,7 +617,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 <nav>
   <!-- Row 1: Brand + right-side controls -->
   <div class="nav-row1">
-    <div class="nav-brand">PERF<span>.</span>DASH</div>
+    <div class="nav-brand">CAVENDISH<span style="color:var(--accent)">.</span></div>
     <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;flex-wrap:nowrap;">
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
         <span style="font-size:10px;font-weight:600;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">Month</span>
@@ -608,6 +640,8 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
         <span id="syncLabel">connecting…</span>
       </div>
       <div class="nav-date" id="navDate"></div>
+      <div id="userRoleBadge" style="font-size:11px;font-weight:700;font-family:var(--fm);white-space:nowrap;padding:3px 10px;border-radius:20px;background:var(--surface2);border:1px solid var(--border2);display:none;"></div>
+      <button class="btn btn-s" id="logoutBtn" onclick="logoutUser()" style="font-size:11px;padding:4px 10px;display:none;">Sign Out</button>
     </div>
   </div>
   <!-- Row 2: Main scrollable tabs -->
@@ -886,6 +920,18 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
   </div>
   <div class="settings-grid">
 
+    <!-- Users & Roles — full width, master-only -->
+    <div class="set-card" style="grid-column:1/-1" id="usersRolesCard">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div class="set-title" style="margin-bottom:2px">👥 Users & Roles</div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">Manage user access, roles and PINs. Only visible to Master users.</div>
+        </div>
+        <button class="btn btn-p" onclick="openAddUserModal()" style="font-size:12px">+ Add User</button>
+      </div>
+      <div id="usersRolesContent"><div style="font-size:12px;color:var(--text3);font-family:var(--fm)">Loading users…</div></div>
+    </div>
+
     <!-- Theme picker — full width -->
     <div class="set-card" style="grid-column:1/-1">
       <div class="set-title">🎨 Theme</div>
@@ -931,6 +977,46 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     </div>
   </div>
   <div id="personContent"></div>
+</div>
+
+<!-- ADD USER MODAL -->
+<div class="modal-overlay" id="addUserModal">
+  <div class="modal" style="width:460px;max-width:95vw;">
+    <div class="modal-title">Add User</div>
+    <div class="modal-field">
+      <div class="field-lbl">Name</div>
+      <input type="text" id="addUserName" placeholder="Full name">
+    </div>
+    <div class="modal-field">
+      <div class="field-lbl">Role</div>
+      <select id="addUserRole">
+        <option value="consultant">Consultant</option>
+        <option value="manager">Manager</option>
+        <option value="compliance">Compliance</option>
+        <option value="master">Master</option>
+      </select>
+    </div>
+    <div class="modal-field">
+      <div class="field-lbl">Division (for consultants)</div>
+      <select id="addUserDiv">
+        <option value="">— None / Custom —</option>
+        <option value="branch">🏦 Branch</option>
+        <option value="d2c">💻 D2C</option>
+        <option value="guidance">🔗 Single Tie Guidance</option>
+        <option value="retail">🏪 Retail / Digital</option>
+        <option value="advice">💼 Advice</option>
+        <option value="core">⭐ Core</option>
+      </select>
+    </div>
+    <div class="modal-field">
+      <div class="field-lbl">PIN (4–8 digits)</div>
+      <input type="password" id="addUserPin" placeholder="e.g. 1234" maxlength="8">
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-s" onclick="closeAddUserModal()">Cancel</button>
+      <button class="btn btn-p" onclick="saveNewUser()">Add User</button>
+    </div>
+  </div>
 </div>
 
 <!-- NEW MONTH MODAL -->
@@ -1268,27 +1354,194 @@ async function _sha256(str){
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
+// ─── ROLE SYSTEM ───────────────────────────────────────────────────
+const ROLE_ACCESS = {
+  master:     null, // all tabs
+  manager:    ['dashboard','biz','teams','summary','entry','monthlysummary','leaderboard',
+               'history','daybyday','holiday','settings','manageroverview','staffperf','calloutcomes'],
+  compliance: ['compliance','calloutcomes'],
+  consultant: ['dashboard','teams','daybyday','summary']
+};
+const ROLE_LABELS = { master:'Master', manager:'Manager', compliance:'Compliance', consultant:'Consultant' };
+const ROLE_COLORS = { master:'#e879f9', manager:'#5e9cf5', compliance:'#2dce89', consultant:'#fbb83a' };
+
+let _currentUser = null; // { id, name, role, divKey }
+let _allUsers    = {};   // loaded from Firebase cavendish_users
+
+const _usersDbRef = () => (_db ? _db.ref('cavendish_users') : null);
+
+function applyRoleVisibility(){
+  if(!_currentUser) return;
+  const role    = _currentUser.role || 'consultant';
+  const allowed = ROLE_ACCESS[role]; // null = all
+
+  // Show/hide nav tabs
+  document.querySelectorAll('.nav-tab').forEach(tab=>{
+    const m = tab.getAttribute('onclick')?.match(/showPage\('([^']+)'\)/);
+    if(!m){ tab.style.display=''; return; }
+    tab.style.display = (!allowed || allowed.includes(m[1])) ? '' : 'none';
+  });
+
+  // Hide Users & Roles card from non-masters
+  const uCard = document.getElementById('usersRolesCard');
+  if(uCard) uCard.style.display = role==='master' ? '' : 'none';
+
+  // Update nav badge to show logged-in user
+  const badge = document.getElementById('userRoleBadge');
+  if(badge){
+    badge.textContent = `${_currentUser.name} · ${ROLE_LABELS[role]}`;
+    badge.style.color  = ROLE_COLORS[role];
+  }
+}
+
+function _startWithRole(){
+  applyRoleVisibility();
+  const role = _currentUser?.role || 'consultant';
+  const savedDiv = sessionStorage.getItem('pd_division');
+
+  // Consultants go directly to their division, skip division screen
+  if(role === 'consultant' && _currentUser?.divKey){
+    selectDivision(_currentUser.divKey);
+    return;
+  }
+  // Compliance role - go to compliance tab directly
+  if(role === 'compliance'){
+    const startDiv = savedDiv || 'branch';
+    selectDivision(startDiv);
+    return;
+  }
+  // Manager / Master - show division picker or restore saved
+  if(savedDiv && DIVISIONS[savedDiv]){
+    selectDivision(savedDiv);
+  } else {
+    document.getElementById('divisionScreen').classList.remove('hidden');
+  }
+}
+
+// ─── LOGIN STEP 1: Password ──────────────────────────────────────
 async function attemptLogin(){
   const pwd = document.getElementById('loginPwd').value;
   const err = document.getElementById('loginErr');
   if(!pwd){ err.textContent='Please enter a password.'; return; }
   const hash = await _sha256(pwd);
   if(hash === PASS_HASH){
-    sessionStorage.setItem('pd_auth','1');
-    document.getElementById('loginScreen').classList.add('hidden');
     err.textContent='';
-    // Show division selector (or auto-load if division already chosen)
-    const savedDiv = sessionStorage.getItem('pd_division');
-    if(savedDiv && DIVISIONS[savedDiv]){
-      selectDivision(savedDiv);
-    } else {
-      document.getElementById('divisionScreen').classList.remove('hidden');
-    }
+    // Load users then show step 2
+    document.getElementById('loginStep1').style.display='none';
+    document.getElementById('loginStep2').style.display='';
+    _loadUsersForLogin();
   } else {
     err.textContent='Incorrect password. Please try again.';
     document.getElementById('loginPwd').value='';
     document.getElementById('loginPwd').focus();
   }
+}
+
+function backToPassword(){
+  document.getElementById('loginStep2').style.display='none';
+  document.getElementById('loginStep1').style.display='';
+  document.getElementById('loginPwd').value='';
+  document.getElementById('loginErr2').textContent='';
+}
+
+function _loadUsersForLogin(){
+  const sel = document.getElementById('loginUserSel');
+  sel.innerHTML = '<option value="">Loading users…</option>';
+  const ref = _usersDbRef();
+  if(!ref){ sel.innerHTML='<option value="">— No users set up yet —</option>'; return; }
+  ref.once('value').then(snap=>{
+    _allUsers = snap.val()||{};
+    const sorted = Object.values(_allUsers).sort((a,b)=>a.name.localeCompare(b.name));
+    sel.innerHTML = '<option value="">— Select your name —</option>' +
+      sorted.map(u=>`<option value="${u.id}">${u.name}</option>`).join('');
+  }).catch(()=>{
+    sel.innerHTML='<option value="">— Could not load users —</option>';
+  });
+}
+
+// ─── LOGIN STEP 2 → 3: Select user, go to PIN ───────────────────
+function proceedToPin(){
+  const sel   = document.getElementById('loginUserSel');
+  const err2  = document.getElementById('loginErr2');
+  const uid   = sel.value;
+  if(!uid){ err2.textContent='Please select your name.'; return; }
+  const user = _allUsers[uid];
+  if(!user){ err2.textContent='User not found. Contact your manager.'; return; }
+  err2.textContent='';
+  document.getElementById('loginPinLabel').textContent = `Hi ${user.name.split(' ')[0]}! Enter your PIN`;
+  document.getElementById('loginStep2').style.display='none';
+  document.getElementById('loginStep3').style.display='';
+  document.getElementById('loginPin').value='';
+  document.getElementById('loginPin').focus();
+}
+
+function backToUserSelect(){
+  _adminLoginMode = false;
+  document.getElementById('loginStep3').style.display='none';
+  document.getElementById('loginStep2').style.display='';
+  document.getElementById('loginErr3').textContent='';
+}
+
+let _adminLoginMode = false;
+
+function showAdminLogin(){
+  _adminLoginMode = true;
+  document.getElementById('loginPinLabel').textContent = 'Admin Login — Enter PIN';
+  document.getElementById('loginStep2').style.display = 'none';
+  document.getElementById('loginStep3').style.display = '';
+  document.getElementById('loginPin').value = '';
+  document.getElementById('loginPin').focus();
+}
+
+// ─── LOGIN STEP 3: PIN verification ─────────────────────────────
+function attemptPinLogin(){
+  const pin  = document.getElementById('loginPin').value;
+  const err3 = document.getElementById('loginErr3');
+  if(!pin){ err3.textContent='Please enter your PIN.'; return; }
+
+  // Admin bootstrap override
+  if(_adminLoginMode){
+    if(pin !== '0000'){
+      err3.textContent='Incorrect admin PIN.';
+      document.getElementById('loginPin').value='';
+      document.getElementById('loginPin').focus();
+      return;
+    }
+    _adminLoginMode = false;
+    _currentUser = { id:'__admin__', name:'Admin', role:'master', divKey:'' };
+    sessionStorage.setItem('pd_auth','1');
+    sessionStorage.setItem('pd_user', JSON.stringify(_currentUser));
+    document.getElementById('loginScreen').classList.add('hidden');
+    err3.textContent='';
+    const badge = document.getElementById('userRoleBadge');
+    const logoutBtn = document.getElementById('logoutBtn');
+    if(badge){ badge.style.display=''; badge.textContent='Admin · Master'; badge.style.color=ROLE_COLORS.master; }
+    if(logoutBtn) logoutBtn.style.display='';
+    _startWithRole();
+    return;
+  }
+
+  const uid  = document.getElementById('loginUserSel').value;
+  const user = _allUsers[uid];
+  if(!user){ err3.textContent='Session error — go back and reselect.'; return; }
+  if(String(user.pin) !== String(pin)){
+    err3.textContent='Incorrect PIN. Please try again.';
+    document.getElementById('loginPin').value='';
+    document.getElementById('loginPin').focus();
+    return;
+  }
+  // Success
+  _currentUser = { id:uid, name:user.name, role:user.role||'consultant', divKey:user.divKey||'' };
+  sessionStorage.setItem('pd_auth','1');
+  sessionStorage.setItem('pd_user', JSON.stringify(_currentUser));
+  document.getElementById('loginScreen').classList.add('hidden');
+  err3.textContent='';
+  const badge = document.getElementById('userRoleBadge');
+  const logoutBtn = document.getElementById('logoutBtn');
+  if(badge){ badge.style.display=''; badge.textContent=`${_currentUser.name} · ${ROLE_LABELS[_currentUser.role]}`; badge.style.color=ROLE_COLORS[_currentUser.role]||'var(--text2)'; }
+  if(logoutBtn) logoutBtn.style.display='';
+  _adminLoginMode = false;
+  _startWithRole();
 }
 
 function selectDivision(key){
@@ -1303,7 +1556,12 @@ function selectDivision(key){
   const idx = Object.keys(DIVISIONS).indexOf(key);
   const btns = document.querySelectorAll('.div-btn');
   if(btns[idx]) btns[idx].classList.add('active-div');
+  applyRoleVisibility();
   _initApp(key);
+  // For compliance role, navigate straight to compliance tab
+  if(_currentUser?.role==='compliance'){
+    setTimeout(()=>showPage('compliance'), 600);
+  }
 }
 
 function switchDivision(){
@@ -2285,6 +2543,7 @@ function renderSettings(){
   populateAllSelects();
   document.getElementById('activeMonthSel').value = APP.activeMonth;
   renderThemePicker();
+  renderUsersRoles();
 
   // Name-only rows — no risk/day or work days here
   document.getElementById('personConfigRows').innerHTML = APP.people.length
@@ -6728,9 +6987,154 @@ _dbRef.once('value').then(snap=>{
 });
 }
 
-// ── Session restore — runs after ALL functions are defined ──────────
+// ─── USER MANAGEMENT ───────────────────────────────────────────────
+function renderUsersRoles(){
+  const card = document.getElementById('usersRolesContent');
+  if(!card) return;
+  if(_currentUser?.role !== 'master'){
+    card.innerHTML = '<div style="font-size:12px;color:var(--text3);font-family:var(--fm)">Only Master users can manage users and roles.</div>';
+    return;
+  }
+  card.innerHTML = '<div style="font-size:12px;color:var(--text3);font-family:var(--fm)">Loading…</div>';
+  const ref = _usersDbRef();
+  if(!ref){ card.innerHTML='<div style="font-size:12px;color:var(--red)">Not connected.</div>'; return; }
+  ref.once('value').then(snap=>{
+    _allUsers = snap.val()||{};
+    _renderUsersTable();
+  });
+}
+
+function _renderUsersTable(){
+  const card = document.getElementById('usersRolesContent');
+  const users = Object.values(_allUsers).sort((a,b)=>a.name.localeCompare(b.name));
+  if(!users.length){
+    card.innerHTML='<div style="font-size:12px;color:var(--text3);font-family:var(--fm)">No users set up yet. Click + Add User to create the first user.</div>';
+    return;
+  }
+  const thS='style="padding:8px 12px;background:var(--surface2);font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid var(--border);text-align:left;"';
+  card.innerHTML=`<div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;min-width:600px;">
+      <thead><tr>
+        <th ${thS}>Name</th>
+        <th ${thS}>Division</th>
+        <th ${thS}>Role</th>
+        <th ${thS}>PIN</th>
+        <th ${thS}>Actions</th>
+      </tr></thead>
+      <tbody>
+        ${users.map(u=>{
+          const divLabel = u.divKey ? (DIVISIONS[u.divKey]?.label||u.divKey) : '—';
+          const roleCol  = ROLE_COLORS[u.role]||'var(--text3)';
+          return `<tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:9px 12px;font-weight:600;font-size:13px">${u.name}</td>
+            <td style="padding:9px 12px;font-size:12px;color:var(--text2);font-family:var(--fm)">${divLabel}</td>
+            <td style="padding:9px 12px;">
+              <select onchange="updateUserRole('${u.id}',this.value)"
+                style="font-size:12px;font-weight:700;color:${roleCol};background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:4px 8px;cursor:pointer;">
+                ${['consultant','manager','compliance','master'].map(r=>`<option value="${r}"${r===u.role?' selected':''}>${ROLE_LABELS[r]}</option>`).join('')}
+              </select>
+            </td>
+            <td style="padding:9px 12px;">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span id="pin_${u.id}" style="font-family:var(--fm);font-size:13px;letter-spacing:.1em">••••</span>
+                <button class="btn btn-s" onclick="togglePinVisibility('${u.id}','${u.pin}')" style="font-size:10px;padding:3px 8px">👁</button>
+                <button class="btn btn-s" onclick="editUserPin('${u.id}','${u.name}')" style="font-size:10px;padding:3px 8px">Edit</button>
+              </div>
+            </td>
+            <td style="padding:9px 12px;">
+              <button class="btn btn-d" onclick="deleteUser('${u.id}','${u.name}')" style="font-size:11px;padding:4px 10px;">Remove</button>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function togglePinVisibility(uid, pin){
+  const el = document.getElementById('pin_'+uid);
+  if(!el) return;
+  el.textContent = el.textContent.includes('•') ? pin : '••••';
+}
+
+function updateUserRole(uid, newRole){
+  if(!_allUsers[uid]) return;
+  _allUsers[uid].role = newRole;
+  _usersDbRef()?.child(uid).update({role:newRole})
+    .then(()=>showToast(`Role updated to ${ROLE_LABELS[newRole]}`))
+    .catch(()=>showToast('Save failed','err'));
+}
+
+function editUserPin(uid, name){
+  const newPin = prompt(`Enter new PIN for ${name}:`);
+  if(!newPin) return;
+  if(!/^\d{4,8}$/.test(newPin)){ alert('PIN must be 4–8 digits.'); return; }
+  _allUsers[uid].pin = newPin;
+  _usersDbRef()?.child(uid).update({pin:newPin})
+    .then(()=>{ showToast('PIN updated'); _renderUsersTable(); })
+    .catch(()=>showToast('Save failed','err'));
+}
+
+function deleteUser(uid, name){
+  if(!confirm(`Remove user "${name}"? They will no longer be able to log in.`)) return;
+  _usersDbRef()?.child(uid).remove()
+    .then(()=>{ delete _allUsers[uid]; _renderUsersTable(); showToast(`${name} removed`); })
+    .catch(()=>showToast('Delete failed','err'));
+}
+
+function openAddUserModal(){
+  document.getElementById('addUserName').value='';
+  document.getElementById('addUserPin').value='';
+  document.getElementById('addUserRole').value='consultant';
+  document.getElementById('addUserDiv').value='';
+  document.getElementById('addUserModal').classList.add('open');
+}
+function closeAddUserModal(){ document.getElementById('addUserModal').classList.remove('open'); }
+
+function saveNewUser(){
+  const name  = document.getElementById('addUserName').value.trim();
+  const role  = document.getElementById('addUserRole').value;
+  const divKey= document.getElementById('addUserDiv').value;
+  const pin   = document.getElementById('addUserPin').value.trim();
+  if(!name){ alert('Please enter a name.'); return; }
+  if(!pin || !/^\d{4,8}$/.test(pin)){ alert('PIN must be 4–8 digits.'); return; }
+  const id = 'usr_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+  const user = { id, name, role, divKey, pin };
+  _usersDbRef()?.child(id).set(user)
+    .then(()=>{
+      _allUsers[id] = user;
+      closeAddUserModal();
+      _renderUsersTable();
+      showToast(`${name} added as ${ROLE_LABELS[role]}`);
+    })
+    .catch(()=>showToast('Failed to add user','err'));
+}
+
+function logoutUser(){
+  sessionStorage.removeItem('pd_auth');
+  sessionStorage.removeItem('pd_user');
+  sessionStorage.removeItem('pd_division');
+  _currentUser = null;
+  window.location.reload();
+}
+
+// ── Session restore ─────────────────────────────────────────────────
 if(sessionStorage.getItem('pd_auth')==='1'){
   document.getElementById('loginScreen').classList.add('hidden');
+  // Restore user from session
+  try{
+    const saved = sessionStorage.getItem('pd_user');
+    if(saved){ _currentUser = JSON.parse(saved); }
+  }catch(e){}
+  // Show badge and logout button
+  const badge = document.getElementById('userRoleBadge');
+  const logoutBtn = document.getElementById('logoutBtn');
+  if(_currentUser && badge){
+    badge.style.display='';
+    badge.textContent=`${_currentUser.name} · ${ROLE_LABELS[_currentUser.role]||_currentUser.role}`;
+    badge.style.color=ROLE_COLORS[_currentUser.role]||'var(--text2)';
+  }
+  if(logoutBtn) logoutBtn.style.display='';
   const savedDiv = sessionStorage.getItem('pd_division');
   if(savedDiv && DIVISIONS[savedDiv]){
     selectDivision(savedDiv);
