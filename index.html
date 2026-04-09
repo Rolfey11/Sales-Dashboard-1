@@ -686,6 +686,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
         <select id="elapsedDaysSel" onchange="setElapsedDays(this.value)" style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:5px 10px;font-size:13px;font-weight:700;font-family:var(--fm);color:var(--text);outline:none;cursor:pointer;width:70px;"></select>
       </div>
       <button class="btn btn-s" onclick="exportDashboardCSV()">↓ Export CSV</button>
+      <button class="btn btn-s" onclick="generateMonthlyReport()" style="background:var(--purple-bg);color:var(--purple);border-color:var(--purple);">📄 PDF Report</button>
       <button class="btn btn-s" onclick="showPage('entry')">+ Add today's numbers</button>
     </div>
   </div>
@@ -1022,6 +1023,16 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <button class="btn btn-s" onclick="closeAddUserModal()">Cancel</button>
       <button class="btn btn-p" onclick="saveNewUser()">Add User</button>
     </div>
+  </div>
+</div>
+
+<!-- SESSION TIMEOUT WARNING MODAL -->
+<div id="sessionTimeoutModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9990;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;padding:32px 28px;width:360px;max-width:90vw;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.5);">
+    <div style="font-size:36px;margin-bottom:12px;">⏱</div>
+    <div style="font-size:17px;font-weight:700;margin-bottom:8px;">Session Expiring</div>
+    <div style="font-size:13px;color:var(--text2);font-family:var(--fm);margin-bottom:20px;">You'll be signed out in <span id="timeoutCountdown" style="font-weight:700;color:var(--amber)">60</span> seconds due to inactivity.</div>
+    <button onclick="resetSessionTimer()" style="width:100%;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:600;font-family:var(--fh);cursor:pointer;">I'm still here</button>
   </div>
 </div>
 
@@ -1440,6 +1451,7 @@ function applyRoleVisibility(){
 }
 
 function _startWithRole(){
+  _startSessionTimeout(); // begin 30-min inactivity timer
   applyRoleVisibility();
   const role = _currentUser?.role || 'consultant';
   const savedDiv = sessionStorage.getItem('pd_division');
@@ -1932,9 +1944,11 @@ function calcStats(monthKey){
     const revMTD = mine.reduce((s,e)=>s+(e.revenue||0), 0);
     const nmMTD  = mine.reduce((s,e)=>s+(e.nm||0), 0);
 
-    // ── fixed targets from effective (month-aware) config ────────
-    const target   = Math.round((ep.riskPerDay||0) * (ep.daysT||0));
-    const nmTarget = parseFloat(((ep.daysT||0) * 1.75).toFixed(2));
+    // ── fixed targets — adjusted for sick days ───────────────────
+    const sickWorkDays  = getSickWorkDayCount(monthKey, p.name);
+    const effectiveDays = Math.max(0, (ep.daysT||0) - sickWorkDays);
+    const target   = Math.round((ep.riskPerDay||0) * effectiveDays);
+    const nmTarget = parseFloat((effectiveDays * 1.75).toFixed(2));
 
     // calendar working days elapsed for this person (holidays excluded)
     const calDays = calWorkDays(monthKey, p.name);
@@ -1945,7 +1959,7 @@ function calcStats(monthKey){
 
     // ── percentages ──────────────────────────────────────────────
     const revPct = target>0   ? Math.round(revMTD  / target   * 100) : 0;
-    const nmTargetFixed = (ep.daysT||0) * 1.75;
+    const nmTargetFixed = effectiveDays * 1.75;
     const nmPct  = nmTargetFixed>0 ? Math.round(nmMTD / nmTargetFixed * 100) : 0;
 
     const riskAhead = copRev <= 0;
@@ -5010,8 +5024,11 @@ function renderConsultantDaily(){
   const ep = p ? getPersonForMonth(p, mk) : null;
   const riskPerDay = ep?.riskPerDay || 0;
   const daysT      = ep?.daysT      || 0;
-  const target     = Math.round(riskPerDay * daysT);
-  const nmTarget   = parseFloat((daysT * 1.75).toFixed(2));
+  // Adjust target for sick days — each sick working day reduces target by riskPerDay
+  const sickDaysCount  = p ? getSickWorkDayCount(mk, myName) : 0;
+  const effectiveDaysT = Math.max(0, daysT - sickDaysCount);
+  const target     = Math.round(riskPerDay * effectiveDaysT);
+  const nmTarget   = parseFloat((effectiveDaysT * 1.75).toFixed(2));
 
   const entries = getEntries(mk);
   const mine    = entries.filter(e=>e.name===myName);
@@ -5021,7 +5038,7 @@ function renderConsultantDaily(){
   const forTarget   = target - revMTD;
   const copRiskNeeded = riskPerDay>0 ? (riskPerDay*(elapsed+1) - revMTD) : 0;
   const copNmNeeded   = (elapsed*1.75+1.75) - nmMTD;
-  const rpdNeeded     = (daysT - elapsed)>0 ? forTarget/(daysT - elapsed) : 0;
+  const rpdNeeded     = (effectiveDaysT - elapsed)>0 ? forTarget/(effectiveDaysT - elapsed) : 0;
   const daysWorked    = new Set(mine.filter(e=>(e.revenue||0)>0||(e.nm||0)>0).map(e=>e.date)).size;
 
   const pct = target>0 ? Math.round(revMTD/target*100) : 0;
@@ -5112,7 +5129,7 @@ function renderConsultantDaily(){
           <div style="padding:10px 14px;background:linear-gradient(135deg,#1a4a1a,#0d2b0d);color:#fff;font-size:13px;font-weight:700;">Monthly Summary</div>
           ${[
             ['Monthly Target', target>0?'£'+target.toLocaleString():'Not set', null],
-            ['Targeted Days', daysT||'—', null],
+            ['Targeted Days', effectiveDaysT||'—', sickDaysCount>0?`(${sickDaysCount} sick day${sickDaysCount>1?'s':''} deducted)`:null],
             ['Days Worked', daysWorked, null],
             ['For Target', target>0?'£'+Math.round(forTarget).toLocaleString():'—', null],
             null,
@@ -7640,6 +7657,262 @@ function toggleTheme(){
 // Restore saved theme on load
 (function(){ applyTheme(localStorage.getItem('pd_theme') || 'midnight'); })();
 
+// ═══════════════════════════════════════════════════════════════════
+// FEATURE 1 — SESSION TIMEOUT (30 minutes inactivity)
+// ═══════════════════════════════════════════════════════════════════
+const SESSION_TIMEOUT_MS  = 30 * 60 * 1000; // 30 minutes
+const SESSION_WARNING_MS  = 29 * 60 * 1000; // warn at 29 min
+let _sessionWarningTimer  = null;
+let _sessionLogoutTimer   = null;
+let _countdownInterval    = null;
+
+function _resetSessionTimers(){
+  clearTimeout(_sessionWarningTimer);
+  clearTimeout(_sessionLogoutTimer);
+  clearInterval(_countdownInterval);
+  // Hide warning modal if showing
+  const modal = document.getElementById('sessionTimeoutModal');
+  if(modal) modal.style.display = 'none';
+  // Only run timers when actually logged in
+  if(!sessionStorage.getItem('pd_auth')) return;
+  _sessionWarningTimer = setTimeout(_showSessionWarning, SESSION_WARNING_MS);
+  _sessionLogoutTimer  = setTimeout(logoutUser, SESSION_TIMEOUT_MS);
+}
+
+function _showSessionWarning(){
+  const modal = document.getElementById('sessionTimeoutModal');
+  if(!modal) return;
+  modal.style.display = 'flex';
+  let secs = 60;
+  const el = document.getElementById('timeoutCountdown');
+  if(el) el.textContent = secs;
+  _countdownInterval = setInterval(()=>{
+    secs--;
+    if(el) el.textContent = secs;
+    if(secs <= 0){ clearInterval(_countdownInterval); }
+  }, 1000);
+}
+
+function resetSessionTimer(){
+  _resetSessionTimers();
+}
+
+function _startSessionTimeout(){
+  // Reset on any user activity
+  ['mousemove','mousedown','keydown','touchstart','scroll','click'].forEach(evt=>{
+    document.addEventListener(evt, _resetSessionTimers, {passive:true});
+  });
+  _resetSessionTimers();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FEATURE 2 — SICKNESS TARGET ADJUSTMENT
+// When a consultant is marked sick, their monthly target reduces by
+// riskPerDay for each sick working day. COP recalculates automatically.
+// ═══════════════════════════════════════════════════════════════════
+
+// Count sick days that fall on actual working days (Mon–Fri, not bank holidays)
+function getSickWorkDayCount(mk, personName){
+  const sickDates = getSick(mk, personName);
+  return sickDates.filter(ds=>{
+    const dow = new Date(ds).getDay();
+    return dow !== 0 && dow !== 6 && !isBankHoliday(ds);
+  }).length;
+}
+
+// Adjusted days target: daysT minus sick working days (floor at 0)
+function personEffectiveDaysT(p, mk){
+  const ep       = getPersonForMonth(p, mk);
+  const baseDays = ep.daysT || 0;
+  const sickDays = getSickWorkDayCount(mk, p.name);
+  return Math.max(0, baseDays - sickDays);
+}
+
+// Adjusted monthly revenue target accounting for sickness
+function personAdjustedTarget(p, mk){
+  const ep           = getPersonForMonth(p, mk);
+  const effectiveDays = personEffectiveDaysT(p, mk);
+  return Math.round((ep.riskPerDay || 0) * effectiveDays);
+}
+
+// Adjusted NM target accounting for sickness
+function personAdjustedNmTarget(p, mk){
+  const effectiveDays = personEffectiveDaysT(p, mk);
+  return parseFloat((effectiveDays * 1.75).toFixed(2));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FEATURE 3 — MONTHLY PDF REPORT
+// ═══════════════════════════════════════════════════════════════════
+function generateMonthlyReport(){
+  const mk      = APP.activeMonth;
+  const stats   = calcStats(mk).filter(s=>s.target>0);
+  const div     = DIVISIONS[_currentDivKey]||DIVISIONS.branch;
+  const elapsed = APP.manualElapsed != null ? APP.manualElapsed : calWorkDaysTeam(mk);
+  const allWD   = workingDatesInMonth(mk).length;
+  const remaining = Math.max(0, allWD - elapsed);
+  const elPct   = allWD>0 ? Math.round(elapsed/allWD*100) : 0;
+
+  const totTarget = stats.reduce((s,p)=>s+p.target,0);
+  const totRev    = stats.reduce((s,p)=>s+p.revMTD,0);
+  const totNM     = stats.reduce((s,p)=>s+p.nmMTD,0);
+  const totNMTgt  = stats.reduce((s,p)=>s+(p.nmTarget||0),0);
+  const totPct    = totTarget>0?Math.round(totRev/totTarget*100):0;
+  const totNMPct  = totNMTgt>0?Math.round(totNM/totNMTgt*100):0;
+
+  const fmtGBP = v=>'£'+Math.round(v).toLocaleString('en-GB');
+  const fmtF   = v=>'£'+parseFloat(v).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const pctCol = p=>p>=100?'#1aaa6e':p>=75?'#d4820a':'#d92f53';
+  const barW   = p=>Math.min(p,100);
+
+  const consultantRows = [...stats].sort((a,b)=>b.revMTD-a.revMTD).map((p,i)=>{
+    const pc = p.target>0?Math.round(p.revMTD/p.target*100):0;
+    const nmPc = (p.nmTarget||0)>0?Math.round(p.nmMTD/(p.nmTarget||1)*100):0;
+    const ahead = p.riskAhead;
+    const rowBg = i%2===0?'#ffffff':'#f8fafc';
+    return `<tr style="background:${rowBg};border-bottom:1px solid #e8edf2;">
+      <td style="padding:8px 12px;font-weight:600;font-size:12px;">${i+1}. ${p.name}</td>
+      <td style="padding:8px 12px;text-align:right;font-size:12px;color:#555;">${fmtF(p.target)}</td>
+      <td style="padding:8px 12px;text-align:right;font-size:12px;font-weight:700;color:${pctCol(pc)}">${fmtGBP(p.revMTD)}</td>
+      <td style="padding:8px 12px;text-align:center;">
+        <div style="background:#e8edf2;border-radius:4px;height:8px;width:80px;margin:0 auto;overflow:hidden;">
+          <div style="height:100%;width:${barW(pc)}%;background:${pctCol(pc)};border-radius:4px;"></div>
+        </div>
+        <div style="font-size:10px;color:${pctCol(pc)};font-weight:700;margin-top:2px;">${pc}%</div>
+      </td>
+      <td style="padding:8px 12px;text-align:center;font-size:12px;color:${p.nmMTD>=(p.nmTarget||0)?'#1aaa6e':'#d4820a'}">${p.nmMTD} / ${parseFloat((p.nmTarget||0).toFixed(1))}</td>
+      <td style="padding:8px 12px;text-align:center;font-size:11px;font-weight:700;color:${ahead?'#1aaa6e':'#d92f53'};background:${ahead?'rgba(26,170,110,0.08)':'rgba(217,47,83,0.08)'};">${ahead?'✓ Ahead':'Behind'}</td>
+    </tr>`;
+  }).join('');
+
+  // Team summaries
+  const teamRows = Object.entries(TEAM_LABELS).map(([key,label])=>{
+    const members = (APP.teams[key]||[]);
+    const ts = stats.filter(s=>members.includes(s.name));
+    if(!ts.length) return '';
+    const tRev = ts.reduce((s,p)=>s+p.revMTD,0);
+    const tTgt = ts.reduce((s,p)=>s+p.target,0);
+    const tNM  = ts.reduce((s,p)=>s+p.nmMTD,0);
+    const pct  = tTgt>0?Math.round(tRev/tTgt*100):0;
+    const col  = TEAM_COLORS[key]||'#5e9cf5';
+    return `<div style="background:#fff;border:1px solid #e0e6ef;border-radius:8px;padding:14px 16px;border-left:4px solid ${col};">
+      <div style="font-weight:700;font-size:13px;margin-bottom:8px;color:${col}">${label}</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:12px;">
+        <div><div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Revenue</div><div style="font-weight:700;color:${pctCol(pct)}">${fmtGBP(tRev)}</div></div>
+        <div><div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">Target</div><div style="font-weight:600">${fmtGBP(tTgt)}</div></div>
+        <div><div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px">NM MTD</div><div style="font-weight:600">${tNM}</div></div>
+      </div>
+      <div style="background:#e8edf2;border-radius:4px;height:6px;margin-top:10px;overflow:hidden;">
+        <div style="height:100%;width:${barW(pct)}%;background:${pctCol(pct)};border-radius:4px;"></div>
+      </div>
+      <div style="font-size:11px;color:${pctCol(pct)};font-weight:700;margin-top:4px;">${pct}% of target</div>
+    </div>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <title>Monthly Report — ${monthLabel(mk)}</title>
+    <style>
+      * { box-sizing:border-box; margin:0; padding:0; }
+      body { font-family:Calibri,Arial,sans-serif; background:#f0f4f8; color:#1a2333; padding:28px; font-size:13px; }
+      @media print {
+        body { background:#fff; padding:16px; }
+        .no-print { display:none !important; }
+        @page { size:A4; margin:1.5cm; }
+      }
+    </style>
+  </head><body>
+
+  <!-- Header -->
+  <div style="background:linear-gradient(135deg,#11B67A,#0d9063);border-radius:12px;padding:24px 28px;margin-bottom:24px;color:#fff;display:flex;justify-content:space-between;align-items:flex-start;">
+    <div>
+      <div style="font-size:24px;font-weight:700;letter-spacing:.04em;">CAVENDISH.</div>
+      <div style="font-size:16px;font-weight:700;margin-top:4px;">Monthly Performance Report</div>
+      <div style="opacity:.8;margin-top:4px;font-size:12px;">${monthLabel(mk)} · ${div.label} · Generated ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>
+    </div>
+    <div style="text-align:right;font-size:12px;opacity:.85;">
+      <div>Working days: ${allWD}</div>
+      <div>Days elapsed: ${elapsed} (${elPct}%)</div>
+      <div>Days remaining: ${remaining}</div>
+    </div>
+  </div>
+
+  <!-- KPI Strip -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;">
+    ${[
+      ['Team Revenue MTD', fmtGBP(totRev), totPct+'%', pctCol(totPct)],
+      ['Monthly Target',   fmtGBP(totTarget), stats.length+' consultants', '#555'],
+      ['Needs Met MTD',    String(totNM), totNMPct+'% of target', pctCol(totNMPct)],
+      ['Consultants Ahead',stats.filter(p=>p.riskAhead).length+' / '+stats.length,'on COP risk','#11B67A'],
+    ].map(([lbl,val,sub,col])=>`
+      <div style="background:#fff;border-radius:10px;padding:16px;border:1px solid #e0e6ef;border-top:3px solid ${col};">
+        <div style="font-size:9px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">${lbl}</div>
+        <div style="font-size:22px;font-weight:700;color:${col};line-height:1;">${val}</div>
+        <div style="font-size:11px;color:#888;margin-top:4px;">${sub}</div>
+      </div>`).join('')}
+  </div>
+
+  <!-- Progress bar -->
+  <div style="background:#fff;border-radius:10px;padding:16px 20px;margin-bottom:24px;border:1px solid #e0e6ef;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div style="font-size:13px;font-weight:700;">Revenue vs Target — Month Progress</div>
+      <div style="font-size:14px;font-weight:700;color:${pctCol(totPct)}">${totPct}%</div>
+    </div>
+    <div style="background:#e8edf2;border-radius:6px;height:12px;overflow:hidden;position:relative;">
+      <div style="height:100%;width:${barW(totPct)}%;background:${pctCol(totPct)};border-radius:6px;"></div>
+      <div style="position:absolute;top:0;left:${elPct}%;height:100%;width:2px;background:#333;opacity:.3;" title="Days elapsed %"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:#888;margin-top:4px;">
+      <span>£0</span><span style="color:#555;">▲ ${elPct}% of month elapsed</span><span>${fmtGBP(totTarget)}</span>
+    </div>
+  </div>
+
+  <!-- Teams -->
+  <div style="margin-bottom:24px;">
+    <div style="font-size:14px;font-weight:700;margin-bottom:12px;">Team Breakdown</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">${teamRows}</div>
+  </div>
+
+  <!-- Consultant table -->
+  <div style="background:#fff;border-radius:10px;overflow:hidden;border:1px solid #e0e6ef;margin-bottom:20px;">
+    <div style="padding:12px 16px;background:#f8fafc;border-bottom:1px solid #e0e6ef;display:flex;justify-content:space-between;align-items:center;">
+      <div style="font-size:13px;font-weight:700;">Individual Performance</div>
+      <div style="font-size:11px;color:#888;">sorted by revenue MTD</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;">
+      <thead><tr style="background:#1a2333;color:#fff;">
+        <th style="padding:9px 12px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">Consultant</th>
+        <th style="padding:9px 12px;text-align:right;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">Target</th>
+        <th style="padding:9px 12px;text-align:right;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">Revenue MTD</th>
+        <th style="padding:9px 12px;text-align:center;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">Progress</th>
+        <th style="padding:9px 12px;text-align:center;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">NM</th>
+        <th style="padding:9px 12px;text-align:center;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">COP</th>
+      </tr></thead>
+      <tbody>${consultantRows}</tbody>
+      <tr style="background:#1a2333;color:#fff;">
+        <td style="padding:9px 12px;font-weight:700;font-size:12px;">TOTALS</td>
+        <td style="padding:9px 12px;text-align:right;font-size:12px;font-weight:700;">${fmtF(totTarget)}</td>
+        <td style="padding:9px 12px;text-align:right;font-size:12px;font-weight:700;color:${pctCol(totPct)}">${fmtGBP(totRev)}</td>
+        <td style="padding:9px 12px;text-align:center;font-size:12px;font-weight:700;color:${pctCol(totPct)}">${totPct}%</td>
+        <td style="padding:9px 12px;text-align:center;font-size:12px;font-weight:700;">${totNM} / ${totNMTgt.toFixed(1)}</td>
+        <td></td>
+      </tr>
+    </table>
+  </div>
+
+  <div style="font-size:10px;color:#aaa;text-align:center;margin-bottom:16px;">Cavendish Performance Dashboard · Confidential · ${new Date().toLocaleString('en-GB')}</div>
+
+  <div class="no-print" style="text-align:center;margin-top:8px;">
+    <button onclick="window.print()" style="background:#11B67A;color:#fff;border:none;border-radius:8px;padding:12px 36px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px;">🖨 Print / Save as PDF</button>
+    <button onclick="window.close()" style="background:#f0f4f8;color:#555;border:1px solid #d0d8e4;border-radius:8px;padding:12px 24px;font-size:14px;cursor:pointer;">Close</button>
+  </div>
+  </body></html>`;
+
+  const win = window.open('','_blank','width=1000,height=800,scrollbars=yes');
+  win.document.write(html);
+  win.document.close();
+}
+
 // ─── INIT ──────────────────────────────────────────────────────────
 document.getElementById('navDate').textContent =
   new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
@@ -7886,6 +8159,7 @@ if(sessionStorage.getItem('pd_auth')==='1'){
     badge.style.color=ROLE_COLORS[_currentUser.role]||'var(--text2)';
   }
   if(logoutBtn) logoutBtn.style.display='';
+  _startSessionTimeout(); // restart timer on page reload
   const savedDiv = sessionStorage.getItem('pd_division');
   if(savedDiv && DIVISIONS[savedDiv]){
     selectDivision(savedDiv);
