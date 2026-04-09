@@ -1350,7 +1350,12 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <div class="section-title">📅 Consultant Daily</div>
       <div class="section-sub" id="cd-sub">Monthly Sales Figures Tracker</div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <!-- Manager/Master only: consultant picker -->
+      <div id="cdConsultantPickerWrap" style="display:none;align-items:center;gap:6px">
+        <span style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap">Viewing:</span>
+        <select id="cdConsultantSel" onchange="renderConsultantDaily()" style="width:180px"></select>
+      </div>
       <select id="cdMonth" onchange="renderConsultantDaily()" style="width:170px"></select>
     </div>
   </div>
@@ -2498,9 +2503,12 @@ function buildEntryRows(){
 function saveAllEntries(){
   const date = document.getElementById('entryDate').value;
   if(!date){ showToast('Select a date first','err'); return; }
-  const mk = APP.activeMonth;
-  // remove all existing entries for this date, then re-add with increments applied
+  const mk   = APP.activeMonth;
+  const role = _currentUser?.role || 'consultant';
+
+  // Build the new entries list
   let entries = getEntries(mk).filter(e=>e.date!==date);
+  const newForDate = [];
   APP.people.filter(p=>personTargetForMonth(p,mk)>0).forEach(p=>{
     const baseRev = parseFloat(document.getElementById('rev_'+p.name)?.value)||0;
     const addRev  = parseFloat(document.getElementById('addrev_'+p.name)?.value)||0;
@@ -2508,11 +2516,39 @@ function saveAllEntries(){
     const addNm   = parseInt(document.getElementById('addnm_'+p.name)?.value)||0;
     const rev = parseFloat((baseRev + addRev).toFixed(2));
     const nm  = baseNm + addNm;
-    if(rev>0||nm>0) entries.push({date, name:p.name, revenue:rev, nm});
+    if(rev>0||nm>0) newForDate.push({date, name:p.name, revenue:rev, nm});
   });
-  setEntries(mk, entries);
-  showToast('Saved entries for '+date);
-  buildEntryRows(); // reloads with cleared add fields, updated totals
+
+  if(role==='manager' || role==='master'){
+    // Manager/Master: write directly to Firebase without approval
+    entries = entries.concat(newForDate);
+    const divDbKey = (DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey;
+    const entriesPath = `${divDbKey}/months/${mk}/entries`;
+    APP.months[mk] = APP.months[mk] || {entries:[]};
+    APP.months[mk].entries = entries;
+    _db.ref(entriesPath).set(entries).then(()=>{
+      // Store manager meta for each person who had a new entry
+      const metaRef = _entryMetaRef();
+      const reviewedBy = _currentUser?.name || 'Manager';
+      const reviewedAt = new Date().toISOString();
+      if(metaRef){
+        newForDate.forEach(e=>{
+          metaRef.child(mk+'/'+e.name.replace(/[^a-zA-Z0-9]/g,'_')+'/'+date).set({
+            approvedBy: reviewedBy+' (Manager Direct)', approvedAt: reviewedAt,
+            notes: 'Direct entry by manager via Daily Entry page'
+          }).catch(()=>{});
+        });
+      }
+      showToast('Saved entries for '+date+' ✓');
+      buildEntryRows();
+    }).catch(()=>showToast('Save failed — check connection','err'));
+  } else {
+    // Consultant / other: use original local save
+    entries = entries.concat(newForDate);
+    setEntries(mk, entries);
+    showToast('Saved entries for '+date);
+    buildEntryRows();
+  }
 }
 
 function clearDayEntries(){
@@ -4929,13 +4965,38 @@ function handleReview(id, action){
 }
 
 // ── Consultant Daily render ───────────────────────────────────────
+function _populateCdConsultantSel(){
+  const role  = _currentUser?.role || 'consultant';
+  const wrap  = document.getElementById('cdConsultantPickerWrap');
+  const sel   = document.getElementById('cdConsultantSel');
+  if(!wrap || !sel) return;
+  if(role === 'manager' || role === 'master'){
+    wrap.style.display = 'flex';
+    const current = sel.value;
+    sel.innerHTML = APP.people.map(p=>`<option value="${p.name}"${p.name===current?' selected':''}>${p.name}</option>`).join('');
+    // Default to logged-in user if they are a consultant in the list, else first person
+    if(!sel.value && _currentUser?.name && APP.people.find(p=>p.name===_currentUser.name)){
+      sel.value = _currentUser.name;
+    }
+  } else {
+    wrap.style.display = 'none';
+  }
+}
+
 function renderConsultantDaily(){
   populateAllSelects();
+  _populateCdConsultantSel();
   const mk       = document.getElementById('cdMonth')?.value || APP.activeMonth;
   const role     = _currentUser?.role || 'consultant';
-  const myName   = _currentUser?.name || '';
+  // For manager/master, use the picker; for consultants, use their own name
+  let myName;
+  if((role === 'manager' || role === 'master') && document.getElementById('cdConsultantSel')?.value){
+    myName = document.getElementById('cdConsultantSel').value;
+  } else {
+    myName = _currentUser?.name || '';
+  }
   const content  = document.getElementById('cdContent');
-  document.getElementById('cd-sub').textContent = monthLabel(mk) + ' · ' + (myName||'');
+  document.getElementById('cd-sub').textContent = monthLabel(mk) + ' · ' + (myName||'') + (role==='manager'||role==='master' ? ' (Manager View)' : '');
 
   const p = APP.people.find(x=>x.name===myName);
   const ep = p ? getPersonForMonth(p, mk) : null;
@@ -4981,13 +5042,17 @@ function renderConsultantDaily(){
       pend.status==='approved'||pend.status==='amended'?'<span style="font-size:9px;font-weight:700;background:rgba(45,206,137,.2);color:var(--green);padding:2px 7px;border-radius:10px;margin-left:6px">✓ Approved</span>':
       '<span style="font-size:9px;font-weight:700;background:rgba(245,54,92,.2);color:var(--red);padding:2px 7px;border-radius:10px;margin-left:6px">✕ Declined</span>') : '';
     const dayLabel = new Date(ds).toLocaleDateString('en-GB',{weekday:'short',day:'numeric'});
+    const isManagerRole = (role==='manager'||role==='master');
     tableRows += `<tr style="border-bottom:1px solid var(--border);background:${rowBg};">
       <td style="padding:8px 12px;font-size:12px;font-family:var(--fm);white-space:nowrap;color:${isFuture?'var(--text3)':ds===today?'var(--accent)':'var(--text2)'};font-weight:${ds===today?'700':'400'}">${dayLabel}${isWE?' <span style="font-size:9px;color:var(--text3)">WE</span>':isBH?' <span style="font-size:9px;color:var(--red)">BH</span>':''}</td>
       <td style="padding:8px 12px;text-align:right;font-family:var(--fm);font-size:12px;color:${ent?.revenue?'var(--green)':'var(--text3)'};font-weight:${ent?.revenue?'700':'400'}">${ent?.revenue ? '£'+parseFloat(ent.revenue).toLocaleString() : (isWE||isBH||isFuture?'—':'')}</td>
       <td style="padding:8px 12px;text-align:right;font-family:var(--fm);font-size:12px;color:${ent?.nm?'var(--text)':'var(--text3)'}">${ent?.nm||(!isWE&&!isBH&&!isFuture?'':' ')}</td>
       <td style="padding:8px 12px;font-size:12px;font-family:var(--fm);color:var(--text3)">${statusBadge}</td>
-      <td style="padding:8px 12px;text-align:right">${!isWE&&!isBH&&!isFuture&&role==='consultant'?`<button class="btn btn-s" onclick="openDailySubmit('${ds}')" style="font-size:11px;padding:3px 10px;">+ Submit</button>`:''}
-        ${!isWE&&!isBH&&!isFuture&&(role==='manager'||role==='master')&&pend?.status==='pending'?`<button class="btn btn-p" onclick="openReviewModal('${pend.id}')" style="font-size:11px;padding:3px 10px;">Review</button>`:''}</td>
+      <td style="padding:8px 12px;text-align:right">
+        ${!isWE&&!isBH&&!isFuture&&role==='consultant'?`<button class="btn btn-s" onclick="openDailySubmit('${ds}')" style="font-size:11px;padding:3px 10px;">+ Submit</button>`:''}
+        ${!isWE&&!isBH&&!isFuture&&isManagerRole&&pend?.status==='pending'?`<button class="btn btn-p" onclick="openReviewModal('${pend.id}')" style="font-size:11px;padding:3px 10px;">Review</button>`:''}
+        ${!isWE&&!isBH&&!isFuture&&isManagerRole?`<button class="btn btn-s" onclick="openManagerDirectEntry('${ds}','${myName.replace(/'/g,"\\'")}',${ent?.revenue||0},${ent?.nm||0})" style="font-size:11px;padding:3px 10px;color:var(--accent);border-color:var(--accent)">✎ Edit</button>`:''}
+      </td>
     </tr>`;
   }
 
@@ -5000,6 +5065,14 @@ function renderConsultantDaily(){
           <div style="font-size:13px;font-weight:700;">Submit Today's Figures</div>
           <button class="btn btn-p" onclick="openDailySubmit('${today}')" style="font-size:12px;padding:8px 20px;">+ Add Today's Sale</button>
           <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-left:auto">Submitted figures go to your team leader for approval</div>
+        </div>` : ''}
+        ${(role==='manager'||role==='master') ? `
+        <div style="background:linear-gradient(135deg,rgba(94,156,245,0.08),rgba(94,156,245,0.03));border:1px solid rgba(94,156,245,0.25);border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--accent)">Manager View — ${myName}</div>
+            <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:2px">Click ✎ Edit on any row to add or update figures directly. No approval required.</div>
+          </div>
+          <button class="btn btn-p" onclick="openManagerDirectEntry('${today}','${myName.replace(/'/g,"\\'")}',0,0)" style="font-size:12px;padding:8px 18px;margin-left:auto">+ Add Today's Entry</button>
         </div>` : ''}
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
           <div style="padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:13px;font-weight:700;">
@@ -5110,6 +5183,84 @@ function submitDailyFigures(){
     showToast('Submitted for approval ✓');
     renderConsultantDaily();
   }).catch(()=>showToast('Submission failed','err'));
+}
+
+// ── Manager direct entry (no approval needed) ────────────────────
+function openManagerDirectEntry(date, consultantName, existingRev, existingNm){
+  const modal = document.getElementById('reviewModal');
+  document.getElementById('reviewModalTitle').textContent = `📝 Add Entry — ${consultantName}`;
+  document.getElementById('reviewModalBody').innerHTML = `
+    <div style="margin-bottom:10px;padding:8px 12px;background:rgba(94,156,245,0.1);border-left:3px solid var(--accent);border-radius:6px;font-size:11px;color:var(--accent);font-family:var(--fm);">
+      ⚡ Manager entry — saves directly without approval
+    </div>
+    <div style="margin-bottom:14px">
+      <div class="field-lbl">Date</div>
+      <input type="date" id="mgr_date" value="${date}" style="width:100%">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+      <div><div class="field-lbl">Revenue (£)</div><input type="number" id="mgr_rev" placeholder="0.00" step="0.01" min="0" value="${existingRev||''}" style="width:100%"></div>
+      <div><div class="field-lbl">Needs Met</div><input type="number" id="mgr_nm" placeholder="0" step="1" min="0" value="${existingNm||''}" style="width:100%"></div>
+    </div>
+    <div><div class="field-lbl">SWIFT Ref (optional)</div><input type="text" id="mgr_swift" placeholder="Reference number" style="width:100%"></div>
+    <input type="hidden" id="mgr_consultant" value="${consultantName}">`;
+  document.getElementById('reviewModalBtns').innerHTML = `
+    <button class="btn btn-s" onclick="document.getElementById('reviewModal').classList.remove('open')">Cancel</button>
+    <button class="btn btn-p" onclick="saveManagerDirectEntry()">✓ Save Entry</button>`;
+  modal.classList.add('open');
+  setTimeout(()=>document.getElementById('mgr_rev')?.focus(),100);
+}
+
+function saveManagerDirectEntry(){
+  const date   = document.getElementById('mgr_date')?.value;
+  const rev    = parseFloat(document.getElementById('mgr_rev')?.value)||0;
+  const nm     = parseInt(document.getElementById('mgr_nm')?.value)||0;
+  const swift  = document.getElementById('mgr_swift')?.value?.trim()||'';
+  const name   = document.getElementById('mgr_consultant')?.value||'';
+  if(!date){ showToast('Please select a date','err'); return; }
+  if(rev<=0 && nm<=0){ showToast('Please enter revenue or NM','err'); return; }
+  if(!name){ showToast('No consultant selected','err'); return; }
+
+  const mk = date.slice(0,7);
+  const divDbKey = (DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey;
+  const entriesPath = `${divDbKey}/months/${mk}/entries`;
+
+  _db.ref(entriesPath).once('value').then(snap=>{
+    const raw = snap.val();
+    const existingArr = raw
+      ? (Array.isArray(raw) ? raw : Object.values(raw)).filter(Boolean)
+      : [];
+    const filtered = existingArr.filter(en=>!(en.date===date&&en.name===name));
+    const existing = existingArr.find(en=>en.date===date&&en.name===name);
+    const newEntry = {
+      date,
+      name,
+      revenue: parseFloat(rev.toFixed(2)),
+      nm
+    };
+    filtered.push(newEntry);
+
+    // Update local APP state immediately
+    if(!APP.months[mk]) APP.months[mk] = {entries:[]};
+    APP.months[mk].entries = filtered;
+
+    return _db.ref(entriesPath).set(filtered).then(()=>{
+      // Store manager meta for history tab
+      const metaRef = _entryMetaRef();
+      const reviewedBy = _currentUser?.name || 'Manager';
+      const reviewedAt = new Date().toISOString();
+      if(metaRef) metaRef.child(mk+'/'+name.replace(/[^a-zA-Z0-9]/g,'_')+'/'+date).set({
+        approvedBy: reviewedBy+' (Manager Direct)', approvedAt: reviewedAt,
+        swiftRef: swift, notes: 'Direct entry by manager — no approval required'
+      }).catch(()=>{});
+    });
+  }).then(()=>{
+    document.getElementById('reviewModal').classList.remove('open');
+    showToast(`Entry saved for ${name} ✓`);
+    renderConsultantDaily();
+    if(document.getElementById('page-dashboard').classList.contains('active'))  renderDashboard();
+    if(document.getElementById('page-history').classList.contains('active'))    renderHistory();
+    if(document.getElementById('page-entry').classList.contains('active'))      buildEntryRows();
+  }).catch(()=>showToast('Failed to save entry','err'));
 }
 
 // ── Update history tab to show approval info ──────────────────────
