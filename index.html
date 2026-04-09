@@ -632,6 +632,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     <button class="nav-tab" onclick="showPage('dailysend')" id="dailySendTab" style="color:#fff;background:#6b0d2d;border-radius:6px 6px 0 0;font-weight:700;">📤 Daily Send</button>
     <button class="nav-tab" onclick="showPage('staffperf')" id="staffPerfTab" style="color:#fff;background:#1a4040;border-radius:6px 6px 0 0;font-weight:700;">📋 Staff Performance</button>
     <button class="nav-tab" onclick="showPage('compliance')" id="complianceTab" style="color:#fff;background:#1a3060;border-radius:6px 6px 0 0;font-weight:700;">🛡 Compliance</button>
+    <button class="nav-tab" onclick="showPage('calloutcomes')" id="callOutcomesTab" style="color:#fff;background:#3d1a60;border-radius:6px 6px 0 0;font-weight:700;">📊 Call Outcomes</button>
   </div>
 </nav>
 
@@ -1147,6 +1148,88 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     <div id="arcStats" style="margin-bottom:12px;font-size:12px;color:var(--text3);font-family:var(--fm);"></div>
     <div id="arcContent"></div>
   </div>
+</div>
+
+<!-- CALL OUTCOMES -->
+<div class="page" id="page-calloutcomes">
+  <!-- Burgundy header banner -->
+  <div style="background:linear-gradient(135deg,#6b0d2d 0%,#3d0820 100%);border-radius:var(--radius);padding:18px 28px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div>
+      <div style="font-size:22px;font-weight:700;color:#fff;letter-spacing:.04em;">CALL OUTCOMES DASHBOARD</div>
+      <div style="font-size:11px;color:rgba(255,255,255,.65);font-family:var(--fm);margin-top:3px;" id="co-subtitle">Data from Compliance assessments</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn btn-s" onclick="loadCallOutcomes()" style="font-size:12px;background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:#fff;">↺ Refresh</button>
+      <button class="btn btn-s" onclick="exportCallOutcomesCSV()" style="font-size:12px;background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:#fff;">↓ Export CSV</button>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:16px;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">
+    <div>
+      <div class="field-lbl" style="margin-bottom:6px">Colleague Name</div>
+      <select id="co_colleague" onchange="applyCoFilters()" style="width:180px">
+        <option value="">All</option>
+      </select>
+    </div>
+    <div>
+      <div class="field-lbl" style="margin-bottom:6px">Team</div>
+      <select id="co_team" onchange="applyCoFilters()" style="width:150px">
+        <option value="">All Teams</option>
+        <option value="g">Team G</option>
+        <option value="james">Team James</option>
+        <option value="damo">Team Damo</option>
+      </select>
+    </div>
+    <div>
+      <div class="field-lbl" style="margin-bottom:6px">Assessor</div>
+      <select id="co_assessor" onchange="applyCoFilters()" style="width:160px">
+        <option value="">All Assessors</option>
+      </select>
+    </div>
+    <div>
+      <div class="field-lbl" style="margin-bottom:6px">Initial Outcome</div>
+      <select id="co_outcome" onchange="applyCoFilters()" style="width:180px">
+        <option value="">All Outcomes</option>
+        <option value="Pass">Pass → Fair</option>
+        <option value="Pass with Development">Pass w/ Dev → Fair with Learnings</option>
+        <option value="Fail">Fail → Unfair</option>
+      </select>
+    </div>
+    <div>
+      <div class="field-lbl" style="margin-bottom:6px">Date From</div>
+      <input type="date" id="co_from" onchange="applyCoFilters()" style="width:140px">
+    </div>
+    <div>
+      <div class="field-lbl" style="margin-bottom:6px">Date To</div>
+      <input type="date" id="co_to" onchange="applyCoFilters()" style="width:140px">
+    </div>
+    <button class="btn btn-s" onclick="clearCoFilters()" style="font-size:12px">Clear</button>
+  </div>
+
+  <!-- KPI Cards -->
+  <div id="co-kpis" style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px;"></div>
+
+  <!-- Charts row -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+    <div class="chart-card">
+      <div class="chart-title">Regulatory Compliance</div>
+      <div class="chart-sub" id="co-reg-sub">Pass vs Fail distribution</div>
+      <div style="position:relative;height:200px;display:flex;align-items:center;justify-content:center;">
+        <canvas id="coRegChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Customer Outcomes</div>
+      <div class="chart-sub">Fair · Fair with Learnings · Unfair - Potential Detriment</div>
+      <div style="position:relative;height:200px;">
+        <canvas id="coOutcomeChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results table -->
+  <div id="co-table-wrap"></div>
 </div>
 
 <!-- MANAGER OVERVIEW -->
@@ -2635,6 +2718,7 @@ function showPage(id){
   if(id==='dailysend')     { populateAllSelects(); renderDailySend(); }
   if(id==='staffperf')     { renderStaffPerf(); }
   if(id==='compliance')    { renderCompliancePage(); }
+  if(id==='calloutcomes')  { renderCallOutcomes(); }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -3965,6 +4049,300 @@ function exportComplianceCSV(){
   const a=document.createElement('a');
   a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
   a.download='compliance_assessments.csv';
+  a.click();
+  showToast('CSV exported');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CALL OUTCOMES DASHBOARD
+// ═══════════════════════════════════════════════════════════════════
+let _coAllData   = [];   // all records loaded from Firebase
+let _coFiltered  = [];   // after filters applied
+let _coCharts    = {};
+
+// Section → KPI label mapping
+const CO_SECTION_KEYS = [
+  { key:'s1', label:'Products & Services', items:[1,2,3,4,5]    },
+  { key:'s2', label:'Price & Value',        items:[6,7,8]        },
+  { key:'s3', label:'Consumer Understanding', items:[9,10,11,12] },
+  { key:'s4', label:'Consumer Support',    items:[13,14,15,16,17,18,19] }
+];
+
+function _outcomeLabel(v){
+  if(v==='Pass')                  return 'Fair';
+  if(v==='Pass with Development') return 'Fair with Learnings';
+  if(v==='Fail')                  return 'Unfair - Potential Detriment';
+  return v||'—';
+}
+function _outcomeColour(v){
+  if(v==='Pass')                  return '#2dce89';
+  if(v==='Pass with Development') return '#f5c842';
+  if(v==='Fail')                  return '#f5365c';
+  return '#8a8f9e';
+}
+
+function _sectionScore(record, itemNums){
+  const items = record.items||{};
+  let pass=0, total=0;
+  itemNums.forEach(n=>{
+    const v = items[n];
+    if(v && v!=='N/A'){ total++; if(v==='Pass') pass++; }
+  });
+  return total>0 ? (pass/total*100) : null;
+}
+
+function renderCallOutcomes(){
+  loadCallOutcomes();
+}
+
+function loadCallOutcomes(){
+  document.getElementById('co-kpis').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text3);font-family:var(--fm)">⏳ Loading…</div>';
+  document.getElementById('co-table-wrap').innerHTML = '';
+
+  const ref = _dbRef ? _db.ref((DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey+'/compliance') : null;
+  if(!ref){
+    document.getElementById('co-kpis').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--red);font-family:var(--fm)">Not connected to database.</div>';
+    return;
+  }
+  ref.once('value').then(snap=>{
+    const val = snap.val()||{};
+    _coAllData = Object.values(val).sort((a,b)=>b.dateObs?.localeCompare(a.dateObs)||0);
+    _populateCoFilterDropdowns();
+    applyCoFilters();
+  }).catch(()=>{
+    document.getElementById('co-kpis').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--red);font-family:var(--fm)">Failed to load data.</div>';
+  });
+}
+
+function _populateCoFilterDropdowns(){
+  const colleagues = [...new Set(_coAllData.map(d=>d.colleague).filter(Boolean))].sort();
+  const assessors  = [...new Set(_coAllData.map(d=>d.assessor).filter(Boolean))].sort();
+  const coSel  = document.getElementById('co_colleague');
+  const asSel  = document.getElementById('co_assessor');
+  const prevCo = coSel?.value||'';
+  const prevAs = asSel?.value||'';
+  if(coSel) coSel.innerHTML = '<option value="">All</option>' + colleagues.map(c=>`<option value="${c}"${c===prevCo?' selected':''}>${c}</option>`).join('');
+  if(asSel) asSel.innerHTML = '<option value="">All Assessors</option>' + assessors.map(a=>`<option value="${a}"${a===prevAs?' selected':''}>${a}</option>`).join('');
+}
+
+function applyCoFilters(){
+  const colleague = document.getElementById('co_colleague')?.value||'';
+  const teamKey   = document.getElementById('co_team')?.value||'';
+  const assessor  = document.getElementById('co_assessor')?.value||'';
+  const outcome   = document.getElementById('co_outcome')?.value||'';
+  const from      = document.getElementById('co_from')?.value||'';
+  const to        = document.getElementById('co_to')?.value||'';
+
+  // Build team member list if team filter set
+  const teamMembers = teamKey ? ((APP.teams&&APP.teams[teamKey])||[]) : null;
+
+  _coFiltered = _coAllData.filter(d=>{
+    if(colleague && d.colleague !== colleague)               return false;
+    if(teamMembers && !teamMembers.includes(d.colleague))   return false;
+    if(assessor  && d.assessor  !== assessor)               return false;
+    if(outcome   && d.initialOutcome !== outcome)           return false;
+    if(from && d.dateObs < from)                            return false;
+    if(to   && d.dateObs > to)                             return false;
+    return true;
+  });
+
+  _renderCoKpis();
+  _renderCoCharts();
+  _renderCoTable();
+
+  const sub = document.getElementById('co-subtitle');
+  if(sub) sub.textContent = `${_coFiltered.length} assessments · ${DIVISIONS[_currentDivKey]?.label||''} · Last refresh: ${new Date().toLocaleTimeString('en-GB')}`;
+}
+
+function clearCoFilters(){
+  ['co_colleague','co_team','co_assessor','co_outcome'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
+  ['co_from','co_to'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
+  applyCoFilters();
+}
+
+function _avgPct(data, fn){
+  const vals = data.map(fn).filter(v=>v!==null);
+  return vals.length ? vals.reduce((s,v)=>s+v,0)/vals.length : null;
+}
+
+function _renderCoKpis(){
+  const n = _coFiltered.length;
+  // Customer Outcome = % that are Pass (Fair)
+  const coScore    = n>0 ? _coFiltered.filter(d=>d.initialOutcome==='Pass').length/n*100 : null;
+  const regScore   = n>0 ? _coFiltered.filter(d=>d.regCompliant==='Yes').length/n*100     : null;
+  const s1Score    = _avgPct(_coFiltered, d=>_sectionScore(d,[1,2,3,4,5]));
+  const s2Score    = _avgPct(_coFiltered, d=>_sectionScore(d,[6,7,8]));
+  const s3Score    = _avgPct(_coFiltered, d=>_sectionScore(d,[9,10,11,12]));
+  const s4Score    = _avgPct(_coFiltered, d=>_sectionScore(d,[13,14,15,16,17,18,19]));
+
+  const kpis = [
+    { label:'Customer Outcome',      val:coScore  },
+    { label:'Reg Compliance',        val:regScore  },
+    { label:'Products & Services',   val:s1Score   },
+    { label:'Price & Value',         val:s2Score   },
+    { label:'Consumer Understanding',val:s3Score   },
+    { label:'Consumer Support',      val:s4Score   },
+  ];
+  const kpiCol = v => v===null?'#8a8f9e':v>=90?'#2dce89':v>=75?'#f5c842':'#f5365c';
+  const kpiBg  = v => v===null?'var(--surface3)':v>=90?'rgba(45,206,137,0.15)':v>=75?'rgba(245,200,66,0.15)':'rgba(245,54,92,0.15)';
+
+  document.getElementById('co-kpis').innerHTML = kpis.map(k=>`
+    <div style="background:${kpiBg(k.val)};border:1px solid ${kpiCol(k.val)}44;border-radius:var(--radius);padding:16px 14px;text-align:center;position:relative;overflow:hidden;">
+      <div style="font-size:28px;font-weight:700;font-family:var(--fm);color:${kpiCol(k.val)};line-height:1;">
+        ${k.val===null?'—':k.val.toFixed(2)+'%'}
+      </div>
+      <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-top:8px;font-family:var(--fh);">${k.label}</div>
+      <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:3px;">${n} assessments</div>
+    </div>`).join('');
+}
+
+function _renderCoCharts(){
+  // Destroy old charts
+  if(_coCharts.reg){ _coCharts.reg.destroy(); delete _coCharts.reg; }
+  if(_coCharts.out){ _coCharts.out.destroy(); delete _coCharts.out; }
+
+  const regPass = _coFiltered.filter(d=>d.regCompliant==='Yes').length;
+  const regFail = _coFiltered.filter(d=>d.regCompliant==='No').length;
+  const regTotal = regPass+regFail||1;
+  const regPassPct = (regPass/regTotal*100).toFixed(2);
+  const regFailPct = (regFail/regTotal*100).toFixed(2);
+
+  document.getElementById('co-reg-sub').textContent = `${regPass} Pass (${regPassPct}%) · ${regFail} Fail (${regFailPct}%)`;
+
+  const regCtx = document.getElementById('coRegChart')?.getContext('2d');
+  if(regCtx) _coCharts.reg = new Chart(regCtx,{
+    type:'doughnut',
+    data:{labels:['Pass','Fail'],datasets:[{data:[regPass,regFail],backgroundColor:['#2dce89','#f5365c'],borderWidth:0,hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'70%',
+      plugins:{legend:{display:true,position:'right',labels:{color:'#8a8f9e',font:{size:11},boxWidth:14,padding:10}},
+        tooltip:{callbacks:{label:c=>`${c.label}: ${c.parsed} (${(c.parsed/(regTotal)*100).toFixed(1)}%)`}}}}
+  });
+
+  // Customer outcomes bar
+  const fair    = _coFiltered.filter(d=>d.initialOutcome==='Pass').length;
+  const fairDev = _coFiltered.filter(d=>d.initialOutcome==='Pass with Development').length;
+  const unfair  = _coFiltered.filter(d=>d.initialOutcome==='Fail').length;
+
+  const outCtx = document.getElementById('coOutcomeChart')?.getContext('2d');
+  if(outCtx) _coCharts.out = new Chart(outCtx,{
+    type:'bar',
+    data:{
+      labels:['Fair','Fair with Learnings','Unfair - Potential Detriment'],
+      datasets:[{data:[fair,fairDev,unfair],backgroundColor:['#2dce89','#f5c842','#f5365c'],borderRadius:4,barPercentage:0.6}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.parsed.x} records`}}},
+      scales:{
+        x:{ticks:{color:'#8a8f9e',font:{size:10}},grid:{color:'rgba(255,255,255,0.04)'}},
+        y:{ticks:{color:'#8a8f9e',font:{size:10}},grid:{display:false}}
+      }
+    }
+  });
+}
+
+function _renderCoTable(){
+  const wrap = document.getElementById('co-table-wrap');
+  if(!_coFiltered.length){
+    wrap.innerHTML='<div class="empty"><div class="empty-icon">📊</div><div>No assessments match the current filters.</div></div>';
+    return;
+  }
+
+  const thS = 'style="padding:9px 10px;background:#6b0d2d;color:#fff;font-size:10px;font-weight:700;font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;border:1px solid rgba(255,255,255,0.15);text-align:center;"';
+  const thL = 'style="padding:9px 12px;background:#6b0d2d;color:#fff;font-size:10px;font-weight:700;font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;border:1px solid rgba(255,255,255,0.15);text-align:left;"';
+
+  const scoreCellStyle = (pct) => {
+    if(pct===null) return 'background:#f0f0f0;color:#999;';
+    if(pct>=90)    return 'background:#c8f2d8;color:#0e6e44;font-weight:700;';
+    if(pct>=75)    return 'background:#fef3c0;color:#92540a;font-weight:700;';
+    return 'background:#fde0e6;color:#9b1d35;font-weight:700;';
+  };
+
+  const outcomeBg = v => v==='Pass'?'#c8f2d8':v==='Pass with Development'?'#fef3c0':v==='Fail'?'#fde0e6':'#f5f5f5';
+  const outcomeCol= v => v==='Pass'?'#0e6e44':v==='Pass with Development'?'#92540a':v==='Fail'?'#9b1d35':'#555';
+
+  const rows = _coFiltered.map(d=>{
+    const s1 = _sectionScore(d,[1,2,3,4,5]);
+    const s2 = _sectionScore(d,[6,7,8]);
+    const s3 = _sectionScore(d,[9,10,11,12]);
+    const s4 = _sectionScore(d,[13,14,15,16,17,18,19]);
+    const rowBg = d.initialOutcome==='Pass'?'rgba(45,206,137,0.04)':d.initialOutcome==='Fail'?'rgba(245,54,92,0.04)':'rgba(245,200,66,0.04)';
+    const fmtPct = v => v===null ? '—' : v.toFixed(0)+'%';
+    return `<tr style="border-bottom:1px solid var(--border);background:${rowBg};font-size:12px;font-family:var(--fm);">
+      <td style="padding:8px 10px;font-weight:600;white-space:nowrap;border:1px solid var(--border)">${d.colleague||'—'}</td>
+      <td style="padding:8px 10px;white-space:nowrap;border:1px solid var(--border)">${d.teamKey?(TEAM_LABELS[d.teamKey]||d.team||'—'):d.team||'—'}</td>
+      <td style="padding:8px 10px;white-space:nowrap;border:1px solid var(--border)">${d.assessor||'—'}</td>
+      <td style="padding:8px 10px;white-space:nowrap;border:1px solid var(--border)">${d.brand||'—'}</td>
+      <td style="padding:8px 10px;white-space:nowrap;border:1px solid var(--border)">${d.dateObs||'—'}</td>
+      <td style="padding:8px 10px;white-space:nowrap;border:1px solid var(--border)">${d.leadSource||'—'}</td>
+      <td style="padding:8px 10px;text-align:center;font-weight:700;background:${outcomeBg(d.initialOutcome)};color:${outcomeCol(d.initialOutcome)};white-space:nowrap;border:1px solid var(--border)">${_outcomeLabel(d.initialOutcome)}</td>
+      <td style="padding:8px 10px;text-align:center;${scoreCellStyle(null)}border:1px solid var(--border)">${_outcomeLabel(d.initialOutcome)}</td>
+      <td style="padding:8px 10px;text-align:center;font-weight:700;background:${d.regCompliant==='Yes'?'#c8f2d8':d.regCompliant==='No'?'#fde0e6':'#f5f5f5'};color:${d.regCompliant==='Yes'?'#0e6e44':d.regCompliant==='No'?'#9b1d35':'#555'};border:1px solid var(--border)">${d.regCompliant||'—'}</td>
+      <td style="padding:8px 10px;text-align:center;${scoreCellStyle(s1)}border:1px solid var(--border)">${fmtPct(s1)}</td>
+      <td style="padding:8px 10px;text-align:center;${scoreCellStyle(s2)}border:1px solid var(--border)">${fmtPct(s2)}</td>
+      <td style="padding:8px 10px;text-align:center;${scoreCellStyle(s3)}border:1px solid var(--border)">${fmtPct(s3)}</td>
+      <td style="padding:8px 10px;text-align:center;${scoreCellStyle(s4)}border:1px solid var(--border)">${fmtPct(s4)}</td>
+      <td style="padding:8px 10px;text-align:center;color:${d.initialOutcome==='Fail'||d.regCompliant==='No'?'#f5365c':'var(--text3)'};font-weight:${d.initialOutcome==='Fail'||d.regCompliant==='No'?'700':'400'};border:1px solid var(--border)">${d.initialOutcome==='Fail'||d.regCompliant==='No'?'Yes':'No'}</td>
+      <td style="padding:8px 10px;white-space:nowrap;border:1px solid var(--border)">${d.duration||'—'}</td>
+      <td style="padding:8px 10px;white-space:nowrap;border:1px solid var(--border)">${d.fmpRef||'—'}</td>
+    </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;overflow-x:auto;">
+      <div style="padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-size:13px;font-weight:700;">Assessment Records</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm);">${_coFiltered.length} records</div>
+      </div>
+      <table style="border-collapse:collapse;width:100%;min-width:1200px;">
+        <thead><tr>
+          <th ${thL}>Colleague Name</th>
+          <th ${thS}>Team</th>
+          <th ${thS}>Assessor</th>
+          <th ${thS}>Brand</th>
+          <th ${thS}>Date of Assessment</th>
+          <th ${thS}>Lead Source</th>
+          <th ${thS}>Initial Outcome</th>
+          <th ${thS}>Colleague Outcome</th>
+          <th ${thS}>Reg Compliance</th>
+          <th ${thS}>Products & Services</th>
+          <th ${thS}>Price & Value</th>
+          <th ${thS}>Consumer Understanding</th>
+          <th ${thS}>Consumer Support</th>
+          <th ${thS}>Remedial Action?</th>
+          <th ${thS}>Call Duration</th>
+          <th ${thS}>CRM Reference</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:var(--text3);font-family:var(--fm);display:flex;gap:16px;flex-wrap:wrap;">
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:#c8f2d8;border-radius:2px;display:inline-block;border:1px solid #2dce89"></span>Fair / Pass / ≥90%</span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:#fef3c0;border-radius:2px;display:inline-block;border:1px solid #f5c842"></span>Fair with Learnings / 75–89%</span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:#fde0e6;border-radius:2px;display:inline-block;border:1px solid #f5365c"></span>Unfair / Fail / &lt;75%</span>
+    </div>`;
+}
+
+function exportCallOutcomesCSV(){
+  if(!_coFiltered.length){ showToast('No data to export','err'); return; }
+  const headers = ['Date of Assessment','Colleague','Team','Assessor','Brand','Lead Source','Initial Outcome','Colleague Outcome','Reg Compliance','Products & Services %','Price & Value %','Consumer Understanding %','Consumer Support %','Remedial Action?','Call Duration','CRM Reference'];
+  const esc = v => '"'+(String(v||'')).replace(/"/g,'""')+'"';
+  let csv = headers.map(esc).join(',')+'\n';
+  _coFiltered.forEach(d=>{
+    const s1 = _sectionScore(d,[1,2,3,4,5]);
+    const s2 = _sectionScore(d,[6,7,8]);
+    const s3 = _sectionScore(d,[9,10,11,12]);
+    const s4 = _sectionScore(d,[13,14,15,16,17,18,19]);
+    const remedial = d.initialOutcome==='Fail'||d.regCompliant==='No'?'Yes':'No';
+    csv += [d.dateObs,d.colleague,d.teamKey?TEAM_LABELS[d.teamKey]||d.team:d.team,d.assessor,d.brand,d.leadSource,
+      _outcomeLabel(d.initialOutcome),_outcomeLabel(d.initialOutcome),d.regCompliant,
+      s1!==null?s1.toFixed(1)+'%':'—',s2!==null?s2.toFixed(1)+'%':'—',
+      s3!==null?s3.toFixed(1)+'%':'—',s4!==null?s4.toFixed(1)+'%':'—',
+      remedial,d.duration,d.fmpRef
+    ].map(esc).join(',')+'\n';
+  });
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='call_outcomes.csv';
   a.click();
   showToast('CSV exported');
 }
