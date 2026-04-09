@@ -4917,6 +4917,7 @@ function handleReview(id, action){
           if(document.getElementById('page-consultantdaily').classList.contains('active')) renderConsultantDaily();
           if(document.getElementById('page-dashboard').classList.contains('active'))      renderDashboard();
           if(document.getElementById('page-history').classList.contains('active'))        renderHistory();
+          if(document.getElementById('page-entry').classList.contains('active'))          buildEntryRows();
         }).catch(()=>showToast('Entry saved to pending but failed to write to figures. Please contact admin.','err'));
       }
     } else {
