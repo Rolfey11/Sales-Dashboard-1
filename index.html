@@ -4879,13 +4879,9 @@ function handleReview(id, action){
     if(action==='approved'||action==='amended'){
       const mk = e.date?.slice(0,7);
       if(mk && e.consultantName){
-        // ── Write entry DIRECTLY to Firebase to avoid race condition with
-        // the main _dbRef.on('value') listener which fires when pendingEntries
-        // changes and overwrites APP before saveApp's debounce can complete ──
         const divDbKey = (DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey;
         const entriesPath = `${divDbKey}/months/${mk}/entries`;
         _db.ref(entriesPath).once('value').then(snap=>{
-          // Firebase stores arrays as either an array or a numeric-keyed object
           const raw = snap.val();
           const existingArr = raw
             ? (Array.isArray(raw) ? raw : Object.values(raw)).filter(Boolean)
@@ -4899,7 +4895,13 @@ function handleReview(id, action){
             nm:      (existing?.nm||0) + finalNm
           };
           filtered.push(newEntry);
-          // Write directly — this triggers the Firebase listener which updates APP correctly
+
+          // ── Update local APP state immediately so the page re-renders
+          // correctly right now, without waiting for Firebase listener ──
+          if(!APP.months[mk]) APP.months[mk] = {entries:[]};
+          APP.months[mk].entries = filtered;
+
+          // Write to Firebase — also propagates to other connected clients
           return _db.ref(entriesPath).set(filtered);
         }).then(()=>{
           showToast(action==='amended'?'Amended & approved ✓':'Approved ✓');
@@ -4908,15 +4910,19 @@ function handleReview(id, action){
           if(metaRef) metaRef.child(mk+'/'+e.consultantName.replace(/[^a-zA-Z0-9]/g,'_')+'/'+e.date).set({
             approvedBy:reviewedBy, approvedAt:reviewedAt, submissionId:id, notes
           }).catch(()=>{});
+          // Re-render now that APP is updated
+          _renderNotifList();
+          _updateNotifBadge();
+          if(document.getElementById('page-consultantdaily').classList.contains('active')) renderConsultantDaily();
+          if(document.getElementById('page-dashboard').classList.contains('active'))      renderDashboard();
+          if(document.getElementById('page-history').classList.contains('active'))        renderHistory();
         }).catch(()=>showToast('Entry saved to pending but failed to write to figures. Please contact admin.','err'));
       }
     } else {
       showToast('Submission declined');
+      _renderNotifList();
+      _updateNotifBadge();
     }
-    _renderNotifList();
-    _updateNotifBadge();
-    if(document.getElementById('page-consultantdaily').classList.contains('active')) renderConsultantDaily();
-    if(document.getElementById('page-history').classList.contains('active')) renderHistory();
   }).catch(()=>showToast('Failed to save review','err'));
 }
 
