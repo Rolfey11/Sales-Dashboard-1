@@ -4858,7 +4858,7 @@ function handleReview(id, action){
     finalNm  = parseInt(document.getElementById('amendNm')?.value)||finalNm;
   }
 
-  // If amend button was visible and fields are shown, treat as amended
+  // If amend fields are visible, treat as amended
   const amendFields = document.getElementById('amendFields');
   if(amendFields && amendFields.style.display!=='none' && action==='approved'){
     action='amended';
@@ -4872,36 +4872,52 @@ function handleReview(id, action){
   const ref = _pendingRef();
   if(!ref){ showToast('Not connected','err'); return; }
 
+  // Close modal immediately so UX is snappy
+  document.getElementById('reviewModal').classList.remove('open');
+
   ref.child(id).update(update).then(()=>{
-    // If approved or amended: write to main entries
     if(action==='approved'||action==='amended'){
       const mk = e.date?.slice(0,7);
       if(mk && e.consultantName){
-        const entries   = getEntries(mk);
-        const filtered  = entries.filter(en=>!(en.date===e.date&&en.name===e.consultantName));
-        const existing  = entries.find(en=>en.date===e.date&&en.name===e.consultantName);
-        filtered.push({
-          date:    e.date,
-          name:    e.consultantName,
-          revenue: parseFloat(((existing?.revenue||0) + finalRev).toFixed(2)),
-          nm:      (existing?.nm||0) + finalNm
-        });
-        setEntries(mk, filtered);
-        // Store meta for history tab
-        const metaRef = _entryMetaRef();
-        if(metaRef) metaRef.child(mk+'/'+e.consultantName.replace(/[^a-zA-Z0-9]/g,'_')+'/'+e.date).set({
-          approvedBy:reviewedBy, approvedAt:reviewedAt, submissionId:id, notes
-        }).catch(()=>{});
+        // ── Write entry DIRECTLY to Firebase to avoid race condition with
+        // the main _dbRef.on('value') listener which fires when pendingEntries
+        // changes and overwrites APP before saveApp's debounce can complete ──
+        const divDbKey = (DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey;
+        const entriesPath = `${divDbKey}/months/${mk}/entries`;
+        _db.ref(entriesPath).once('value').then(snap=>{
+          // Firebase stores arrays as either an array or a numeric-keyed object
+          const raw = snap.val();
+          const existingArr = raw
+            ? (Array.isArray(raw) ? raw : Object.values(raw)).filter(Boolean)
+            : [];
+          const filtered  = existingArr.filter(en=>!(en.date===e.date&&en.name===e.consultantName));
+          const existing  = existingArr.find(en=>en.date===e.date&&en.name===e.consultantName);
+          const newEntry  = {
+            date:    e.date,
+            name:    e.consultantName,
+            revenue: parseFloat(((existing?.revenue||0) + finalRev).toFixed(2)),
+            nm:      (existing?.nm||0) + finalNm
+          };
+          filtered.push(newEntry);
+          // Write directly — this triggers the Firebase listener which updates APP correctly
+          return _db.ref(entriesPath).set(filtered);
+        }).then(()=>{
+          showToast(action==='amended'?'Amended & approved ✓':'Approved ✓');
+          // Store approval meta for history tab
+          const metaRef = _entryMetaRef();
+          if(metaRef) metaRef.child(mk+'/'+e.consultantName.replace(/[^a-zA-Z0-9]/g,'_')+'/'+e.date).set({
+            approvedBy:reviewedBy, approvedAt:reviewedAt, submissionId:id, notes
+          }).catch(()=>{});
+        }).catch(()=>showToast('Entry saved to pending but failed to write to figures. Please contact admin.','err'));
       }
+    } else {
+      showToast('Submission declined');
     }
-    document.getElementById('reviewModal').classList.remove('open');
-    showToast(action==='declined'?'Submission declined':action==='amended'?'Amended & approved':'Approved ✓');
     _renderNotifList();
     _updateNotifBadge();
-    // Refresh consultant daily if open
     if(document.getElementById('page-consultantdaily').classList.contains('active')) renderConsultantDaily();
     if(document.getElementById('page-history').classList.contains('active')) renderHistory();
-  }).catch(()=>showToast('Failed to save','err'));
+  }).catch(()=>showToast('Failed to save review','err'));
 }
 
 // ── Consultant Daily render ───────────────────────────────────────
