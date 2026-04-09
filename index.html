@@ -1399,7 +1399,7 @@ const ROLE_ACCESS = {
   manager:    ['dashboard','biz','teams','summary','entry','monthlysummary','leaderboard',
                'history','daybyday','holiday','settings','manageroverview','staffperf','calloutcomes','consultantdaily'],
   compliance: ['compliance','calloutcomes'],
-  consultant: ['dashboard','teams','daybyday','summary','consultantdaily']
+  consultant: ['consultantdaily','teams','daybyday']
 };
 const ROLE_LABELS = { master:'Master', manager:'Manager', compliance:'Compliance', consultant:'Consultant' };
 const ROLE_COLORS = { master:'#e879f9', manager:'#5e9cf5', compliance:'#2dce89', consultant:'#fbb83a' };
@@ -1442,6 +1442,7 @@ function _startWithRole(){
   // Consultants go directly to their division, skip division screen
   if(role === 'consultant' && _currentUser?.divKey){
     selectDivision(_currentUser.divKey);
+    setTimeout(()=>showPage('consultantdaily'), 700);
     return;
   }
   // Compliance role - go to compliance tab directly
@@ -5565,6 +5566,25 @@ function switchTeamTab(tab){
 
 function renderTeams(){
   populateAllSelects();
+
+  // For consultants — auto-select their team and hide others
+  if(_currentUser?.role === 'consultant'){
+    const myName   = _currentUser.name;
+    const myTeamKey = Object.keys(APP.teams||{}).find(k=>(APP.teams[k]||[]).includes(myName));
+    // Show/hide sub-tabs
+    document.querySelectorAll('#page-teams .sub-nav .sub-tab').forEach(btn=>{
+      const m = btn.getAttribute('onclick')?.match(/switchTeamTab\('([^']+)'\)/);
+      if(!m){ btn.style.display='none'; return; } // hide Assign Members
+      btn.style.display = (m[1] === myTeamKey) ? '' : 'none';
+    });
+    // Switch to their team if not already there
+    if(myTeamKey && _currentTeamTab !== myTeamKey) switchTeamTab(myTeamKey);
+    else renderTeamTabContent();
+    return;
+  }
+
+  // Managers/Masters — show all tabs
+  document.querySelectorAll('#page-teams .sub-nav .sub-tab').forEach(btn=>btn.style.display='');
   renderTeamTabContent();
 }
 
@@ -7689,6 +7709,10 @@ if(sessionStorage.getItem('pd_auth')==='1'){
   const savedDiv = sessionStorage.getItem('pd_division');
   if(savedDiv && DIVISIONS[savedDiv]){
     selectDivision(savedDiv);
+    // Consultants always land on their daily tab
+    if(_currentUser?.role === 'consultant'){
+      setTimeout(()=>showPage('consultantdaily'), 700);
+    }
   } else {
     document.getElementById('divisionScreen').classList.remove('hidden');
   }
