@@ -1434,7 +1434,7 @@ function applyRoleVisibility(){
   // Update nav badge to show logged-in user
   const badge = document.getElementById('userRoleBadge');
   if(badge){
-    badge.textContent = `${_currentUser.name} · ${ROLE_LABELS[role]}`;
+    badge.textContent = `${_currentUser?.name||''} · ${ROLE_LABELS[role]}`;
     badge.style.color  = ROLE_COLORS[role];
   }
 }
@@ -1506,7 +1506,7 @@ function _loadUsersForLogin(){
     return;
   }
 
-  // First check new path; if empty, migrate from legacy cavendish_users path
+  // First check new path; if data exists use it, else migrate once from legacy path
   ref.once('value').then(snap=>{
     if(snap.val()){
       // New path has data — use it
@@ -1627,7 +1627,7 @@ function attemptPinLogin(){
   err3.textContent='';
   const badge = document.getElementById('userRoleBadge');
   const logoutBtn = document.getElementById('logoutBtn');
-  if(badge){ badge.style.display=''; badge.textContent=`${_currentUser.name} · ${ROLE_LABELS[_currentUser.role]}`; badge.style.color=ROLE_COLORS[_currentUser.role]||'var(--text2)'; }
+  if(badge){ badge.style.display=''; badge.textContent=`${_currentUser?.name||''} · ${ROLE_LABELS[_currentUser?.role]||''}`; badge.style.color=ROLE_COLORS[_currentUser?.role]||'var(--text2)'; }
   if(logoutBtn) logoutBtn.style.display='';
   _adminLoginMode = false;
   _startWithRole();
@@ -1655,6 +1655,7 @@ function selectDivision(key){
 
 function switchDivision(){
   if(_currentDbRef){ _currentDbRef.off(); _currentDbRef = null; _dbRef = null; }
+  if(_notifListener){ _notifListener.off(); _notifListener = null; }
   _appInited = false;
   // Clear rendered content so stale data isn't visible while new division loads
   document.getElementById('kpiRow').innerHTML    = '';
@@ -2102,7 +2103,7 @@ function renderDashCharts(mk){
   const revs   = daily.map(d=>d[1].rev);
 
   // daily run rate target = team monthly target / total working days in month
-  const teamTarget = APP.people.reduce((s,p)=>s+personTarget(p),0);
+  const teamTarget = APP.people.reduce((s,p)=>s+personTargetForMonth(p,mk),0);
   const avgDaysT   = APP.people.filter(p=>p.daysT>0).reduce((s,p)=>s+p.daysT,0) / (APP.people.filter(p=>p.daysT>0).length||1);
   const dailyTgt   = avgDaysT>0 ? teamTarget/avgDaysT : 0;
   const tgtLine    = daily.map(()=>Math.round(dailyTgt));
@@ -2633,7 +2634,7 @@ function renderHistory(){
   const renderWithMeta = (metaAll) => {
     document.getElementById('histRows').innerHTML = rows.map(e=>{
       const p = APP.people.find(x=>x.name===e.name)||{riskPerDay:0,daysT:0};
-      const target = personTarget(p);
+      const target = personTargetForMonth(p, mk);
       const mtdRev = all.filter(x=>x.name===e.name&&x.date<=e.date).reduce((s,x)=>s+(x.revenue||0),0);
       const mtdNm  = all.filter(x=>x.name===e.name&&x.date<=e.date).reduce((s,x)=>s+(x.nm||0),0);
       const pct    = target>0?Math.round(mtdRev/target*100):0;
@@ -3666,7 +3667,7 @@ function renderDailySend(){
           },
           scales:{
             x:{ ticks:{ color:tickCol, font:{size:9}, maxRotation:45, autoSkip:true }, grid:{ color:gridCol } },
-            y:{ min:0, max:Math.max(100, ...divKeys.map(k=>Math.max(...divChartData(k,useNm)))) + 10,
+            y:{ min:0, max:Math.max(100, ...divKeys.map(k=>{ const d=divChartData(k,useNm); return d.length?Math.max(...d):0; })) + 10,
                 ticks:{ color:tickCol, font:{size:9}, callback:v=>v+'%' }, grid:{ color:gridCol } }
           }
         }
@@ -4421,6 +4422,7 @@ function clearArchiveFilters(){
 }
 
 function exportComplianceCSV(){
+  if(!_arcData.length){ showToast('No archive data loaded. Open Archive first.','err'); return; }
   const colleague = (document.getElementById('arc_colleague')?.value||'').toLowerCase().trim();
   const team      = (document.getElementById('arc_team')?.value||'').toLowerCase().trim();
   const outcome   = document.getElementById('arc_outcome')?.value||'';
@@ -4884,6 +4886,12 @@ function openReviewModal(id){
 function handleReview(id, action){
   const e = _pendingEntries[id];
   if(!e) return;
+  // Guard: prevent double-processing if already reviewed
+  if(e.status !== 'pending'){
+    showToast('This submission has already been reviewed.','err');
+    document.getElementById('reviewModal').classList.remove('open');
+    return;
+  }
   const notes       = document.getElementById('reviewNotes')?.value?.trim()||'';
   const reviewedBy  = _currentUser?.name || 'Unknown';
   const reviewedAt  = new Date().toISOString();
@@ -4976,7 +4984,7 @@ function _populateCdConsultantSel(){
     sel.innerHTML = APP.people.map(p=>`<option value="${p.name}"${p.name===current?' selected':''}>${p.name}</option>`).join('');
     // Default to logged-in user if they are a consultant in the list, else first person
     if(!sel.value && _currentUser?.name && APP.people.find(p=>p.name===_currentUser.name)){
-      sel.value = _currentUser.name;
+      sel.value = _currentUser?.name||'';
     }
   } else {
     wrap.style.display = 'none';
@@ -5170,11 +5178,22 @@ function submitDailyFigures(){
   if(!date){ showToast('Please select a date','err'); return; }
   if(rev<=0 && nm<=0){ showToast('Please enter revenue or NM','err'); return; }
 
+  // Guard: prevent duplicate pending submissions for same date
+  const myName = _currentUser?.name||'';
+  const dupPending = Object.values(_pendingEntries).find(
+    e => e.consultantName===myName && e.date===date && e.status==='pending'
+  );
+  if(dupPending){
+    showToast('You already have a pending submission for this date. Wait for it to be reviewed first.','err');
+    document.getElementById('reviewModal').classList.remove('open');
+    return;
+  }
+
   const ref = _pendingRef();
   if(!ref){ showToast('Not connected','err'); return; }
   const id   = 'pend_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
   const entry = {
-    id, consultantName:_currentUser?.name||'', date, revenue:rev, nm, swiftRef:swift,
+    id, consultantName:myName, date, revenue:rev, nm, swiftRef:swift,
     submittedAt:new Date().toISOString(), status:'pending',
     divKey:_currentDivKey||'branch'
   };
@@ -5543,7 +5562,7 @@ function saveBizTargets(){
 // Count how many active consultants are working on a given date (not on planned holiday — sickness does NOT reduce run rate)
 function peopleWorkingOnDate(mk, ds){
   if(isBankHoliday(ds)) return 0;
-  const active = APP.people.filter(p=>personTarget(p)>0);
+  const active = APP.people.filter(p=>personTargetForMonth(p,mk)>0);
   return active.filter(p=>!getHols(mk,p.name).includes(ds)).length;
 }
 
@@ -5574,7 +5593,7 @@ function renderBizTarget(){
   document.getElementById('bizRatePerPerson').value = cfg.ratePerPerson||1200;
 
   const entries  = getEntries(mk);
-  const active   = APP.people.filter(p=>personTarget(p)>0);
+  const active   = APP.people.filter(p=>personTargetForMonth(p,mk)>0);
   const totalRev = entries.reduce((s,e)=>s+(e.revenue||0),0);
   const totalNM  = entries.reduce((s,e)=>s+(e.nm||0),0);
 
@@ -5721,7 +5740,7 @@ function renderTeams(){
 
   // For consultants — auto-select their team and hide others
   if(_currentUser?.role === 'consultant'){
-    const myName   = _currentUser.name;
+    const myName   = _currentUser?.name||'';
     const myTeamKey = Object.keys(APP.teams||{}).find(k=>(APP.teams[k]||[]).includes(myName));
     // Show/hide sub-tabs
     document.querySelectorAll('#page-teams .sub-nav .sub-tab').forEach(btn=>{
@@ -6544,7 +6563,7 @@ function exportDbdCSV(){
     const teamKey = _dbdTeam;
     const members = (APP.teams||{})[teamKey]||[];
     const entries = getEntries(mk);
-    const people  = APP.people.filter(p=>members.includes(p.name)&&personTarget(p)>0);
+    const people  = APP.people.filter(p=>members.includes(p.name)&&personTargetForMonth(p,mk)>0);
     const today   = _localDateStr(new Date());
     const wdDates = workingDatesInMonth(mk).filter(ds=>ds<=today);
     const lookup  = {};
@@ -6554,7 +6573,7 @@ function exportDbdCSV(){
       const pL = lookup[p.name]||{};
       let mtdR=0,mtdN=0;
       wdDates.forEach(ds=>{ if(pL[ds]){mtdR+=pL[ds].revenue;mtdN+=pL[ds].nm;} });
-      const tgt=personTarget(p);
+      const tgt=personTargetForMonth(p,mk);
       wdDates.forEach(ds=>{
         const e = pL[ds]||{revenue:0,nm:0};
         rows.push([monthLabel(mk),TEAM_LABELS[teamKey]||teamKey,p.name,ds,Math.round(e.revenue),e.nm,e.revenue>=(p.riskPerDay||0)?'Yes':'No',Math.round(mtdR),mtdN,tgt>0?Math.round(mtdR/tgt*100)+'%':'0%']);
@@ -7271,7 +7290,7 @@ function exportHistoryCSV(){
 // Holiday — one row per consultant per day off for selected month
 function exportHolidayCSV(){
   const mk     = document.getElementById('holMonth').value || APP.activeMonth;
-  const people = APP.people.filter(p=>personTarget(p)>0);
+  const people = APP.people.filter(p=>personTargetForMonth(p,mk)>0);
   const rows   = [['Month','Consultant','Date','Type','Day of Week']];
   people.forEach(p => {
     const hols = getHols(mk, p.name);
@@ -7614,7 +7633,8 @@ function renderThemePicker(){
 
 function toggleTheme(){
   const cur = localStorage.getItem('pd_theme') || 'midnight';
-  applyTheme(cur === 'midnight' ? 'arctic' : 'midnight');
+  const isDark = !['arctic'].includes(cur);
+  applyTheme(isDark ? 'arctic' : 'midnight');
 }
 
 // Restore saved theme on load
@@ -7714,10 +7734,12 @@ function renderUsersRoles(){
   if(!ref){ card.innerHTML='<div style="font-size:12px;color:var(--red)">Not connected.</div>'; return; }
   ref.once('value').then(snap=>{
     _allUsers = snap.val()||{};
-    // Auto-register any consultants not yet in the user registry
     _syncConsultantsToUsers(()=>{
       _renderUsersTable();
     });
+  }).catch(()=>{
+    const card = document.getElementById('usersRolesContent');
+    if(card) card.innerHTML='<div style="font-size:12px;color:var(--red)">Failed to load users. Check connection.</div>';
   });
 }
 
@@ -7782,6 +7804,11 @@ function togglePinVisibility(uid, pin){
 
 function updateUserRole(uid, newRole){
   if(!_allUsers[uid]) return;
+  if(uid === _currentUser?.id && newRole !== 'master'){
+    showToast('You cannot change your own role.','err');
+    _renderUsersTable();
+    return;
+  }
   _allUsers[uid].role = newRole;
   _usersDbRef()?.child(uid).update({role:newRole})
     .then(()=>showToast(`Role updated to ${ROLE_LABELS[newRole]}`))
@@ -7799,6 +7826,7 @@ function editUserPin(uid, name){
 }
 
 function deleteUser(uid, name){
+  if(uid === _currentUser?.id){ showToast("You cannot delete your own account.",'err'); return; }
   if(!confirm(`Remove user "${name}"? They will no longer be able to log in.`)) return;
   _usersDbRef()?.child(uid).remove()
     .then(()=>{ delete _allUsers[uid]; _renderUsersTable(); showToast(`${name} removed`); })
@@ -7854,7 +7882,7 @@ if(sessionStorage.getItem('pd_auth')==='1'){
   const logoutBtn = document.getElementById('logoutBtn');
   if(_currentUser && badge){
     badge.style.display='';
-    badge.textContent=`${_currentUser.name} · ${ROLE_LABELS[_currentUser.role]||_currentUser.role}`;
+    badge.textContent=`${_currentUser?.name||''} · ${ROLE_LABELS[_currentUser?.role]||_currentUser?.role||''}`;
     badge.style.color=ROLE_COLORS[_currentUser.role]||'var(--text2)';
   }
   if(logoutBtn) logoutBtn.style.display='';
