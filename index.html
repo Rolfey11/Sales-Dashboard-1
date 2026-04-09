@@ -267,8 +267,8 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 
 /* HISTORY */
 .hist-table{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
-.hist-head{display:grid;grid-template-columns:90px 110px 100px 80px 100px 80px 80px 70px;padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);}
-.hist-row{display:grid;grid-template-columns:90px 110px 100px 80px 100px 80px 80px 70px;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;font-size:12px;font-family:var(--fm);}
+.hist-head{display:grid;grid-template-columns:90px 110px 100px 80px 100px 80px 80px 70px 90px;padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);}
+.hist-row{display:grid;grid-template-columns:90px 110px 100px 80px 100px 80px 80px 70px 90px;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;font-size:12px;font-family:var(--fm);}
 .hist-row:last-child{border-bottom:none;}
 .hist-row:hover{background:var(--surface2);}
 .del-btn{background:none;border:1px solid var(--border2);color:var(--text3);font-size:11px;font-family:var(--fm);padding:4px 8px;border-radius:5px;cursor:pointer;transition:all .15s;}
@@ -641,6 +641,11 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       </div>
       <div class="nav-date" id="navDate"></div>
       <div id="userRoleBadge" style="font-size:11px;font-weight:700;font-family:var(--fm);white-space:nowrap;padding:3px 10px;border-radius:20px;background:var(--surface2);border:1px solid var(--border2);display:none;"></div>
+      <!-- Notification Bell -->
+      <button id="notifBell" onclick="toggleNotifPanel()" style="display:none;position:relative;background:none;border:none;cursor:pointer;padding:4px 6px;color:var(--text2);font-size:18px;line-height:1;" title="Pending reviews">
+        🔔
+        <span id="notifBadge" style="display:none;position:absolute;top:0;right:0;background:var(--red);color:#fff;font-size:9px;font-weight:700;border-radius:10px;padding:1px 5px;font-family:var(--fm);line-height:1.4;min-width:16px;text-align:center;"></span>
+      </button>
       <button class="btn btn-s" id="logoutBtn" onclick="logoutUser()" style="font-size:11px;padding:4px 10px;display:none;">Sign Out</button>
     </div>
   </div>
@@ -667,6 +672,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     <button class="nav-tab" onclick="showPage('staffperf')" id="staffPerfTab" style="color:#fff;background:#1a4040;border-radius:6px 6px 0 0;font-weight:700;">📋 Staff Performance</button>
     <button class="nav-tab" onclick="showPage('compliance')" id="complianceTab" style="color:#fff;background:#1a3060;border-radius:6px 6px 0 0;font-weight:700;">🛡 Compliance</button>
     <button class="nav-tab" onclick="showPage('calloutcomes')" id="callOutcomesTab" style="color:#fff;background:#3d1a60;border-radius:6px 6px 0 0;font-weight:700;">📊 Call Outcomes</button>
+    <button class="nav-tab" onclick="showPage('consultantdaily')" id="consultantDailyTab" style="color:#fff;background:#1a4a1a;border-radius:6px 6px 0 0;font-weight:700;">📅 Consultant Daily</button>
   </div>
 </nav>
 
@@ -843,7 +849,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     <div class="hist-head">
       <div class="th">Date</div><div class="th">Consultant</div><div class="th">Revenue</div>
       <div class="th">NM</div><div class="th">MTD Rev</div><div class="th">MTD NM</div>
-      <div class="th">% target</div><div class="th">Action</div>
+      <div class="th">% target</div><div class="th">Action</div><div class="th">Approved By</div>
     </div>
     <div id="histRows"></div>
   </div>
@@ -1318,6 +1324,39 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
   <div id="co-table-wrap"></div>
 </div>
 
+<!-- NOTIFICATION PANEL -->
+<div id="notifPanel" style="display:none;position:fixed;top:0;right:0;width:420px;max-width:100vw;height:100vh;background:var(--surface);border-left:1px solid var(--border2);z-index:500;box-shadow:-8px 0 32px rgba(0,0,0,.4);overflow-y:auto;flex-direction:column;">
+  <div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface2);position:sticky;top:0;z-index:1;">
+    <div style="font-size:15px;font-weight:700">🔔 Pending Reviews</div>
+    <button onclick="toggleNotifPanel()" style="background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;padding:4px;line-height:1;">×</button>
+  </div>
+  <div id="notifList" style="padding:12px;"></div>
+</div>
+<div id="notifOverlay" onclick="toggleNotifPanel()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:499;"></div>
+
+<!-- REVIEW MODAL -->
+<div class="modal-overlay" id="reviewModal">
+  <div class="modal" style="width:500px;max-width:96vw;">
+    <div class="modal-title" id="reviewModalTitle">Review Submission</div>
+    <div id="reviewModalBody"></div>
+    <div class="modal-btns" id="reviewModalBtns"></div>
+  </div>
+</div>
+
+<!-- CONSULTANT DAILY -->
+<div class="page" id="page-consultantdaily">
+  <div class="section-head">
+    <div>
+      <div class="section-title">📅 Consultant Daily</div>
+      <div class="section-sub" id="cd-sub">Monthly Sales Figures Tracker</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select id="cdMonth" onchange="renderConsultantDaily()" style="width:170px"></select>
+    </div>
+  </div>
+  <div id="cdContent"></div>
+</div>
+
 <!-- MANAGER OVERVIEW -->
 <div class="page" id="page-manageroverview">
   <div class="section-head">
@@ -1358,17 +1397,18 @@ async function _sha256(str){
 const ROLE_ACCESS = {
   master:     null, // all tabs
   manager:    ['dashboard','biz','teams','summary','entry','monthlysummary','leaderboard',
-               'history','daybyday','holiday','settings','manageroverview','staffperf','calloutcomes'],
+               'history','daybyday','holiday','settings','manageroverview','staffperf','calloutcomes','consultantdaily'],
   compliance: ['compliance','calloutcomes'],
-  consultant: ['dashboard','teams','daybyday','summary']
+  consultant: ['dashboard','teams','daybyday','summary','consultantdaily']
 };
 const ROLE_LABELS = { master:'Master', manager:'Manager', compliance:'Compliance', consultant:'Consultant' };
 const ROLE_COLORS = { master:'#e879f9', manager:'#5e9cf5', compliance:'#2dce89', consultant:'#fbb83a' };
 
 let _currentUser = null; // { id, name, role, divKey }
-let _allUsers    = {};   // loaded from Firebase cavendish_users
+let _allUsers    = {};   // loaded from Firebase
 
-const _usersDbRef = () => (_db ? _db.ref('cavendish_users') : null);
+// Store users under the branch division path — guaranteed accessible since that path is always initialised
+const _usersDbRef = () => (_db ? _db.ref('perfDash2/cavendishUsers') : null);
 
 function applyRoleVisibility(){
   if(!_currentUser) return;
@@ -1446,17 +1486,60 @@ function backToPassword(){
 
 function _loadUsersForLogin(){
   const sel = document.getElementById('loginUserSel');
+  const err2 = document.getElementById('loginErr2');
   sel.innerHTML = '<option value="">Loading users…</option>';
+  if(err2) err2.textContent = '';
+
+// Ensure Firebase is online before reading
+  if(_db) try{ _db.goOnline(); }catch(e){}
+
   const ref = _usersDbRef();
-  if(!ref){ sel.innerHTML='<option value="">— No users set up yet —</option>'; return; }
+  if(!ref){
+    sel.innerHTML='<option value="">— No users set up yet —</option>';
+    if(err2) err2.textContent = 'Use Admin Login below to set up users.';
+    return;
+  }
+
+  // First check new path; if empty, migrate from legacy cavendish_users path
   ref.once('value').then(snap=>{
-    _allUsers = snap.val()||{};
-    const sorted = Object.values(_allUsers).sort((a,b)=>a.name.localeCompare(b.name));
-    sel.innerHTML = '<option value="">— Select your name —</option>' +
-      sorted.map(u=>`<option value="${u.id}">${u.name}</option>`).join('');
-  }).catch(()=>{
+    if(snap.val()){
+      // New path has data — use it
+      _allUsers = snap.val();
+      _renderLoginUserDropdown(sel, err2);
+    } else {
+      // Try legacy path migration
+      _db.ref('cavendish_users').once('value').then(legSnap=>{
+        const legData = legSnap.val();
+        if(legData){
+          // Migrate to new path
+          ref.set(legData).then(()=>{
+            _db.ref('cavendish_users').remove().catch(()=>{});
+            _allUsers = legData;
+            _renderLoginUserDropdown(sel, err2);
+          }).catch(()=>{ _allUsers=legData; _renderLoginUserDropdown(sel, err2); });
+        } else {
+          _allUsers = {};
+          _renderLoginUserDropdown(sel, err2);
+        }
+      }).catch(()=>{ _allUsers={}; _renderLoginUserDropdown(sel, err2); });
+    }
+  }).catch(err=>{
+    console.error('User load error:', err);
     sel.innerHTML='<option value="">— Could not load users —</option>';
+    if(err2) err2.textContent = 'Could not load users. Use Admin Login below.';
   });
+}
+
+function _renderLoginUserDropdown(sel, err2){
+  const sorted = Object.values(_allUsers).sort((a,b)=>a.name.localeCompare(b.name));
+  if(!sorted.length){
+    sel.innerHTML='<option value="">— No users set up yet —</option>';
+    if(err2) err2.textContent = 'No users registered yet. Use Admin Login below.';
+    return;
+  }
+  sel.innerHTML = '<option value="">— Select your name —</option>' +
+    sorted.map(u=>`<option value="${u.id}">${u.name}</option>`).join('');
+  if(err2) err2.textContent = '';
 }
 
 // ─── LOGIN STEP 2 → 3: Select user, go to PIN ───────────────────
@@ -2508,25 +2591,38 @@ function renderHistory(){
     return;
   }
 
-  document.getElementById('histRows').innerHTML = rows.map(e=>{
-    const p = APP.people.find(x=>x.name===e.name)||{riskPerDay:0,daysT:0};
-    const target = personTarget(p);
-    // MTD up to and including this date
-    const mtdRev = all.filter(x=>x.name===e.name&&x.date<=e.date).reduce((s,x)=>s+(x.revenue||0),0);
-    const mtdNm  = all.filter(x=>x.name===e.name&&x.date<=e.date).reduce((s,x)=>s+(x.nm||0),0);
-    const pct    = target>0?Math.round(mtdRev/target*100):0;
-    const col    = pct>=100?'var(--green)':pct>=75?'var(--amber)':'var(--red)';
-    return `<div class="hist-row">
-      <div>${e.date.slice(5).replace('-','/')}</div>
-      <div style="font-weight:500">${e.name}</div>
-      <div style="color:var(--green)">£${(e.revenue||0).toLocaleString()}</div>
-      <div>${e.nm||0}</div>
-      <div>£${Math.round(mtdRev).toLocaleString()}</div>
-      <div>${mtdNm}</div>
-      <div style="color:${col}">${pct}%</div>
-      <div><button class="del-btn" onclick="deleteEntry('${mk}','${e.date}','${e.name}')">remove</button></div>
-    </div>`;
-  }).join('');
+  // Load entryMeta for this month then render
+  const metaRef = _entryMetaRef();
+  const renderWithMeta = (metaAll) => {
+    document.getElementById('histRows').innerHTML = rows.map(e=>{
+      const p = APP.people.find(x=>x.name===e.name)||{riskPerDay:0,daysT:0};
+      const target = personTarget(p);
+      const mtdRev = all.filter(x=>x.name===e.name&&x.date<=e.date).reduce((s,x)=>s+(x.revenue||0),0);
+      const mtdNm  = all.filter(x=>x.name===e.name&&x.date<=e.date).reduce((s,x)=>s+(x.nm||0),0);
+      const pct    = target>0?Math.round(mtdRev/target*100):0;
+      const col    = pct>=100?'var(--green)':pct>=75?'var(--amber)':'var(--red)';
+      const nameKey = e.name.replace(/[^a-zA-Z0-9]/g,'_');
+      const meta   = metaAll?.[mk]?.[nameKey]?.[e.date];
+      const approvedBy = meta?.approvedBy ? `<span style="color:var(--green);font-size:11px">${meta.approvedBy}</span>` : '—';
+      return `<div class="hist-row">
+        <div>${e.date.slice(5).replace('-','/')}</div>
+        <div style="font-weight:500">${e.name}</div>
+        <div style="color:var(--green)">£${(e.revenue||0).toLocaleString()}</div>
+        <div>${e.nm||0}</div>
+        <div>£${Math.round(mtdRev).toLocaleString()}</div>
+        <div>${mtdNm}</div>
+        <div style="color:${col}">${pct}%</div>
+        <div><button class="del-btn" onclick="deleteEntry('${mk}','${e.date}','${e.name}')">remove</button></div>
+        <div style="font-size:11px;font-family:var(--fm)">${approvedBy}</div>
+      </div>`;
+    }).join('');
+  };
+
+  if(metaRef){
+    metaRef.once('value').then(s=>renderWithMeta(s.val()||{})).catch(()=>renderWithMeta({}));
+  } else {
+    renderWithMeta({});
+  }
 }
 
 function deleteEntry(mk, date, name){
@@ -2619,9 +2715,12 @@ function addPerson(){
   if(APP.people.find(p=>p.name===name)){ showToast('Name already exists','err'); return; }
   APP.people.push({name, riskPerDay:0, daysT:0});
   saveApp();
-  renderSettings();
+  // Auto-register as a user with a random PIN
+  _registerConsultantAsUser(name, _currentDivKey, ()=>{
+    renderSettings();
+    showToast(name+' added & registered as user');
+  });
   document.getElementById('newName').value='';
-  showToast(name+' added');
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -2926,7 +3025,7 @@ function clearAllData(){
 function populateAllSelects(){
   const months = allMonthKeys();
 
-  ['entryMonth','lbMonth','histMonth','activeMonthSel','holMonth','bizMonth','teamsMonth','dbdMonth','mcsMonth','moMonth','dsMonth'].forEach(id=>{
+  ['entryMonth','lbMonth','histMonth','activeMonthSel','holMonth','bizMonth','teamsMonth','dbdMonth','mcsMonth','moMonth','dsMonth','cdMonth'].forEach(id=>{
     const el = document.getElementById(id);
     if(!el) return;
     const cur = el.value || APP.activeMonth;
@@ -2978,6 +3077,7 @@ function showPage(id){
   if(id==='staffperf')     { renderStaffPerf(); }
   if(id==='compliance')    { renderCompliancePage(); }
   if(id==='calloutcomes')  { renderCallOutcomes(); }
+  if(id==='consultantdaily'){ populateAllSelects(); renderConsultantDaily(); }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -4604,6 +4704,396 @@ function exportCallOutcomesCSV(){
   a.download='call_outcomes.csv';
   a.click();
   showToast('CSV exported');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CONSULTANT DAILY — Submission, Approval, Notifications
+// ═══════════════════════════════════════════════════════════════════
+const _pendingRef = () => _dbRef ? _db.ref((DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey+'/pendingEntries') : null;
+const _entryMetaRef = () => _dbRef ? _db.ref((DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey+'/entryMeta') : null;
+let _notifListener = null;
+let _pendingEntries = {};
+
+// ── Notification bell ─────────────────────────────────────────────
+function startNotifListener(){
+  const role = _currentUser?.role;
+  if(!role || role==='compliance') return;
+  const ref = _pendingRef();
+  if(!ref) return;
+  // Clean up old listener
+  if(_notifListener){ _notifListener.off(); }
+  _notifListener = ref;
+  ref.on('value', snap=>{
+    _pendingEntries = snap.val()||{};
+    _updateNotifBadge();
+  });
+}
+
+function _updateNotifBadge(){
+  const role = _currentUser?.role;
+  const bell  = document.getElementById('notifBell');
+  const badge = document.getElementById('notifBadge');
+  if(!bell||!badge) return;
+
+  // Consultants only see their own pending; managers see all pending
+  let pending;
+  if(role==='consultant'){
+    pending = Object.values(_pendingEntries).filter(e=>e.status==='pending'&&e.consultantName===_currentUser?.name);
+    bell.style.display = '';
+  } else if(role==='manager'||role==='master'){
+    pending = Object.values(_pendingEntries).filter(e=>e.status==='pending');
+    bell.style.display = '';
+  } else {
+    bell.style.display = 'none';
+    return;
+  }
+
+  const count = pending.length;
+  if(count>0){
+    badge.style.display='';
+    badge.textContent = count > 9 ? '9+' : String(count);
+  } else {
+    badge.style.display='none';
+  }
+}
+
+function toggleNotifPanel(){
+  const panel   = document.getElementById('notifPanel');
+  const overlay = document.getElementById('notifOverlay');
+  const open    = panel.style.display !== 'none' && panel.style.display !== '';
+  if(open){
+    panel.style.display='none'; overlay.style.display='none';
+  } else {
+    panel.style.display='flex'; panel.style.flexDirection='column';
+    overlay.style.display='';
+    _renderNotifList();
+  }
+}
+
+function _renderNotifList(){
+  const list = document.getElementById('notifList');
+  const role = _currentUser?.role;
+  let entries;
+  if(role==='consultant'){
+    entries = Object.values(_pendingEntries).filter(e=>e.consultantName===_currentUser?.name);
+  } else {
+    entries = Object.values(_pendingEntries);
+  }
+  entries.sort((a,b)=>b.submittedAt.localeCompare(a.submittedAt));
+
+  if(!entries.length){
+    list.innerHTML='<div class="empty" style="padding:32px 16px"><div class="empty-icon">✓</div><div>No pending submissions</div></div>';
+    return;
+  }
+  const pending   = entries.filter(e=>e.status==='pending');
+  const reviewed  = entries.filter(e=>e.status!=='pending');
+  const statusCol = s => s==='approved'?'var(--green)':s==='declined'?'var(--red)':s==='amended'?'var(--amber)':'var(--text3)';
+  const statusLbl = s => s==='approved'?'✓ Approved':s==='declined'?'✕ Declined':s==='amended'?'~ Amended':'⏳ Pending';
+
+  const renderCard = e => `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px;">
+        <div>
+          <div style="font-size:13px;font-weight:700">${e.consultantName}</div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--fm);">${e.date} · ${new Date(e.submittedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</div>
+        </div>
+        <span style="font-size:11px;font-weight:700;color:${statusCol(e.status)};white-space:nowrap;">${statusLbl(e.status)}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;font-family:var(--fm);font-size:12px;">
+        <div><div style="color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em">Revenue</div><div style="font-weight:700;color:var(--green)">£${parseFloat(e.revenue||0).toLocaleString()}</div></div>
+        <div><div style="color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em">NM</div><div style="font-weight:700">${e.nm||0}</div></div>
+        <div><div style="color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em">SWIFT Ref</div><div style="font-weight:600">${e.swiftRef||'—'}</div></div>
+      </div>
+      ${e.status==='pending'&&(role==='manager'||role==='master') ? `<button class="btn btn-p" onclick="openReviewModal('${e.id}')" style="width:100%;font-size:12px;padding:7px">Review →</button>` : ''}
+      ${e.status!=='pending' ? `<div style="font-size:11px;color:var(--text3);font-family:var(--fm);">Reviewed by ${e.reviewedBy||'—'} · ${e.reviewedAt ? new Date(e.reviewedAt).toLocaleDateString('en-GB') : ''}</div>` : ''}
+      ${e.notes ? `<div style="font-size:11px;color:var(--text2);margin-top:4px;font-style:italic;">"${e.notes}"</div>` : ''}
+    </div>`;
+
+  list.innerHTML = (pending.length ? `<div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;font-family:var(--fm);">Awaiting Review (${pending.length})</div>`+pending.map(renderCard).join('') : '') +
+    (reviewed.length ? `<div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin:12px 0 8px;font-family:var(--fm);">Reviewed</div>`+reviewed.slice(0,20).map(renderCard).join('') : '');
+}
+
+// ── Review modal ──────────────────────────────────────────────────
+function openReviewModal(id){
+  const e = _pendingEntries[id];
+  if(!e) return;
+  document.getElementById('reviewModalTitle').textContent = `Review: ${e.consultantName}`;
+  document.getElementById('reviewModalBody').innerHTML = `
+    <div style="background:var(--surface2);border-radius:8px;padding:14px;margin-bottom:16px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-family:var(--fm);font-size:13px;">
+        <div><div class="field-lbl">Date</div><div style="font-weight:700">${e.date}</div></div>
+        <div><div class="field-lbl">Submitted</div><div>${new Date(e.submittedAt).toLocaleString('en-GB')}</div></div>
+        <div><div class="field-lbl">Revenue</div><div style="font-weight:700;color:var(--green)">£${parseFloat(e.revenue||0).toLocaleString()}</div></div>
+        <div><div class="field-lbl">Needs Met</div><div style="font-weight:700">${e.nm||0}</div></div>
+        <div><div class="field-lbl">SWIFT Ref</div><div>${e.swiftRef||'—'}</div></div>
+        <div><div class="field-lbl">Submitted by</div><div>${e.consultantName}</div></div>
+      </div>
+    </div>
+    <div id="amendFields" style="display:none;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div><div class="field-lbl">Amended Revenue (£)</div><input type="number" id="amendRev" value="${e.revenue||''}" step="0.01" min="0" style="width:100%"></div>
+        <div><div class="field-lbl">Amended NM</div><input type="number" id="amendNm" value="${e.nm||''}" step="1" min="0" style="width:100%"></div>
+      </div>
+    </div>
+    <div><div class="field-lbl">Notes (optional)</div><textarea id="reviewNotes" rows="2" style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none;resize:vertical;" placeholder="Add a note…"></textarea></div>`;
+  document.getElementById('reviewModalBtns').innerHTML = `
+    <button class="btn btn-s" onclick="document.getElementById('reviewModal').classList.remove('open')">Cancel</button>
+    <button class="btn btn-s" onclick="document.getElementById('amendFields').style.display='';this.style.display='none';" id="amendBtn">~ Amend</button>
+    <button class="btn btn-d" onclick="handleReview('${id}','declined')">✕ Decline</button>
+    <button class="btn btn-p" onclick="handleReview('${id}','approved')">✓ Approve</button>`;
+  document.getElementById('reviewModal').classList.add('open');
+}
+
+function handleReview(id, action){
+  const e = _pendingEntries[id];
+  if(!e) return;
+  const notes       = document.getElementById('reviewNotes')?.value?.trim()||'';
+  const reviewedBy  = _currentUser?.name || 'Unknown';
+  const reviewedAt  = new Date().toISOString();
+  let finalRev = parseFloat(e.revenue||0);
+  let finalNm  = parseInt(e.nm||0);
+
+  if(action==='amended'){
+    finalRev = parseFloat(document.getElementById('amendRev')?.value)||finalRev;
+    finalNm  = parseInt(document.getElementById('amendNm')?.value)||finalNm;
+  }
+
+  // If amend button was visible and fields are shown, treat as amended
+  const amendFields = document.getElementById('amendFields');
+  if(amendFields && amendFields.style.display!=='none' && action==='approved'){
+    action='amended';
+    finalRev = parseFloat(document.getElementById('amendRev')?.value)||finalRev;
+    finalNm  = parseInt(document.getElementById('amendNm')?.value)||finalNm;
+  }
+
+  const update = { status:action, reviewedBy, reviewedAt, notes,
+    ...(action!=='declined' ? {approvedRevenue:finalRev, approvedNm:finalNm} : {}) };
+
+  const ref = _pendingRef();
+  if(!ref){ showToast('Not connected','err'); return; }
+
+  ref.child(id).update(update).then(()=>{
+    // If approved or amended: write to main entries
+    if(action==='approved'||action==='amended'){
+      const mk = e.date?.slice(0,7);
+      if(mk && e.consultantName){
+        const entries   = getEntries(mk);
+        const filtered  = entries.filter(en=>!(en.date===e.date&&en.name===e.consultantName));
+        const existing  = entries.find(en=>en.date===e.date&&en.name===e.consultantName);
+        filtered.push({
+          date:    e.date,
+          name:    e.consultantName,
+          revenue: parseFloat(((existing?.revenue||0) + finalRev).toFixed(2)),
+          nm:      (existing?.nm||0) + finalNm
+        });
+        setEntries(mk, filtered);
+        // Store meta for history tab
+        const metaRef = _entryMetaRef();
+        if(metaRef) metaRef.child(mk+'/'+e.consultantName.replace(/[^a-zA-Z0-9]/g,'_')+'/'+e.date).set({
+          approvedBy:reviewedBy, approvedAt:reviewedAt, submissionId:id, notes
+        }).catch(()=>{});
+      }
+    }
+    document.getElementById('reviewModal').classList.remove('open');
+    showToast(action==='declined'?'Submission declined':action==='amended'?'Amended & approved':'Approved ✓');
+    _renderNotifList();
+    _updateNotifBadge();
+    // Refresh consultant daily if open
+    if(document.getElementById('page-consultantdaily').classList.contains('active')) renderConsultantDaily();
+    if(document.getElementById('page-history').classList.contains('active')) renderHistory();
+  }).catch(()=>showToast('Failed to save','err'));
+}
+
+// ── Consultant Daily render ───────────────────────────────────────
+function renderConsultantDaily(){
+  populateAllSelects();
+  const mk       = document.getElementById('cdMonth')?.value || APP.activeMonth;
+  const role     = _currentUser?.role || 'consultant';
+  const myName   = _currentUser?.name || '';
+  const content  = document.getElementById('cdContent');
+  document.getElementById('cd-sub').textContent = monthLabel(mk) + ' · ' + (myName||'');
+
+  const p = APP.people.find(x=>x.name===myName);
+  const ep = p ? getPersonForMonth(p, mk) : null;
+  const riskPerDay = ep?.riskPerDay || 0;
+  const daysT      = ep?.daysT      || 0;
+  const target     = Math.round(riskPerDay * daysT);
+  const nmTarget   = parseFloat((daysT * 1.75).toFixed(2));
+
+  const entries = getEntries(mk);
+  const mine    = entries.filter(e=>e.name===myName);
+  const revMTD  = mine.reduce((s,e)=>s+(e.revenue||0),0);
+  const nmMTD   = mine.reduce((s,e)=>s+(e.nm||0),0);
+  const elapsed = calWorkDays(mk, myName);
+  const forTarget   = target - revMTD;
+  const copRiskNeeded = riskPerDay>0 ? (riskPerDay*(elapsed+1) - revMTD) : 0;
+  const copNmNeeded   = (elapsed*1.75+1.75) - nmMTD;
+  const rpdNeeded     = (daysT - elapsed)>0 ? forTarget/(daysT - elapsed) : 0;
+  const daysWorked    = new Set(mine.filter(e=>(e.revenue||0)>0||(e.nm||0)>0).map(e=>e.date)).size;
+
+  const pct = target>0 ? Math.round(revMTD/target*100) : 0;
+  const kpiCol = v => v>=0?'var(--green)':'var(--red)';
+
+  // My pending submissions for this month
+  const myPending = Object.values(_pendingEntries)
+    .filter(e=>e.consultantName===myName && e.date?.startsWith(mk))
+    .sort((a,b)=>b.submittedAt.localeCompare(a.submittedAt));
+
+  // Build day-by-day table for the month
+  const [y,m] = mk.split('-').map(Number);
+  const daysInMonth = new Date(y,m,0).getDate();
+  const today = _localDateStr(new Date());
+  let tableRows = '';
+  for(let d=1;d<=daysInMonth;d++){
+    const ds  = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dow = new Date(y,m-1,d).getDay();
+    const isWE = dow===0||dow===6;
+    const isBH = isBankHoliday(ds);
+    const ent  = mine.find(e=>e.date===ds);
+    const pend = myPending.find(e=>e.date===ds);
+    const isFuture = ds > today;
+    const rowBg = isWE||isBH ? 'var(--surface3)' : ds===today ? 'rgba(94,156,245,0.07)' : '';
+    const statusBadge = pend ? (pend.status==='pending'?'<span style="font-size:9px;font-weight:700;background:rgba(251,184,58,.2);color:var(--amber);padding:2px 7px;border-radius:10px;margin-left:6px">⏳ Pending</span>':
+      pend.status==='approved'||pend.status==='amended'?'<span style="font-size:9px;font-weight:700;background:rgba(45,206,137,.2);color:var(--green);padding:2px 7px;border-radius:10px;margin-left:6px">✓ Approved</span>':
+      '<span style="font-size:9px;font-weight:700;background:rgba(245,54,92,.2);color:var(--red);padding:2px 7px;border-radius:10px;margin-left:6px">✕ Declined</span>') : '';
+    const dayLabel = new Date(ds).toLocaleDateString('en-GB',{weekday:'short',day:'numeric'});
+    tableRows += `<tr style="border-bottom:1px solid var(--border);background:${rowBg};">
+      <td style="padding:8px 12px;font-size:12px;font-family:var(--fm);white-space:nowrap;color:${isFuture?'var(--text3)':ds===today?'var(--accent)':'var(--text2)'};font-weight:${ds===today?'700':'400'}">${dayLabel}${isWE?' <span style="font-size:9px;color:var(--text3)">WE</span>':isBH?' <span style="font-size:9px;color:var(--red)">BH</span>':''}</td>
+      <td style="padding:8px 12px;text-align:right;font-family:var(--fm);font-size:12px;color:${ent?.revenue?'var(--green)':'var(--text3)'};font-weight:${ent?.revenue?'700':'400'}">${ent?.revenue ? '£'+parseFloat(ent.revenue).toLocaleString() : (isWE||isBH||isFuture?'—':'')}</td>
+      <td style="padding:8px 12px;text-align:right;font-family:var(--fm);font-size:12px;color:${ent?.nm?'var(--text)':'var(--text3)'}">${ent?.nm||(!isWE&&!isBH&&!isFuture?'':' ')}</td>
+      <td style="padding:8px 12px;font-size:12px;font-family:var(--fm);color:var(--text3)">${statusBadge}</td>
+      <td style="padding:8px 12px;text-align:right">${!isWE&&!isBH&&!isFuture&&role==='consultant'?`<button class="btn btn-s" onclick="openDailySubmit('${ds}')" style="font-size:11px;padding:3px 10px;">+ Submit</button>`:''}
+        ${!isWE&&!isBH&&!isFuture&&(role==='manager'||role==='master')&&pend?.status==='pending'?`<button class="btn btn-p" onclick="openReviewModal('${pend.id}')" style="font-size:11px;padding:3px 10px;">Review</button>`:''}</td>
+    </tr>`;
+  }
+
+  content.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start;">
+      <!-- Left: daily table -->
+      <div>
+        ${role==='consultant' ? `
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+          <div style="font-size:13px;font-weight:700;">Submit Today's Figures</div>
+          <button class="btn btn-p" onclick="openDailySubmit('${today}')" style="font-size:12px;padding:8px 20px;">+ Add Today's Sale</button>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-left:auto">Submitted figures go to your team leader for approval</div>
+        </div>` : ''}
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
+          <div style="padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:13px;font-weight:700;">
+            ${monthLabel(mk)} — Daily Figures
+            ${role!=='consultant'?`<span style="font-size:11px;font-weight:400;color:var(--text3);margin-left:8px">Viewing: ${myName||'—'}</span>`:''}
+          </div>
+          <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:380px;">
+            <thead><tr style="background:var(--surface2);border-bottom:1px solid var(--border)">
+              <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;">Date</th>
+              <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;">Revenue</th>
+              <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;">NM</th>
+              <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;">Status</th>
+              <th style="padding:8px 12px;"></th>
+            </tr></thead>
+            <tbody>${tableRows}</tbody>
+            <tfoot><tr style="background:var(--surface2);border-top:2px solid var(--border2)">
+              <td style="padding:9px 12px;font-size:12px;font-weight:700;font-family:var(--fm)">MTD TOTAL</td>
+              <td style="padding:9px 12px;text-align:right;font-weight:700;font-family:var(--fm);color:var(--green)">£${Math.round(revMTD).toLocaleString()}</td>
+              <td style="padding:9px 12px;text-align:right;font-weight:700;font-family:var(--fm)">${nmMTD}</td>
+              <td colspan="2"></td>
+            </tr></tfoot>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- Right: KPI panel -->
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
+          <div style="padding:10px 14px;background:linear-gradient(135deg,#1a4a1a,#0d2b0d);color:#fff;font-size:13px;font-weight:700;">Monthly Summary</div>
+          ${[
+            ['Monthly Target', target>0?'£'+target.toLocaleString():'Not set', null],
+            ['Targeted Days', daysT||'—', null],
+            ['Days Worked', daysWorked, null],
+            ['For Target', target>0?'£'+Math.round(forTarget).toLocaleString():'—', null],
+            null,
+            ['Current Risk (MTD)', '£'+Math.round(revMTD).toLocaleString(), pct+'%'],
+            ['Needs Met (MTD)', nmMTD, null],
+            ['Risk Per Day (earned)', riskPerDay>0?'£'+Math.round(revMTD/Math.max(daysWorked,1)).toLocaleString():'—', null],
+            null,
+            ['COP Risk Needed', copRiskNeeded>0?'£'+Math.round(copRiskNeeded).toLocaleString():<span style="color:var(--green)">Ahead</span>, null],
+            ['COP NM Needed', copNmNeeded>0?copNmNeeded.toFixed(1):'Ahead', null],
+            null,
+            ['RPD Needed', rpdNeeded>0?'£'+Math.round(rpdNeeded).toLocaleString():'—', null],
+          ].map(row => row===null
+            ? '<div style="height:1px;background:var(--border);margin:0"></div>'
+            : `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;font-size:12px;font-family:var(--fm);">
+                <span style="color:var(--text3)">${row[0]}</span>
+                <span style="font-weight:700">${row[1]}${row[2]?` <span style="font-size:10px;color:var(--text3)">(${row[2]})</span>`:''}</span>
+               </div>`
+          ).join('')}
+        </div>
+
+        <!-- Progress bar -->
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;">
+          <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;font-family:var(--fm)">Target Progress</div>
+          <div style="font-size:24px;font-weight:700;font-family:var(--fm);color:${pct>=100?'var(--green)':pct>=75?'var(--amber)':'var(--text)'};">${pct}%</div>
+          <div style="background:var(--surface3);border-radius:4px;height:8px;margin-top:8px;overflow:hidden;"><div style="height:100%;width:${Math.min(pct,100)}%;background:${pct>=100?'var(--green)':pct>=75?'var(--amber)':'var(--blue)'};border-radius:4px;transition:width .6s;"></div></div>
+          <div style="font-size:11px;color:var(--text3);margin-top:6px;font-family:var(--fm)">£${Math.round(revMTD).toLocaleString()} of £${target.toLocaleString()}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── Submit form ───────────────────────────────────────────────────
+let _submitDate = '';
+function openDailySubmit(date){
+  _submitDate = date;
+  const modal = document.getElementById('reviewModal');
+  document.getElementById('reviewModalTitle').textContent = 'Submit Daily Figures — '+date;
+  document.getElementById('reviewModalBody').innerHTML = `
+    <div style="margin-bottom:14px">
+      <div class="field-lbl">Date</div>
+      <input type="date" id="submitDate" value="${date}" style="width:100%">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+      <div><div class="field-lbl">Revenue (£)</div><input type="number" id="submitRev" placeholder="0.00" step="0.01" min="0" style="width:100%"></div>
+      <div><div class="field-lbl">Needs Met</div><input type="number" id="submitNm" placeholder="0" step="1" min="0" style="width:100%"></div>
+    </div>
+    <div><div class="field-lbl">SWIFT Ref (optional)</div><input type="text" id="submitSwift" placeholder="Reference number" style="width:100%"></div>
+    <div style="margin-top:10px;padding:10px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--amber);font-size:11px;color:var(--text3);font-family:var(--fm);">
+      ⓘ Your submission will be sent to your team leader for approval before it counts toward your figures.
+    </div>`;
+  document.getElementById('reviewModalBtns').innerHTML = `
+    <button class="btn btn-s" onclick="document.getElementById('reviewModal').classList.remove('open')">Cancel</button>
+    <button class="btn btn-p" onclick="submitDailyFigures()">Submit for Approval →</button>`;
+  modal.classList.add('open');
+  setTimeout(()=>document.getElementById('submitRev')?.focus(),100);
+}
+
+function submitDailyFigures(){
+  const date  = document.getElementById('submitDate')?.value || _submitDate;
+  const rev   = parseFloat(document.getElementById('submitRev')?.value)||0;
+  const nm    = parseInt(document.getElementById('submitNm')?.value)||0;
+  const swift = document.getElementById('submitSwift')?.value?.trim()||'';
+  if(!date){ showToast('Please select a date','err'); return; }
+  if(rev<=0 && nm<=0){ showToast('Please enter revenue or NM','err'); return; }
+
+  const ref = _pendingRef();
+  if(!ref){ showToast('Not connected','err'); return; }
+  const id   = 'pend_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+  const entry = {
+    id, consultantName:_currentUser?.name||'', date, revenue:rev, nm, swiftRef:swift,
+    submittedAt:new Date().toISOString(), status:'pending',
+    divKey:_currentDivKey||'branch'
+  };
+  ref.child(id).set(entry).then(()=>{
+    document.getElementById('reviewModal').classList.remove('open');
+    showToast('Submitted for approval ✓');
+    renderConsultantDaily();
+  }).catch(()=>showToast('Submission failed','err'));
+}
+
+// ── Update history tab to show approval info ──────────────────────
+function _getEntryMeta(mk, personName, date, cb){
+  const metaRef = _entryMetaRef();
+  if(!metaRef){ cb(null); return; }
+  const key = personName.replace(/[^a-zA-Z0-9]/g,'_');
+  metaRef.child(mk+'/'+key+'/'+date).once('value').then(s=>cb(s.val())).catch(()=>cb(null));
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -6962,6 +7452,7 @@ _dbRef.once('value').then(snap=>{
   setSyncStatus('live');
   populateAllSelects();
   renderDashboard();
+  startNotifListener();
 
   // Real-time listener — fires whenever any client saves
   _dbRef.on('value', snap=>{
@@ -6988,6 +7479,35 @@ _dbRef.once('value').then(snap=>{
 }
 
 // ─── USER MANAGEMENT ───────────────────────────────────────────────
+function _randomPin(){
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+
+function _registerConsultantAsUser(name, divKey, onDone){
+  const ref = _usersDbRef();
+  if(!ref){ if(onDone) onDone(); return; }
+  // Check if already registered by name
+  const existing = Object.values(_allUsers).find(u=>u.name===name);
+  if(existing){ if(onDone) onDone(); return; }
+  const id  = 'usr_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+  const pin = _randomPin();
+  const user = { id, name, role:'consultant', divKey:divKey||_currentDivKey||'', pin };
+  ref.child(id).set(user).then(()=>{
+    _allUsers[id] = user;
+    if(onDone) onDone();
+  }).catch(()=>{ if(onDone) onDone(); });
+}
+
+function _syncConsultantsToUsers(onComplete){
+  // Find all consultants in APP.people not yet in _allUsers
+  const registeredNames = new Set(Object.values(_allUsers).map(u=>u.name));
+  const unregistered = APP.people.filter(p=>!registeredNames.has(p.name));
+  if(!unregistered.length){ if(onComplete) onComplete(); return; }
+  let pending = unregistered.length;
+  const done = ()=>{ pending--; if(pending===0 && onComplete) onComplete(); };
+  unregistered.forEach(p=>_registerConsultantAsUser(p.name, _currentDivKey, done));
+}
+
 function renderUsersRoles(){
   const card = document.getElementById('usersRolesContent');
   if(!card) return;
@@ -7000,7 +7520,10 @@ function renderUsersRoles(){
   if(!ref){ card.innerHTML='<div style="font-size:12px;color:var(--red)">Not connected.</div>'; return; }
   ref.once('value').then(snap=>{
     _allUsers = snap.val()||{};
-    _renderUsersTable();
+    // Auto-register any consultants not yet in the user registry
+    _syncConsultantsToUsers(()=>{
+      _renderUsersTable();
+    });
   });
 }
 
@@ -7011,8 +7534,14 @@ function _renderUsersTable(){
     card.innerHTML='<div style="font-size:12px;color:var(--text3);font-family:var(--fm)">No users set up yet. Click + Add User to create the first user.</div>';
     return;
   }
+  const consultantCount = users.filter(u=>u.role==='consultant').length;
   const thS='style="padding:8px 12px;background:var(--surface2);font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid var(--border);text-align:left;"';
-  card.innerHTML=`<div style="overflow-x:auto;">
+  card.innerHTML=`
+    <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:12px;padding:8px 12px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--accent);">
+      ${users.length} users registered · ${consultantCount} consultants · 
+      PINs are auto-generated for new consultants — click 👁 to reveal, or Edit to change.
+    </div>
+    <div style="overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;min-width:600px;">
       <thead><tr>
         <th ${thS}>Name</th>
