@@ -5447,40 +5447,60 @@ function saveManagerDirectEntry(){
   const divDbKey = (DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey;
   const entriesPath = `${divDbKey}/months/${mk}/entries`;
 
-  // Helper: Firebase converts JS arrays to objects on round-trip — normalise back
   const _normArr = (d) => !d ? [] : Array.isArray(d) ? d : Object.values(d).filter(Boolean);
-
   const enteredBy = _currentUser?.name || 'Manager';
   const dealTime  = new Date().toISOString();
   const newDeal   = { rev:parseFloat(rev.toFixed(2)), nm, swiftRef:swift, time:dealTime, enteredBy, authBy:enteredBy };
 
-  // Use a Firebase transaction — atomically reads the current entries, appends
-  // the new deal, and writes back. Retries automatically if another client
-  // wrote between our read and write, guaranteeing no deals are ever lost.
-  _db.ref(entriesPath).transaction(currentData=>{
-    const raw        = currentData;
-    const existingArr= raw ? _normArr(raw) : [];
-    const filtered   = existingArr.filter(en=>!(en.date===date&&en.name===name));
-    const existing   = existingArr.find(en=>en.date===date&&en.name===name);
-    const newEntry   = {
-      date,
-      name,
+  // Step 1: read current entries fresh from Firebase
+  _db.ref(entriesPath).once('value').then(snap=>{
+    const raw         = snap.val();
+    console.log('[DEAL SAVE] Firebase raw entries:', JSON.stringify(raw));
+
+    const existingArr = _normArr(raw);
+    const filtered    = existingArr.filter(en=>!(en.date===date&&en.name===name));
+    const existing    = existingArr.find(en=>en.date===date&&en.name===name);
+    const existingDeals = _normArr(existing?.deals);
+
+    console.log('[DEAL SAVE] Existing entry:', JSON.stringify(existing));
+    console.log('[DEAL SAVE] Existing deals count:', existingDeals.length);
+
+    const newEntry = {
+      date, name,
       revenue: parseFloat(((existing?.revenue||0) + rev).toFixed(2)),
       nm:      (existing?.nm||0) + nm,
-      deals:   [ ..._normArr(existing?.deals), newDeal ]
+      deals:   [ ...existingDeals, newDeal ]
     };
     filtered.push(newEntry);
 
-    // Keep local APP in sync so renders between saves show live data
+    console.log('[DEAL SAVE] New entry to write:', JSON.stringify(newEntry));
+    console.log('[DEAL SAVE] Total deals in new entry:', newEntry.deals.length);
+
+    // Update local APP immediately
     if(!APP.months[mk]) APP.months[mk] = {entries:[]};
     APP.months[mk].entries = filtered;
     _ignoreNextSnapshot = true;
 
-    return filtered;
-  }, (error, committed, snap)=>{
-    if(error || !committed){ showToast('Failed to save entry','err'); return; }
+    // Step 2: write back to Firebase
+    return _db.ref(entriesPath).set(filtered);
 
-    // Write manager meta (approval info) — separate path, fire and forget
+  }).then(()=>{
+    // Step 3: read back immediately to verify what was actually stored
+    return _db.ref(entriesPath).once('value');
+
+  }).then(verifySnap=>{
+    const verified    = _normArr(verifySnap.val());
+    const savedEntry  = verified.find(en=>en.date===date&&en.name===name);
+    const savedDeals  = _normArr(savedEntry?.deals);
+
+    console.log('[DEAL SAVE] Verified from Firebase after write:', JSON.stringify(savedEntry));
+    console.log('[DEAL SAVE] Verified deals count:', savedDeals.length);
+
+    // Update APP with verified data
+    if(!APP.months[mk]) APP.months[mk] = {entries:[]};
+    APP.months[mk].entries = verified;
+
+    // Write manager meta
     const metaRef   = _entryMetaRef();
     const reviewedBy= _currentUser?.name || 'Manager';
     const reviewedAt= new Date().toISOString();
@@ -5489,19 +5509,14 @@ function saveManagerDirectEntry(){
       swiftRef: swift, notes: 'Direct entry by manager — no approval required'
     }).catch(()=>{});
 
-    // Sync APP with confirmed transaction result
-    const confirmedArr = snap.val();
-    const confirmed    = _normArr(confirmedArr);
-    if(!APP.months[mk]) APP.months[mk] = {entries:[]};
-    APP.months[mk].entries = confirmed;
-
     document.getElementById('reviewModal').classList.remove('open');
-    showToast(`Entry saved for ${name} ✓`);
+    showToast(`Saved: ${savedDeals.length} deal(s) for ${name} ✓`);
     renderConsultantDaily();
     if(document.getElementById('page-dashboard').classList.contains('active'))  renderDashboard();
     if(document.getElementById('page-history').classList.contains('active'))    renderHistory();
     if(document.getElementById('page-entry').classList.contains('active'))      buildEntryRows();
-  }, false); // applyLocally=false prevents double-firing the real-time listener
+
+  }).catch(()=>showToast('Failed to save entry','err'));
 }
 
 // ── Update history tab to show approval info ──────────────────────
