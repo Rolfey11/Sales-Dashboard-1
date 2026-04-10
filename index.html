@@ -226,6 +226,57 @@ body{background:var(--bg);color:var(--text);font-family:var(--fh);min-height:100
 }
 #greetingOverlay.visible .greeting-sub{opacity:1;transform:translateY(0);}
 
+/* Live clock */
+.greeting-clock{
+  font-family:var(--fm);font-size:clamp(28px,3.5vw,48px);font-weight:400;
+  letter-spacing:.12em;color:var(--accent);opacity:0;
+  margin-bottom:8px;
+  transition:opacity .6s .1s ease;
+}
+#greetingOverlay.visible .greeting-clock{ opacity:0.75; }
+
+/* Underline draw under name */
+.greeting-underline{
+  display:block;height:2px;border-radius:2px;
+  background:var(--accent);
+  width:0;margin:10px auto 0;
+  transition:width 0.5s cubic-bezier(.4,0,.2,1);
+}
+.greeting-underline.draw{ width:100%; }
+
+/* Role badge */
+.greeting-role-badge{
+  display:inline-block;
+  margin-top:18px;
+  padding:5px 16px;border-radius:20px;
+  font-size:11px;font-weight:700;font-family:var(--fm);letter-spacing:.1em;text-transform:uppercase;
+  border:1px solid currentColor;opacity:0;
+  transition:opacity .5s ease;
+}
+.greeting-role-badge.show{ opacity:1; }
+
+/* Background watermark */
+.greeting-watermark{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--fh);font-size:22vw;font-weight:700;letter-spacing:-.04em;
+  color:var(--accent);opacity:0.03;
+  pointer-events:none;user-select:none;
+  z-index:0;overflow:hidden;white-space:nowrap;
+}
+
+/* Scanline texture */
+.greeting-scanlines{
+  position:absolute;inset:0;pointer-events:none;z-index:2;
+  background:repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(0,0,0,0.04) 3px,
+    rgba(0,0,0,0.04) 4px
+  );
+}
+
 /* Click to continue prompt */
 .greeting-continue{
   margin-top:40px;
@@ -1531,10 +1582,15 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 <div class="toast" id="toast"></div>
 
 <div id="greetingOverlay">
-  <canvas id="greetingCanvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;"></canvas>
-  <div style="text-align:center;padding:0 24px;position:relative;z-index:1;">
+  <canvas id="greetingCanvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;"></canvas>
+  <div class="greeting-watermark" id="greetingWatermark">JG MI</div>
+  <div class="greeting-scanlines"></div>
+  <div style="text-align:center;padding:0 24px;position:relative;z-index:3;display:flex;flex-direction:column;align-items:center;">
+    <div class="greeting-clock" id="greetingClock">00:00:00</div>
     <div class="greeting-text" id="greetingText">Hello</div>
+    <span class="greeting-underline" id="greetingUnderline"></span>
     <div class="greeting-sub" id="greetingSub">Welcome back to JG MI</div>
+    <div class="greeting-role-badge" id="greetingRoleBadge"></div>
     <div class="greeting-continue" id="greetingContinue" onclick="dismissGreeting()">— click to continue —</div>
   </div>
 </div>
@@ -1545,11 +1601,16 @@ let _greetingAnimId = null;
 // Stores the target page to navigate to after dismissal
 let _greetingTargetPage = null;
 
+let _greetingClockTimer = null;
+
 function showGreeting(name, targetPage, onDismiss){
-  const overlay  = document.getElementById('greetingOverlay');
-  const text     = document.getElementById('greetingText');
-  const sub      = document.getElementById('greetingSub');
-  const contBtn  = document.getElementById('greetingContinue');
+  const overlay   = document.getElementById('greetingOverlay');
+  const text      = document.getElementById('greetingText');
+  const sub       = document.getElementById('greetingSub');
+  const contBtn   = document.getElementById('greetingContinue');
+  const underline = document.getElementById('greetingUnderline');
+  const roleBadge = document.getElementById('greetingRoleBadge');
+  const clockEl   = document.getElementById('greetingClock');
   if(!overlay||!text) return;
 
   _greetingTargetPage = targetPage || null;
@@ -1562,10 +1623,32 @@ function showGreeting(name, targetPage, onDismiss){
   text.innerHTML  = `${timeGreeting}, <span id="greetingName">${firstName}</span>`;
   sub.textContent = 'Welcome back to JG MI';
 
-  // Hide continue button initially
-  if(contBtn) contBtn.classList.remove('show');
+  // Reset elements
+  if(contBtn)   contBtn.classList.remove('show');
+  if(roleBadge) roleBadge.classList.remove('show');
+  if(underline) underline.classList.remove('draw');
 
-  // ── 3. Particle canvas ───────────────────────────────────────────
+  // ── Live clock ───────────────────────────────────────────────────
+  if(_greetingClockTimer) clearInterval(_greetingClockTimer);
+  function _tickClock(){
+    if(!clockEl) return;
+    clockEl.textContent = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  }
+  _tickClock();
+  _greetingClockTimer = setInterval(_tickClock, 1000);
+
+  // ── Role badge ───────────────────────────────────────────────────
+  if(roleBadge && _currentUser){
+    const role = _currentUser.role || 'consultant';
+    const roleLabel = ROLE_LABELS[role] || role;
+    const roleColor = ROLE_COLORS[role] || 'var(--text3)';
+    roleBadge.textContent = roleLabel;
+    roleBadge.style.color = roleColor;
+    roleBadge.style.borderColor = roleColor;
+    roleBadge.style.background = roleColor+'22';
+  }
+
+  // ── Particle canvas ──────────────────────────────────────────────
   const canvas = document.getElementById('greetingCanvas');
   if(_greetingAnimId){ cancelAnimationFrame(_greetingAnimId); _greetingAnimId=null; }
   if(canvas){
@@ -1615,16 +1698,26 @@ function showGreeting(name, targetPage, onDismiss){
     drawParticles();
   }
 
-  // ── 5. Glow pulse on name after text fades in ────────────────────
+  // ── Glow pulse on name after text fades in ───────────────────────
   setTimeout(()=>{
     const nameEl = document.getElementById('greetingName');
     if(nameEl) nameEl.classList.add('glow-pulse');
   }, 620);
 
-  // ── Show continue prompt after glow settles ──────────────────────
+  // ── Underline draws in after glow ────────────────────────────────
+  setTimeout(()=>{
+    if(underline) underline.classList.add('draw');
+  }, 900);
+
+  // ── Role badge fades in after underline ──────────────────────────
+  setTimeout(()=>{
+    if(roleBadge) roleBadge.classList.add('show');
+  }, 1100);
+
+  // ── Click to continue appears last ───────────────────────────────
   setTimeout(()=>{
     if(contBtn) contBtn.classList.add('show');
-  }, 1400);
+  }, 1500);
 
   // ── Show overlay ─────────────────────────────────────────────────
   overlay.classList.remove('fade-out');
@@ -1632,16 +1725,21 @@ function showGreeting(name, targetPage, onDismiss){
 }
 
 function dismissGreeting(){
-  const overlay = document.getElementById('greetingOverlay');
-  const canvas  = document.getElementById('greetingCanvas');
-  const contBtn = document.getElementById('greetingContinue');
+  const overlay   = document.getElementById('greetingOverlay');
+  const canvas    = document.getElementById('greetingCanvas');
+  const contBtn   = document.getElementById('greetingContinue');
+  const underline = document.getElementById('greetingUnderline');
+  const roleBadge = document.getElementById('greetingRoleBadge');
   if(!overlay) return;
 
   overlay.classList.add('fade-out');
   setTimeout(()=>{
     overlay.classList.remove('visible','fade-out');
-    if(contBtn) contBtn.classList.remove('show');
+    if(contBtn)   contBtn.classList.remove('show');
+    if(roleBadge) roleBadge.classList.remove('show');
+    if(underline) underline.classList.remove('draw');
     if(_greetingAnimId){ cancelAnimationFrame(_greetingAnimId); _greetingAnimId=null; }
+    if(_greetingClockTimer){ clearInterval(_greetingClockTimer); _greetingClockTimer=null; }
     if(canvas){ canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height); }
     // Run post-greeting navigation
     const cb = window._greetingOnDismiss;
