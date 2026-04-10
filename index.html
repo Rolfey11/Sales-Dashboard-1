@@ -281,6 +281,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--fh);min-height:100
 .div-badge{font-size:9px;font-weight:700;background:rgba(94,156,245,0.15);color:var(--accent);padding:2px 8px;border-radius:10px;letter-spacing:.04em;text-transform:uppercase;}
 
 /* NAV */
+/* Hide nav and pages until auth complete — prevents flash of wrong content */
+body.pre-auth nav,
+body.pre-auth .page{ visibility:hidden; pointer-events:none; }
+
 nav{position:sticky;top:0;z-index:100;background:var(--nav-bg);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);padding:8px 20px 0;display:flex;flex-direction:column;gap:0;transition:background .25s;}
 .nav-row1{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:40px;flex-wrap:nowrap;}
 .nav-row2{display:flex;align-items:center;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:0;}
@@ -650,7 +654,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
   .div-grid{grid-template-columns:1fr 1fr !important;}
 }
 </style>
-<body>
+<body class="pre-auth">
 
 <!-- LOGIN SCREEN -->
 <div id="loginScreen">
@@ -778,7 +782,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
   <!-- Row 2: Main scrollable tabs -->
   <div class="nav-row2">
     <div class="nav-tabs">
-      <button class="nav-tab active" onclick="showPage('dashboard')">Dashboard</button>
+      <button class="nav-tab" onclick="showPage('dashboard')">Dashboard</button>
       <button class="nav-tab" onclick="showPage('biz')">Business Target</button>
       <button class="nav-tab" onclick="showPage('teams')">Teams</button>
       <button class="nav-tab" onclick="showPage('summary')">Consultant Summary</button>
@@ -803,7 +807,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 </nav>
 
 <!-- DASHBOARD -->
-<div class="page active" id="page-dashboard">
+<div class="page" id="page-dashboard">
   <div class="section-head">
     <div><div class="section-title">Team Overview</div><div class="section-sub" id="dash-sub"></div></div>
     <div style="display:flex;gap:8px;align-items:center">
@@ -1680,7 +1684,7 @@ const ROLE_ACCESS = {
   manager:    ['dashboard','biz','teams','summary','entry','monthlysummary','leaderboard',
                'history','daybyday','holiday','settings','manageroverview','staffperf','calloutcomes','consultantdaily'],
   compliance: ['compliance','calloutcomes'],
-  consultant: ['consultantdaily','teams','daybyday']
+  consultant: ['consultantdaily','teams','calloutcomes']
 };
 const ROLE_LABELS = { master:'Master', manager:'Manager', compliance:'Compliance', consultant:'Consultant' };
 const ROLE_COLORS = { master:'#e879f9', manager:'#5e9cf5', compliance:'#2dce89', consultant:'#fbb83a' };
@@ -1713,6 +1717,9 @@ function applyRoleVisibility(){
     badge.textContent = `${_currentUser?.name||''} · ${ROLE_LABELS[role]}`;
     badge.style.color  = ROLE_COLORS[role];
   }
+
+  // Lift the pre-auth veil now that visibility is correctly configured
+  document.body.classList.remove('pre-auth');
 }
 
 function _startWithRole(){
@@ -3038,9 +3045,24 @@ function renderHistory(resetPage){
   }
 }
 
+// Removes pending entry record for a person/date so the status badge disappears
+function _clearPendingForDate(date, name){
+  const ref = _pendingRef();
+  if(!ref) return;
+  // Find all pending entries matching this consultant + date and remove them
+  Object.entries(_pendingEntries).forEach(([id, e])=>{
+    if(e.consultantName === name && e.date === date){
+      ref.child(id).remove().catch(()=>{});
+      delete _pendingEntries[id];
+    }
+  });
+  _updateNotifBadge();
+}
+
 function deleteEntry(mk, date, name){
   if(!confirm(`Remove entry for ${name} on ${date}?`)) return;
   setEntries(mk, getEntries(mk).filter(e=>!(e.date===date&&e.name===name)));
+  _clearPendingForDate(date, name);
   renderHistory();
   if(document.getElementById('page-dashboard').classList.contains('active'))        renderDashboard();
   if(document.getElementById('page-consultantdaily').classList.contains('active'))  renderConsultantDaily();
@@ -3060,15 +3082,17 @@ function deleteDeal(mk, date, name, dealIndex){
   const updated = deals.length === 0
     ? entries.filter(e=>!(e.date===date&&e.name===name))
     : entries;
+  const entryGone = updated.length === 0 || !updated.find(e=>e.date===date&&e.name===name);
   setEntries(mk, updated);
+  // If no deals remain, wipe approval meta AND pending status badge
+  if(entryGone){
+    const metaRef = _entryMetaRef();
+    if(metaRef){ const nk=name.replace(/[^a-zA-Z0-9]/g,'_'); metaRef.child(`${mk}/${nk}/${date}`).remove().catch(()=>{}); }
+    _clearPendingForDate(date, name);
+  }
   renderHistory();
   if(document.getElementById('page-dashboard').classList.contains('active'))        renderDashboard();
   if(document.getElementById('page-consultantdaily').classList.contains('active'))  renderConsultantDaily();
-  // Clear meta if last deal removed
-  if(updated.length === 0 || !updated.find(e=>e.date===date&&e.name===name)){
-    const metaRef = _entryMetaRef();
-    if(metaRef){ const nk=name.replace(/[^a-zA-Z0-9]/g,'_'); metaRef.child(`${mk}/${nk}/${date}`).remove().catch(()=>{}); }
-  }
   showToast('Deal removed');
 }
 
@@ -4902,6 +4926,31 @@ function loadCallOutcomes(){
   document.getElementById('co-kpis').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text3);font-family:var(--fm)">⏳ Loading…</div>';
   document.getElementById('co-table-wrap').innerHTML = '';
 
+  // ── Consultant view: lock to own name, hide irrelevant filters ───
+  const isConsultant = _currentUser?.role === 'consultant';
+  const myName = _currentUser?.name || '';
+
+  // Show/hide filter controls based on role
+  const filterRow = document.getElementById('co_colleague')?.closest('div[style*="display:flex"]') ||
+                    document.getElementById('co_colleague')?.parentElement?.parentElement;
+  // Hide colleague, team and assessor filters for consultants — they only see their own
+  ['co_colleague','co_team','co_assessor'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el){
+      const wrap = el.parentElement;
+      if(wrap) wrap.style.display = isConsultant ? 'none' : '';
+    }
+  });
+  // Also hide export and refresh for consultants if desired — keep them visible
+  // Lock the colleague selector to own name for consultants
+  if(isConsultant){
+    const coSel = document.getElementById('co_colleague');
+    if(coSel){
+      coSel.innerHTML = `<option value="${myName}">${myName}</option>`;
+      coSel.value = myName;
+    }
+  }
+
   const ref = _dbRef ? _db.ref((DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey+'/compliance') : null;
   if(!ref){
     document.getElementById('co-kpis').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--red);font-family:var(--fm)">Not connected to database.</div>';
@@ -4910,7 +4959,7 @@ function loadCallOutcomes(){
   ref.once('value').then(snap=>{
     const val = snap.val()||{};
     _coAllData = Object.values(val).sort((a,b)=>b.dateObs?.localeCompare(a.dateObs)||0);
-    _populateCoFilterDropdowns();
+    if(!isConsultant) _populateCoFilterDropdowns();
     applyCoFilters();
   }).catch(()=>{
     document.getElementById('co-kpis').innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--red);font-family:var(--fm)">Failed to load data.</div>';
@@ -4929,9 +4978,13 @@ function _populateCoFilterDropdowns(){
 }
 
 function applyCoFilters(){
-  const colleague = document.getElementById('co_colleague')?.value||'';
-  const teamKey   = document.getElementById('co_team')?.value||'';
-  const assessor  = document.getElementById('co_assessor')?.value||'';
+  // Consultants are always locked to their own name regardless of filter state
+  const isConsultant = _currentUser?.role === 'consultant';
+  const colleague = isConsultant
+    ? (_currentUser?.name||'')
+    : (document.getElementById('co_colleague')?.value||'');
+  const teamKey   = isConsultant ? '' : (document.getElementById('co_team')?.value||'');
+  const assessor  = isConsultant ? '' : (document.getElementById('co_assessor')?.value||'');
   const outcome   = document.getElementById('co_outcome')?.value||'';
   const from      = document.getElementById('co_from')?.value||'';
   const to        = document.getElementById('co_to')?.value||'';
@@ -4954,7 +5007,12 @@ function applyCoFilters(){
   _renderCoTable();
 
   const sub = document.getElementById('co-subtitle');
-  if(sub) sub.textContent = `${_coFiltered.length} assessments · ${DIVISIONS[_currentDivKey]?.label||''} · Last refresh: ${new Date().toLocaleTimeString('en-GB')}`;
+  if(sub){
+    const isConsultant = _currentUser?.role === 'consultant';
+    sub.textContent = isConsultant
+      ? `My assessments · ${_coFiltered.length} records · ${DIVISIONS[_currentDivKey]?.label||''}`
+      : `${_coFiltered.length} assessments · ${DIVISIONS[_currentDivKey]?.label||''} · Last refresh: ${new Date().toLocaleTimeString('en-GB')}`;
+  }
 }
 
 function clearCoFilters(){
@@ -8653,6 +8711,8 @@ if(sessionStorage.getItem('pd_auth')==='1'){
   }
   if(logoutBtn) logoutBtn.style.display='';
   _startSessionTimeout(); // restart timer on page reload
+  // Apply role visibility immediately so the pre-auth veil lifts correctly
+  if(_currentUser) applyRoleVisibility();
   const savedDiv = sessionStorage.getItem('pd_division');
   if(savedDiv && DIVISIONS[savedDiv]){
     selectDivision(savedDiv);
