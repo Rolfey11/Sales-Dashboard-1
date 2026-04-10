@@ -333,12 +333,12 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 .btn-d{background:var(--red-bg);color:var(--red);border:1px solid rgba(245,54,92,.2);}.btn-d:hover{background:rgba(245,54,92,.2);}
 .btn-w{width:100%;}
 .entry-table{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
-.et-head{display:grid;grid-template-columns:130px 1fr 80px 1.5fr 100px;gap:0;padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);}
+.et-head{display:grid;grid-template-columns:130px 1fr 80px 1.5fr 100px 140px;gap:0;padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);}
 .th{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);}
-.et-row{display:grid;grid-template-columns:130px 1fr 80px 1.5fr 100px;gap:8px;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;}
+.et-row{display:grid;grid-template-columns:130px 1fr 80px 1.5fr 100px 140px;gap:8px;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;}
 .et-row:last-child{border-bottom:none;}
 @media(max-width:768px){
-  .et-head,.et-row{grid-template-columns:90px 1fr 60px 1.2fr 80px;gap:5px;padding:8px 10px;}
+  .et-head,.et-row{grid-template-columns:80px 1fr 55px 1fr 75px 100px;gap:4px;padding:8px 10px;}
 }
 .et-name{font-size:13px;font-weight:600;}
 .inp-wrap{position:relative;}
@@ -893,12 +893,13 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       </div>
     </div>
     <div class="entry-table">
-      <div class="et-head">
+      <div class="et-head" style="grid-template-columns:130px 1fr 80px 1.5fr 100px 140px">
         <div class="th">Consultant</div>
         <div class="th">Today's Revenue</div>
         <div class="th">Today's NM</div>
         <div class="th" style="color:var(--accent)">+ Add Rev</div>
         <div class="th" style="color:var(--accent)">+ Add NM</div>
+        <div class="th" style="color:var(--accent)">SWIFT Ref</div>
       </div>
       <div id="entryRows"></div>
     </div>
@@ -953,6 +954,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     </div>
     <div id="histRows"></div>
   </div>
+  <div id="histPager" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;font-size:12px;font-family:var(--fm);color:var(--text3);border-top:1px solid var(--border);"></div>
 </div>
 
 
@@ -1058,6 +1060,17 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <div style="display:flex;gap:8px;margin-top:12px;">
         <input type="text" id="newName" placeholder="Consultant name" style="flex:1">
         <button class="btn btn-p" onclick="addPerson()" style="padding:8px 14px;font-size:13px;">+ Add</button>
+      </div>
+    </div>
+
+    <!-- NM Rate -->
+    <div class="set-card">
+      <div class="set-title">NM Rate</div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:12px;line-height:1.6">Needs Met target per working day. Default 1.75.</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <input type="number" id="nmRateInput" step="0.25" min="0.25" max="10" style="width:90px"
+          onchange="APP.nmRate=parseFloat(this.value)||1.75;saveApp();showToast('NM rate updated')">
+        <span style="font-size:12px;color:var(--text3);font-family:var(--fm)">per working day</span>
       </div>
     </div>
 
@@ -1867,16 +1880,38 @@ function setSyncStatus(state){
 // ─── Save (debounced 400ms) ────────────────────────────────────────
 let _saveTimer = null;
 let _ignoreNextSnapshot = false;
+let _histPage = 0;
+const HIST_PAGE_SIZE = 50;
 
+let _saveRetryTimer = null;
+let _saveRetryCount = 0;
 function saveApp(){
   setSyncStatus('saving');
   clearTimeout(_saveTimer);
-  _saveTimer = setTimeout(()=>{
-    _ignoreNextSnapshot = true;
-    _dbRef.set(APP)
-      .then(()=>setSyncStatus('live'))
-      .catch(e=>{ _ignoreNextSnapshot=false; console.error('Save failed',e); setSyncStatus('error'); });
-  }, 400);
+  clearTimeout(_saveRetryTimer);
+  _saveRetryCount = 0;
+  _saveTimer = setTimeout(_doSaveApp, 400);
+}
+function _doSaveApp(){
+  _ignoreNextSnapshot = true;
+  if(!_dbRef){ setSyncStatus('error'); return; }
+  _dbRef.set(APP)
+    .then(()=>{ setSyncStatus('live'); _saveRetryCount=0; })
+    .catch(e=>{
+      _ignoreNextSnapshot = false;
+      console.error('Save failed',e);
+      _saveRetryCount++;
+      if(_saveRetryCount < 3){
+        setSyncStatus('error');
+        // Auto-retry after 3s, 8s
+        _saveRetryTimer = setTimeout(_doSaveApp, _saveRetryCount * 3000);
+        showToast(`Save failed — retrying (${_saveRetryCount}/3)…`, 'err');
+      } else {
+        setSyncStatus('error');
+        showToast('Save failed after 3 attempts. Check your connection.', 'err');
+        _saveRetryCount = 0;
+      }
+    });
 }
 
 function todayKey(){
@@ -1925,6 +1960,7 @@ function setEntries(monthKey, entries){
 
 // ── target calculation: riskPerDay × daysT ─────────────────────────
 function personTarget(p){ return Math.round((p.riskPerDay||0) * (p.daysT||0)); }
+function nmRate(){ return (APP.nmRate != null ? APP.nmRate : 1.75); }
 
 // ── Month-aware person config: uses per-month override exclusively ──
 // Global p.riskPerDay / p.daysT are legacy fields, not used for display.
@@ -2071,18 +2107,18 @@ function calcStats(monthKey){
     const sickWorkDays  = getSickWorkDayCount(monthKey, p.name);
     const effectiveDays = Math.max(0, (ep.daysT||0) - sickWorkDays);
     const target   = Math.round((ep.riskPerDay||0) * effectiveDays);
-    const nmTarget = parseFloat((effectiveDays * 1.75).toFixed(2));
+    const nmTarget = parseFloat((effectiveDays * nmRate()).toFixed(2));
 
     // calendar working days elapsed for this person (holidays excluded)
     const calDays = calWorkDays(monthKey, p.name);
 
     // ── COP (next working day checkpoint) ────────────────────────
     const copRev = (calDays * (ep.riskPerDay||0) + (ep.riskPerDay||0)) - revMTD;
-    const copNm  = (calDays * 1.75 + 1.75) - nmMTD;
+    const copNm  = (calDays * nmRate() + nmRate()) - nmMTD;
 
     // ── percentages ──────────────────────────────────────────────
     const revPct = target>0   ? Math.round(revMTD  / target   * 100) : 0;
-    const nmTargetFixed = effectiveDays * 1.75;
+    const nmTargetFixed = effectiveDays * nmRate();
     const nmPct  = nmTargetFixed>0 ? Math.round(nmMTD / nmTargetFixed * 100) : 0;
 
     const riskAhead = copRev <= 0;
@@ -2147,7 +2183,9 @@ function holClick(el){
   // if cur==='sick' → already cleared above → null
   saveApp();
   renderHoliday();
-  if(document.getElementById('page-dashboard').classList.contains('active')) renderDashboard();
+  showToast('Day status updated');
+  if(document.getElementById('page-dashboard').classList.contains('active'))        renderDashboard();
+  if(document.getElementById('page-consultantdaily').classList.contains('active'))  renderConsultantDaily();
 }
 function clearAllHols(){
   const mk = document.getElementById('holMonth').value || APP.activeMonth;
@@ -2155,7 +2193,8 @@ function clearAllHols(){
   if(APP.holidays[mk]) delete APP.holidays[mk];
   if(APP.sickness[mk]) delete APP.sickness[mk];
   saveApp(); renderHoliday();
-  if(document.getElementById('page-dashboard').classList.contains('active')) renderDashboard();
+  if(document.getElementById('page-dashboard').classList.contains('active'))        renderDashboard();
+  if(document.getElementById('page-consultantdaily').classList.contains('active'))  renderConsultantDaily();
   showToast('Holidays cleared');
 }
 
@@ -2241,7 +2280,7 @@ function renderDashCharts(mk){
 
   // daily run rate target = team monthly target / total working days in month
   const teamTarget = APP.people.reduce((s,p)=>s+personTargetForMonth(p,mk),0);
-  const avgDaysT   = APP.people.filter(p=>p.daysT>0).reduce((s,p)=>s+p.daysT,0) / (APP.people.filter(p=>p.daysT>0).length||1);
+  const avgDaysT   = APP.people.filter(p=>getPersonForMonth(p,mk).daysT>0).reduce((s,p)=>s+(getPersonForMonth(p,mk).daysT||0),0) / (APP.people.filter(p=>getPersonForMonth(p,mk).daysT>0).length||1);
   const dailyTgt   = avgDaysT>0 ? teamTarget/avgDaysT : 0;
   const tgtLine    = daily.map(()=>Math.round(dailyTgt));
 
@@ -2378,7 +2417,7 @@ function renderDashboard(){
   }
 
   // NM target = sum of each active person's daysT × 1.75
-  const nmTarget = active.reduce((s,p)=>s+(p.daysT||0)*1.75, 0);
+  const nmTarget = active.reduce((s,p)=>s+(getPersonForMonth(p,mk).daysT||0)*nmRate(), 0);
 
   // COP — same day-by-day loop as teams tab (matches MTD Diff at bottom of teams table)
   const today2   = _localDateStr(new Date());
@@ -2483,7 +2522,7 @@ function renderDashboard(){
         <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(p.revPct,100)}%;background:${rbc}"></div></div>
         <div class="p-row"><span class="p-lbl">COP risk (next day)</span><span class="p-val ${p.riskAhead?'g':'r'}">${copRevStr}</span></div>
         <div class="pdiv"></div>
-        <div class="p-row"><span class="p-lbl">NM target</span><span class="p-val">${parseFloat((p.daysT*1.75).toFixed(2))}</span></div>
+        <div class="p-row"><span class="p-lbl">NM target</span><span class="p-val">${parseFloat(((p.nmTarget||0)).toFixed(2))}</span></div>
         <div class="p-row"><span class="p-lbl">NM this month</span><span class="p-val">${p.nmMTD}</span></div>
         <div class="p-sub" style="text-align:right;margin-bottom:2px">${p.nmPct}% of target</div>
         <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(p.nmPct,100)}%;background:${nbc}"></div></div>
@@ -2626,6 +2665,9 @@ function buildEntryRows(){
       <!-- Add-on NM -->
       <input type="number" id="addnm_${p.name}" placeholder="0" step="1" min="0"
         style="background:var(--blue-bg);border:1px solid var(--accent);border-radius:8px;padding:9px 12px;font-size:13px;font-family:var(--fm);color:var(--accent);outline:none;width:100%;">
+      <!-- SWIFT Ref for this deal -->
+      <input type="text" id="swift_${p.name}" placeholder="Ref (optional)"
+        style="background:var(--blue-bg);border:1px solid var(--accent);border-radius:8px;padding:9px 12px;font-size:13px;font-family:var(--fm);color:var(--accent);outline:none;width:100%;">
     </div>`;
   }).join('');
 
@@ -2669,8 +2711,9 @@ function saveAllEntries(){
       const prev      = prevEntries.find(e=>e.date===date&&e.name===p.name);
       const prevDeals = _normArrE(prev?.deals);
       // Only append a new deal record if something new was actually added
+      const swiftRef = document.getElementById('swift_'+p.name)?.value?.trim()||'';
       const newDeals = (addRev>0||addNm>0)
-        ? [ ...prevDeals, { rev:parseFloat(addRev.toFixed(2)), nm:addNm, swiftRef:'', time:entryTime, enteredBy, authBy:enteredBy } ]
+        ? [ ...prevDeals, { rev:parseFloat(addRev.toFixed(2)), nm:addNm, swiftRef, time:entryTime, enteredBy, authBy:enteredBy } ]
         : prevDeals.length > 0
           ? prevDeals   // keep existing deals as-is (base-only edit)
           : [ { rev:parseFloat(rev.toFixed(2)), nm, swiftRef:'', time:entryTime, enteredBy, authBy:enteredBy } ]; // first-time entry via base field
@@ -2702,7 +2745,7 @@ function saveAllEntries(){
       buildEntryRows();
     }).catch(()=>showToast('Save failed — check connection','err'));
   } else {
-    // Consultant / other: use original local save
+    // Consultant / other: same deal-tracking logic, local save
     entries = entries.concat(newForDate);
     setEntries(mk, entries);
     showToast('Saved entries for '+date);
@@ -2775,7 +2818,8 @@ function renderLeaderboard(){
 // ═══════════════════════════════════════════════════════════════════
 // HISTORY
 // ═══════════════════════════════════════════════════════════════════
-function renderHistory(){
+function renderHistory(resetPage){
+  if(resetPage !== false) _histPage = 0;
   const mk     = document.getElementById('histMonth').value || APP.activeMonth;
   const person = document.getElementById('histPerson').value;
   const all    = getEntries(mk);
@@ -2831,8 +2875,31 @@ function renderHistory(){
       });
     });
 
-    document.getElementById('histRows').innerHTML = html.join('') ||
+    const totalRows = html.length;
+    const totalPages = Math.ceil(totalRows / HIST_PAGE_SIZE);
+    _histPage = Math.min(_histPage, Math.max(0, totalPages-1));
+    const start = _histPage * HIST_PAGE_SIZE;
+    const pageHtml = html.slice(start, start + HIST_PAGE_SIZE);
+
+    document.getElementById('histRows').innerHTML = pageHtml.join('') ||
       '<div class="empty"><div class="empty-icon">📋</div><div>No entries yet.</div></div>';
+
+    // Render pager
+    const pager = document.getElementById('histPager');
+    if(pager){
+      if(totalPages <= 1){ pager.style.display='none'; }
+      else {
+        pager.style.display='flex';
+        pager.innerHTML = `
+          <span>${totalRows} deals · page ${_histPage+1} of ${totalPages}</span>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-s" style="padding:4px 12px;font-size:11px;" onclick="_histPage=0;renderHistory(false)" ${_histPage===0?'disabled':''}>«</button>
+            <button class="btn btn-s" style="padding:4px 12px;font-size:11px;" onclick="_histPage--;renderHistory(false)" ${_histPage===0?'disabled':''}>‹ Prev</button>
+            <button class="btn btn-s" style="padding:4px 12px;font-size:11px;" onclick="_histPage++;renderHistory(false)" ${_histPage>=totalPages-1?'disabled':''}>Next ›</button>
+            <button class="btn btn-s" style="padding:4px 12px;font-size:11px;" onclick="_histPage=${totalPages-1};renderHistory(false)" ${_histPage>=totalPages-1?'disabled':''}>»</button>
+          </div>`;
+      }
+    }
   };
 
   if(metaRef){
@@ -2846,6 +2913,8 @@ function deleteEntry(mk, date, name){
   if(!confirm(`Remove entry for ${name} on ${date}?`)) return;
   setEntries(mk, getEntries(mk).filter(e=>!(e.date===date&&e.name===name)));
   renderHistory();
+  if(document.getElementById('page-dashboard').classList.contains('active'))        renderDashboard();
+  if(document.getElementById('page-consultantdaily').classList.contains('active'))  renderConsultantDaily();
   showToast('Entry removed');
 }
 
@@ -2864,6 +2933,13 @@ function deleteDeal(mk, date, name, dealIndex){
     : entries;
   setEntries(mk, updated);
   renderHistory();
+  if(document.getElementById('page-dashboard').classList.contains('active'))        renderDashboard();
+  if(document.getElementById('page-consultantdaily').classList.contains('active'))  renderConsultantDaily();
+  // Clear meta if last deal removed
+  if(updated.length === 0 || !updated.find(e=>e.date===date&&e.name===name)){
+    const metaRef = _entryMetaRef();
+    if(metaRef){ const nk=name.replace(/[^a-zA-Z0-9]/g,'_'); metaRef.child(`${mk}/${nk}/${date}`).remove().catch(()=>{}); }
+  }
   showToast('Deal removed');
 }
 
@@ -2875,6 +2951,9 @@ function renderSettings(){
   document.getElementById('activeMonthSel').value = APP.activeMonth;
   renderThemePicker();
   renderUsersRoles();
+  // NM Rate input
+  const nmEl = document.getElementById('nmRateInput');
+  if(nmEl) nmEl.value = nmRate();
 
   // Name-only rows — no risk/day or work days here
   document.getElementById('personConfigRows').innerHTML = APP.people.length
@@ -5213,7 +5292,7 @@ function renderConsultantDaily(){
   const sickDaysCount  = p ? getSickWorkDayCount(mk, myName) : 0;
   const effectiveDaysT = Math.max(0, daysT - sickDaysCount);
   const target     = Math.round(riskPerDay * effectiveDaysT);
-  const nmTarget   = parseFloat((effectiveDaysT * 1.75).toFixed(2));
+  const nmTarget   = parseFloat((effectiveDaysT * nmRate()).toFixed(2));
 
   const entries = getEntries(mk);
   const mine    = entries.filter(e=>e.name===myName);
@@ -5222,7 +5301,7 @@ function renderConsultantDaily(){
   const elapsed = calWorkDays(mk, myName);
   const forTarget   = target - revMTD;
   const copRiskNeeded = riskPerDay>0 ? (riskPerDay*(elapsed+1) - revMTD) : 0;
-  const copNmNeeded   = (elapsed*1.75+1.75) - nmMTD;
+  const copNmNeeded   = (elapsed*nmRate()+nmRate()) - nmMTD;
   const rpdNeeded     = (effectiveDaysT - elapsed)>0 ? forTarget/(effectiveDaysT - elapsed) : 0;
   const daysWorked    = new Set(mine.filter(e=>(e.revenue||0)>0||(e.nm||0)>0).map(e=>e.date)).size;
 
@@ -5622,7 +5701,7 @@ function renderManagerOverview(){
         const rpd    = ovr.riskPerDay!==undefined ? ovr.riskPerDay : (p.riskPerDay||0);
         const daysT  = ovr.daysT!==undefined      ? ovr.daysT      : (p.daysT||0);
         const target = Math.round(rpd*daysT);
-        const nmTgt  = parseFloat((daysT*1.75).toFixed(2));
+        const nmTgt  = parseFloat((daysT*nmRate()).toFixed(2));
         if(!target) return null;
 
         const mine   = entries.filter(e=>e.name===p.name);
@@ -6254,7 +6333,7 @@ function renderTeamDashboard(container, teamKey){
           <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(p.revPct,100)}%;background:${rbc}"></div></div>
           <div class="p-row"><span class="p-lbl">COP risk</span><span class="p-val ${p.riskAhead?'g':'r'}">${p.riskAhead?'+'+fmt(p.copRev)+' ahead':fmt(p.copRev)+' needed'}</span></div>
           <div class="pdiv"></div>
-          <div class="p-row"><span class="p-lbl">NM MTD</span><span class="p-val">${p.nmMTD} / ${parseFloat((p.daysT*1.75).toFixed(1))}</span></div>
+          <div class="p-row"><span class="p-lbl">NM MTD</span><span class="p-val">${p.nmMTD} / ${parseFloat((p.nmTarget||0).toFixed(1))}</span></div>
           <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(p.nmPct,100)}%;background:${nbc}"></div></div>
           <div class="p-row"><span class="p-lbl">COP NM</span><span class="p-val ${p.nmAhead?'g':'r'}">${p.nmAhead?Math.abs(p.copNm).toFixed(1)+' ahead':p.copNm.toFixed(1)+' needed'}</span></div>
           <div class="pills">
@@ -7440,7 +7519,8 @@ function _renderSumTrends(){
 }
 
 function _calcHitStreak(name, mks){
-  // Find longest consecutive streak of days hitting daily run rate across all months
+  // Find longest consecutive streak of days hitting daily run rate.
+  // Holidays, sick days and bank holidays are skipped (don't break or count).
   let longestStreak = 0, currentStreak = 0;
   mks.sort().forEach(mk=>{
     const p = APP.people.find(x=>x.name===name);
@@ -7451,10 +7531,11 @@ function _calcHitStreak(name, mks){
     const entries = getEntries(mk).filter(e=>e.name===name);
     const wdDates = workingDatesInMonth(mk);
     wdDates.forEach(ds=>{
+      const dayStatus = getDayStatus(mk,name,ds);
+      // Skip non-working days entirely — don't break streak
+      if(dayStatus==='hol'||dayStatus==='sick'||dayStatus==='bh') return;
       const e = entries.find(x=>x.date===ds);
       const rev = e?e.revenue||0:0;
-      const dayStatus = getDayStatus(mk,name,ds);
-      if(dayStatus==='hol'||dayStatus==='bh'){ currentStreak=0; return; }
       if(rev>=rpd){ currentStreak++; longestStreak=Math.max(longestStreak,currentStreak); }
       else { currentStreak=0; }
     });
@@ -7567,16 +7648,17 @@ function exportHistoryCSV(){
   const all    = getEntries(mk);
   let entries  = [...all].sort((a,b)=>a.date.localeCompare(b.date)||a.name.localeCompare(b.name));
   if(person&&person!=='all') entries=entries.filter(e=>e.name===person);
-  const rows = [['Month','Date','Time','Consultant','Revenue (£)','Needs Met','SWIFT Ref','Entered / Approved By']];
+  const rows = [['Month','Date','Time','Consultant','Revenue (£)','Needs Met','SWIFT Ref','Entered By','Authed By']];
+  const _normE = (d)=>!d?[]:Array.isArray(d)?d:Object.values(d).filter(Boolean);
   entries.forEach(e=>{
-    const deals = Array.isArray(e.deals) ? e.deals : [];
+    const deals = _normE(e.deals);
     if(deals.length){
       deals.forEach(d=>{
         const t = d.time ? new Date(d.time).toLocaleString('en-GB') : '';
-        rows.push([monthLabel(mk),e.date,t,e.name,d.rev||0,d.nm||0,d.swiftRef||'',d.enteredBy||'']);
+        rows.push([monthLabel(mk),e.date,t,e.name,d.rev||0,d.nm||0,d.swiftRef||'',d.enteredBy||'',d.authBy||'']);
       });
     } else {
-      rows.push([monthLabel(mk),e.date,'',e.name,e.revenue||0,e.nm||0,'','']);
+      rows.push([monthLabel(mk),e.date,'',e.name,e.revenue||0,e.nm||0,'','','']);
     }
   });
   const suffix = person&&person!=='all'?'_'+person:'_all';
@@ -8206,6 +8288,7 @@ function _applyDefaults(){
   if(!APP.bizTargets)    APP.bizTargets = {};
   if(!APP.holidays)      APP.holidays = {};
   if(!APP.sickness)      APP.sickness = {};
+  if(APP.nmRate == null) APP.nmRate = 1.75; // NM per working day target
   if(!APP.monthOverrides) APP.monthOverrides = {};
   if(APP.manualElapsed == null) APP.manualElapsed = null;
   if(!APP.people)        APP.people = [];
