@@ -1741,6 +1741,7 @@ function _startWithRole(){
     return;
   }
   // Manager / Master - show division picker or restore saved
+  // selectDivision now handles the showPage('dashboard') call internally
   if(savedDiv && DIVISIONS[savedDiv]){
     selectDivision(savedDiv);
   } else {
@@ -1931,9 +1932,15 @@ function selectDivision(key){
   if(btns[idx]) btns[idx].classList.add('active-div');
   applyRoleVisibility();
   _initApp(key);
-  // For compliance role, navigate straight to compliance tab
-  if(_currentUser?.role==='compliance'){
+  // Navigate to the correct default page for each role after Firebase loads
+  const _role = _currentUser?.role || 'consultant';
+  if(_role === 'compliance'){
     setTimeout(()=>showPage('compliance'), 600);
+  } else if(_role === 'consultant'){
+    setTimeout(()=>showPage('consultantdaily'), 700);
+  } else {
+    // manager / master → dashboard
+    setTimeout(()=>showPage('dashboard'), 600);
   }
 }
 
@@ -8715,11 +8722,8 @@ if(sessionStorage.getItem('pd_auth')==='1'){
   if(_currentUser) applyRoleVisibility();
   const savedDiv = sessionStorage.getItem('pd_division');
   if(savedDiv && DIVISIONS[savedDiv]){
+    // selectDivision now handles showPage for all roles internally
     selectDivision(savedDiv);
-    // Consultants always land on their daily tab
-    if(_currentUser?.role === 'consultant'){
-      setTimeout(()=>showPage('consultantdaily'), 700);
-    }
   } else {
     document.getElementById('divisionScreen').classList.remove('hidden');
   }
