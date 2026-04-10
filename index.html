@@ -131,6 +131,41 @@
 [data-theme="cavendish"] .btn-p:hover{background:#6b0438;}
 [data-theme="cavendish"] .login-btn:hover{background:#6b0438;}
 
+/* 8. Lloyds — light, green nav banner */
+[data-theme="lloyds"]{
+  --bg:#f2f7f4;--surface:#ffffff;--surface2:#e6f0ea;--surface3:#d4e8db;
+  --border:rgba(0,104,52,0.1);--border2:rgba(0,104,52,0.2);
+  --text:#001a0d;--text2:#2a5c3a;--text3:#6a9b7a;
+  --green:#006834;--green-bg:rgba(0,104,52,0.09);
+  --red:#c8183a;--red-bg:rgba(200,24,58,0.09);
+  --amber:#b06a00;--amber-bg:rgba(176,106,0,0.09);
+  --blue:#1a5fba;--blue-bg:rgba(26,95,186,0.09);
+  --purple:#5a3faa;--purple-bg:rgba(90,63,170,0.09);
+  --accent:#006834;--shadow:0 4px 24px rgba(0,104,52,.12);
+  --nav-bg:#00a651;
+}
+[data-theme="lloyds"] nav{background:#00a651;}
+[data-theme="lloyds"] .nav-brand,
+[data-theme="lloyds"] .nav-tab,
+[data-theme="lloyds"] .nav-date,
+[data-theme="lloyds"] #syncLabel,
+[data-theme="lloyds"] .theme-toggle-label{color:rgba(255,255,255,0.92);}
+[data-theme="lloyds"] .nav-tab:hover{background:rgba(0,0,0,0.12);color:#fff;}
+[data-theme="lloyds"] .nav-tab.active{color:#fff;background:rgba(0,0,0,0.18);box-shadow:inset 0 -2px 0 #fff;}
+[data-theme="lloyds"] .nav-brand span{color:#fff;text-shadow:0 0 12px rgba(255,255,255,0.4);}
+[data-theme="lloyds"] #syncDot{background:rgba(255,255,255,0.6)!important;}
+[data-theme="lloyds"] #userRoleBadge{background:rgba(255,255,255,0.2);border-color:rgba(255,255,255,0.4);color:#fff;}
+[data-theme="lloyds"] #notifBell{color:rgba(255,255,255,0.95);}
+[data-theme="lloyds"] #divisionBadge{background:rgba(255,255,255,0.2);border-color:rgba(255,255,255,0.4);}
+[data-theme="lloyds"] #divisionLabel{color:rgba(255,255,255,0.95);}
+[data-theme="lloyds"] #logoutBtn{background:rgba(255,255,255,0.2);border-color:rgba(255,255,255,0.4);color:#fff;}
+[data-theme="lloyds"] #globalMonthSel{background:rgba(255,255,255,0.2);border-color:rgba(255,255,255,0.4);color:#fff;}
+[data-theme="lloyds"] .toggle-track{background:rgba(0,0,0,0.2);border-color:rgba(0,0,0,0.3);}
+[data-theme="lloyds"] .btn-p{background:#006834;color:#fff;box-shadow:0 2px 12px rgba(0,104,52,.25);}
+[data-theme="lloyds"] .btn-p:hover{background:#005229;}
+[data-theme="lloyds"] .login-btn{background:#006834;}
+[data-theme="lloyds"] .login-btn:hover{background:#005229;}
+
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:var(--fh);min-height:100vh;overflow-x:hidden;transition:background .25s,color .25s;}
 
@@ -7856,6 +7891,7 @@ const THEMES = {
   crimson:   { name:'Crimson',    bg:'#130810', surface:'#1e0d1a',  accent:'#e879f9',  bar1:'#e879f9', bar2:'#c084fc', bar3:'#fdb96b', bar4:'#ff6b8a', text:'#f5e6f0', foot:'#1e0d1a' },
   ocean:     { name:'Ocean',      bg:'#050f1f', surface:'#0a1a30',  accent:'#4db8ff',  bar1:'#4db8ff', bar2:'#2ddbb4', bar3:'#f9c840', bar4:'#f5546a', text:'#d8eeff', foot:'#0a1a30' },
   sandstone: { name:'Sandstone',  bg:'#1c1610', surface:'#26200f',  accent:'#f5c842',  bar1:'#f5c842', bar2:'#7ecf6a', bar3:'#7eb8d4', bar4:'#f07070', text:'#f5edd8', foot:'#26200f' },
+  lloyds:    { name:'Lloyds',     bg:'#f2f7f4', surface:'#ffffff',  accent:'#006834',  bar1:'#00a651', bar2:'#006834', bar3:'#b06a00', bar4:'#c8183a', text:'#001a0d',   foot:'#00a651' },
 };
 
 function applyTheme(themeKey){
@@ -7866,7 +7902,7 @@ function applyTheme(themeKey){
   // Update nav toggle indicator
   const track = document.getElementById('themeToggleTrack');
   const label = document.getElementById('themeLabel');
-  if(track) track.classList.toggle('on', ['arctic','cavendish'].includes(key));
+  if(track) track.classList.toggle('on', ['arctic','cavendish','lloyds'].includes(key));
   if(label) label.textContent = THEMES[key]?.name || 'Midnight';
   // Refresh swatch active state if settings open
   document.querySelectorAll('.theme-swatch').forEach(el => {
@@ -7895,7 +7931,7 @@ function renderThemePicker(){
 
 function toggleTheme(){
   const cur = localStorage.getItem('pd_theme') || 'cavendish';
-  const isDark = !['arctic','cavendish'].includes(cur);
+  const isDark = !['arctic','cavendish','lloyds'].includes(cur);
   applyTheme(isDark ? 'cavendish' : 'midnight');
 }
 
