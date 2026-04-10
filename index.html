@@ -2745,8 +2745,8 @@ function renderHistory(){
         deals.forEach((d,di)=>{
           const isFirst = di===0;
           const timeStr = d.time ? new Date(d.time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '';
-          const approvedStr = d.enteredBy
-            ? `<span style="color:var(--green)">${d.enteredBy}</span>`
+          const approvedStr = d.authBy
+            ? `<span style="color:var(--green)">${d.authBy}</span>`
             : (meta?.approvedBy ? `<span style="color:var(--green)">${meta.approvedBy}</span>` : '—');
           html.push(`<div class="hist-row${isFirst?' group-first':''}">
             <div style="line-height:1.4">
@@ -5065,7 +5065,7 @@ function handleReview(id, action){
             nm:      (existing?.nm||0) + finalNm,
             deals:   [
               ...(existing?.deals||[]),
-              { rev:finalRev, nm:finalNm, swiftRef:e.swiftRef||'', time:reviewedAt, enteredBy:e.consultantName }
+              { rev:finalRev, nm:finalNm, swiftRef:e.swiftRef||'', time:reviewedAt, enteredBy:e.consultantName, authBy:reviewedBy }
             ]
           };
           filtered.push(newEntry);
@@ -5196,13 +5196,21 @@ function renderConsultantDaily(){
     const dealsRow = hasDeals ? `<tr id="${dealRowId}" style="display:none;background:var(--surface2);">
       <td colspan="5" style="padding:4px 12px 12px 28px;">
         <div style="border-left:3px solid var(--accent);padding-left:12px;margin-top:4px;">
-          <div style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px;">Individual Deals</div>
+          <div style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px;display:flex;gap:24px;">
+            <span style="min-width:16px"></span>
+            <span style="min-width:80px">Revenue</span>
+            <span style="min-width:55px">NM</span>
+            <span style="flex:1">SWIFT Ref</span>
+            <span style="min-width:50px">Time</span>
+            <span>Auth'd By</span>
+          </div>
           ${deals.map((d,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;font-family:var(--fm);">
             <span style="color:var(--text3);min-width:16px;font-size:10px">${i+1}.</span>
             <span style="color:var(--green);font-weight:700;min-width:80px">£${parseFloat(d.rev||0).toLocaleString()}</span>
             <span style="color:var(--text2);min-width:55px">${d.nm||0} NM</span>
             <span style="color:var(--text3);font-size:11px;flex:1">${d.swiftRef||''}</span>
             <span style="color:var(--text3);font-size:10px">${d.time?new Date(d.time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):''}</span>
+            ${d.authBy?`<span style="font-size:10px;font-weight:700;background:rgba(45,206,137,.12);color:var(--green);padding:2px 8px;border-radius:8px;white-space:nowrap">✓ ${d.authBy}</span>`:'<span style="font-size:10px;color:var(--text3);padding:2px 8px">—</span>'}
           </div>`).join('')}
         </div>
       </td>
@@ -5429,7 +5437,7 @@ function saveManagerDirectEntry(){
       nm:      (existing?.nm||0) + nm,
       deals:   [
         ...(existing?.deals||[]),
-        { rev:parseFloat(rev.toFixed(2)), nm, swiftRef:swift, time:dealTime, enteredBy }
+        { rev:parseFloat(rev.toFixed(2)), nm, swiftRef:swift, time:dealTime, enteredBy, authBy:enteredBy }
       ]
     };
     filtered.push(newEntry);
