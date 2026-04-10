@@ -2740,8 +2740,10 @@ function renderHistory(){
       const meta    = metaAll?.[mk]?.[nameKey]?.[e.date];
       // Normalise: if no deals array, synthesise one from the entry totals so
       // legacy entries (entered before deals tracking) render the same way.
-      const rawDeals = Array.isArray(e.deals) && e.deals.length > 0
-        ? e.deals
+      const _normD = (d)=> !d ? [] : Array.isArray(d) ? d : Object.values(d).filter(Boolean);
+      const _stored = _normD(e.deals);
+      const rawDeals = _stored.length > 0
+        ? _stored
         : (e.revenue||e.nm) ? [{ rev:e.revenue||0, nm:e.nm||0, swiftRef:'', time:null, authBy:null, _legacy:true }] : [];
 
       rawDeals.forEach((d,di)=>{
@@ -5066,6 +5068,7 @@ function handleReview(id, action){
         const divDbKey = (DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey;
         const entriesPath = `${divDbKey}/months/${mk}/entries`;
         // Use local APP state to avoid race condition on rapid approvals
+        const _normDealsA = (d) => !d ? [] : Array.isArray(d) ? d : Object.values(d).filter(Boolean);
         const _approvalSave = (existingArr)=>{
           const filtered  = existingArr.filter(en=>!(en.date===e.date&&en.name===e.consultantName));
           const existing  = existingArr.find(en=>en.date===e.date&&en.name===e.consultantName);
@@ -5075,13 +5078,14 @@ function handleReview(id, action){
             revenue: parseFloat(((existing?.revenue||0) + finalRev).toFixed(2)),
             nm:      (existing?.nm||0) + finalNm,
             deals:   [
-              ...(existing?.deals||[]),
+              ..._normDealsA(existing?.deals),
               { rev:finalRev, nm:finalNm, swiftRef:e.swiftRef||'', time:reviewedAt, enteredBy:e.consultantName, authBy:reviewedBy }
             ]
           };
           filtered.push(newEntry);
           if(!APP.months[mk]) APP.months[mk] = {entries:[]};
           APP.months[mk].entries = filtered;
+          _ignoreNextSnapshot = true;
           return _db.ref(entriesPath).set(filtered);
         };
         const _localArr = APP.months[mk]?.entries;
@@ -5199,8 +5203,10 @@ function renderConsultantDaily(){
     const isManagerRole = (role==='manager'||role==='master');
     // Normalise deals: if no deals array, synthesise from entry totals so legacy
     // entries show the + button and expand just like properly-tracked ones.
-    const rawDeals  = Array.isArray(ent?.deals) && ent.deals.length > 0
-      ? ent.deals
+    const _normD2 = (d)=> !d ? [] : Array.isArray(d) ? d : Object.values(d).filter(Boolean);
+    const _stored2 = _normD2(ent?.deals);
+    const rawDeals  = _stored2.length > 0
+      ? _stored2
       : (ent?.revenue||ent?.nm) ? [{ rev:ent?.revenue||0, nm:ent?.nm||0, swiftRef:'', time:null, authBy:null, _legacy:true }] : [];
     const hasDeals  = rawDeals.length > 0 && !!ent?.revenue;
     const dealRowId = `dr_${ds.replace(/-/g,'')}`;
@@ -5448,6 +5454,9 @@ function saveManagerDirectEntry(){
   // Read from local APP state first (already up-to-date) to avoid a race
   // condition where a quick second save reads stale Firebase data and
   // overwrites the first deal instead of appending to it.
+  // Firebase converts arrays → objects on round-trip; normalise deals back to array
+  const _normDeals = (d) => !d ? [] : Array.isArray(d) ? d : Object.values(d).filter(Boolean);
+
   const _doSave = (existingArr)=>{
     const filtered = existingArr.filter(en=>!(en.date===date&&en.name===name));
     const existing = existingArr.find(en=>en.date===date&&en.name===name);
@@ -5459,7 +5468,7 @@ function saveManagerDirectEntry(){
       revenue: parseFloat(((existing?.revenue||0) + rev).toFixed(2)),
       nm:      (existing?.nm||0) + nm,
       deals:   [
-        ...(existing?.deals||[]),
+        ..._normDeals(existing?.deals),
         { rev:parseFloat(rev.toFixed(2)), nm, swiftRef:swift, time:dealTime, enteredBy, authBy:enteredBy }
       ]
     };
@@ -5468,6 +5477,10 @@ function saveManagerDirectEntry(){
     // Update local APP state immediately so next save sees this deal
     if(!APP.months[mk]) APP.months[mk] = {entries:[]};
     APP.months[mk].entries = filtered;
+
+    // Prevent the real-time listener from overwriting our local state
+    // (Firebase converts arrays to objects on round-trip which breaks deals)
+    _ignoreNextSnapshot = true;
 
     return _db.ref(entriesPath).set(filtered).then(()=>{
       // Store manager meta for history tab
