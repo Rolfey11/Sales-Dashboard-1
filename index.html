@@ -5068,34 +5068,30 @@ function handleReview(id, action){
         const divDbKey = (DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey;
         const entriesPath = `${divDbKey}/months/${mk}/entries`;
         // Use local APP state to avoid race condition on rapid approvals
-        const _normDealsA = (d) => !d ? [] : Array.isArray(d) ? d : Object.values(d).filter(Boolean);
-        const _approvalSave = (existingArr)=>{
-          const filtered  = existingArr.filter(en=>!(en.date===e.date&&en.name===e.consultantName));
-          const existing  = existingArr.find(en=>en.date===e.date&&en.name===e.consultantName);
-          const newEntry  = {
+        const _normArrA = (d) => !d ? [] : Array.isArray(d) ? d : Object.values(d).filter(Boolean);
+        const _approvalDeal = { rev:finalRev, nm:finalNm, swiftRef:e.swiftRef||'', time:reviewedAt, enteredBy:e.consultantName, authBy:reviewedBy };
+        _db.ref(entriesPath).transaction(currentData=>{
+          const existingArr = _normArrA(currentData);
+          const filtered    = existingArr.filter(en=>!(en.date===e.date&&en.name===e.consultantName));
+          const existing    = existingArr.find(en=>en.date===e.date&&en.name===e.consultantName);
+          const newEntry    = {
             date:    e.date,
             name:    e.consultantName,
             revenue: parseFloat(((existing?.revenue||0) + finalRev).toFixed(2)),
             nm:      (existing?.nm||0) + finalNm,
-            deals:   [
-              ..._normDealsA(existing?.deals),
-              { rev:finalRev, nm:finalNm, swiftRef:e.swiftRef||'', time:reviewedAt, enteredBy:e.consultantName, authBy:reviewedBy }
-            ]
+            deals:   [ ..._normArrA(existing?.deals), _approvalDeal ]
           };
           filtered.push(newEntry);
           if(!APP.months[mk]) APP.months[mk] = {entries:[]};
           APP.months[mk].entries = filtered;
           _ignoreNextSnapshot = true;
-          return _db.ref(entriesPath).set(filtered);
-        };
-        const _localArr = APP.months[mk]?.entries;
-        const _savePromise = _localArr
-          ? _approvalSave(Array.isArray(_localArr) ? [..._localArr] : Object.values(_localArr).filter(Boolean))
-          : _db.ref(entriesPath).once('value').then(snap=>{
-              const raw = snap.val();
-              return _approvalSave(raw ? (Array.isArray(raw) ? raw : Object.values(raw)).filter(Boolean) : []);
-            });
-        _savePromise.then(()=>{
+          return filtered;
+        }, (txErr, committed, txSnap)=>{
+          if(txErr||!committed){ showToast('Entry saved to pending but failed to write to figures. Please contact admin.','err'); return; }
+          const confirmed = _normArrA(txSnap.val());
+          if(!APP.months[mk]) APP.months[mk]={entries:[]};
+          APP.months[mk].entries = confirmed;
+
           showToast(action==='amended'?'Amended & approved ✓':'Approved ✓');
           // Store approval meta for history tab
           const metaRef = _entryMetaRef();
@@ -5109,7 +5105,7 @@ function handleReview(id, action){
           if(document.getElementById('page-dashboard').classList.contains('active'))      renderDashboard();
           if(document.getElementById('page-history').classList.contains('active'))        renderHistory();
           if(document.getElementById('page-entry').classList.contains('active'))          buildEntryRows();
-        }).catch(()=>showToast('Entry saved to pending but failed to write to figures. Please contact admin.','err'));
+        }, false);
       }
     } else {
       showToast('Submission declined');
@@ -5451,76 +5447,61 @@ function saveManagerDirectEntry(){
   const divDbKey = (DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey;
   const entriesPath = `${divDbKey}/months/${mk}/entries`;
 
-  // Read from local APP state first (already up-to-date) to avoid a race
-  // condition where a quick second save reads stale Firebase data and
-  // overwrites the first deal instead of appending to it.
-  // Firebase converts arrays → objects on round-trip; normalise deals back to array
-  const _normDeals = (d) => !d ? [] : Array.isArray(d) ? d : Object.values(d).filter(Boolean);
+  // Helper: Firebase converts JS arrays to objects on round-trip — normalise back
+  const _normArr = (d) => !d ? [] : Array.isArray(d) ? d : Object.values(d).filter(Boolean);
 
-  const _doSave = (existingArr)=>{
-    const filtered = existingArr.filter(en=>!(en.date===date&&en.name===name));
-    const existing = existingArr.find(en=>en.date===date&&en.name===name);
-    const enteredBy = _currentUser?.name || 'Manager';
-    const dealTime  = new Date().toISOString();
-    const newEntry = {
+  const enteredBy = _currentUser?.name || 'Manager';
+  const dealTime  = new Date().toISOString();
+  const newDeal   = { rev:parseFloat(rev.toFixed(2)), nm, swiftRef:swift, time:dealTime, enteredBy, authBy:enteredBy };
+
+  // Use a Firebase transaction — atomically reads the current entries, appends
+  // the new deal, and writes back. Retries automatically if another client
+  // wrote between our read and write, guaranteeing no deals are ever lost.
+  _db.ref(entriesPath).transaction(currentData=>{
+    const raw        = currentData;
+    const existingArr= raw ? _normArr(raw) : [];
+    const filtered   = existingArr.filter(en=>!(en.date===date&&en.name===name));
+    const existing   = existingArr.find(en=>en.date===date&&en.name===name);
+    const newEntry   = {
       date,
       name,
       revenue: parseFloat(((existing?.revenue||0) + rev).toFixed(2)),
       nm:      (existing?.nm||0) + nm,
-      deals:   [
-        ..._normDeals(existing?.deals),
-        { rev:parseFloat(rev.toFixed(2)), nm, swiftRef:swift, time:dealTime, enteredBy, authBy:enteredBy }
-      ]
+      deals:   [ ..._normArr(existing?.deals), newDeal ]
     };
     filtered.push(newEntry);
 
-    // Update local APP state immediately so next save sees this deal
+    // Keep local APP in sync so renders between saves show live data
     if(!APP.months[mk]) APP.months[mk] = {entries:[]};
     APP.months[mk].entries = filtered;
-
-    // Prevent the real-time listener from overwriting our local state
-    // (Firebase converts arrays to objects on round-trip which breaks deals)
     _ignoreNextSnapshot = true;
 
-    return _db.ref(entriesPath).set(filtered).then(()=>{
-      // Store manager meta for history tab
-      const metaRef = _entryMetaRef();
-      const reviewedBy = _currentUser?.name || 'Manager';
-      const reviewedAt = new Date().toISOString();
-      if(metaRef) metaRef.child(mk+'/'+name.replace(/[^a-zA-Z0-9]/g,'_')+'/'+date).set({
-        approvedBy: reviewedBy+' (Manager Direct)', approvedAt: reviewedAt,
-        swiftRef: swift, notes: 'Direct entry by manager — no approval required'
-      }).catch(()=>{});
-    });
-  };
+    return filtered;
+  }, (error, committed, snap)=>{
+    if(error || !committed){ showToast('Failed to save entry','err'); return; }
 
-  // Use local APP state if available (avoids stale Firebase read on rapid saves)
-  const localEntries = APP.months[mk]?.entries;
-  if(localEntries){
-    _doSave(Array.isArray(localEntries) ? [...localEntries] : Object.values(localEntries).filter(Boolean))
-      .then(()=>{
-        document.getElementById('reviewModal').classList.remove('open');
-        showToast(`Entry saved for ${name} ✓`);
-        renderConsultantDaily();
-        if(document.getElementById('page-dashboard').classList.contains('active'))  renderDashboard();
-        if(document.getElementById('page-history').classList.contains('active'))    renderHistory();
-        if(document.getElementById('page-entry').classList.contains('active'))      buildEntryRows();
-      }).catch(()=>showToast('Failed to save entry','err'));
-  } else {
-    // No local state yet — fall back to Firebase read
-    _db.ref(entriesPath).once('value').then(snap=>{
-      const raw = snap.val();
-      const arr = raw ? (Array.isArray(raw) ? raw : Object.values(raw)).filter(Boolean) : [];
-      return _doSave(arr);
-    }).then(()=>{
-      document.getElementById('reviewModal').classList.remove('open');
-      showToast(`Entry saved for ${name} ✓`);
-      renderConsultantDaily();
-      if(document.getElementById('page-dashboard').classList.contains('active'))  renderDashboard();
-      if(document.getElementById('page-history').classList.contains('active'))    renderHistory();
-      if(document.getElementById('page-entry').classList.contains('active'))      buildEntryRows();
-    }).catch(()=>showToast('Failed to save entry','err'));
-  }
+    // Write manager meta (approval info) — separate path, fire and forget
+    const metaRef   = _entryMetaRef();
+    const reviewedBy= _currentUser?.name || 'Manager';
+    const reviewedAt= new Date().toISOString();
+    if(metaRef) metaRef.child(mk+'/'+name.replace(/[^a-zA-Z0-9]/g,'_')+'/'+date).set({
+      approvedBy: reviewedBy+' (Manager Direct)', approvedAt: reviewedAt,
+      swiftRef: swift, notes: 'Direct entry by manager — no approval required'
+    }).catch(()=>{});
+
+    // Sync APP with confirmed transaction result
+    const confirmedArr = snap.val();
+    const confirmed    = _normArr(confirmedArr);
+    if(!APP.months[mk]) APP.months[mk] = {entries:[]};
+    APP.months[mk].entries = confirmed;
+
+    document.getElementById('reviewModal').classList.remove('open');
+    showToast(`Entry saved for ${name} ✓`);
+    renderConsultantDaily();
+    if(document.getElementById('page-dashboard').classList.contains('active'))  renderDashboard();
+    if(document.getElementById('page-history').classList.contains('active'))    renderHistory();
+    if(document.getElementById('page-entry').classList.contains('active'))      buildEntryRows();
+  }, false); // applyLocally=false prevents double-firing the real-time listener
 }
 
 // ── Update history tab to show approval info ──────────────────────
