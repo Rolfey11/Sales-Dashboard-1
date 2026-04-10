@@ -209,7 +209,20 @@ body{background:var(--bg);color:var(--text);font-family:var(--fh);min-height:100
   transition:opacity .55s cubic-bezier(.16,1,.3,1),transform .55s cubic-bezier(.16,1,.3,1);
 }
 #greetingOverlay.visible .greeting-text{opacity:1;transform:translateY(0);}
-.greeting-text span{color:var(--accent);}
+.greeting-text span{
+  color:var(--accent);
+  position:relative;
+  display:inline-block;
+}
+/* Radial glow pulse on the name span */
+.greeting-text span.glow-pulse{
+  animation: namePulse 1.2s ease-out forwards;
+}
+@keyframes namePulse{
+  0%   { text-shadow: 0 0 0px var(--accent); }
+  30%  { text-shadow: 0 0 40px var(--accent), 0 0 80px var(--accent), 0 0 12px var(--accent); }
+  100% { text-shadow: 0 0 8px color-mix(in srgb, var(--accent) 40%, transparent); }
+}
 .greeting-sub{
   font-size:clamp(13px,1.8vw,18px);color:var(--text3);font-family:var(--fm);
   margin-top:16px;letter-spacing:.06em;text-transform:uppercase;text-align:center;
@@ -217,6 +230,24 @@ body{background:var(--bg);color:var(--text);font-family:var(--fh);min-height:100
   transition:opacity .45s .22s cubic-bezier(.16,1,.3,1),transform .45s .22s cubic-bezier(.16,1,.3,1);
 }
 #greetingOverlay.visible .greeting-sub{opacity:1;transform:translateY(0);}
+
+/* Click to continue prompt */
+.greeting-continue{
+  margin-top:40px;
+  font-size:12px;font-family:var(--fm);letter-spacing:.12em;text-transform:uppercase;
+  color:var(--text3);
+  opacity:0;
+  cursor:pointer;
+  transition:opacity .4s ease, color .2s ease;
+  animation: continuePulse 2.2s ease-in-out infinite;
+  user-select:none;
+}
+.greeting-continue.show{ opacity:1; }
+.greeting-continue:hover{ color:var(--accent); }
+@keyframes continuePulse{
+  0%,100%{ opacity:0.45; }
+  50%    { opacity:1; }
+}
 
 /* LOGIN */
 #loginScreen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
@@ -1502,27 +1533,127 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 <div class="toast" id="toast"></div>
 
 <div id="greetingOverlay">
-  <div style="text-align:center;padding:0 24px;">
+  <canvas id="greetingCanvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;"></canvas>
+  <div style="text-align:center;padding:0 24px;position:relative;z-index:1;">
     <div class="greeting-text" id="greetingText">Hello</div>
     <div class="greeting-sub" id="greetingSub">Welcome back to JG MI</div>
+    <div class="greeting-continue" id="greetingContinue" onclick="dismissGreeting()">— click to continue —</div>
   </div>
 </div>
 
 <script>
-function showGreeting(name){
-  const overlay = document.getElementById('greetingOverlay');
-  const text    = document.getElementById('greetingText');
-  const sub     = document.getElementById('greetingSub');
+// Stores particle animation frame id so dismissGreeting can cancel it
+let _greetingAnimId = null;
+// Stores the target page to navigate to after dismissal
+let _greetingTargetPage = null;
+
+function showGreeting(name, targetPage, onDismiss){
+  const overlay  = document.getElementById('greetingOverlay');
+  const text     = document.getElementById('greetingText');
+  const sub      = document.getElementById('greetingSub');
+  const contBtn  = document.getElementById('greetingContinue');
   if(!overlay||!text) return;
+
+  _greetingTargetPage = targetPage || null;
+  window._greetingOnDismiss = onDismiss || null;
+
+  // ── 1. Time-of-day greeting ──────────────────────────────────────
+  const hour = new Date().getHours();
+  const timeGreeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const firstName = (name||'').split(' ')[0]||name;
-  text.innerHTML  = `Hello <span>${firstName}</span>`;
+  text.innerHTML  = `${timeGreeting}, <span id="greetingName">${firstName}</span>`;
   sub.textContent = 'Welcome back to JG MI';
+
+  // Hide continue button initially
+  if(contBtn) contBtn.classList.remove('show');
+
+  // ── 3. Particle canvas ───────────────────────────────────────────
+  const canvas = document.getElementById('greetingCanvas');
+  if(_greetingAnimId){ cancelAnimationFrame(_greetingAnimId); _greetingAnimId=null; }
+  if(canvas){
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const ctx       = canvas.getContext('2d');
+    const accentRaw = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#5e9cf5';
+    const N = 42;
+    const dots = Array.from({length:N},()=>({
+      x: Math.random()*canvas.width,
+      y: Math.random()*canvas.height,
+      vx:(Math.random()-.5)*0.45,
+      vy:(Math.random()-.5)*0.45,
+      r: 1.5 + Math.random()*1.5
+    }));
+    const LINK_DIST = 140;
+    function drawParticles(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      for(let i=0;i<N;i++){
+        for(let j=i+1;j<N;j++){
+          const dx=dots[i].x-dots[j].x, dy=dots[i].y-dots[j].y;
+          const dist=Math.sqrt(dx*dx+dy*dy);
+          if(dist<LINK_DIST){
+            ctx.beginPath();
+            ctx.moveTo(dots[i].x,dots[i].y);
+            ctx.lineTo(dots[j].x,dots[j].y);
+            ctx.strokeStyle=accentRaw;
+            ctx.globalAlpha=(1-dist/LINK_DIST)*0.18;
+            ctx.lineWidth=0.8;
+            ctx.stroke();
+          }
+        }
+      }
+      dots.forEach(d=>{
+        ctx.beginPath();
+        ctx.arc(d.x,d.y,d.r,0,Math.PI*2);
+        ctx.fillStyle=accentRaw;
+        ctx.globalAlpha=0.35;
+        ctx.fill();
+        d.x+=d.vx; d.y+=d.vy;
+        if(d.x<0||d.x>canvas.width)  d.vx*=-1;
+        if(d.y<0||d.y>canvas.height) d.vy*=-1;
+      });
+      ctx.globalAlpha=1;
+      _greetingAnimId=requestAnimationFrame(drawParticles);
+    }
+    drawParticles();
+  }
+
+  // ── 5. Glow pulse on name after text fades in ────────────────────
+  setTimeout(()=>{
+    const nameEl = document.getElementById('greetingName');
+    if(nameEl) nameEl.classList.add('glow-pulse');
+  }, 620);
+
+  // ── Show continue prompt after glow settles ──────────────────────
+  setTimeout(()=>{
+    if(contBtn) contBtn.classList.add('show');
+  }, 1400);
+
+  // ── Show overlay ─────────────────────────────────────────────────
   overlay.classList.remove('fade-out');
   overlay.classList.add('visible');
+}
+
+function dismissGreeting(){
+  const overlay = document.getElementById('greetingOverlay');
+  const canvas  = document.getElementById('greetingCanvas');
+  const contBtn = document.getElementById('greetingContinue');
+  if(!overlay) return;
+
+  overlay.classList.add('fade-out');
   setTimeout(()=>{
-    overlay.classList.add('fade-out');
-    setTimeout(()=>overlay.classList.remove('visible','fade-out'),420);
-  },1800);
+    overlay.classList.remove('visible','fade-out');
+    if(contBtn) contBtn.classList.remove('show');
+    if(_greetingAnimId){ cancelAnimationFrame(_greetingAnimId); _greetingAnimId=null; }
+    if(canvas){ canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height); }
+    // Run post-greeting navigation
+    const cb = window._greetingOnDismiss;
+    window._greetingOnDismiss = null;
+    if(cb){ cb(); }
+    else if(_greetingTargetPage){
+      showPage(_greetingTargetPage);
+      _greetingTargetPage = null;
+    }
+  }, 420);
 }
 // ═══════════════════════════════════════════════════════════════════
 // DIVISION CONFIG
@@ -1752,8 +1883,7 @@ function attemptPinLogin(){
     const logoutBtn = document.getElementById('logoutBtn');
     if(badge){ badge.style.display=''; badge.textContent='Admin · Master'; badge.style.color=ROLE_COLORS.master; }
     if(logoutBtn) logoutBtn.style.display='';
-    showGreeting('Admin');
-    _startWithRole();
+    showGreeting('Admin', null, ()=>_startWithRole());
     return;
   }
 
@@ -1777,8 +1907,7 @@ function attemptPinLogin(){
   if(badge){ badge.style.display=''; badge.textContent=`${_currentUser?.name||''} · ${ROLE_LABELS[_currentUser?.role]||''}`; badge.style.color=ROLE_COLORS[_currentUser?.role]||'var(--text2)'; }
   if(logoutBtn) logoutBtn.style.display='';
   _adminLoginMode = false;
-  showGreeting(_currentUser.name);
-  _startWithRole();
+  showGreeting(_currentUser.name, null, ()=>_startWithRole());
 }
 
 function selectDivision(key){
