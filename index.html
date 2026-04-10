@@ -116,7 +116,8 @@
 [data-theme="cavendish"] .nav-tab,
 [data-theme="cavendish"] .nav-date,
 [data-theme="cavendish"] #syncLabel,
-[data-theme="cavendish"] .theme-toggle-label{color:rgba(255,255,255,0.88);}
+[data-theme="cavendish"] #themeDropdownLabel{color:rgba(255,255,255,0.88);}
+[data-theme="cavendish"] #themeDropdown{background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.3);color:#fff;}
 [data-theme="cavendish"] .nav-tab:hover{background:rgba(255,255,255,0.14);color:#fff;}
 [data-theme="cavendish"] .nav-tab.active{color:#fff;background:rgba(255,255,255,0.2);box-shadow:inset 0 -2px 0 #fff;}
 [data-theme="cavendish"] .nav-brand span{color:#ffb3cf;}
@@ -127,7 +128,6 @@
 [data-theme="cavendish"] #divisionLabel{color:rgba(255,255,255,0.9);}
 [data-theme="cavendish"] #logoutBtn{background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.3);color:#fff;}
 [data-theme="cavendish"] #globalMonthSel{background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.3);color:#fff;}
-[data-theme="cavendish"] .toggle-track{background:rgba(255,255,255,0.25);border-color:rgba(255,255,255,0.4);}
 [data-theme="cavendish"] .btn-p:hover{background:#6b0438;}
 [data-theme="cavendish"] .login-btn:hover{background:#6b0438;}
 
@@ -149,7 +149,8 @@
 [data-theme="lloyds"] .nav-tab,
 [data-theme="lloyds"] .nav-date,
 [data-theme="lloyds"] #syncLabel,
-[data-theme="lloyds"] .theme-toggle-label{color:rgba(255,255,255,0.92);}
+[data-theme="lloyds"] #themeDropdownLabel{color:rgba(255,255,255,0.92);}
+[data-theme="lloyds"] #themeDropdown{background:rgba(255,255,255,0.2);border-color:rgba(255,255,255,0.4);color:#fff;}
 [data-theme="lloyds"] .nav-tab:hover{background:rgba(0,0,0,0.12);color:#fff;}
 [data-theme="lloyds"] .nav-tab.active{color:#fff;background:rgba(0,0,0,0.18);box-shadow:inset 0 -2px 0 #fff;}
 [data-theme="lloyds"] .nav-brand span{color:#fff;text-shadow:0 0 12px rgba(255,255,255,0.4);}
@@ -160,7 +161,6 @@
 [data-theme="lloyds"] #divisionLabel{color:rgba(255,255,255,0.95);}
 [data-theme="lloyds"] #logoutBtn{background:rgba(255,255,255,0.2);border-color:rgba(255,255,255,0.4);color:#fff;}
 [data-theme="lloyds"] #globalMonthSel{background:rgba(255,255,255,0.2);border-color:rgba(255,255,255,0.4);color:#fff;}
-[data-theme="lloyds"] .toggle-track{background:rgba(0,0,0,0.2);border-color:rgba(0,0,0,0.3);}
 [data-theme="lloyds"] .btn-p{background:#006834;color:#fff;box-shadow:0 2px 12px rgba(0,104,52,.25);}
 [data-theme="lloyds"] .btn-p:hover{background:#005229;}
 [data-theme="lloyds"] .login-btn{background:#006834;}
@@ -181,12 +181,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--fh);min-height:100
 .theme-swatch.active .theme-swatch-check{opacity:1;}
 
 /* THEME TOGGLE */
-.theme-toggle{display:flex;align-items:center;gap:7px;flex-shrink:0;}
-.theme-toggle-label{font-size:10px;font-weight:600;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;}
-.toggle-track{position:relative;width:40px;height:22px;border-radius:11px;background:var(--surface3);border:1px solid var(--border2);cursor:pointer;transition:background .2s;}
-.toggle-track.on{background:var(--accent);}
-.toggle-knob{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.3);transition:transform .2s;}
-.toggle-track.on .toggle-knob{transform:translateX(18px);}
+/* theme toggle replaced by dropdown — toggle CSS removed */
 ::-webkit-scrollbar{width:6px;height:6px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:3px;}
@@ -545,7 +540,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
   .nav-row1{min-height:34px;gap:6px;}
   .nav-brand{font-size:12px;}
   .nav-date{display:none;}
-  .theme-toggle-label{display:none;}
+  #themeDropdownLabel{display:none;}
   #syncLabel{display:none;}
   #divisionLabel{display:none;}
   .globalMonthLabel{display:none;}
@@ -753,12 +748,11 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
         <span style="font-size:10px;font-weight:600;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">Month</span>
         <select id="globalMonthSel" onchange="setGlobalMonth()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:4px 8px;font-size:12px;font-family:var(--fm);color:var(--text);outline:none;cursor:pointer;min-width:130px;"></select>
       </div>
-      <div class="theme-toggle" title="Toggle light/dark mode">
-        <span class="theme-toggle-label" id="themeLabel">Dark</span>
-        <div class="toggle-track" id="themeToggleTrack" onclick="toggleTheme()">
-          <div class="toggle-knob"></div>
-        </div>
-        <span class="theme-toggle-label" style="color:var(--amber)">Light</span>
+      <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
+        <span id="themeDropdownLabel" style="font-size:10px;font-weight:600;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;">Theme</span>
+        <select id="themeDropdown" onchange="applyTheme(this.value)"
+          style="background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:4px 8px;font-size:12px;font-family:var(--fm);color:var(--text);outline:none;cursor:pointer;max-width:110px;">
+        </select>
       </div>
       <div id="divisionBadge" style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--surface2);transition:border-color .15s;flex-shrink:0;" onclick="switchDivision()" title="Switch division">
         <span id="divisionIcon" style="font-size:14px"></span>
@@ -8172,18 +8166,32 @@ const THEMES = {
 
 function applyTheme(themeKey){
   const key = THEMES[themeKey] ? themeKey : 'midnight';
-  document.documentElement.setAttribute('data-theme', key === 'midnight' ? '' : key);
-  if(key === 'midnight') document.documentElement.removeAttribute('data-theme');
+  if(key === 'midnight'){
+    document.documentElement.removeAttribute('data-theme');
+  } else {
+    document.documentElement.setAttribute('data-theme', key);
+  }
   localStorage.setItem('pd_theme', key);
-  // Update nav toggle indicator
-  const track = document.getElementById('themeToggleTrack');
-  const label = document.getElementById('themeLabel');
-  if(track) track.classList.toggle('on', ['arctic','cavendish','lloyds'].includes(key));
-  if(label) label.textContent = THEMES[key]?.name || 'Midnight';
+  // Sync the nav dropdown
+  const dd = document.getElementById('themeDropdown');
+  if(dd){
+    // Populate if empty
+    if(!dd.options.length) _populateThemeDropdown();
+    dd.value = key;
+  }
   // Refresh swatch active state if settings open
   document.querySelectorAll('.theme-swatch').forEach(el => {
     el.classList.toggle('active', el.dataset.theme === key);
   });
+}
+
+function _populateThemeDropdown(){
+  const dd = document.getElementById('themeDropdown');
+  if(!dd) return;
+  const current = localStorage.getItem('pd_theme') || 'cavendish';
+  dd.innerHTML = Object.entries(THEMES).map(([k,t])=>
+    `<option value="${k}"${k===current?' selected':''}>${t.name}</option>`
+  ).join('');
 }
 
 function renderThemePicker(){
@@ -8205,14 +8213,18 @@ function renderThemePicker(){
     </div>`).join('');
 }
 
-function toggleTheme(){
-  const cur = localStorage.getItem('pd_theme') || 'cavendish';
-  const isDark = !['arctic','cavendish','lloyds'].includes(cur);
-  applyTheme(isDark ? 'cavendish' : 'midnight');
-}
+// toggleTheme removed — replaced by theme dropdown in nav
 
-// Restore saved theme on load
-(function(){ applyTheme(localStorage.getItem('pd_theme') || 'cavendish'); })();
+// Restore saved theme on load and populate the nav dropdown
+(function(){
+  applyTheme(localStorage.getItem('pd_theme') || 'cavendish');
+  // Populate dropdown once DOM is ready
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', _populateThemeDropdown);
+  } else {
+    _populateThemeDropdown();
+  }
+})();
 
 // ═══════════════════════════════════════════════════════════════════
 // FEATURE 1 — SESSION TIMEOUT (30 minutes inactivity)
