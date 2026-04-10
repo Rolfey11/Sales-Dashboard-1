@@ -5065,11 +5065,8 @@ function handleReview(id, action){
       if(mk && e.consultantName){
         const divDbKey = (DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey;
         const entriesPath = `${divDbKey}/months/${mk}/entries`;
-        _db.ref(entriesPath).once('value').then(snap=>{
-          const raw = snap.val();
-          const existingArr = raw
-            ? (Array.isArray(raw) ? raw : Object.values(raw)).filter(Boolean)
-            : [];
+        // Use local APP state to avoid race condition on rapid approvals
+        const _approvalSave = (existingArr)=>{
           const filtered  = existingArr.filter(en=>!(en.date===e.date&&en.name===e.consultantName));
           const existing  = existingArr.find(en=>en.date===e.date&&en.name===e.consultantName);
           const newEntry  = {
@@ -5083,15 +5080,18 @@ function handleReview(id, action){
             ]
           };
           filtered.push(newEntry);
-
-          // ── Update local APP state immediately so the page re-renders
-          // correctly right now, without waiting for Firebase listener ──
           if(!APP.months[mk]) APP.months[mk] = {entries:[]};
           APP.months[mk].entries = filtered;
-
-          // Write to Firebase — also propagates to other connected clients
           return _db.ref(entriesPath).set(filtered);
-        }).then(()=>{
+        };
+        const _localArr = APP.months[mk]?.entries;
+        const _savePromise = _localArr
+          ? _approvalSave(Array.isArray(_localArr) ? [..._localArr] : Object.values(_localArr).filter(Boolean))
+          : _db.ref(entriesPath).once('value').then(snap=>{
+              const raw = snap.val();
+              return _approvalSave(raw ? (Array.isArray(raw) ? raw : Object.values(raw)).filter(Boolean) : []);
+            });
+        _savePromise.then(()=>{
           showToast(action==='amended'?'Amended & approved ✓':'Approved ✓');
           // Store approval meta for history tab
           const metaRef = _entryMetaRef();
@@ -5445,11 +5445,10 @@ function saveManagerDirectEntry(){
   const divDbKey = (DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey;
   const entriesPath = `${divDbKey}/months/${mk}/entries`;
 
-  _db.ref(entriesPath).once('value').then(snap=>{
-    const raw = snap.val();
-    const existingArr = raw
-      ? (Array.isArray(raw) ? raw : Object.values(raw)).filter(Boolean)
-      : [];
+  // Read from local APP state first (already up-to-date) to avoid a race
+  // condition where a quick second save reads stale Firebase data and
+  // overwrites the first deal instead of appending to it.
+  const _doSave = (existingArr)=>{
     const filtered = existingArr.filter(en=>!(en.date===date&&en.name===name));
     const existing = existingArr.find(en=>en.date===date&&en.name===name);
     const enteredBy = _currentUser?.name || 'Manager';
@@ -5466,7 +5465,7 @@ function saveManagerDirectEntry(){
     };
     filtered.push(newEntry);
 
-    // Update local APP state immediately
+    // Update local APP state immediately so next save sees this deal
     if(!APP.months[mk]) APP.months[mk] = {entries:[]};
     APP.months[mk].entries = filtered;
 
@@ -5480,14 +5479,36 @@ function saveManagerDirectEntry(){
         swiftRef: swift, notes: 'Direct entry by manager — no approval required'
       }).catch(()=>{});
     });
-  }).then(()=>{
-    document.getElementById('reviewModal').classList.remove('open');
-    showToast(`Entry saved for ${name} ✓`);
-    renderConsultantDaily();
-    if(document.getElementById('page-dashboard').classList.contains('active'))  renderDashboard();
-    if(document.getElementById('page-history').classList.contains('active'))    renderHistory();
-    if(document.getElementById('page-entry').classList.contains('active'))      buildEntryRows();
-  }).catch(()=>showToast('Failed to save entry','err'));
+    });
+  };
+
+  // Use local APP state if available (avoids stale Firebase read on rapid saves)
+  const localEntries = APP.months[mk]?.entries;
+  if(localEntries){
+    _doSave(Array.isArray(localEntries) ? [...localEntries] : Object.values(localEntries).filter(Boolean))
+      .then(()=>{
+        document.getElementById('reviewModal').classList.remove('open');
+        showToast(`Entry saved for ${name} ✓`);
+        renderConsultantDaily();
+        if(document.getElementById('page-dashboard').classList.contains('active'))  renderDashboard();
+        if(document.getElementById('page-history').classList.contains('active'))    renderHistory();
+        if(document.getElementById('page-entry').classList.contains('active'))      buildEntryRows();
+      }).catch(()=>showToast('Failed to save entry','err'));
+  } else {
+    // No local state yet — fall back to Firebase read
+    _db.ref(entriesPath).once('value').then(snap=>{
+      const raw = snap.val();
+      const arr = raw ? (Array.isArray(raw) ? raw : Object.values(raw)).filter(Boolean) : [];
+      return _doSave(arr);
+    }).then(()=>{
+      document.getElementById('reviewModal').classList.remove('open');
+      showToast(`Entry saved for ${name} ✓`);
+      renderConsultantDaily();
+      if(document.getElementById('page-dashboard').classList.contains('active'))  renderDashboard();
+      if(document.getElementById('page-history').classList.contains('active'))    renderHistory();
+      if(document.getElementById('page-entry').classList.contains('active'))      buildEntryRows();
+    }).catch(()=>showToast('Failed to save entry','err'));
+  }
 }
 
 // ── Update history tab to show approval info ──────────────────────
