@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JG Dash</title>
+<title>JG MI</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <!-- Firebase SDKs -->
@@ -590,7 +590,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 <div id="loginScreen">
   <div class="login-box">
     <div class="login-lock">🔒</div>
-    <div class="login-brand">JG <span style="color:var(--accent)">Dash</span></div>
+    <div class="login-brand">JG <span style="color:var(--accent)">MI</span></div>
 
     <!-- Step 1: Password -->
     <div id="loginStep1">
@@ -636,7 +636,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 <div id="divisionScreen" class="hidden">
   <div class="div-box">
     <div style="text-align:center;margin-bottom:32px">
-      <div class="div-title">JG <span style="color:var(--accent)">Dash</span></div>
+      <div class="div-title">JG <span style="color:var(--accent)">MI</span></div>
       <div class="div-sub">Select your division to continue</div>
     </div>
     <div class="div-grid">
@@ -677,7 +677,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 <nav>
   <!-- Row 1: Brand + right-side controls -->
   <div class="nav-row1">
-    <div class="nav-brand">JG <span style="color:var(--accent)">Dash</span></div>
+    <div class="nav-brand">JG <span style="color:var(--accent)">MI</span></div>
     <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;flex-wrap:nowrap;">
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
         <span style="font-size:10px;font-weight:600;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">Month</span>
@@ -1456,7 +1456,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 <div id="greetingOverlay">
   <div style="text-align:center;padding:0 24px;">
     <div class="greeting-text" id="greetingText">Hello</div>
-    <div class="greeting-sub" id="greetingSub">Welcome back to JG Dash</div>
+    <div class="greeting-sub" id="greetingSub">Welcome back to JG MI</div>
   </div>
 </div>
 
@@ -1468,7 +1468,7 @@ function showGreeting(name){
   if(!overlay||!text) return;
   const firstName = (name||'').split(' ')[0]||name;
   text.innerHTML  = `Hello <span>${firstName}</span>`;
-  sub.textContent = 'Welcome back to JG Dash';
+  sub.textContent = 'Welcome back to JG MI';
   overlay.classList.remove('fade-out');
   overlay.classList.add('visible');
   setTimeout(()=>{
@@ -8015,7 +8015,7 @@ function generateMonthlyReport(){
   <!-- Header -->
   <div style="background:linear-gradient(135deg,#11B67A,#0d9063);border-radius:12px;padding:24px 28px;margin-bottom:24px;color:#fff;display:flex;justify-content:space-between;align-items:flex-start;">
     <div>
-      <div style="font-size:24px;font-weight:700;letter-spacing:.04em;">JG Dash</div>
+      <div style="font-size:24px;font-weight:700;letter-spacing:.04em;">JG MI</div>
       <div style="font-size:16px;font-weight:700;margin-top:4px;">Monthly Performance Report</div>
       <div style="opacity:.8;margin-top:4px;font-size:12px;">${monthLabel(mk)} · ${div.label} · Generated ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>
     </div>
@@ -8089,7 +8089,7 @@ function generateMonthlyReport(){
     </table>
   </div>
 
-  <div style="font-size:10px;color:#aaa;text-align:center;margin-bottom:16px;">JG Dash · Confidential · ${new Date().toLocaleString('en-GB')}</div>
+  <div style="font-size:10px;color:#aaa;text-align:center;margin-bottom:16px;">JG MI · Confidential · ${new Date().toLocaleString('en-GB')}</div>
 
   <div class="no-print" style="text-align:center;margin-top:8px;">
     <button onclick="window.print()" style="background:#11B67A;color:#fff;border:none;border-radius:8px;padding:12px 36px;font-size:14px;font-weight:700;cursor:pointer;margin-right:8px;">🖨 Print / Save as PDF</button>
