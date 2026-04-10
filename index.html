@@ -2758,7 +2758,7 @@ function renderHistory(){
             <div>${d.nm||0}</div>
             <div style="color:var(--text3);font-size:11px">${d.swiftRef||'—'}</div>
             <div style="font-size:11px">${approvedStr}</div>
-            <div><button class="del-btn" onclick="deleteDeal('${mk}','${e.date}','${e.name}',${di})">remove</button></div>
+            <div>${(_currentUser?.role==='manager'||_currentUser?.role==='master')?`<button class="del-btn" onclick="deleteDeal('${mk}','${e.date}','${e.name}',${di})">remove</button>`:''}</div>
           </div>`);
         });
       } else {
@@ -2772,7 +2772,7 @@ function renderHistory(){
           <div>${e.nm||0}</div>
           <div style="color:var(--text3);font-size:11px">—</div>
           <div style="font-size:11px">${approvedStr}</div>
-          <div><button class="del-btn" onclick="deleteEntry('${mk}','${e.date}','${e.name}')">remove</button></div>
+          <div>${(_currentUser?.role==='manager'||_currentUser?.role==='master')?`<button class="del-btn" onclick="deleteEntry('${mk}','${e.date}','${e.name}')">remove</button>`:''}</div>
         </div>`);
       }
     });
@@ -5205,9 +5205,12 @@ function renderConsultantDaily(){
     const hasDeals = deals.length > 0;
     const dealRowId = `dr_${ds.replace(/-/g,'')}`;
 
-    // Revenue cell — clickable if deals exist
+    // Revenue cell — show total with + toggle button if deals exist
     const revDisplay = ent?.revenue
-      ? `<span onclick="${hasDeals?`cdToggleDeals('${dealRowId}',this)`:'void(0)'}" style="cursor:${hasDeals?'pointer':'default'};color:var(--green);font-weight:700;display:inline-flex;align-items:center;gap:5px;">£${parseFloat(ent.revenue).toLocaleString()}${hasDeals?`<span id="${dealRowId}_badge" style="font-size:9px;background:var(--surface2);border:1px solid var(--border2);color:var(--text3);padding:1px 6px;border-radius:8px;font-family:var(--fm)">${deals.length}▾</span>`:''}</span>`
+      ? `<span style="display:inline-flex;align-items:center;gap:6px;">
+           <span style="color:var(--green);font-weight:700;font-family:var(--fm);">£${parseFloat(ent.revenue).toLocaleString()}</span>
+           ${hasDeals?`<button id="${dealRowId}_btn" onclick="cdToggleDeals('${dealRowId}',this)" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:13px;font-weight:700;cursor:pointer;line-height:1;padding:0;transition:all .15s;" title="Show individual deals">+</button>`:''}
+         </span>`
       : (isWE||isBH||isFuture?'—':'');
 
     // Expandable deal breakdown row (hidden by default)
@@ -5328,15 +5331,18 @@ function renderConsultantDaily(){
 }
 
 // ── Toggle individual deal breakdown row ──────────────────────────
-function cdToggleDeals(rowId, badgeEl){
+function cdToggleDeals(rowId, btnEl){
   const row = document.getElementById(rowId);
   if(!row) return;
   const open = row.style.display !== 'none' && row.style.display !== '';
   row.style.display = open ? 'none' : 'table-row';
-  const badge = document.getElementById(rowId+'_badge') || (badgeEl?.querySelector('span'));
-  if(badge){
-    const txt = badge.textContent;
-    badge.textContent = open ? txt.replace('▴','▾') : txt.replace('▾','▴');
+  // Update the + / − button
+  const btn = document.getElementById(rowId+'_btn') || btnEl;
+  if(btn){
+    btn.textContent = open ? '+' : '−';
+    btn.style.background = open ? 'var(--surface3)' : 'var(--accent)';
+    btn.style.color = open ? 'var(--text2)' : '#fff';
+    btn.style.borderColor = open ? 'var(--border2)' : 'var(--accent)';
   }
 }
 
