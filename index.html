@@ -2758,7 +2758,7 @@ function renderHistory(){
             <div>${d.nm||0}</div>
             <div style="color:var(--text3);font-size:11px">${d.swiftRef||'—'}</div>
             <div style="font-size:11px">${approvedStr}</div>
-            <div>${isFirst?`<button class="del-btn" onclick="deleteEntry('${mk}','${e.date}','${e.name}')">remove</button>`:''}</div>
+            <div><button class="del-btn" onclick="deleteDeal('${mk}','${e.date}','${e.name}',${di})">remove</button></div>
           </div>`);
         });
       } else {
@@ -2793,6 +2793,24 @@ function deleteEntry(mk, date, name){
   setEntries(mk, getEntries(mk).filter(e=>!(e.date===date&&e.name===name)));
   renderHistory();
   showToast('Entry removed');
+}
+
+function deleteDeal(mk, date, name, dealIndex){
+  if(!confirm(`Remove this individual deal for ${name} on ${date}?`)) return;
+  const entries = getEntries(mk);
+  const entry = entries.find(e=>e.date===date&&e.name===name);
+  if(!entry) return;
+  const deals = Array.isArray(entry.deals) ? [...entry.deals] : [];
+  const removed = deals.splice(dealIndex, 1)[0];
+  entry.revenue = parseFloat(Math.max(0, (entry.revenue||0) - (removed?.rev||0)).toFixed(2));
+  entry.nm      = Math.max(0, (entry.nm||0) - (removed?.nm||0));
+  entry.deals   = deals;
+  const updated = deals.length === 0
+    ? entries.filter(e=>!(e.date===date&&e.name===name))
+    : entries;
+  setEntries(mk, updated);
+  renderHistory();
+  showToast('Deal removed');
 }
 
 // ═══════════════════════════════════════════════════════════════════
