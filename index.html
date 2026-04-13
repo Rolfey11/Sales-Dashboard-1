@@ -1482,12 +1482,15 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 
 <!-- ABSENCE BOOKING MODAL -->
 <div class="modal-overlay" id="absBookModal">
-  <div class="modal" style="width:460px;max-width:96vw;">
-    <div class="modal-title" id="absBookTitle">Book Absence</div>
+  <div class="modal" style="width:480px;max-width:96vw;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <div class="modal-title" id="absBookTitle" style="margin-bottom:0">Book Absence</div>
+      <button onclick="document.getElementById('absBookModal').classList.remove('open')" style="background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;line-height:1;padding:4px;">✕</button>
+    </div>
     <div id="absBookBody"></div>
-    <div class="modal-btns">
+    <div class="modal-btns" style="display:none">
       <button class="btn btn-s" onclick="document.getElementById('absBookModal').classList.remove('open')">Cancel</button>
-      <button class="btn btn-p" onclick="confirmAbsBooking()">✓ Book</button>
+      <button class="btn btn-p" onclick="confirmAbsBooking()" style="background:var(--green);box-shadow:0 2px 12px rgba(45,206,137,.3)">✓ Confirm Booking</button>
     </div>
   </div>
 </div>
@@ -3018,8 +3021,10 @@ function switchHolTab(tab){
     const btn = document.getElementById('holTab'+t.charAt(0).toUpperCase()+t.slice(1)+'Btn');
     if(btn) btn.classList.toggle('active', t===tab);
   });
-  if(tab==='totals')  renderHolTotals();
-  if(tab==='summary') renderHolSummary();
+  _populateHolSelects();
+  if(tab==='calendar') renderHoliday();
+  if(tab==='totals')   renderHolTotals();
+  if(tab==='summary')  renderHolSummary();
 }
 
 // ── CALENDAR RENDER ───────────────────────────────────────────────
@@ -3160,90 +3165,217 @@ function _getSelectedHours(){
   return parseFloat(sel.value)||7.5;
 }
 
-// ── Cell click — book selected type ──────────────────────────────
+// ─────────────────────────────────────────────────────────────────
+// TWO-STEP BOOKING MODAL
+// Step 1: Holiday vs Sickness vs Other
+// Step 2 (Holiday): Pick sub-type → hours
+// Step 2 (Sickness / Other): Straight to hours
+// ─────────────────────────────────────────────────────────────────
+
+const HOL_SUBTYPES = [
+  { code:'H',  label:'Holiday',             cls:'abs-H',  icon:'🏖️', defaultHrs:8 },
+  { code:'H1', label:'Half Day (Morning)',  cls:'abs-H1', icon:'🌅', defaultHrs:4 },
+  { code:'H2', label:'Half Day (Afternoon)',cls:'abs-H2', icon:'🌇', defaultHrs:4 },
+  { code:'Q',  label:'Quarter Day',         cls:'abs-Q',  icon:'🕛', defaultHrs:2 },
+  { code:'L',  label:'Time off In Lieu',    cls:'abs-L',  icon:'🔄', defaultHrs:8 },
+  { code:'E',  label:'Custom Deductible',   cls:'abs-E',  icon:'📋', defaultHrs:8 },
+];
+const SICK_SUBTYPES = [
+  { code:'S', label:'Sickness',            cls:'abs-S', icon:'🤒', defaultHrs:8 },
+  { code:'M', label:'Maternity/Paternity', cls:'abs-M', icon:'👶', defaultHrs:8 },
+  { code:'C', label:'Compassionate',       cls:'abs-C', icon:'💙', defaultHrs:8 },
+];
+const OTHER_SUBTYPES = [
+  { code:'W', label:'Work from Home',       cls:'abs-W', icon:'🏠', defaultHrs:8 },
+  { code:'B', label:'Bank Holiday',         cls:'abs-B', icon:'🏛️', defaultHrs:8 },
+  { code:'N', label:'Custom Non-Deductible',cls:'abs-N', icon:'📝', defaultHrs:8 },
+];
+
+let _bookStep = 1;   // 1=category, 2=subtype+hours
+let _bookCategory = null; // 'holiday'|'sickness'|'other'
+let _bookSubType = null;
+let _bookHrs = 8;
+
 function holCellClick(el){
   const mk   = el.getAttribute('data-mk');
   const name = el.getAttribute('data-name');
   const ds   = el.getAttribute('data-ds');
-  const abs  = getAbsences(mk, name);
-  const existing = abs[ds];
-
-  // If same type already booked → cycle to next or open modal
-  if(existing && existing.type === _selectedAbsType){
-    // Clear it
-    setAbsence(mk, name, ds, null, 0);
-    renderHoliday();
-    showToast('Absence cleared');
-    return;
-  }
-
-  // Open booking confirmation modal
   _holBookingPending = {mk, name, ds};
-  const t = ABS_TYPES[_selectedAbsType];
-  const hrs = _getSelectedHours();
-  const dateFmt = new Date(ds+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-
-  document.getElementById('absBookTitle').textContent = `📅 Book Absence — ${name}`;
-  document.getElementById('absBookBody').innerHTML = `
-    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:4px">${dateFmt}</div>
-      ${existing ? `<div style="font-size:11px;color:var(--amber);font-family:var(--fm);margin-bottom:8px">⚠️ Currently: ${ABS_TYPES[existing.type]?.label||existing.type} (${existing.hours}h) — will be replaced</div>` : ''}
-    </div>
-
-    <div style="margin-bottom:14px">
-      <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);margin-bottom:8px">Absence Type</div>
-      <div class="abs-type-grid" id="modalAbsTypeGrid"></div>
-    </div>
-
-    <div>
-      <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);margin-bottom:8px">Hours</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        ${[7.5,3.75,1.875].map(h=>`<button class="btn ${hrs===h?'btn-p':'btn-s'}" style="font-size:12px;padding:7px 14px" onclick="setModalHrs(${h},this)">${h}h</button>`).join('')}
-        <input type="number" id="modalHrsCustom" value="${hrs}" min="0.25" max="15" step="0.25"
-          style="width:80px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:7px 10px;font-size:12px;font-family:var(--fm);color:var(--text)">
-      </div>
-    </div>`;
-
-  // Build type buttons
-  const grid = document.getElementById('modalAbsTypeGrid');
-  if(grid){
-    grid.innerHTML = Object.values(ABS_TYPES).map(tp => {
-      const active = tp.code===_selectedAbsType ? ' active' : '';
-      return `<button class="abs-type-btn ${tp.cls}${active}" onclick="setModalAbsType('${tp.code}',this)">${tp.code}<br><span style="font-size:9px;font-weight:400">${tp.label}</span></button>`;
-    }).join('');
-  }
-
+  _bookStep = 1;
+  _bookCategory = null;
+  _bookSubType = null;
+  _bookHrs = 8;
+  const abs = getAbsences(mk, name);
+  const existing = abs[ds];
+  _showBookingStep1(name, ds, existing);
   document.getElementById('absBookModal').classList.add('open');
 }
 
-function setModalAbsType(code, btn){
-  _selectedAbsType = code;
-  document.querySelectorAll('#modalAbsTypeGrid .abs-type-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  // Update default hours
-  const t = ABS_TYPES[code];
-  const hrsEl = document.getElementById('modalHrsCustom');
-  if(hrsEl) hrsEl.value = t.defaultHrs;
+function _dateFmt(ds){
+  return new Date(ds+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 }
 
-function setModalHrs(hrs, btn){
-  document.querySelectorAll('#absBookBody .btn').forEach(b=>b.classList.remove('btn-p'));
-  btn.classList.add('btn-p');
-  const el = document.getElementById('modalHrsCustom');
-  if(el) el.value = hrs;
+function _showBookingStep1(name, ds, existing){
+  document.getElementById('absBookTitle').innerHTML = `📅 Book Absence`;
+  document.getElementById('absBookModal').querySelector('.modal-btns').style.display = 'none';
+  document.getElementById('absBookBody').innerHTML = `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:18px">
+      <div style="font-weight:700;font-size:14px">${name}</div>
+      <div style="font-size:12px;color:var(--text2);font-family:var(--fm);margin-top:2px">${_dateFmt(ds)}</div>
+      ${existing ? `<div style="margin-top:8px;padding:6px 10px;background:rgba(251,184,58,0.12);border:1px solid rgba(251,184,58,.3);border-radius:7px;font-size:11px;font-family:var(--fm);color:var(--amber)">
+        ⚠️ Currently: <strong>${ABS_TYPES[existing.type]?.label||existing.type}</strong> (${existing.hours}h) — selecting a new type will replace it
+      </div>` : ''}
+    </div>
+
+    <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;font-family:var(--fm);margin-bottom:12px">What type of absence?</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
+      <button onclick="holPickCategory('holiday')" style="padding:18px 12px;border-radius:12px;border:2px solid rgba(155,29,53,.3);background:rgba(155,29,53,.08);cursor:pointer;transition:all .2s;font-family:var(--fh);"
+        onmouseover="this.style.borderColor='#9b1d35';this.style.transform='translateY(-2px)'"
+        onmouseout="this.style.borderColor='rgba(155,29,53,.3)';this.style.transform=''">
+        <div style="font-size:26px;margin-bottom:6px">🏖️</div>
+        <div style="font-size:14px;font-weight:700;color:#9b1d35">Holiday</div>
+        <div style="font-size:10px;color:var(--text2);margin-top:3px;font-family:var(--fm)">Deductible from allowance</div>
+      </button>
+      <button onclick="holPickCategory('sickness')" style="padding:18px 12px;border-radius:12px;border:2px solid rgba(251,184,58,.35);background:rgba(251,184,58,.08);cursor:pointer;transition:all .2s;font-family:var(--fh);"
+        onmouseover="this.style.borderColor='var(--amber)';this.style.transform='translateY(-2px)'"
+        onmouseout="this.style.borderColor='rgba(251,184,58,.35)';this.style.transform=''">
+        <div style="font-size:26px;margin-bottom:6px">🤒</div>
+        <div style="font-size:14px;font-weight:700;color:var(--amber)">Sickness</div>
+        <div style="font-size:10px;color:var(--text2);margin-top:3px;font-family:var(--fm)">Non-deductible</div>
+      </button>
+      <button onclick="holPickCategory('other')" style="padding:18px 12px;border-radius:12px;border:2px solid var(--border2);background:var(--surface2);cursor:pointer;transition:all .2s;font-family:var(--fh);"
+        onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateY(-2px)'"
+        onmouseout="this.style.borderColor='var(--border2)';this.style.transform=''">
+        <div style="font-size:26px;margin-bottom:6px">📋</div>
+        <div style="font-size:14px;font-weight:700;color:var(--text)">Other</div>
+        <div style="font-size:10px;color:var(--text2);margin-top:3px;font-family:var(--fm)">WFH, TOIL, Bank Hol…</div>
+      </button>
+    </div>
+
+    ${existing ? `<div style="text-align:center">
+      <button onclick="holClearExisting()" class="btn btn-d" style="font-size:12px">🗑 Remove current absence</button>
+    </div>` : ''}
+  `;
 }
 
-function confirmAbsBooking(){
+function holPickCategory(cat){
+  _bookCategory = cat;
+  _bookStep = 2;
+  const subtypes = cat==='holiday' ? HOL_SUBTYPES : cat==='sickness' ? SICK_SUBTYPES : OTHER_SUBTYPES;
+  _bookSubType = subtypes[0].code;
+  _bookHrs = subtypes[0].defaultHrs;
+  _showBookingStep2(subtypes);
+}
+
+function _showBookingStep2(subtypes){
+  const {name, ds} = _holBookingPending;
+  const catLabels = { holiday:'🏖️ Holiday', sickness:'🤒 Sickness', other:'📋 Other' };
+  document.getElementById('absBookTitle').innerHTML = `${catLabels[_bookCategory]} — ${name}`;
+  document.getElementById('absBookModal').querySelector('.modal-btns').style.display = '';
+
+  document.getElementById('absBookBody').innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+      <button onclick="holBackToStep1()" class="btn btn-s" style="font-size:12px;padding:5px 12px">← Back</button>
+      <span style="font-size:12px;color:var(--text2);font-family:var(--fm)">${_dateFmt(ds)}</span>
+    </div>
+
+    <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;font-family:var(--fm);margin-bottom:10px">Select type</div>
+
+    <div style="display:grid;grid-template-columns:repeat(${subtypes.length<=3?subtypes.length:3},1fr);gap:8px;margin-bottom:20px" id="subtypeGrid">
+      ${subtypes.map(st => {
+        const isDefault = st.code === _bookSubType;
+        return `<button id="stbtn_${st.code}" onclick="holSelectSubtype('${st.code}',${st.defaultHrs})"
+          class="abs-type-btn ${st.cls}${isDefault?' active':''}"
+          style="padding:12px 8px;${isDefault?'box-shadow:0 0 0 2px var(--accent);':''}">
+          <div style="font-size:20px;margin-bottom:4px">${st.icon}</div>
+          <div style="font-size:12px;font-weight:700">${st.code}</div>
+          <div style="font-size:10px;font-weight:400;margin-top:2px">${st.label}</div>
+        </button>`;
+      }).join('')}
+    </div>
+
+    <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;font-family:var(--fm);margin-bottom:10px">Hours</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px" id="hrsGrid">
+      ${[2,4,6,8].map(h => `<button id="hrsbtn_${h}" onclick="holSelectHrs(${h})"
+        class="btn ${h===_bookHrs?'btn-p':'btn-s'}" style="font-size:13px;font-weight:700;padding:10px">${h}h</button>`).join('')}
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:12px;color:var(--text2);font-family:var(--fm)">Or enter custom:</span>
+      <input type="number" id="modalHrsCustom" value="${_bookHrs}" min="0.25" max="15" step="0.25"
+        oninput="_bookHrs=parseFloat(this.value)||8;document.querySelectorAll('#hrsGrid .btn').forEach(b=>{b.classList.remove('btn-p');b.classList.add('btn-s');})"
+        style="width:80px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:13px;font-family:var(--fm);color:var(--text)">
+      <span style="font-size:12px;color:var(--text2);font-family:var(--fm)">hours</span>
+    </div>
+  `;
+}
+
+function holSelectSubtype(code, defaultHrs){
+  _bookSubType = code;
+  _bookHrs = defaultHrs;
+  // Update subtype button highlights
+  document.querySelectorAll('#subtypeGrid .abs-type-btn').forEach(b=>{
+    b.classList.remove('active');
+    b.style.boxShadow='';
+  });
+  const btn = document.getElementById('stbtn_'+code);
+  if(btn){ btn.classList.add('active'); btn.style.boxShadow='0 0 0 2px var(--accent)'; }
+  // Update hrs buttons
+  _updateHrsButtons(defaultHrs);
+}
+
+function holSelectHrs(h){
+  _bookHrs = h;
+  _updateHrsButtons(h);
+  const inp = document.getElementById('modalHrsCustom');
+  if(inp) inp.value = h;
+}
+
+function _updateHrsButtons(h){
+  document.querySelectorAll('#hrsGrid .btn').forEach(b=>{
+    b.classList.remove('btn-p'); b.classList.add('btn-s');
+  });
+  const btn = document.getElementById('hrsbtn_'+h);
+  if(btn){ btn.classList.remove('btn-s'); btn.classList.add('btn-p'); }
+}
+
+function holBackToStep1(){
+  const {name, ds} = _holBookingPending;
+  const abs = getAbsences(_holBookingPending.mk, name);
+  _showBookingStep1(name, ds, abs[ds]);
+}
+
+function holClearExisting(){
   if(!_holBookingPending) return;
   const {mk, name, ds} = _holBookingPending;
-  const hrs = parseFloat(document.getElementById('modalHrsCustom')?.value)||7.5;
-  setAbsence(mk, name, ds, _selectedAbsType, hrs);
+  setAbsence(mk, name, ds, null, 0);
   document.getElementById('absBookModal').classList.remove('open');
   _holBookingPending = null;
   renderHoliday();
-  showToast(`${ABS_TYPES[_selectedAbsType].label} (${hrs}h) booked for ${name}`);
-  // Refresh dashboard if open
+  showToast('Absence removed');
   if(document.getElementById('page-dashboard').classList.contains('active')) renderDashboard();
+}
+
+function confirmAbsBooking(){
+  if(!_holBookingPending || !_bookSubType) return;
+  const {mk, name, ds} = _holBookingPending;
+  const hrs = parseFloat(document.getElementById('modalHrsCustom')?.value) || _bookHrs || 8;
+  _selectedAbsType = _bookSubType;
+  setAbsence(mk, name, ds, _bookSubType, hrs);
+  document.getElementById('absBookModal').classList.remove('open');
+  _holBookingPending = null;
+  renderHoliday();
+  const typeDef = ABS_TYPES[_bookSubType]||{label:_bookSubType};
+  showToast(`${typeDef.label} (${hrs}h) booked for ${name}`);
+  if(document.getElementById('page-dashboard').classList.contains('active')) renderDashboard();
+}
+
+// Keep legacy setModalAbsType/setModalHrs in case other code calls them
+function setModalAbsType(code){ _bookSubType=code; _selectedAbsType=code; }
+function setModalHrs(hrs, btn){
+  _bookHrs=hrs;
+  document.querySelectorAll('#absBookBody .btn').forEach(b=>{ b.classList.remove('btn-p'); b.classList.add('btn-s'); });
+  if(btn){ btn.classList.remove('btn-s'); btn.classList.add('btn-p'); }
 }
 
 function holClearCell(e, el){
@@ -3548,14 +3680,16 @@ function _getAbsColor(code){
 
 // ── Populate selectors ────────────────────────────────────────────
 function _populateHolSelects(){
-  // Year selectors
-  const yrs = [...new Set(allMonthKeys().map(mk=>mk.slice(0,4)))].sort().reverse();
-  const curYr = String(new Date().getFullYear());
+  // Year selectors — always show current year ± 2 even if no months exist
+  const curYr = new Date().getFullYear();
+  const fromKeys = [...new Set(allMonthKeys().map(mk=>mk.slice(0,4)))].map(Number);
+  const yrNums = new Set([...fromKeys, curYr-1, curYr, curYr+1]);
+  const yrs = [...yrNums].sort((a,b)=>b-a).map(String);
   ['holTotYear','holSumYear'].forEach(id => {
     const sel = document.getElementById(id);
     if(!sel) return;
     const prev = sel.value;
-    sel.innerHTML = yrs.map(y=>`<option value="${y}"${y===curYr?' selected':''}>${y}</option>`).join('');
+    sel.innerHTML = yrs.map(y=>`<option value="${y}"${y===String(curYr)?' selected':''}>${y}</option>`).join('');
     if(yrs.includes(prev)) sel.value = prev;
   });
   // Team selectors
