@@ -2300,7 +2300,10 @@ function attemptPinLogin(){
 
   const uid  = document.getElementById('loginUserSel').value;
   const user = _allUsers[uid];
-  if(!user){ err3.textContent='Session error — go back and reselect.'; return; }
+ if(!user){
+  err3.textContent = 'Session error — go back and reselect.';
+  return;
+}
   if(String(user.pin) !== String(pin)){
     err3.textContent='Incorrect PIN. Please try again.';
     document.getElementById('loginPin').value='';
