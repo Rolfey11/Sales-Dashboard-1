@@ -1565,6 +1565,20 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <button class="btn btn-p btn-w" onclick="openNewMonthModal()">+ Create new month</button>
     </div>
 
+    <!-- Direct Reports — full width -->
+    <div class="set-card" style="grid-column:1/-1" id="directReportsCard">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div class="set-title" style="margin-bottom:2px">👤 Direct Reports</div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">
+            Assign direct reports to each manager. Team-level functions (Call Outcomes, Remedial, Staff Performance) will filter automatically to their team.
+          </div>
+        </div>
+        <button class="btn btn-p" onclick="openDirectReportModal()" style="font-size:12px;white-space:nowrap;">+ Assign Reports</button>
+      </div>
+      <div id="directReportsContent" style="margin-top:14px"></div>
+    </div>
+
   </div>
 </div>
 
@@ -1580,6 +1594,18 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     </div>
   </div>
   <div id="personContent"></div>
+</div>
+
+<!-- DIRECT REPORTS MODAL -->
+<div class="modal-overlay" id="directReportModal">
+  <div class="modal" style="width:520px;max-width:96vw;">
+    <div class="modal-title">👤 Assign Direct Reports</div>
+    <div id="drModalBody"></div>
+    <div class="modal-btns">
+      <button class="btn btn-s" onclick="document.getElementById('directReportModal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-p" onclick="saveDirectReports()">✓ Save</button>
+    </div>
+  </div>
 </div>
 
 <!-- ADD USER MODAL -->
@@ -2554,7 +2580,7 @@ function _initApp(divKey){
   APP = {
     people:[], months:{}, activeMonth:todayKey(),
     teams:{g:[],james:[],damo:[]}, bizTargets:{},
-    holidays:{}, sickness:{}, absences:{}, allowances:{}, monthOverrides:{}, manualElapsed:null
+    holidays:{}, sickness:{}, absences:{}, allowances:{}, directReports:{}, monthOverrides:{}, manualElapsed:null
   };
   setSyncStatus('connecting');
   _startFirebase();
@@ -4585,6 +4611,7 @@ function renderSettings(){
     : '<div style="font-size:12px;color:var(--text3);font-family:var(--fm);margin-bottom:8px">No consultants yet.</div>';
 
   renderMonthlyTargets();
+  renderDirectReports();
 }
 
 function updatePerson(i, field, val){
@@ -10142,6 +10169,7 @@ function _applyDefaults(){
   if(!APP.sickness)      APP.sickness = {};
   if(!APP.absences)      APP.absences = {};
   if(!APP.allowances)    APP.allowances = {};
+  if(!APP.directReports) APP.directReports = {};
   if(APP.nmRate == null) APP.nmRate = 1.75; // NM per working day target
   if(!APP.monthOverrides) APP.monthOverrides = {};
   if(APP.manualElapsed == null) APP.manualElapsed = null;
@@ -12077,6 +12105,267 @@ function _launchStars(){
 // ── _updateNotifBadge now always uses the merged badge function ──
 function _updateNotifBadge(){
   _updateNotifBadgeWithMsgs();
+}
+
+
+
+// ═══════════════════════════════════════════════════════════════════
+// DIRECT REPORTS SYSTEM
+// APP.directReports[managerName] = ['ConsultantA','ConsultantB',...]
+// ═══════════════════════════════════════════════════════════════════
+
+function getDirectReports(managerName){
+  return (APP.directReports && APP.directReports[managerName]) || [];
+}
+
+function getMyDirectReports(){
+  return getDirectReports(_currentUser?.name||'');
+}
+
+// ── Who is a person's manager? ────────────────────────────────────
+function getManagerOf(consultantName){
+  if(!APP.directReports) return null;
+  return Object.keys(APP.directReports).find(mgr =>
+    (APP.directReports[mgr]||[]).includes(consultantName)
+  ) || null;
+}
+
+// ── All people managed by a given manager (for team filtering) ────
+function getTeamForManager(managerName){
+  const direct = getDirectReports(managerName);
+  // Also include any who have sub-reports (recursive, 1 level)
+  const all = new Set(direct);
+  direct.forEach(d => {
+    getDirectReports(d).forEach(sub => all.add(sub));
+  });
+  return [...all];
+}
+
+// ── Render the Direct Reports card in settings ─────────────────────
+function renderDirectReports(){
+  const el = document.getElementById('directReportsContent');
+  if(!el) return;
+
+  if(!APP.directReports) APP.directReports = {};
+
+  // Build a list of people who have direct reports assigned
+  const managers = Object.keys(APP.directReports)
+    .filter(mgr => (APP.directReports[mgr]||[]).length > 0)
+    .sort();
+
+  if(!managers.length){
+    el.innerHTML = `
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:20px;text-align:center;color:var(--text3)">
+        <div style="font-size:22px;margin-bottom:8px">👥</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">No direct reports assigned yet</div>
+        <div style="font-size:11px;font-family:var(--fm)">Click "+ Assign Reports" to set up manager–team relationships.</div>
+      </div>`;
+    return;
+  }
+
+  const allPeople = APP.people.map(p=>p.name);
+
+  el.innerHTML = managers.map(mgr => {
+    const reports = APP.directReports[mgr]||[];
+    const valid   = reports.filter(r => allPeople.includes(r));
+    const avatarColors = ['#5e9cf5','#2dce89','#f5365c','#fbb83a','#a78bfa','#38b2ac','#ed8936'];
+    const avatars = valid.slice(0,6).map((r,i) =>
+      `<div title="${r}" style="width:30px;height:30px;border-radius:50%;background:${avatarColors[i%avatarColors.length]};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;border:2px solid var(--surface);margin-left:${i>0?'-8px':'0'};z-index:${10-i};position:relative;flex-shrink:0">
+        ${r.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()}
+      </div>`
+    ).join('');
+    const overflow = valid.length > 6
+      ? `<div style="width:30px;height:30px;border-radius:50%;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:var(--text2);border:2px solid var(--surface);margin-left:-8px;z-index:0">+${valid.length-6}</div>`
+      : '';
+
+    // Manager avatar colour — consistent hash
+    const mgrCol = avatarColors[mgr.charCodeAt(0)%avatarColors.length];
+
+    return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;transition:border-color .2s" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+      <!-- Manager -->
+      <div style="display:flex;align-items:center;gap:10px;min-width:160px;flex-shrink:0">
+        <div style="width:38px;height:38px;border-radius:50%;background:${mgrCol};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff;flex-shrink:0;border:2px solid var(--border2)">
+          ${mgr.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()}
+        </div>
+        <div>
+          <div style="font-weight:700;font-size:13px">${mgr}</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--fm);text-transform:uppercase;letter-spacing:.06em">Manager</div>
+        </div>
+      </div>
+
+      <!-- Arrow -->
+      <div style="font-size:18px;color:var(--text3);flex-shrink:0">→</div>
+
+      <!-- Reports -->
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:0;flex-wrap:wrap">
+          ${avatars}${overflow}
+          <span style="margin-left:10px;font-size:12px;color:var(--text2);font-family:var(--fm)">${valid.length} direct report${valid.length!==1?'s':''}</span>
+        </div>
+        <div style="margin-top:6px;font-size:11px;color:var(--text3);font-family:var(--fm);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%">
+          ${valid.join(' · ')||'—'}
+        </div>
+      </div>
+
+      <!-- Edit button -->
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="btn btn-s" onclick="openDirectReportModal('${mgr.replace(/'/g,"\'")}');" style="font-size:11px;padding:5px 12px">✏️ Edit</button>
+        <button class="btn btn-d" onclick="clearDirectReports('${mgr.replace(/'/g,"\'")}');" style="font-size:11px;padding:5px 10px">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Open the assign modal ─────────────────────────────────────────
+let _drEditingManager = null;
+
+function openDirectReportModal(managerName){
+  if(!APP.directReports) APP.directReports = {};
+  _drEditingManager = managerName || null;
+
+  const allPeople = APP.people.map(p=>p.name);
+  const currentReports = managerName ? (APP.directReports[managerName]||[]) : [];
+
+  document.getElementById('drModalBody').innerHTML = `
+    <!-- Step 1: Pick manager -->
+    <div style="margin-bottom:16px">
+      <div class="field-lbl" style="margin-bottom:6px">Manager / Team Lead</div>
+      <select id="drManagerSel" onchange="drManagerChanged(this.value)"
+        style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;font-size:13px;font-family:var(--fm);color:var(--text)">
+        <option value="">— Select a manager —</option>
+        ${allPeople.map(p =>
+          `<option value="${p}"${p===managerName?' selected':''}>${p}</option>`
+        ).join('')}
+      </select>
+    </div>
+
+    <!-- Step 2: Pick reports -->
+    <div id="drReportsSection" style="${managerName?'':'opacity:.4;pointer-events:none'}">
+      <div class="field-lbl" style="margin-bottom:8px">Direct Reports <span style="color:var(--text3);font-weight:400">(select all that apply)</span></div>
+      <div id="drCheckboxGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:280px;overflow-y:auto;padding-right:4px">
+        ${allPeople.map(p => {
+          if(p === managerName) return ''; // can't be your own report
+          const checked = currentReports.includes(p);
+          // Who else manages this person?
+          const existingMgr = getManagerOf(p);
+          const conflict = existingMgr && existingMgr !== managerName
+            ? `<span style="font-size:9px;color:var(--amber);font-family:var(--fm)">(has manager: ${existingMgr})</span>` : '';
+          return `<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border:1px solid ${checked?'var(--accent)':'var(--border)'};border-radius:8px;cursor:pointer;transition:border-color .15s;font-size:13px"
+            onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor=document.getElementById('dr_${p.replace(/'/g,'').replace(/\s/g,'_')}')?.checked?'var(--accent)':'var(--border)'">
+            <input type="checkbox" id="dr_${p.replace(/'/g,'').replace(/\s/g,'_')}"
+              value="${p}" ${checked?'checked':''}
+              style="accent-color:var(--accent);width:15px;height:15px;cursor:pointer;flex-shrink:0"
+              onchange="this.closest('label').style.borderColor=this.checked?'var(--accent)':'var(--border)'">
+            <div style="min-width:0">
+              <div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p}</div>
+              ${conflict}
+            </div>
+          </label>`;
+        }).filter(Boolean).join('')}
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button class="btn btn-s" style="font-size:11px" onclick="drSelectAll(true)">Select All</button>
+        <button class="btn btn-s" style="font-size:11px" onclick="drSelectAll(false)">Clear All</button>
+      </div>
+    </div>
+
+    <div style="margin-top:14px;padding:10px 14px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--accent);font-size:11px;color:var(--text2);font-family:var(--fm)">
+      ℹ️ Each person can only have one direct manager. Assigning someone here will remove any existing manager assignment for that person.
+    </div>`;
+
+  document.getElementById('directReportModal').classList.add('open');
+  setTimeout(()=>document.getElementById('drManagerSel')?.focus(), 100);
+}
+
+function drManagerChanged(name){
+  _drEditingManager = name || null;
+  const section = document.getElementById('drReportsSection');
+  if(section){
+    section.style.opacity = name ? '1' : '.4';
+    section.style.pointerEvents = name ? '' : 'none';
+  }
+  if(!name) return;
+  // Re-render checkboxes for the newly selected manager
+  const currentReports = (APP.directReports && APP.directReports[name]) || [];
+  const grid = document.getElementById('drCheckboxGrid');
+  if(!grid) return;
+  grid.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    const val = cb.value;
+    if(val === name){
+      cb.closest('label').style.display='none';
+      return;
+    }
+    cb.closest('label').style.display='';
+    cb.checked = currentReports.includes(val);
+    cb.closest('label').style.borderColor = cb.checked ? 'var(--accent)' : 'var(--border)';
+  });
+}
+
+function drSelectAll(checked){
+  document.querySelectorAll('#drCheckboxGrid input[type=checkbox]').forEach(cb => {
+    if(cb.value !== _drEditingManager){
+      cb.checked = checked;
+      cb.closest('label').style.borderColor = checked ? 'var(--accent)' : 'var(--border)';
+    }
+  });
+}
+
+function saveDirectReports(){
+  const mgr = _drEditingManager || document.getElementById('drManagerSel')?.value;
+  if(!mgr){ showToast('Please select a manager first','err'); return; }
+
+  if(!APP.directReports) APP.directReports = {};
+
+  // Collect selected reports
+  const selected = [];
+  document.querySelectorAll('#drCheckboxGrid input[type=checkbox]:checked').forEach(cb => {
+    if(cb.value !== mgr) selected.push(cb.value);
+  });
+
+  // Remove these people from any other manager's list to avoid duplicates
+  Object.keys(APP.directReports).forEach(existingMgr => {
+    if(existingMgr !== mgr){
+      APP.directReports[existingMgr] = (APP.directReports[existingMgr]||[])
+        .filter(r => !selected.includes(r));
+    }
+  });
+
+  APP.directReports[mgr] = selected;
+
+  // Clean up empty entries
+  Object.keys(APP.directReports).forEach(k => {
+    if(!APP.directReports[k]||!APP.directReports[k].length) delete APP.directReports[k];
+  });
+
+  saveApp();
+  document.getElementById('directReportModal').classList.remove('open');
+  renderDirectReports();
+  showToast(`Direct reports saved for ${mgr} (${selected.length} people) ✓`);
+
+  // Refresh team-based pages if open
+  const activePage = document.querySelector('.page.active')?.id;
+  if(activePage==='page-calloutcomes') loadCallOutcomes();
+}
+
+function clearDirectReports(mgr){
+  if(!confirm(`Remove all direct reports from ${mgr}?`)) return;
+  if(APP.directReports && APP.directReports[mgr]) delete APP.directReports[mgr];
+  saveApp();
+  renderDirectReports();
+  showToast(`Cleared reports for ${mgr}`);
+}
+
+// ── Patch _getMyTeamMembers to use directReports if set ───────────
+const _origGetMyTeamMembers = typeof _getMyTeamMembers === 'function' ? _getMyTeamMembers : null;
+function _getMyTeamMembers(){
+  const name = _currentUser?.name||'';
+  const role = _currentUser?.role||'';
+  // If this manager has direct reports defined, use those
+  const dr = getDirectReports(name);
+  if(dr.length > 0) return dr;
+  // Fallback to original behaviour
+  if(_origGetMyTeamMembers) return _origGetMyTeamMembers();
+  return APP.people.map(p=>p.name);
 }
 
 
