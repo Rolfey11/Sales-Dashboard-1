@@ -8977,26 +8977,10 @@ function renderTeamDashboard(container, teamKey){
         <div class="kpi-sub">ahead on risk COP</div></div>
     </div>
     <div class="cards-grid" style="margin-top:8px">
-      ${stats.map(p=>{
-        const rbc=p.riskAhead?'#2dce89':p.revPct>=75?'#fbb83a':'#f5365c';
-        const nbc=p.nmAhead?'#2dce89':p.nmPct>=75?'#fbb83a':'#f5365c';
-        const cardCls=p.riskAhead&&p.nmAhead?'ab':!p.riskAhead&&!p.nmAhead?'bb':'mx';
-        return `<div class="p-card ${cardCls}" style="border-top-color:${color}">
-          <div class="p-name">${p.name}</div>
-          <div class="p-rev">£${Math.round(p.revMTD).toLocaleString()}</div>
-          <div class="p-sub">${p.revPct}% of £${p.target.toLocaleString()}</div>
-          <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(p.revPct,100)}%;background:${rbc}"></div></div>
-          <div class="p-row"><span class="p-lbl">COP risk</span><span class="p-val ${p.riskAhead?'g':'r'}">${p.riskAhead?'+'+fmt(p.copRev)+' ahead':fmt(p.copRev)+' needed'}</span></div>
-          <div class="pdiv"></div>
-          <div class="p-row"><span class="p-lbl">NM MTD</span><span class="p-val">${p.nmMTD} / ${parseFloat((p.nmTarget||0).toFixed(1))}</span></div>
-          <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(p.nmPct,100)}%;background:${nbc}"></div></div>
-          <div class="p-row"><span class="p-lbl">COP NM</span><span class="p-val ${p.nmAhead?'g':'r'}">${p.nmAhead?Math.abs(p.copNm).toFixed(1)+' ahead':p.copNm.toFixed(1)+' needed'}</span></div>
-          <div class="pills">
-            <span class="pill ${p.riskAhead?'pg':'pr'}">${p.riskAhead?'Risk ahead':'Risk behind'}</span>
-            <span class="pill ${p.nmAhead?'pg':'pr'}">${p.nmAhead?'NM ahead':'NM behind'}</span>
-          </div>
-        </div>`;
-      }).join('')}
+      ${stats.map(p=>
+        typeof _buildEnhancedCard==='function' ? _buildEnhancedCard(p,mk) :
+        '<div class="p-card">'+p.name+'</div>'
+      ).join('')}
     </div>
     ${dailyTable}
     <div class="charts-row" style="margin-top:20px">
@@ -9013,6 +8997,8 @@ function renderTeamDashboard(container, teamKey){
     </div>`;
 
   // render team charts after DOM update
+  if(typeof _animateBars==='function') setTimeout(_animateBars, 60);
+  if(typeof _updatePresenceDots==='function') setTimeout(_updatePresenceDots, 60);
   setTimeout(()=>{
     destroyChart('team_'+teamKey+'_rev'); destroyChart('team_'+teamKey+'_nm');
     const pNames = stats.map(s=>s.name);
@@ -14281,59 +14267,59 @@ function _renderTicker(){
 const _origRenderDashboardCards = null; // we patch inline
 
 function _buildEnhancedCard(p, mk){
-  const both    = p.riskAhead&&p.nmAhead;
-  const neither = !p.riskAhead&&!p.nmAhead;
-  const cardCls = both?'ab':neither?'bb':'mx';
-  const rbc     = p.riskAhead?'#2dce89':p.revPct>=75?'#fbb83a':'#f5365c';
-  const nbc     = p.nmAhead?'#2dce89':p.nmPct>=75?'#fbb83a':'#f5365c';
-  const copRevStr = p.riskAhead?`+${fmt(Math.abs(p.copRev))} ahead`:`${fmt(p.copRev)} needed`;
-  const copNmStr  = p.nmAhead?`${Math.abs(p.copNm).toFixed(1)} ahead`:`${p.copNm.toFixed(1)} needed`;
+  const rbc      = p.riskAhead?'#2dce89':p.revPct>=75?'#fbb83a':'#f5365c';
+  const nbc      = p.nmAhead ?'#2dce89':p.nmPct>=75 ?'#fbb83a':'#f5365c';
+  const cardCls  = p.riskAhead&&p.nmAhead?'ab':!p.riskAhead&&!p.nmAhead?'bb':'mx';
+  const copRevStr= p.riskAhead?'+'+fmt(Math.abs(p.copRev))+' ahead':fmt(p.copRev)+' needed';
+  const copNmStr = p.nmAhead  ?Math.abs(p.copNm).toFixed(1)+' ahead':p.copNm.toFixed(1)+' needed';
 
-  // Gauge
-  const gauge = _buildGauge(p.revPct);
+  const streak     = typeof _calcStreak==='function' ? _calcStreak(p.name, mk) : 0;
+  const todayRev   = typeof _getTodayRevFor==='function' ? _getTodayRevFor(p.name, mk) : 0;
+  const pb         = typeof _getPersonalBest==='function' ? _getPersonalBest(p.name) : 0;
+  const isPB       = todayRev>0 && todayRev>=pb;
+  const presStatus = typeof _getPresence==='function' ? _getPresence(p.name) : 'offline';
+  const trafficCls = typeof _copTrafficClass==='function' ? _copTrafficClass(p) : '';
 
-  // Streak
-  const streak = _calcStreak(p.name, mk);
-  const streakHtml = streak>=3
-    ? `<span class="streak-badge">🔥 ${streak}-day streak</span>`
-    : '';
-
-  // Personal best today?
-  const todayRev = _getTodayRevFor(p.name, mk);
-  const pb       = _getPersonalBest(p.name);
-  const isPB     = todayRev>0 && todayRev>=pb;
-  const pbHtml   = isPB ? `<span style="font-size:11px;color:#ffd700;margin-left:4px" title="Personal best today!">⭐ PB</span>` : '';
-
-  // Badges
-  const badges   = _getEarnedBadges(p, {streak, isPB});
-  const badgeHtml= badges.map(b=>{
-    const isNew = _markBadgeSeen(p.name, b.id);
+  const badges = typeof _getEarnedBadges==='function' ? _getEarnedBadges(p,{streak,isPB}) : [];
+  const badgeHtml = badges.map(b=>{
+    const isNew = typeof _markBadgeSeen==='function' ? _markBadgeSeen(p.name, b.id) : false;
     return `<span class="badge-pill earned${isNew?' badge-pop':''}" title="${b.label}">${b.icon} ${b.label}</span>`;
   }).join('');
 
-  // Presence
-  const presStatus = _getPresence(p.name);
-  const presHtml   = `<span class="presence-dot ${presStatus}" data-name="${p.name}" title="${presStatus}"></span>`;
+  const sn = p.name.replace(/'/g,"\\'");
 
-  const _trafficCls = typeof _copTrafficClass==='function' ? _copTrafficClass(p) : '';
-  return `<div class="p-card ${cardCls}${isPB?' pb-glow':''}${_trafficCls?' '+_trafficCls:''}" onclick="openPerson('${p.name.replace(/'/g,"\\'")}',this)" style="cursor:pointer;" title="Click to view full profile">
-    <div class="p-name" style="display:flex;align-items:center;justify-content:space-between">
-      <div style="display:flex;align-items:center;gap:5px">${presHtml}${p.name}${pbHtml}</div>
-      <span style="font-size:9px;color:var(--text3);font-weight:400">view ↗</span>
+  return `<div class="p-card ${cardCls}${trafficCls?' '+trafficCls:''}${isPB?' pb-glow':''}"
+    onclick="openPerson('${sn}',this)" style="cursor:pointer" title="Click to view full profile">
+
+    <div class="p-name" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:5px">
+        <span class="presence-dot ${presStatus}" data-name="${p.name}" title="${presStatus}"></span>
+        ${p.name}
+        ${isPB?'<span style="font-size:11px;color:#ffd700;margin-left:3px" title="Personal best!">⭐</span>':''}
+      </div>
+      ${streak>=3
+        ?`<span class="streak-badge">🔥 ${streak}d</span>`
+        :`<span style="font-size:9px;color:var(--text3);font-weight:400">view ↗</span>`}
     </div>
-    ${gauge}
-    ${streakHtml?`<div style="text-align:center;margin-bottom:6px">${streakHtml}</div>`:''}
+
     <div class="p-rev">£${Math.round(p.revMTD).toLocaleString()}</div>
     <div class="p-sub">${p.revPct}% of £${p.target.toLocaleString()}</div>
     <div class="bar-bg"><div class="bar-fill animate" style="width:0%;background:${rbc}" data-w="${Math.min(p.revPct,100)}"></div></div>
-    <div class="p-row"><span class="p-lbl">COP risk</span><span class="p-val ${p.riskAhead?'g':'r'}">${copRevStr}</span></div>
+
+    <div class="p-row"><span class="p-lbl">COP risk</span>
+      <span class="p-val ${p.riskAhead?'g':'r'}">${copRevStr}</span></div>
+
     <div class="pdiv"></div>
-    <div class="p-row"><span class="p-lbl">NM target</span><span class="p-val">${parseFloat((p.nmTarget||0).toFixed(2))}</span></div>
-    <div class="p-row"><span class="p-lbl">NM this month</span><span class="p-val">${p.nmMTD}</span></div>
-    <div class="p-sub" style="text-align:right;margin-bottom:2px">${p.nmPct}% of target</div>
+
+    <div class="p-row"><span class="p-lbl">NM MTD</span>
+      <span class="p-val">${p.nmMTD} / ${parseFloat((p.nmTarget||0).toFixed(1))}</span></div>
     <div class="bar-bg"><div class="bar-fill animate" style="width:0%;background:${nbc}" data-w="${Math.min(p.nmPct,100)}"></div></div>
-    <div class="p-row" style="margin-top:4px"><span class="p-lbl">COP NM</span><span class="p-val ${p.nmAhead?'g':'r'}">${copNmStr}</span></div>
+
+    <div class="p-row"><span class="p-lbl">COP NM</span>
+      <span class="p-val ${p.nmAhead?'g':'r'}">${copNmStr}</span></div>
+
     ${badgeHtml?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px">${badgeHtml}</div>`:''}
+
     <div class="pills" style="margin-top:6px">
       <span class="pill ${p.riskAhead?'pg':'pr'}">${p.riskAhead?'Risk ahead':'Risk behind'}</span>
       <span class="pill ${p.nmAhead?'pg':'pr'}">${p.nmAhead?'NM ahead':'NM behind'}</span>
