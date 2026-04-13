@@ -5213,20 +5213,6 @@ function _openAssessmentPDF(d){
       <button onclick="window.close()" style="padding:11px 20px;background:#e8ecf0;color:#444;border:none;border-radius:8px;font-size:14px;cursor:pointer;">✕ Close</button>
     </div>
   
-<!-- REMEDIAL DETAIL DRAWER -->
-<div id="remDrawerOverlay" onclick="closeRemDrawer()"></div>
-<div id="remDrawer">
-  <div id="remDrawerHead">
-    <div id="remDrawerTitle">📋 Remedial Detail</div>
-    <button id="remDrawerClose" onclick="closeRemDrawer()" title="Close">✕</button>
-  </div>
-  <div id="remDrawerBody"></div>
-  <div id="remDrawerFoot">
-    <button class="btn btn-s" onclick="closeRemDrawer()" style="font-size:13px">✕ Close</button>
-    <span style="font-size:11px;color:var(--text3);font-family:var(--fm)">Press Esc or click outside to close</span>
-  </div>
-</div>
-
 </body></html>`);
   win.document.close();
 }
@@ -10463,6 +10449,20 @@ if(sessionStorage.getItem('pd_auth')==='1'){
   }
 }
 </script>
+<!-- REMEDIAL DETAIL DRAWER -->
+<div id="remDrawerOverlay" onclick="closeRemDrawer()"></div>
+<div id="remDrawer">
+  <div id="remDrawerHead">
+    <div id="remDrawerTitle">📋 Remedial Detail</div>
+    <button id="remDrawerClose" onclick="closeRemDrawer()" title="Close">✕</button>
+  </div>
+  <div id="remDrawerBody"></div>
+  <div id="remDrawerFoot">
+    <button class="btn btn-s" onclick="closeRemDrawer()" style="font-size:13px">✕ Close</button>
+    <span style="font-size:11px;color:var(--text3);font-family:var(--fm)">Press Esc or click outside to close</span>
+  </div>
+</div>
+
 </body>
 </html>
 
