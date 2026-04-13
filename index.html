@@ -954,6 +954,15 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 </style>
 <body class="pre-auth">
 
+<!-- Early stubs: ensures inline handlers work before the main script block is parsed -->
+<script>
+  // These will be properly defined in the main script block below.
+  // The stubs prevent "not defined" errors on the initial keydown/click
+  // that can fire during page parse on some browsers.
+  function attemptLogin(){ /* real fn defined below */ }
+  function proceedToPin(){ /* real fn defined below */ }
+</script>
+
 <!-- LOGIN SCREEN -->
 <div id="loginScreen">
   <div class="login-box">
@@ -5752,7 +5761,7 @@ function _renderCoTable(){
             const isMgr = role2==='manager'||role2==='master';
             const isFair = d.initialOutcome==='Pass'||d.initialOutcome==='Pass with Development';
             if(isMgr && isFair){
-              return '<button class="send-msg-btn" onclick="openSendMessageModal(''+d.id+'',''+encodeURIComponent(d.colleague||'')+'',''+encodeURIComponent(d.initialOutcome||'')+'',''+encodeURIComponent(d.dateObs||'')+'',''+encodeURIComponent(d.fmpRef||'')+'')">🎉 Message</button>';
+              return `<button class="send-msg-btn" onclick="openSendMessageModal('${d.id}','${encodeURIComponent(d.colleague||'')}','${encodeURIComponent(d.initialOutcome||'')}','${encodeURIComponent(d.dateObs||'')}','${encodeURIComponent(d.fmpRef||'')}')">🎉 Message</button>`;
             }
             return '';
           })()}
