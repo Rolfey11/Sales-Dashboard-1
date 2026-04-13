@@ -5846,44 +5846,21 @@ let _pendingEntries = {};
 function startNotifListener(){
   const role = _currentUser?.role;
   if(!role || role==='compliance') return;
+  // Pending-entries listener
   const ref = _pendingRef();
-  if(!ref) return;
-  // Clean up old listener
-  if(_notifListener){ _notifListener.off(); }
-  _notifListener = ref;
-  ref.on('value', snap=>{
-    _pendingEntries = snap.val()||{};
-    _updateNotifBadge();
-  });
+  if(ref){
+    if(_notifListener){ _notifListener.off(); }
+    _notifListener = ref;
+    ref.on('value', snap=>{
+      _pendingEntries = snap.val()||{};
+      _updateNotifBadge();
+    });
+  }
+  // Messages listener — gives consultants their congrats bell
+  if(typeof startMessagesListener === 'function') startMessagesListener();
 }
 
-function _updateNotifBadge(){
-  const role = _currentUser?.role;
-  const bell  = document.getElementById('notifBell');
-  const badge = document.getElementById('notifBadge');
-  if(!bell||!badge) return;
-
-  // Consultants only see their own pending; managers see all pending
-  let pending;
-  if(role==='consultant'){
-    pending = Object.values(_pendingEntries).filter(e=>e.status==='pending'&&e.consultantName===_currentUser?.name);
-    bell.style.display = '';
-  } else if(role==='manager'||role==='master'){
-    pending = Object.values(_pendingEntries).filter(e=>e.status==='pending');
-    bell.style.display = '';
-  } else {
-    bell.style.display = 'none';
-    return;
-  }
-
-  const count = pending.length;
-  if(count>0){
-    badge.style.display='';
-    badge.textContent = count > 9 ? '9+' : String(count);
-  } else {
-    badge.style.display='none';
-  }
-}
+// _updateNotifBadge — delegates to merged badge fn defined below
 
 function toggleNotifPanel(){
   const panel   = document.getElementById('notifPanel');
@@ -11051,16 +11028,7 @@ function _launchStars(){
   }
 }
 
-// ── Hook into startNotifListener to also start messages ──────────
-const _origStartNotifListener = startNotifListener;
-function startNotifListener(){
-  _origStartNotifListener();
-  startMessagesListener();
-}
-
-// Also call _updateNotifBadgeWithMsgs from _updateRemBadges so
-// the badge stays accurate when remedials change
-const _origUpdateNotifBadge = _updateNotifBadge;
+// ── _updateNotifBadge now always uses the merged badge function ──
 function _updateNotifBadge(){
   _updateNotifBadgeWithMsgs();
 }
