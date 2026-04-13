@@ -12223,58 +12223,96 @@ function openDirectReportModal(managerName){
   if(!APP.directReports) APP.directReports = {};
   _drEditingManager = managerName || null;
 
-  const allPeople = APP.people.map(p=>p.name);
+  // ── Split users by role using _allUsers (has role data) ──────────
+  // Non-consultants = eligible managers; consultants = eligible reports
+  const userList = Object.values(_allUsers||{}).sort((a,b)=>a.name.localeCompare(b.name));
+
+  // Managers dropdown: everyone who is NOT a consultant (manager, master, compliance)
+  // Fallback: if _allUsers is empty, use APP.people and treat everyone as eligible
+  let managerOptions, consultantList;
+  if(userList.length){
+    managerOptions = userList.filter(u => u.role !== 'consultant');
+    consultantList = userList.filter(u => u.role === 'consultant').map(u=>u.name);
+  } else {
+    // No user data loaded yet — fall back gracefully: show all people in both
+    managerOptions = APP.people.map(p=>({name:p.name, role:'manager'}));
+    consultantList = APP.people.map(p=>p.name);
+  }
+
   const currentReports = managerName ? (APP.directReports[managerName]||[]) : [];
 
+  const roleLabel = r => r==='master'?'Master':r==='compliance'?'Compliance':r==='manager'?'Manager':'—';
+  const roleCol   = r => ROLE_COLORS[r]||'var(--text2)';
+
   document.getElementById('drModalBody').innerHTML = `
-    <!-- Step 1: Pick manager -->
+    <!-- Step 1: Pick manager / team lead -->
     <div style="margin-bottom:16px">
       <div class="field-lbl" style="margin-bottom:6px">Manager / Team Lead</div>
       <select id="drManagerSel" onchange="drManagerChanged(this.value)"
         style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;font-size:13px;font-family:var(--fm);color:var(--text)">
-        <option value="">— Select a manager —</option>
-        ${allPeople.map(p =>
-          `<option value="${p}"${p===managerName?' selected':''}>${p}</option>`
+        <option value="">— Select a manager or team lead —</option>
+        ${managerOptions.map(u =>
+          `<option value="${u.name}"${u.name===managerName?' selected':''}>${u.name} · ${roleLabel(u.role)}</option>`
         ).join('')}
       </select>
+      ${!managerOptions.length ? `<div style="font-size:11px;color:var(--amber);font-family:var(--fm);margin-top:6px">⚠️ No manager/master users found. Add users in Users & Roles first.</div>` : ''}
     </div>
 
-    <!-- Step 2: Pick reports -->
+    <!-- Step 2: Pick consultants as direct reports -->
     <div id="drReportsSection" style="${managerName?'':'opacity:.4;pointer-events:none'}">
-      <div class="field-lbl" style="margin-bottom:8px">Direct Reports <span style="color:var(--text3);font-weight:400">(select all that apply)</span></div>
-      <div id="drCheckboxGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:280px;overflow-y:auto;padding-right:4px">
-        ${allPeople.map(p => {
-          if(p === managerName) return ''; // can't be your own report
+      <div class="field-lbl" style="margin-bottom:8px">
+        Direct Reports — Consultants
+        <span style="color:var(--text3);font-weight:400">(select all that report to this manager)</span>
+      </div>
+      <div id="drCheckboxGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:300px;overflow-y:auto;padding-right:4px">
+        ${consultantList.map(p => {
+          if(p === managerName) return '';
           const checked = currentReports.includes(p);
-          // Who else manages this person?
           const existingMgr = getManagerOf(p);
           const conflict = existingMgr && existingMgr !== managerName
-            ? `<span style="font-size:9px;color:var(--amber);font-family:var(--fm)">(has manager: ${existingMgr})</span>` : '';
-          return `<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border:1px solid ${checked?'var(--accent)':'var(--border)'};border-radius:8px;cursor:pointer;transition:border-color .15s;font-size:13px"
-            onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor=document.getElementById('dr_${p.replace(/'/g,'').replace(/\s/g,'_')}')?.checked?'var(--accent)':'var(--border)'">
-            <input type="checkbox" id="dr_${p.replace(/'/g,'').replace(/\s/g,'_')}"
-              value="${p}" ${checked?'checked':''}
-              style="accent-color:var(--accent);width:15px;height:15px;cursor:pointer;flex-shrink:0"
+            ? `<span style="font-size:9px;color:var(--amber);font-family:var(--fm)">Currently reports to: ${existingMgr}</span>` : '';
+          const safeId = 'dr_'+p.replace(/[^a-zA-Z0-9]/g,'_');
+          return `<label for="${safeId}" style="display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--surface2);border:1px solid ${checked?'var(--accent)':'var(--border)'};border-radius:8px;cursor:pointer;transition:all .15s;font-size:13px"
+            onmouseover="this.style.borderColor='var(--border2)';this.style.background='var(--surface3)'"
+            onmouseout="this.style.background='var(--surface2)';this.style.borderColor=document.getElementById('${safeId}')?.checked?'var(--accent)':'var(--border)'">
+            <input type="checkbox" id="${safeId}" value="${p}" ${checked?'checked':''}
+              style="accent-color:var(--accent);width:16px;height:16px;cursor:pointer;flex-shrink:0"
               onchange="this.closest('label').style.borderColor=this.checked?'var(--accent)':'var(--border)'">
-            <div style="min-width:0">
+            <div style="min-width:0;flex:1">
               <div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p}</div>
               ${conflict}
             </div>
           </label>`;
         }).filter(Boolean).join('')}
+        ${!consultantList.length ? `<div style="grid-column:1/-1;padding:16px;text-align:center;color:var(--text3);font-size:12px;font-family:var(--fm)">No consultant users found. Add users in Users & Roles first.</div>` : ''}
       </div>
-      <div style="margin-top:12px;display:flex;gap:8px">
-        <button class="btn btn-s" style="font-size:11px" onclick="drSelectAll(true)">Select All</button>
-        <button class="btn btn-s" style="font-size:11px" onclick="drSelectAll(false)">Clear All</button>
+      <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+        <button class="btn btn-s" style="font-size:11px" onclick="drSelectAll(true)">☑ Select All</button>
+        <button class="btn btn-s" style="font-size:11px" onclick="drSelectAll(false)">☐ Clear All</button>
+        <span id="drSelectedCount" style="font-size:11px;color:var(--text2);font-family:var(--fm);margin-left:4px"></span>
       </div>
     </div>
 
-    <div style="margin-top:14px;padding:10px 14px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--accent);font-size:11px;color:var(--text2);font-family:var(--fm)">
-      ℹ️ Each person can only have one direct manager. Assigning someone here will remove any existing manager assignment for that person.
+    <div style="margin-top:14px;padding:10px 14px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--accent);font-size:11px;color:var(--text2);font-family:var(--fm);line-height:1.6">
+      ℹ️ Each consultant can only report to one manager. Assigning someone here will automatically remove any existing manager assignment for them.
     </div>`;
 
+  // Add live count listener
+  setTimeout(()=>{
+    document.querySelectorAll('#drCheckboxGrid input[type=checkbox]').forEach(cb=>{
+      cb.addEventListener('change', _drUpdateCount);
+    });
+    _drUpdateCount();
+    document.getElementById('drManagerSel')?.focus();
+  }, 50);
+
   document.getElementById('directReportModal').classList.add('open');
-  setTimeout(()=>document.getElementById('drManagerSel')?.focus(), 100);
+}
+
+function _drUpdateCount(){
+  const count = document.querySelectorAll('#drCheckboxGrid input[type=checkbox]:checked').length;
+  const el = document.getElementById('drSelectedCount');
+  if(el) el.textContent = count > 0 ? count+' selected' : '';
 }
 
 function drManagerChanged(name){
@@ -12285,20 +12323,21 @@ function drManagerChanged(name){
     section.style.pointerEvents = name ? '' : 'none';
   }
   if(!name) return;
-  // Re-render checkboxes for the newly selected manager
   const currentReports = (APP.directReports && APP.directReports[name]) || [];
   const grid = document.getElementById('drCheckboxGrid');
   if(!grid) return;
   grid.querySelectorAll('input[type=checkbox]').forEach(cb => {
-    const val = cb.value;
-    if(val === name){
-      cb.closest('label').style.display='none';
+    const label = cb.closest('label');
+    // Hide if this person IS the selected manager (they can't report to themselves)
+    if(cb.value === name){
+      if(label) label.style.display='none';
       return;
     }
-    cb.closest('label').style.display='';
-    cb.checked = currentReports.includes(val);
-    cb.closest('label').style.borderColor = cb.checked ? 'var(--accent)' : 'var(--border)';
+    if(label) label.style.display='';
+    cb.checked = currentReports.includes(cb.value);
+    if(label) label.style.borderColor = cb.checked ? 'var(--accent)' : 'var(--border)';
   });
+  _drUpdateCount();
 }
 
 function drSelectAll(checked){
