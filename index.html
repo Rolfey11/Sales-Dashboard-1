@@ -3020,10 +3020,14 @@ function getDeductibleUsed(name, yr){
 
 // ── Tab switching ─────────────────────────────────────────────────
 function switchHolTab(tab){
+  // Panel IDs: holCalPanel, holTotPanel, holSumPanel
+  // Button IDs: holTabCalBtn, holTabTotBtn, holTabSumBtn
+  const panelMap = { calendar:'holCalPanel', totals:'holTotPanel', summary:'holSumPanel' };
+  const btnMap   = { calendar:'holTabCalBtn', totals:'holTabTotBtn', summary:'holTabSumBtn' };
   ['calendar','totals','summary'].forEach(t => {
-    const panel = document.getElementById('hol'+t.charAt(0).toUpperCase()+t.slice(1)+'Panel');
+    const panel = document.getElementById(panelMap[t]);
     if(panel) panel.style.display = t===tab ? '' : 'none';
-    const btn = document.getElementById('holTab'+t.charAt(0).toUpperCase()+t.slice(1)+'Btn');
+    const btn = document.getElementById(btnMap[t]);
     if(btn) btn.classList.toggle('active', t===tab);
   });
   _populateHolSelects();
