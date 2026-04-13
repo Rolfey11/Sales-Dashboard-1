@@ -1468,10 +1468,10 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
   <div id="holCalPanel">
     <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
       <select id="holMonth" onchange="renderHoliday()" style="width:180px"></select>
-      <select id="holTeamFilter" onchange="renderHoliday()" style="width:160px">
+      <select id="holTeamFilter" onchange="renderHoliday()" style="width:160px" id="holTeamFilterSel">
         <option value="all">All Teams</option>
       </select>
-      <button class="btn btn-s" onclick="clearAllHols()">Clear month</button>
+      <button class="btn btn-s" id="holClearMonthBtn" onclick="clearAllHols()">Clear month</button>
     </div>
 
     <!-- Absence type selector -->
@@ -2451,7 +2451,7 @@ const ROLE_ACCESS = {
   manager:    ['dashboard','biz','teams','summary','entry','monthlysummary','leaderboard',
                'history','daybyday','holiday','settings','manageroverview','staffperf','calloutcomes','consultantdaily','remedialmanager'],
   compliance: ['compliance','calloutcomes','remedialmanager'],
-  consultant: ['consultantdaily','teams','calloutcomes']
+  consultant: ['consultantdaily','teams','calloutcomes','holiday']
 };
 const ROLE_LABELS = { master:'Master', manager:'Manager', compliance:'Compliance', consultant:'Consultant' };
 const ROLE_COLORS = { master:'#e879f9', manager:'#5e9cf5', compliance:'#2dce89', consultant:'#fbb83a' };
@@ -3248,8 +3248,15 @@ function renderHoliday(){
   const [y, m] = mk.split('-').map(Number);
   const daysInMonth = new Date(y, m, 0).getDate();
 
-  let people = APP.people.filter(p => personTargetForMonth(p, mk) > 0);
-  if(teamFilter !== 'all'){
+  const isConsultant = (_currentUser?.role||'') === 'consultant';
+  const myName = _currentUser?.name||'';
+
+  // Consultants only see their own row
+  let people = isConsultant
+    ? APP.people.filter(p => p.name === myName)
+    : APP.people.filter(p => personTargetForMonth(p, mk) > 0);
+
+  if(!isConsultant && teamFilter !== 'all'){
     const members = (APP.teams[teamFilter])||[];
     people = people.filter(p => members.includes(p.name));
   }
@@ -12919,17 +12926,25 @@ function _configHolTabs(){
   const isConsultant = role==='consultant';
   const isMgr = role==='manager'||role==='master'||role==='compliance';
 
+  // My Holidays — consultants only
   const myHolBtn = document.getElementById('holTabMyHolBtn');
-  const reqBtn   = document.getElementById('holTabReqBtn');
+  if(myHolBtn){ myHolBtn.style.display = isConsultant ? '' : 'none'; }
 
-  // Ensure buttons are explicitly shown/hidden based on role
-  if(myHolBtn){
-    myHolBtn.style.display = isConsultant ? '' : 'none';
-    myHolBtn.style.visibility = '';  // clear any visibility override
-  }
-  if(reqBtn){
-    reqBtn.style.display = isMgr ? '' : 'none';
-  }
+  // Totals + Summary — managers/master only (hidden from consultants)
+  const totBtn = document.getElementById('holTabTotBtn');
+  const sumBtn = document.getElementById('holTabSumBtn');
+  if(totBtn) totBtn.style.display = isMgr ? '' : 'none';
+  if(sumBtn) sumBtn.style.display = isMgr ? '' : 'none';
+
+  // Requests — managers/master only
+  const reqBtn = document.getElementById('holTabReqBtn');
+  if(reqBtn) reqBtn.style.display = isMgr ? '' : 'none';
+
+  // Hide team filter + clear button from consultants on the calendar
+  const teamFilterEl  = document.getElementById('holTeamFilterSel');
+  const clearMonthBtn = document.getElementById('holClearMonthBtn');
+  if(teamFilterEl)  teamFilterEl.style.display  = isConsultant ? 'none' : '';
+  if(clearMonthBtn) clearMonthBtn.style.display = isConsultant ? 'none' : '';
 
   // Ensure listener is running (safe to call multiple times)
   if(!_holReqListener && _currentUser) startHolReqListener();
@@ -12939,6 +12954,12 @@ function _configHolTabs(){
 function _switchHolTabImpl(tab){
   // Always run config first so role-based tabs are shown/hidden correctly
   _configHolTabs();
+
+  // Consultants cannot access totals or summary — redirect to myhol
+  const role = _currentUser?.role||'';
+  if(role==='consultant' && (tab==='totals'||tab==='summary'||tab==='requests')){
+    tab = 'myhol';
+  }
 
   const panelMap = {
     calendar:'holCalPanel', totals:'holTotPanel', summary:'holSumPanel',
