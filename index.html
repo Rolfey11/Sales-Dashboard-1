@@ -2474,6 +2474,23 @@ function applyRoleVisibility(){
     tab.style.display = (!allowed || allowed.includes(m[1])) ? '' : 'none';
   });
 
+  // Division badge: consultants see label only — no click/switch
+  const divBadge = document.getElementById('divisionBadge');
+  const divArrow  = divBadge?.querySelector('span:last-child');
+  if(divBadge){
+    if(role === 'consultant'){
+      divBadge.style.cursor   = 'default';
+      divBadge.style.pointerEvents = 'none';
+      divBadge.title = '';
+      if(divArrow) divArrow.style.display = 'none';
+    } else {
+      divBadge.style.cursor   = 'pointer';
+      divBadge.style.pointerEvents = '';
+      divBadge.title = 'Switch division';
+      if(divArrow) divArrow.style.display = '';
+    }
+  }
+
   // Hide Users & Roles card from non-masters
   const uCard = document.getElementById('usersRolesCard');
   if(uCard) uCard.style.display = role==='master' ? '' : 'none';
@@ -2715,6 +2732,8 @@ function selectDivision(key){
 }
 
 function switchDivision(){
+  // Consultants cannot switch division — they are locked to their assigned one
+  if(_currentUser?.role === 'consultant') return;
   if(_currentDbRef){ _currentDbRef.off(); _currentDbRef = null; _dbRef = null; }
   if(_notifListener){ _notifListener.off(); _notifListener = null; }
   _appInited = false;
