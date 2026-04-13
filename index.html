@@ -5016,65 +5016,181 @@ function renderArchive(){
     </div>`;
 }
 
-function viewComplianceRecord(id){
-  const d = _arcData.find(x=>x.id===id);
-  if(!d) return;
-  const outCol = o => o==='Pass'?'#1aaa6e':o==='Fail'?'#d92f53':o==='Pass with Development'?'#d4820a':'#888';
-  const itemRows = COMP_SECTIONS.map(sec=>`
-    <tr><td colspan="3" style="padding:6px 12px;background:#f0f2f6;font-weight:700;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:#555;border:1px solid #ccc;">${sec.title}</td></tr>
+// ── Shared assessment PDF renderer — used by archive AND Call Outcomes ──
+function _openAssessmentPDF(d){
+  if(!d){ showToast('Assessment record not found','err'); return; }
+  const outCol   = o => o==='Pass'?'#1aaa6e':o==='Fail'?'#d92f53':o==='Pass with Development'?'#d4820a':'#888';
+  const outLabel = o => o==='Pass'?'✅ Fair':o==='Fail'?'❌ Unfair — Potential Detriment':o==='Pass with Development'?'📘 Fair with Learnings':o||'—';
+  const hdrColor = d.initialOutcome==='Fail'?'#8b0a2a':d.initialOutcome==='Pass with Development'?'#7a4a00':'#1a3060';
+
+  // Section notes: support both key-based and s1/s2/s3/s4 naming
+  const snotes = d.sectionNotes||{};
+  const sectionNoteKeys = ['s1','s2','s3','s4'];
+
+  const itemRows = COMP_SECTIONS.map((sec,si)=>`
+    <tr><td colspan="3" style="padding:8px 12px;background:#f0f2f6;font-weight:700;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#444;border:1px solid #ccc;">${sec.title}</td></tr>
     ${sec.items.map(item=>{
-      const v = (d.items||{})[item.num]||'—';
+      const v  = (d.items||{})[item.num]||'—';
       const bg = v==='Pass'?'#f0faf5':v==='Fail'?'#fdf0f2':'#fff';
-      const col= v==='Pass'?'#1aaa6e':v==='Fail'?'#d92f53':v==='N/A'?'#888':'#333';
-      return `<tr style="background:${bg};border-bottom:1px solid #eee">
-        <td style="padding:6px 10px;font-size:11px;color:#888;font-weight:700;border:1px solid #ddd;width:28px">${item.num}</td>
-        <td style="padding:6px 12px;font-size:12px;border:1px solid #ddd">${item.text}</td>
-        <td style="padding:6px 12px;text-align:center;font-weight:700;color:${col};border:1px solid #ddd;white-space:nowrap">${v}</td>
+      const cl = v==='Pass'?'#1aaa6e':v==='Fail'?'#d92f53':v==='N/A'?'#888':'#333';
+      return `<tr style="background:${bg}">
+        <td style="padding:7px 10px;font-size:11px;color:#999;font-weight:700;border:1px solid #ddd;width:32px;text-align:center">${item.num}</td>
+        <td style="padding:7px 12px;font-size:12px;border:1px solid #ddd;line-height:1.5">${item.text}</td>
+        <td style="padding:7px 14px;text-align:center;font-weight:700;font-size:12px;color:${cl};border:1px solid #ddd;white-space:nowrap;min-width:80px">${v}</td>
       </tr>`;
     }).join('')}
-    ${(d.sectionNotes||{})[sec.key] ? `<tr><td colspan="3" style="padding:6px 12px;font-size:11px;color:#555;font-style:italic;border:1px solid #ddd;background:#fafafa">Notes: ${(d.sectionNotes||{})[sec.key]}</td></tr>` : ''}`
+    ${(snotes[sec.key]||snotes[sectionNoteKeys[si]]) ? `<tr><td colspan="3" style="padding:7px 12px;font-size:11px;color:#555;font-style:italic;border:1px solid #ddd;background:#fafafa;border-left:3px solid #aac4e8">📝 Notes: ${snotes[sec.key]||snotes[sectionNoteKeys[si]]}</td></tr>` : ''}`
   ).join('');
 
-  const win = window.open('','_blank','width=900,height=800,scrollbars=yes');
+  // Section scores summary
+  const _ss = (nums) => {
+    const vals = nums.map(n=>(d.items||{})[n]).filter(v=>v==='Pass'||v==='Fail');
+    if(!vals.length) return null;
+    return Math.round(vals.filter(v=>v==='Pass').length/vals.length*100);
+  };
+  const s1=_ss([1,2,3,4,5]); const s2=_ss([6,7,8]); const s3=_ss([9,10,11,12]); const s4=_ss([13,14,15,16,17,18,19]);
+  const scoreBar = (pct,label) => pct===null ? '' : `
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;color:${pct>=90?'#1aaa6e':pct>=75?'#d4820a':'#d92f53'};margin-bottom:4px">
+        <span>${label}</span><span>${pct}%</span>
+      </div>
+      <div style="background:#e8ecf0;border-radius:4px;height:7px;overflow:hidden">
+        <div style="width:${pct}%;height:100%;background:${pct>=90?'#1aaa6e':pct>=75?'#d4820a':'#d92f53'};border-radius:4px"></div>
+      </div>
+    </div>`;
+
+  const remedialBanner = (d.initialOutcome==='Fail'||d.regCompliant==='No') ? `
+    <div style="background:#fff3f3;border:2px solid #d92f53;border-radius:8px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:flex-start;gap:12px">
+      <span style="font-size:22px;line-height:1">⚠️</span>
+      <div>
+        <div style="font-weight:700;color:#d92f53;font-size:14px;margin-bottom:4px">Remedial Action Required</div>
+        <div style="font-size:12px;color:#7a2030;line-height:1.6">${d.outcomeRationale||''} ${d.regFailRationale?'<br><strong>Reg fail:</strong> '+d.regFailRationale:''}</div>
+      </div>
+    </div>` : '';
+
+  const win = window.open('','_blank','width=960,height=860,scrollbars=yes');
+  if(!win){ showToast('Pop-up blocked — please allow pop-ups and try again','err'); return; }
   win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
-    <title>Compliance Assessment — ${d.colleague}</title>
-    <style>body{font-family:Calibri,Arial,sans-serif;margin:0;padding:20px;background:#f5f5f5;}
-    .box{background:#fff;border-radius:8px;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.1);}
-    .hdr{background:#1a3060;color:#fff;padding:14px 20px;border-radius:8px;margin-bottom:16px;}
-    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
-    .lbl{font-size:10px;font-weight:700;color:#888;letter-spacing:.07em;text-transform:uppercase;margin-bottom:4px;}
-    .val{font-size:13px;font-weight:600;color:#1a2333;}
-    table{width:100%;border-collapse:collapse;}
-    @media print{body{padding:0}.no-print{display:none}}</style>
+    <title>Compliance Assessment — ${d.colleague||'Unknown'}</title>
+    <style>
+      *{box-sizing:border-box;}
+      body{font-family:Calibri,Arial,sans-serif;margin:0;padding:24px;background:#f2f4f8;color:#1a2333;}
+      .hdr{background:${hdrColor};color:#fff;padding:18px 24px;border-radius:10px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+      .hdr-title{font-size:20px;font-weight:700;letter-spacing:.02em;}
+      .hdr-sub{font-size:12px;opacity:.8;margin-top:3px;}
+      .outcome-pill{padding:5px 16px;border-radius:20px;font-size:12px;font-weight:700;background:rgba(255,255,255,0.2);letter-spacing:.04em;}
+      .box{background:#fff;border-radius:10px;padding:20px 24px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.09);}
+      .box-title{font-size:11px;font-weight:700;color:#888;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #eee;}
+      .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+      .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+      .lbl{font-size:10px;font-weight:700;color:#999;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px;}
+      .val{font-size:13px;font-weight:600;color:#1a2333;line-height:1.4;}
+      .scores-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+      table{width:100%;border-collapse:collapse;}
+      .no-print{text-align:center;margin-top:24px;padding:16px;background:#fff;border-radius:10px;}
+      @media print{
+        body{padding:10px;background:#fff;}
+        .no-print{display:none;}
+        .hdr{border-radius:0;}
+        .box{box-shadow:none;border:1px solid #ddd;}
+      }
+    </style>
   </head><body>
-  <div class="hdr"><div style="font-size:18px;font-weight:700">🛡 Compliance Assessment</div>
-    <div style="font-size:12px;opacity:.8;margin-top:4px">Single Tie Guidance · Submitted ${new Date(d.submittedAt).toLocaleString('en-GB')}</div></div>
-  <div class="box"><div class="grid">
-    <div><div class="lbl">Colleague</div><div class="val">${d.colleague||'—'}</div></div>
-    <div><div class="lbl">Team</div><div class="val">${d.team||'—'}</div></div>
-    <div><div class="lbl">Assessor</div><div class="val">${d.assessor||'—'}</div></div>
-    <div><div class="lbl">Client Surname</div><div class="val">${d.client||'—'}</div></div>
-    <div><div class="lbl">Brand</div><div class="val">${d.brand||'—'}</div></div>
-    <div><div class="lbl">Lead Source</div><div class="val">${d.leadSource||'—'}</div></div>
-    <div><div class="lbl">Date on Risk</div><div class="val">${d.dateOnRisk||'—'}</div></div>
-    <div><div class="lbl">Date of Observation</div><div class="val">${d.dateObs||'—'}</div></div>
-    <div><div class="lbl">FMP/CRM Ref</div><div class="val">${d.fmpRef||'—'}</div></div>
-    <div><div class="lbl">Colleague Level</div><div class="val">${d.level||'—'}</div></div>
-    <div><div class="lbl">Call Duration</div><div class="val">${d.duration||'—'}</div></div>
-  </div></div>
-  <div class="box"><table>${itemRows}</table></div>
-  <div class="box"><div class="grid">
-    <div><div class="lbl">Initial Outcome</div><div class="val" style="color:${outCol(d.initialOutcome)}">${d.initialOutcome||'—'}</div></div>
-    <div><div class="lbl">Regulatory Compliant</div><div class="val" style="color:${d.regCompliant==='Yes'?'#1aaa6e':'#d92f53'}">${d.regCompliant||'—'}</div></div>
-    <div><div class="lbl">Process Compliance</div><div class="val" style="color:${d.procCompliant==='Yes'?'#1aaa6e':'#d92f53'}">${d.procCompliant||'—'}</div></div>
-  </div>
-  ${d.outcomeRationale?`<div style="margin-top:12px"><div class="lbl">Outcome Rationale</div><div style="font-size:13px;color:#333;margin-top:4px">${d.outcomeRationale}</div></div>`:''}
-  ${d.regFailRationale?`<div style="margin-top:12px"><div class="lbl">Regulatory Fail Rationale</div><div style="font-size:13px;color:#d92f53;margin-top:4px">${d.regFailRationale}</div></div>`:''}
-  </div>
-  ${d.transcriptNotes?`<div class="box"><div class="lbl">Notes From Transcript</div><div style="font-size:13px;color:#333;margin-top:6px;white-space:pre-wrap">${d.transcriptNotes}</div></div>`:''}
-  <div class="no-print" style="text-align:center;margin-top:20px"><button onclick="window.print()" style="padding:10px 28px;background:#1a3060;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer">🖨 Print / Save PDF</button></div>
+    <div class="hdr">
+      <div>
+        <div class="hdr-title">🛡 Compliance Assessment</div>
+        <div class="hdr-sub">Submitted ${new Date(d.submittedAt||Date.now()).toLocaleString('en-GB')} · ${(d.team||d.teamKey||'').toUpperCase()}</div>
+      </div>
+      <div class="outcome-pill">${outLabel(d.initialOutcome)}</div>
+    </div>
+
+    ${remedialBanner}
+
+    <!-- Colleague & Call Details -->
+    <div class="box">
+      <div class="box-title">📋 Assessment Details</div>
+      <div class="grid">
+        <div><div class="lbl">Colleague</div><div class="val">${d.colleague||'—'}</div></div>
+        <div><div class="lbl">Team</div><div class="val">${d.team||'—'}</div></div>
+        <div><div class="lbl">Assessor</div><div class="val">${d.assessor||'—'}</div></div>
+        <div><div class="lbl">Client Surname</div><div class="val">${d.client||'—'}</div></div>
+        <div><div class="lbl">Brand</div><div class="val">${d.brand||'—'}</div></div>
+        <div><div class="lbl">Lead Source</div><div class="val">${d.leadSource||'—'}</div></div>
+        <div><div class="lbl">Date on Risk</div><div class="val">${d.dateOnRisk||'—'}</div></div>
+        <div><div class="lbl">Date of Observation</div><div class="val">${d.dateObs||'—'}</div></div>
+        <div><div class="lbl">FMP / CRM Ref</div><div class="val">${d.fmpRef||'—'}</div></div>
+        <div><div class="lbl">Colleague Level</div><div class="val">${d.level||'—'}</div></div>
+        <div><div class="lbl">Call Duration</div><div class="val">${d.duration||'—'}</div></div>
+        <div><div class="lbl">Reg Compliance</div><div class="val" style="color:${d.regCompliant==='Yes'?'#1aaa6e':'#d92f53'}">${d.regCompliant||'—'}</div></div>
+      </div>
+    </div>
+
+    <!-- Section Scores Summary -->
+    <div class="box">
+      <div class="box-title">📊 Section Scores</div>
+      <div class="scores-grid">
+        ${scoreBar(s1,'Products &amp; Services')}
+        ${scoreBar(s2,'Price &amp; Value')}
+        ${scoreBar(s3,'Consumer Understanding')}
+        ${scoreBar(s4,'Consumer Support')}
+      </div>
+    </div>
+
+    <!-- Assessment Items -->
+    <div class="box">
+      <div class="box-title">✅ Assessment Checklist</div>
+      <table>${itemRows}</table>
+    </div>
+
+    <!-- Outcome Summary -->
+    <div class="box">
+      <div class="box-title">🏁 Outcome Summary</div>
+      <div class="grid-2" style="margin-bottom:${d.outcomeRationale||d.regFailRationale?'14px':'0'}">
+        <div>
+          <div class="lbl">Initial Outcome</div>
+          <div class="val" style="color:${outCol(d.initialOutcome)};font-size:15px">${outLabel(d.initialOutcome)}</div>
+        </div>
+        <div>
+          <div class="lbl">Process Compliance</div>
+          <div class="val" style="color:${d.procCompliant==='Yes'?'#1aaa6e':d.procCompliant==='No'?'#d92f53':'#888'}">${d.procCompliant||'—'}</div>
+        </div>
+      </div>
+      ${d.outcomeRationale?`<div style="margin-bottom:10px"><div class="lbl">Outcome Rationale</div><div style="font-size:13px;color:#333;margin-top:5px;line-height:1.7;padding:10px 14px;background:#f8fafd;border-radius:6px;border-left:3px solid ${outCol(d.initialOutcome)}">${d.outcomeRationale}</div></div>`:''}
+      ${d.regFailRationale?`<div><div class="lbl">Regulatory Fail Rationale</div><div style="font-size:13px;color:#d92f53;margin-top:5px;line-height:1.7;padding:10px 14px;background:#fff3f3;border-radius:6px;border-left:3px solid #d92f53">${d.regFailRationale}</div></div>`:''}
+    </div>
+
+    ${d.transcriptNotes?`<div class="box"><div class="box-title">📝 Transcript Notes</div><div style="font-size:13px;color:#333;line-height:1.8;white-space:pre-wrap">${d.transcriptNotes}</div></div>`:''}
+
+    <div class="no-print">
+      <button onclick="window.print()" style="padding:11px 32px;background:${hdrColor};color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-right:10px;">🖨 Print / Save as PDF</button>
+      <button onclick="window.close()" style="padding:11px 20px;background:#e8ecf0;color:#444;border:none;border-radius:8px;font-size:14px;cursor:pointer;">✕ Close</button>
+    </div>
   </body></html>`);
   win.document.close();
+}
+
+// Archive view wrapper (backward compatible)
+function viewComplianceRecord(id){
+  const d = _arcData.find(x=>x.id===id);
+  _openAssessmentPDF(d);
+}
+
+// Call Outcomes view — reads from _coAllData (works for all roles)
+function viewCoAssessment(id){
+  const d = _coAllData.find(x=>x.id===id);
+  if(!d){
+    // Try fetching directly from Firebase if not in local cache
+    const ref = _dbRef ? _db.ref((DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey+'/compliance/'+id) : null;
+    if(!ref){ showToast('Assessment not found','err'); return; }
+    showToast('Loading assessment…');
+    ref.once('value').then(snap=>{
+      const data = snap.val();
+      if(data) _openAssessmentPDF(data);
+      else showToast('Assessment record not found','err');
+    }).catch(()=>showToast('Failed to load assessment','err'));
+    return;
+  }
+  _openAssessmentPDF(d);
 }
 
 function deleteComplianceRecord(id){
@@ -5288,7 +5404,7 @@ function _renderConsultantRemBanner(){
   if(!isConsultant) return;
 
   const outstanding = Object.values(_remAll).filter(r=>
-    r.colleague===myName && r.status==='released' && r.requiresRemedial===true
+    r.colleague===myName && r.status==='released' && _needsAction(r)
   );
   if(!outstanding.length) return;
 
@@ -5433,7 +5549,9 @@ function _renderCoTable(){
     const s4 = _sectionScore(d,[13,14,15,16,17,18,19]);
     const rowBg = d.initialOutcome==='Pass'?'rgba(45,206,137,0.04)':d.initialOutcome==='Fail'?'rgba(245,54,92,0.04)':'rgba(245,200,66,0.04)';
     const fmtPct = v => v===null ? '—' : v.toFixed(0)+'%';
-    return `<tr style="border-bottom:1px solid var(--border);background:${rowBg};font-size:12px;font-family:var(--fm);">
+    // All rows are clickable — click anywhere on the row or use the View button
+    const rowClick = `onclick="viewCoAssessment('${d.id}')" style="border-bottom:1px solid var(--border);background:${rowBg};font-size:12px;font-family:var(--fm);cursor:pointer;transition:background .15s;" onmouseover="this.style.background='rgba(94,156,245,0.08)'" onmouseout="this.style.background='${rowBg}'"`;
+    return `<tr ${rowClick}>
       <td style="padding:8px 10px;font-weight:600;white-space:nowrap;border:1px solid var(--border)">${d.colleague||'—'}</td>
       <td style="padding:8px 10px;white-space:nowrap;border:1px solid var(--border)">${d.teamKey?(TEAM_LABELS[d.teamKey]||d.team||'—'):d.team||'—'}</td>
       <td style="padding:8px 10px;white-space:nowrap;border:1px solid var(--border)">${d.assessor||'—'}</td>
@@ -5450,6 +5568,9 @@ function _renderCoTable(){
       <td style="padding:8px 10px;text-align:center;color:${d.initialOutcome==='Fail'||d.regCompliant==='No'?'#f5365c':'var(--text3)'};font-weight:${d.initialOutcome==='Fail'||d.regCompliant==='No'?'700':'400'};border:1px solid var(--border)">${d.initialOutcome==='Fail'||d.regCompliant==='No'?'Yes':'No'}</td>
       <td style="padding:8px 10px;white-space:nowrap;border:1px solid var(--border)">${d.duration||'—'}</td>
       <td style="padding:8px 10px;white-space:nowrap;border:1px solid var(--border)">${d.fmpRef||'—'}</td>
+      <td style="padding:6px 8px;border:1px solid var(--border);text-align:center;" onclick="event.stopPropagation();viewCoAssessment('${d.id}')">
+        <button class="btn btn-s" style="font-size:11px;padding:4px 12px;white-space:nowrap;">📄 View</button>
+      </td>
     </tr>`;
   }).join('');
 
@@ -5457,7 +5578,10 @@ function _renderCoTable(){
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;overflow-x:auto;">
       <div style="padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
         <div style="font-size:13px;font-weight:700;">Assessment Records</div>
-        <div style="font-size:11px;color:var(--text3);font-family:var(--fm);">${_coFiltered.length} records</div>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="font-size:11px;color:var(--text3);font-family:var(--fm);">${_coFiltered.length} records</div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--fm);opacity:.75">👆 Click any row to view full assessment</div>
+        </div>
       </div>
       <table style="border-collapse:collapse;width:100%;min-width:1200px;">
         <thead><tr>
@@ -5477,6 +5601,7 @@ function _renderCoTable(){
           <th ${thS}>Remedial Action?</th>
           <th ${thS}>Call Duration</th>
           <th ${thS}>CRM Reference</th>
+          <th ${thS} style="padding:9px 10px;background:#6b0d2d;color:#fff;font-size:10px;font-weight:700;font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;border:1px solid rgba(255,255,255,0.15);text-align:center;">View</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -9125,7 +9250,7 @@ function _updateRemBadges(){
 
   // Manager / compliance: pending manager review count
   if(role==='manager'||role==='master'||role==='compliance'){
-    let pending = recs.filter(r=>r.status==='pending_manager' && r.requiresRemedial!==false);
+    let pending = recs.filter(r=>r.status==='pending_manager' && _needsAction(r));
     // Managers only see their own team's
     if(role==='manager'){
       const myTeamMembers = _getMyTeamMembers();
@@ -9150,7 +9275,7 @@ function _updateRemBadges(){
   }
   // Call Outcomes remedial tab badges
   // For the Remedial Actions badge: only count records that need action (Fail/Reg fail)
-  let myReleased   = recs.filter(r=>r.status==='released' && r.requiresRemedial===true);
+  let myReleased   = recs.filter(r=>r.status==='released' && _needsAction(r));
   let myCompleted  = recs.filter(r=>r.status==='completed');
   if(role==='consultant'){
     myReleased  = myReleased.filter(r=>r.colleague===myName);
@@ -9213,6 +9338,16 @@ function _updateCoTabLabels(){
 // ═══════════════════════════════════════════════════════════════════
 // CONSULTANT / ALL-ROLES — OUTSTANDING REMEDIALS
 // ═══════════════════════════════════════════════════════════════════
+
+// ── Determine if a remedial record requires consultant action ──────
+// Uses requiresRemedial when present; falls back to outcome fields so
+// records created before this field was introduced still work correctly.
+function _needsAction(r){
+  if(r.requiresRemedial === true)  return true;
+  if(r.requiresRemedial === false) return false;
+  // Legacy record (field missing): derive from outcome
+  return r.initialOutcome === 'Fail' || r.regCompliant === 'No';
+}
 function renderCoRemedialTab(){
   const role      = _currentUser?.role||'consultant';
   const myName    = _currentUser?.name||'';
@@ -9227,8 +9362,9 @@ function renderCoRemedialTab(){
   }
 
   // Split: informational (Pass/Pass with Dev) vs actionable (Fail/Reg fail)
-  const infoRecs    = allReleased.filter(r=>!r.requiresRemedial).sort((a,b)=>b.dateIssued.localeCompare(a.dateIssued));
-  const actionRecs  = allReleased.filter(r=>r.requiresRemedial).sort((a,b)=>a.dateIssued.localeCompare(b.dateIssued));
+  // Use _needsAction() so old records without requiresRemedial field still route correctly
+  const infoRecs    = allReleased.filter(r=>!_needsAction(r)).sort((a,b)=>b.dateIssued.localeCompare(a.dateIssued));
+  const actionRecs  = allReleased.filter(r=>_needsAction(r)).sort((a,b)=>a.dateIssued.localeCompare(b.dateIssued));
 
   // Stats row — base on actionable records (the ones needing work)
   const total     = actionRecs.length;
@@ -9661,7 +9797,7 @@ function renderCoCompletedTab(){
   const role   = _currentUser?.role||'consultant';
   const myName = _currentUser?.name||'';
   // Only show remedial-required records in completed (Pass/Pass with Dev don't need completion)
-  let recs     = Object.values(_remAll).filter(r=>r.status==='completed' && r.requiresRemedial!==false);
+  let recs     = Object.values(_remAll).filter(r=>r.status==='completed' && _needsAction(r));
 
   if(role==='consultant'){
     recs = recs.filter(r=>r.colleague===myName);
@@ -9794,15 +9930,15 @@ function renderMgrRemContent(){
   }
 
   const statusMap = {pending:'pending_manager', released:'released', completed:'completed'};
-  const filtered  = recs.filter(r=>r.status===statusMap[tab] && (tab!=='pending' || r.requiresRemedial!==false))
+  const filtered  = recs.filter(r=>r.status===statusMap[tab] && (tab!=='pending' || _needsAction(r)))
     .sort((a,b)=>a.dateIssued.localeCompare(b.dateIssued));
 
   if(tab==='pending'){
     el.innerHTML = _renderPendingQueue(filtered);
   } else if(tab==='released'){
     // For released: split into action-required vs informational
-    const actionItems = filtered.filter(r=>r.requiresRemedial!==false);
-    const infoItems   = filtered.filter(r=>r.requiresRemedial===false);
+    const actionItems = filtered.filter(r=>_needsAction(r));
+    const infoItems   = filtered.filter(r=>!_needsAction(r));
     let html = '';
     if(actionItems.length){
       html += `<div class="rem-section-divider"><div class="rem-section-divider-line"></div><div class="rem-section-divider-label" style="color:var(--red)">⚠️ Action Required — ${actionItems.length}</div><div class="rem-section-divider-line"></div></div>`;
