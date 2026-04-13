@@ -1075,6 +1075,95 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 .hr-date-cell.bh{ background:rgba(131,5,68,.08);color:#830544;cursor:default;font-size:10px; }
 .hr-date-cell.already-booked{ background:rgba(245,54,92,.15);color:var(--red);cursor:not-allowed; }
 
+/* ── GAUGE / SPEEDOMETER ─────────────────────────────────────────── */
+.gauge-wrap{ position:relative;width:90px;height:52px;margin:0 auto 6px;flex-shrink:0; }
+.gauge-svg{ width:90px;height:52px; }
+.gauge-track{ fill:none;stroke:var(--surface3);stroke-width:10;stroke-linecap:round; }
+.gauge-fill { fill:none;stroke-width:10;stroke-linecap:round;
+  transition:stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1),stroke .4s; }
+.gauge-pct  { position:absolute;bottom:0;left:0;right:0;text-align:center;
+  font-family:var(--fm);font-size:13px;font-weight:800;line-height:1; }
+
+/* ── STREAK ──────────────────────────────────────────────────────── */
+.streak-badge{
+  display:inline-flex;align-items:center;gap:3px;
+  padding:2px 7px;border-radius:12px;font-size:10px;font-weight:700;
+  background:rgba(251,184,58,.15);color:var(--amber);
+  border:1px solid rgba(251,184,58,.3);font-family:var(--fm);
+  animation:streakPulse 2s ease-in-out infinite;
+}
+@keyframes streakPulse{0%,100%{box-shadow:0 0 0 0 rgba(251,184,58,.3);}50%{box-shadow:0 0 8px 3px rgba(251,184,58,.2);}}
+
+/* ── ACHIEVEMENT BADGES ──────────────────────────────────────────── */
+.badge-pill{
+  display:inline-flex;align-items:center;gap:3px;
+  padding:2px 7px;border-radius:12px;font-size:9px;font-weight:700;
+  background:var(--surface2);color:var(--text3);border:1px solid var(--border);
+  font-family:var(--fm);white-space:nowrap;
+}
+.badge-pill.earned{
+  background:linear-gradient(135deg,rgba(251,184,58,.2),rgba(255,200,80,.1));
+  color:#d4820a;border-color:rgba(251,184,58,.45);
+}
+@keyframes badgePop{
+  0%  {transform:scale(0) rotate(-20deg);opacity:0;}
+  60% {transform:scale(1.35) rotate(8deg);opacity:1;}
+  80% {transform:scale(.9) rotate(-4deg);}
+  100%{transform:scale(1) rotate(0);opacity:1;}
+}
+.badge-pop{ animation:badgePop .55s cubic-bezier(.175,.885,.32,1.275) forwards; }
+
+/* ── PERSONAL BEST GLOW ──────────────────────────────────────────── */
+@keyframes pbGlow{
+  0%,100%{box-shadow:0 0 0 0 rgba(255,215,0,0);}
+  50%{box-shadow:0 0 18px 6px rgba(255,215,0,.35),0 0 40px 10px rgba(255,200,0,.15);}
+}
+.pb-glow{ animation:pbGlow 2.5s ease-in-out 3; }
+
+/* ── PROGRESS BAR ANIMATION ──────────────────────────────────────── */
+.bar-fill{ transition:width 1.1s cubic-bezier(.4,0,.2,1) !important; }
+@keyframes barSlide{from{width:0} }
+.bar-fill.animate{ animation:barSlide 1.1s cubic-bezier(.4,0,.2,1) forwards; }
+
+/* ── PRESENCE DOT ────────────────────────────────────────────────── */
+.presence-dot{
+  width:8px;height:8px;border-radius:50%;display:inline-block;
+  flex-shrink:0;margin-right:2px;
+}
+.presence-dot.online { background:#2dce89;box-shadow:0 0 0 2px rgba(45,206,137,.25);
+  animation:presencePulse 2s ease-in-out infinite; }
+.presence-dot.away   { background:#fbb83a; }
+.presence-dot.offline{ background:var(--surface3); }
+@keyframes presencePulse{0%,100%{box-shadow:0 0 0 2px rgba(45,206,137,.25);}50%{box-shadow:0 0 0 5px rgba(45,206,137,.1);}}
+
+/* ── ACTIVITY TICKER ─────────────────────────────────────────────── */
+#activityTicker{
+  position:fixed;bottom:0;left:0;right:0;z-index:400;
+  background:linear-gradient(90deg,rgba(10,16,28,.97),rgba(18,24,40,.97));
+  border-top:1px solid var(--border2);
+  height:28px;overflow:hidden;display:flex;align-items:center;
+  font-family:var(--fm);font-size:11px;color:var(--text2);
+  pointer-events:none;
+}
+#activityTicker .ticker-label{
+  flex-shrink:0;padding:0 12px;color:var(--accent);font-weight:700;
+  font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  border-right:1px solid var(--border);height:100%;display:flex;align-items:center;
+}
+#tickerTrack{
+  display:flex;gap:0;white-space:nowrap;
+  animation:tickerScroll 40s linear infinite;
+}
+#tickerTrack:hover{ animation-play-state:paused; }
+@keyframes tickerScroll{ from{transform:translateX(0)} to{transform:translateX(-50%)} }
+.ticker-item{
+  padding:0 32px;display:inline-flex;align-items:center;gap:6px;
+}
+.ticker-item .t-name{ color:#fff;font-weight:700; }
+.ticker-item .t-amt { color:var(--green);font-weight:700; }
+.ticker-item .t-time{ color:var(--text3);font-size:10px; }
+.ticker-sep{ color:var(--border);padding:0 4px; }
+
 </style>
 <body class="pre-auth">
 
@@ -2901,8 +2990,15 @@ function getEntries(monthKey){
 }
 function setEntries(monthKey, entries){
   if(!APP.months[monthKey]) APP.months[monthKey]={entries:[]};
+  // Detect new entries for activity log
+  const oldKeys = new Set((APP.months[monthKey].entries||[]).map(e=>e.date+'_'+e.name));
   APP.months[monthKey].entries = entries;
   saveApp();
+  // Fire activity for any genuinely new entries with revenue
+  if(typeof _onEntrySaved==='function'){
+    entries.filter(e=>e.revenue>0&&!oldKeys.has(e.date+'_'+e.name))
+      .forEach(e=>setTimeout(()=>_onEntrySaved(e.name,e.revenue,e.nm||0,monthKey),200));
+  }
 }
 
 // ── target calculation: riskPerDay × daysT ─────────────────────────
@@ -4369,31 +4465,12 @@ function renderDashboard(){
     document.getElementById('cardsGrid').innerHTML=`<div class="empty" style="grid-column:1/-1">
       <div class="empty-icon">📊</div><div style="font-size:14px">No consultants yet. Go to Settings to add your team.</div></div>`;
   } else {
-    document.getElementById('cardsGrid').innerHTML=active.map(p=>{
-      const both=p.riskAhead&&p.nmAhead, neither=!p.riskAhead&&!p.nmAhead;
-      const cardCls=both?'ab':neither?'bb':'mx';
-      const rbc=p.riskAhead?'#2dce89':p.revPct>=75?'#fbb83a':'#f5365c';
-      const nbc=p.nmAhead?'#2dce89':p.nmPct>=75?'#fbb83a':'#f5365c';
-      const copRevStr=p.riskAhead?`+${fmt(p.copRev)} ahead`:`${fmt(p.copRev)} needed`;
-      const copNmStr =p.nmAhead  ?`${Math.abs(p.copNm).toFixed(1)} ahead`:`${p.copNm.toFixed(1)} needed`;
-      return `<div class="p-card ${cardCls}" onclick="openPerson('${p.name.replace(/'/g,"\\'")}',this)" style="cursor:pointer;" title="Click to view full profile">
-        <div class="p-name" style="display:flex;align-items:center;justify-content:space-between">${p.name}<span style="font-size:9px;color:var(--text3);font-weight:400">view profile ↗</span></div>
-        <div class="p-rev">£${Math.round(p.revMTD).toLocaleString()}</div>
-        <div class="p-sub">${p.revPct}% of £${p.target.toLocaleString()}</div>
-        <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(p.revPct,100)}%;background:${rbc}"></div></div>
-        <div class="p-row"><span class="p-lbl">COP risk (next day)</span><span class="p-val ${p.riskAhead?'g':'r'}">${copRevStr}</span></div>
-        <div class="pdiv"></div>
-        <div class="p-row"><span class="p-lbl">NM target</span><span class="p-val">${parseFloat(((p.nmTarget||0)).toFixed(2))}</span></div>
-        <div class="p-row"><span class="p-lbl">NM this month</span><span class="p-val">${p.nmMTD}</span></div>
-        <div class="p-sub" style="text-align:right;margin-bottom:2px">${p.nmPct}% of target</div>
-        <div class="bar-bg"><div class="bar-fill" style="width:${Math.min(p.nmPct,100)}%;background:${nbc}"></div></div>
-        <div class="p-row" style="margin-top:4px"><span class="p-lbl">COP NM (next day)</span><span class="p-val ${p.nmAhead?'g':'r'}">${copNmStr}</span></div>
-        <div class="pills">
-          <span class="pill ${p.riskAhead?'pg':'pr'}">${p.riskAhead?'Risk ahead':'Risk behind'}</span>
-          <span class="pill ${p.nmAhead?'pg':'pr'}">${p.nmAhead?'NM ahead':'NM behind'}</span>
-        </div>
-      </div>`;
-    }).join('');
+    document.getElementById('cardsGrid').innerHTML=active.map(p=>
+      typeof _buildEnhancedCard==='function'
+        ? _buildEnhancedCard(p, mk)
+        : p.name
+    ).join('');
+    if(typeof _animateGauges==='function') setTimeout(()=>{ _animateGauges(); _animateBars(); _updatePresenceDots(); }, 60);
   }
 
   // ── Daily Breakdown table (same logic as Teams tab) ──────────────
@@ -13649,6 +13726,411 @@ function reviewHolRequest(reqId, decision){
 // and also explicitly called after login via _startWithRole patch below
 
 
+// ═══════════════════════════════════════════════════════════════════
+// VISUAL ENHANCEMENTS: Gauges, Streaks, Badges, Presence, Ticker
+// ═══════════════════════════════════════════════════════════════════
+
+// ── GAUGE SVG GENERATOR ──────────────────────────────────────────
+// Returns HTML string for a half-circle speedometer gauge (0-100%)
+function _buildGauge(pct, color){
+  const r       = 36;
+  const cx      = 45, cy = 46;
+  const startA  = Math.PI;           // 180° — left
+  const endA    = 0;                 // 0°   — right
+  const arcLen  = Math.PI * r;       // semicircle circumference
+  const filled  = Math.min(Math.max(pct,0),110) / 100 * arcLen;
+  const dashArr = `${arcLen} ${arcLen}`;
+  const dashOff = arcLen - filled;
+  const col     = pct>=100?'#2dce89':pct>=75?'#fbb83a':pct>=50?'#5e9cf5':'#f5365c';
+
+  return `<div class="gauge-wrap">
+    <svg class="gauge-svg" viewBox="0 0 90 52">
+      <path class="gauge-track"
+        d="M 9 46 A ${r} ${r} 0 0 1 81 46"
+        stroke-dasharray="${arcLen} ${arcLen}"
+        stroke-dashoffset="0"/>
+      <path class="gauge-fill" id="gf_${Math.random().toString(36).slice(2,6)}"
+        d="M 9 46 A ${r} ${r} 0 0 1 81 46"
+        stroke="${col}"
+        stroke-dasharray="${dashArr}"
+        stroke-dashoffset="${arcLen}"
+        data-target="${dashOff}"/>
+    </svg>
+    <div class="gauge-pct" style="color:${col}">${Math.min(pct,999)}%</div>
+  </div>`;
+}
+
+// Animate all gauges on the page
+function _animateGauges(){
+  document.querySelectorAll('.gauge-fill[data-target]').forEach(el=>{
+    const target = parseFloat(el.getAttribute('data-target'));
+    setTimeout(()=>{ el.style.strokeDashoffset = target; }, 100);
+  });
+}
+
+// ── STREAKS ───────────────────────────────────────────────────────
+// Count consecutive working days where person logged revenue >= their daily target
+function _calcStreak(name, mk){
+  const ep      = (() => {
+    const p = APP.people.find(x=>x.name===name);
+    return p ? getPersonForMonth(p, mk) : {};
+  })();
+  const rpd     = ep.riskPerDay || 0;
+  if(!rpd) return 0;
+
+  // Look at all months in reverse order
+  const allMks  = allMonthKeys().sort().reverse();
+  let streak    = 0;
+  const today   = _localDateStr(new Date());
+
+  for(const mKey of allMks){
+    const entries = getEntries(mKey).filter(e=>e.name===name);
+    const byDate  = {};
+    entries.forEach(e=>{ byDate[e.date]=(byDate[e.date]||0)+(e.revenue||0); });
+
+    const [my, mm] = mKey.split('-').map(Number);
+    const daysInM  = new Date(my, mm, 0).getDate();
+    const dates    = [];
+    for(let d=daysInM; d>=1; d--){
+      const ds = my+'-'+String(mm).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+      if(ds > today) continue;
+      const dow = new Date(ds+'T12:00:00').getDay();
+      if(dow===0||dow===6||isBankHoliday(ds)) continue;
+      if(getHols(mKey,name).includes(ds)||getSick(mKey,name).includes(ds)) continue;
+      dates.push(ds);
+    }
+
+    for(const ds of dates){
+      const dayRev = byDate[ds]||0;
+      if(dayRev >= rpd){ streak++; }
+      else { return streak; }
+    }
+  }
+  return streak;
+}
+
+// ── ACHIEVEMENT BADGES ────────────────────────────────────────────
+const BADGE_DEFS = [
+  { id:'first_sale',  icon:'🎯', label:'First Sale',    check:(s,_all)=>s.revMTD>0 },
+  { id:'century',     icon:'💯', label:'100% Month',    check:(s,_all)=>s.revPct>=100 },
+  { id:'double',      icon:'🚀', label:'200% Month',    check:(s,_all)=>s.revPct>=200 },
+  { id:'nm_ace',      icon:'⭐', label:'NM Ace',        check:(s,_all)=>s.nmPct>=100 },
+  { id:'streaker_5',  icon:'🔥', label:'5-Day Streak',  check:(s,all)=>(all.streak||0)>=5 },
+  { id:'streaker_10', icon:'💫', label:'10-Day Streak', check:(s,all)=>(all.streak||0)>=10 },
+  { id:'best_day',    icon:'👑', label:'Personal Best', check:(s,all)=>all.isPB },
+  { id:'full_month',  icon:'📅', label:'Full Month',    check:(s,_all)=>s.loggedDays>=(s.calDays||1) },
+];
+
+function _getEarnedBadges(stat, extras){
+  return BADGE_DEFS.filter(b=>b.check(stat, extras));
+}
+
+// Track which badges have been "seen" (so we can pop-animate new ones)
+const _seenBadges = JSON.parse(sessionStorage.getItem('_seenBadges')||'{}');
+function _markBadgeSeen(name, badgeId){
+  const key = name+'_'+badgeId;
+  if(!_seenBadges[key]){
+    _seenBadges[key] = true;
+    sessionStorage.setItem('_seenBadges', JSON.stringify(_seenBadges));
+    return true; // newly seen → animate
+  }
+  return false;
+}
+
+// ── PERSONAL BEST ─────────────────────────────────────────────────
+function _getPersonalBest(name){
+  let best = 0;
+  allMonthKeys().forEach(mk=>{
+    const entries = getEntries(mk).filter(e=>e.name===name);
+    const byDate  = {};
+    entries.forEach(e=>{ byDate[e.date]=(byDate[e.date]||0)+(e.revenue||0); });
+    Object.values(byDate).forEach(v=>{ if(v>best) best=v; });
+  });
+  return best;
+}
+
+function _getTodayRevFor(name, mk){
+  const today = _localDateStr(new Date());
+  return getEntries(mk).filter(e=>e.name===name&&e.date===today)
+    .reduce((s,e)=>s+(e.revenue||0), 0);
+}
+
+// ── PRESENCE SYSTEM ───────────────────────────────────────────────
+// Firebase path: {divDbKey}/presence/{userId}  → { name, ts, online:true }
+const _presenceRef = () => _dbRef
+  ? _db.ref((DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey+'/presence')
+  : null;
+
+let _presenceData  = {};
+let _presenceListener = null;
+let _myPresenceRef = null;
+
+function startPresenceSystem(){
+  if(!_currentUser||!_dbRef) return;
+  const divDbKey = (DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey;
+  const ref = _db.ref(divDbKey+'/presence/'+_currentUser.id);
+  _myPresenceRef = ref;
+
+  // Write online on connect; remove on disconnect
+  _db.ref('.info/connected').on('value', snap=>{
+    if(!snap.val()) return;
+    ref.onDisconnect().remove();
+    ref.set({ name:_currentUser.name, role:_currentUser.role||'consultant',
+               ts: Date.now(), online:true });
+  });
+
+  // Listen to all presence
+  const allRef = _presenceRef();
+  if(!allRef) return;
+  if(_presenceListener) _presenceListener.off();
+  _presenceListener = allRef;
+  allRef.on('value', snap=>{
+    _presenceData = {};
+    const val = snap.val()||{};
+    const now = Date.now();
+    Object.values(val).forEach(p=>{
+      if(p && p.name){
+        // Mark as away if last seen > 5 min ago
+        const age = now - (p.ts||0);
+        _presenceData[p.name] = age < 5*60*1000 ? 'online' : 'away';
+      }
+    });
+    // Re-render cards to update dots without full re-render
+    _updatePresenceDots();
+  });
+}
+
+function _getPresence(name){ return _presenceData[name]||'offline'; }
+
+function _updatePresenceDots(){
+  document.querySelectorAll('.presence-dot[data-name]').forEach(dot=>{
+    const status = _getPresence(dot.getAttribute('data-name'));
+    dot.className = 'presence-dot '+status;
+  });
+}
+
+// Keep presence timestamp fresh every 2 min
+setInterval(()=>{
+  if(_myPresenceRef && _currentUser){
+    _myPresenceRef.update({ ts: Date.now() });
+  }
+}, 2*60*1000);
+
+// ── ACTIVITY TICKER ───────────────────────────────────────────────
+// Firebase path: {divDbKey}/activity  → array of recent events
+const _activityRef = () => _dbRef
+  ? _db.ref((DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey+'/activity')
+  : null;
+
+let _activityItems  = [];
+let _activityListener = null;
+
+function startActivityTicker(){
+  const ref = _activityRef();
+  if(!ref) return;
+  if(_activityListener) _activityListener.off();
+  _activityListener = ref.orderByChild('ts').limitToLast(30);
+  _activityListener.on('value', snap=>{
+    const val = snap.val()||{};
+    _activityItems = Object.values(val)
+      .sort((a,b)=>b.ts-a.ts)
+      .slice(0,20);
+    _renderTicker();
+  });
+}
+
+function _logActivity(type, name, amount, extra){
+  const ref = _activityRef();
+  if(!ref) return;
+  const id = 'act_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+  ref.child(id).set({
+    id, type, name, amount, extra: extra||'',
+    ts: Date.now(),
+    date: _localDateStr(new Date())
+  });
+  // Keep only last 50
+  ref.orderByChild('ts').limitToFirst(1).once('value').then(snap=>{
+    const keys = Object.keys(snap.val()||{});
+    if(keys.length) ref.child(keys[0]).remove().catch(()=>{});
+  });
+}
+
+function _relativeTime(ts){
+  const diff = Math.floor((Date.now()-ts)/1000);
+  if(diff<60)  return diff+'s ago';
+  if(diff<3600) return Math.floor(diff/60)+'m ago';
+  return Math.floor(diff/3600)+'h ago';
+}
+
+function _renderTicker(){
+  const ticker = document.getElementById('activityTicker');
+  const track  = document.getElementById('tickerTrack');
+  if(!ticker||!track) return;
+
+  if(!_activityItems.length){
+    ticker.style.display='none';
+    return;
+  }
+  ticker.style.display='flex';
+
+  const items = _activityItems.map(a=>{
+    const icon = a.type==='entry'?'💰':a.type==='badge'?'🏆':a.type==='streak'?'🔥':'✨';
+    const amt  = a.amount>0?`<span class="t-amt">£${Math.round(a.amount).toLocaleString()}</span>`:'';
+    return `<span class="ticker-item">${icon} <span class="t-name">${a.name}</span> ${amt} <span style="color:var(--text2)">${a.extra}</span> <span class="t-time">${_relativeTime(a.ts)}</span></span><span class="ticker-sep">·</span>`;
+  }).join('');
+
+  // Duplicate for seamless loop
+  track.innerHTML = items + items;
+
+  // Adjust animation speed based on content width
+  const w = track.scrollWidth / 2;
+  track.style.animationDuration = Math.max(20, w/60)+'s';
+}
+
+// ── PATCH renderDashboard CARDS to include all visuals ─────────────
+const _origRenderDashboardCards = null; // we patch inline
+
+function _buildEnhancedCard(p, mk){
+  const both    = p.riskAhead&&p.nmAhead;
+  const neither = !p.riskAhead&&!p.nmAhead;
+  const cardCls = both?'ab':neither?'bb':'mx';
+  const rbc     = p.riskAhead?'#2dce89':p.revPct>=75?'#fbb83a':'#f5365c';
+  const nbc     = p.nmAhead?'#2dce89':p.nmPct>=75?'#fbb83a':'#f5365c';
+  const copRevStr = p.riskAhead?`+${fmt(Math.abs(p.copRev))} ahead`:`${fmt(p.copRev)} needed`;
+  const copNmStr  = p.nmAhead?`${Math.abs(p.copNm).toFixed(1)} ahead`:`${p.copNm.toFixed(1)} needed`;
+
+  // Gauge
+  const gauge = _buildGauge(p.revPct);
+
+  // Streak
+  const streak = _calcStreak(p.name, mk);
+  const streakHtml = streak>=3
+    ? `<span class="streak-badge">🔥 ${streak}-day streak</span>`
+    : '';
+
+  // Personal best today?
+  const todayRev = _getTodayRevFor(p.name, mk);
+  const pb       = _getPersonalBest(p.name);
+  const isPB     = todayRev>0 && todayRev>=pb;
+  const pbHtml   = isPB ? `<span style="font-size:11px;color:#ffd700;margin-left:4px" title="Personal best today!">⭐ PB</span>` : '';
+
+  // Badges
+  const badges   = _getEarnedBadges(p, {streak, isPB});
+  const badgeHtml= badges.map(b=>{
+    const isNew = _markBadgeSeen(p.name, b.id);
+    return `<span class="badge-pill earned${isNew?' badge-pop':''}" title="${b.label}">${b.icon} ${b.label}</span>`;
+  }).join('');
+
+  // Presence
+  const presStatus = _getPresence(p.name);
+  const presHtml   = `<span class="presence-dot ${presStatus}" data-name="${p.name}" title="${presStatus}"></span>`;
+
+  return `<div class="p-card ${cardCls}${isPB?' pb-glow':''}" onclick="openPerson('${p.name.replace(/'/g,"\\'")}',this)" style="cursor:pointer;" title="Click to view full profile">
+    <div class="p-name" style="display:flex;align-items:center;justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:5px">${presHtml}${p.name}${pbHtml}</div>
+      <span style="font-size:9px;color:var(--text3);font-weight:400">view ↗</span>
+    </div>
+    ${gauge}
+    ${streakHtml?`<div style="text-align:center;margin-bottom:6px">${streakHtml}</div>`:''}
+    <div class="p-rev">£${Math.round(p.revMTD).toLocaleString()}</div>
+    <div class="p-sub">${p.revPct}% of £${p.target.toLocaleString()}</div>
+    <div class="bar-bg"><div class="bar-fill animate" style="width:0%;background:${rbc}" data-w="${Math.min(p.revPct,100)}"></div></div>
+    <div class="p-row"><span class="p-lbl">COP risk</span><span class="p-val ${p.riskAhead?'g':'r'}">${copRevStr}</span></div>
+    <div class="pdiv"></div>
+    <div class="p-row"><span class="p-lbl">NM target</span><span class="p-val">${parseFloat((p.nmTarget||0).toFixed(2))}</span></div>
+    <div class="p-row"><span class="p-lbl">NM this month</span><span class="p-val">${p.nmMTD}</span></div>
+    <div class="p-sub" style="text-align:right;margin-bottom:2px">${p.nmPct}% of target</div>
+    <div class="bar-bg"><div class="bar-fill animate" style="width:0%;background:${nbc}" data-w="${Math.min(p.nmPct,100)}"></div></div>
+    <div class="p-row" style="margin-top:4px"><span class="p-lbl">COP NM</span><span class="p-val ${p.nmAhead?'g':'r'}">${copNmStr}</span></div>
+    ${badgeHtml?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px">${badgeHtml}</div>`:''}
+    <div class="pills" style="margin-top:6px">
+      <span class="pill ${p.riskAhead?'pg':'pr'}">${p.riskAhead?'Risk ahead':'Risk behind'}</span>
+      <span class="pill ${p.nmAhead?'pg':'pr'}">${p.nmAhead?'NM ahead':'NM behind'}</span>
+    </div>
+  </div>`;
+}
+
+// Animate progress bars after render
+function _animateBars(){
+  document.querySelectorAll('.bar-fill.animate[data-w]').forEach(el=>{
+    const w = el.getAttribute('data-w');
+    setTimeout(()=>{ el.style.width = w+'%'; }, 50);
+  });
+}
+
+// Hook into the existing renderDashboard — patch the cardsGrid line
+const _origRenderDashboard_visuals = renderDashboard;
+function renderDashboard(){
+  _origRenderDashboard_visuals();
+  // After the original renders, swap cards with enhanced versions
+  setTimeout(()=>{
+    const mk     = document.getElementById('globalMonthSel')?.value || APP.activeMonth;
+    const stats  = calcStats(mk);
+    const active = stats.filter(s=>s.target>0);
+    if(!active.length) return;
+    const grid = document.getElementById('cardsGrid');
+    if(!grid||grid.querySelector('.empty')) return;
+    grid.innerHTML = active.map(p=>_buildEnhancedCard(p, mk)).join('');
+    _animateGauges();
+    _animateBars();
+    _updatePresenceDots();
+  }, 30);
+}
+
+// ── Hook into saveEntries to log activity & check PB ─────────────
+// We patch the save flow to fire activity events
+const _origSaveApp_visuals = saveApp;
+function saveApp(){
+  _origSaveApp_visuals();
+}
+
+// Called externally when a new entry is saved (patch into submitEntry)
+function _onEntrySaved(name, revenue, nm, mk){
+  if(!name||!revenue) return;
+
+  // Log activity
+  _logActivity('entry', name, revenue, `logged £${Math.round(revenue).toLocaleString()} · ${nm} NM`);
+
+  // Check personal best
+  const pb = _getPersonalBest(name);
+  if(revenue >= pb){
+    _logActivity('best_day', name, revenue, 'new personal best! 🌟');
+  }
+
+  // Check streak
+  const streak = _calcStreak(name, mk);
+  if(streak>0 && streak%5===0){
+    _logActivity('streak', name, 0, `🔥 ${streak}-day streak!`);
+  }
+}
+
+// ── Init: start presence + ticker on login ────────────────────────
+const _origStartWithRole_visuals = _startWithRole;
+function _startWithRole(){
+  _origStartWithRole_visuals();
+  setTimeout(()=>{
+    startPresenceSystem();
+    startActivityTicker();
+  }, 1500);
+}
+
+// Also start on division select
+const _origSelectDivision_visuals = selectDivision;
+function selectDivision(key){
+  _origSelectDivision_visuals(key);
+  setTimeout(()=>{
+    startPresenceSystem();
+    startActivityTicker();
+  }, 2000);
+}
+
+// ── Patch submitDailyEntry to fire _onEntrySaved ──────────────────
+// Find and wrap the existing entry save logic
+document.addEventListener('DOMContentLoaded', ()=>{
+  // Refresh ticker every 30s
+  setInterval(_renderTicker, 30000);
+});
+
 function logoutUser(){
   sessionStorage.removeItem('pd_auth');
   sessionStorage.removeItem('pd_user');
@@ -13723,6 +14205,14 @@ if(sessionStorage.getItem('pd_auth')==='1'){
       <button class="btn btn-s" onclick="document.getElementById('sendMsgModal').classList.remove('open')">Cancel</button>
       <button class="btn" onclick="submitCongratulation()" style="background:linear-gradient(135deg,var(--green),#1a9955);color:#fff;box-shadow:0 2px 12px rgba(45,206,137,.35);">🎉 Send Message</button>
     </div>
+  </div>
+</div>
+
+<!-- ACTIVITY TICKER -->
+<div id="activityTicker" style="display:none">
+  <div class="ticker-label">⚡ Live</div>
+  <div style="flex:1;overflow:hidden;position:relative">
+    <div id="tickerTrack"></div>
   </div>
 </div>
 
