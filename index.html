@@ -3232,25 +3232,13 @@ function getDeductibleUsed(name, yr){
 }
 
 // ── Tab switching ─────────────────────────────────────────────────
-function switchHolTab(tab){
-  // Panel IDs: holCalPanel, holTotPanel, holSumPanel
-  // Button IDs: holTabCalBtn, holTabTotBtn, holTabSumBtn
-  const panelMap = { calendar:'holCalPanel', totals:'holTotPanel', summary:'holSumPanel' };
-  const btnMap   = { calendar:'holTabCalBtn', totals:'holTabTotBtn', summary:'holTabSumBtn' };
-  ['calendar','totals','summary'].forEach(t => {
-    const panel = document.getElementById(panelMap[t]);
-    if(panel) panel.style.display = t===tab ? '' : 'none';
-    const btn = document.getElementById(btnMap[t]);
-    if(btn) btn.classList.toggle('active', t===tab);
-  });
-  _populateHolSelects();
-  if(tab==='calendar') renderHoliday();
-  if(tab==='totals')   renderHolTotals();
-  if(tab==='summary')  renderHolSummary();
-}
+// switchHolTab defined fully below (handles all 5 tabs including myhol/requests)
+// Stub here for early references — overridden when holiday request JS loads
+function switchHolTab(tab){ _switchHolTabImpl(tab); }
 
 // ── CALENDAR RENDER ───────────────────────────────────────────────
 function renderHoliday(){
+  if(typeof _configHolTabs === 'function') _configHolTabs();
   _populateHolSelects();
   _buildAbsTypePills();
   _buildHolLegend();
@@ -5311,7 +5299,12 @@ function showPage(id){
   if(id==='leaderboard')    { populateAllSelects(); renderLeaderboard(); }
   if(id==='history')        { populateAllSelects(); renderHistory(); }
   if(id==='daybyday')       { populateAllSelects(); renderDayByDay(); }
-  if(id==='holiday')        { populateAllSelects(); _populateHolSelects(); _configHolTabs(); const role2=_currentUser?.role||''; switchHolTab(role2==='consultant'?'myhol':'calendar'); }
+  if(id==='holiday'){
+    populateAllSelects(); _populateHolSelects();
+    const role2=_currentUser?.role||'';
+    // switchHolTab now calls _configHolTabs internally
+    switchHolTab(role2==='consultant'?'myhol':'calendar');
+  }
   if(id==='settings')        renderSettings();
   if(id==='manageroverview'){ populateAllSelects(); renderManagerOverview(); }
   if(id==='dailysend')     { populateAllSelects(); renderDailySend(); }
@@ -7364,48 +7357,7 @@ function toggleNotifPanel(){
   }
 }
 
-function _renderNotifList(){
-  const list = document.getElementById('notifList');
-  const role = _currentUser?.role;
-  let entries;
-  if(role==='consultant'){
-    entries = Object.values(_pendingEntries).filter(e=>e.consultantName===_currentUser?.name);
-  } else {
-    entries = Object.values(_pendingEntries);
-  }
-  entries.sort((a,b)=>b.submittedAt.localeCompare(a.submittedAt));
-
-  if(!entries.length){
-    list.innerHTML='<div class="empty" style="padding:32px 16px"><div class="empty-icon">✓</div><div>No pending submissions</div></div>';
-    return;
-  }
-  const pending   = entries.filter(e=>e.status==='pending');
-  const reviewed  = entries.filter(e=>e.status!=='pending');
-  const statusCol = s => s==='approved'?'var(--green)':s==='declined'?'var(--red)':s==='amended'?'var(--amber)':'var(--text3)';
-  const statusLbl = s => s==='approved'?'✓ Approved':s==='declined'?'✕ Declined':s==='amended'?'~ Amended':'⏳ Pending';
-
-  const renderCard = e => `
-    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px;">
-        <div>
-          <div style="font-size:13px;font-weight:700">${e.consultantName}</div>
-          <div style="font-size:11px;color:var(--text3);font-family:var(--fm);">${e.date} · ${new Date(e.submittedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</div>
-        </div>
-        <span style="font-size:11px;font-weight:700;color:${statusCol(e.status)};white-space:nowrap;">${statusLbl(e.status)}</span>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;font-family:var(--fm);font-size:12px;">
-        <div><div style="color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em">Revenue</div><div style="font-weight:700;color:var(--green)">£${parseFloat(e.revenue||0).toLocaleString()}</div></div>
-        <div><div style="color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em">NM</div><div style="font-weight:700">${e.nm||0}</div></div>
-        <div><div style="color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em">SWIFT Ref</div><div style="font-weight:600">${e.swiftRef||'—'}</div></div>
-      </div>
-      ${e.status==='pending'&&(role==='manager'||role==='master') ? `<button class="btn btn-p" onclick="openReviewModal('${e.id}')" style="width:100%;font-size:12px;padding:7px">Review →</button>` : ''}
-      ${e.status!=='pending' ? `<div style="font-size:11px;color:var(--text3);font-family:var(--fm);">Reviewed by ${e.reviewedBy||'—'} · ${e.reviewedAt ? new Date(e.reviewedAt).toLocaleDateString('en-GB') : ''}</div>` : ''}
-      ${e.notes ? `<div style="font-size:11px;color:var(--text2);margin-top:4px;font-style:italic;">"${e.notes}"</div>` : ''}
-    </div>`;
-
-  list.innerHTML = (pending.length ? `<div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;font-family:var(--fm);">Awaiting Review (${pending.length})</div>`+pending.map(renderCard).join('') : '') +
-    (reviewed.length ? `<div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin:12px 0 8px;font-family:var(--fm);">Reviewed</div>`+reviewed.slice(0,20).map(renderCard).join('') : '');
-}
+// _renderNotifList — full merged implementation (with messages + holiday requests) defined below
 
 // ── Review modal ──────────────────────────────────────────────────
 function openReviewModal(id){
@@ -10606,6 +10558,7 @@ _dbRef.once('value').then(snap=>{
   renderDashboard();
   startNotifListener();
   startRemedialListener();
+  startHolReqListener();
 
   // Real-time listener — fires whenever any client saves
   _dbRef.on('value', snap=>{
@@ -12121,12 +12074,22 @@ function _updateNotifBadgeWithMsgs(){
   // Unread messages (consultants only see messages to them)
   const unreadMsgs = Object.values(_msgsAll).filter(m=>!m.read).length;
 
-  const total = pendingCount + unreadMsgs;
+  // Holiday request count
+  let holReqCount = 0;
+  if(typeof _holRequests !== 'undefined'){
+    if(role==='manager'||role==='master'||role==='compliance'){
+      const myTeam2 = (role==='master'||role==='compliance') ? null : new Set(typeof _getMyTeamMembers==='function'?_getMyTeamMembers():[]);
+      holReqCount = Object.values(_holRequests).filter(r=>r.status==='pending'&&(!myTeam2||myTeam2.has(r.colleague))).length;
+    } else if(role==='consultant'){
+      holReqCount = Object.values(_holRequests).filter(r=>r.colleague===me&&r.status==='pending').length;
+    }
+  }
+
+  const total = pendingCount + unreadMsgs + holReqCount;
   if(total>0){
     badge.style.display='';
     badge.textContent = total>9 ? '9+' : String(total);
-    // Pulse animation when new message arrives
-    if(unreadMsgs>0){
+    if(unreadMsgs>0||holReqCount>0){
       badge.style.background='var(--green)';
       badge.style.boxShadow='0 0 8px rgba(45,206,137,.7)';
     } else {
@@ -12243,6 +12206,41 @@ function _renderNotifList(){
     html = '<div class="empty" style="padding:32px 16px"><div class="empty-icon">✓</div><div>Nothing here yet</div></div>';
   }
   list.innerHTML = html;
+
+  // ── Holiday requests section (appended after main content) ───────
+  if(typeof _holRequests !== 'undefined'){
+    const myTeamHR = (role==='master'||role==='compliance') ? null : new Set(typeof _getMyTeamMembers==='function'?_getMyTeamMembers():[]);
+    let hrItems = [];
+    if(role==='manager'||role==='master'||role==='compliance'){
+      hrItems = Object.values(_holRequests)
+        .filter(r=>r.status==='pending'&&(!myTeamHR||myTeamHR.has(r.colleague)))
+        .sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).slice(0,8);
+    } else if(role==='consultant'){
+      hrItems = Object.values(_holRequests)
+        .filter(r=>r.colleague===me)
+        .sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).slice(0,5);
+    }
+    if(hrItems.length){
+      const hrHtml = `
+        <div style="font-size:10px;font-weight:700;color:var(--amber);letter-spacing:.08em;text-transform:uppercase;margin:14px 0 8px;font-family:var(--fm);display:flex;align-items:center;gap:6px">
+          <span style="width:7px;height:7px;background:var(--amber);border-radius:50%;display:inline-block"></span>
+          Holiday Requests (${hrItems.length})
+        </div>
+        ${hrItems.map(r=>`
+          <div style="background:var(--surface2);border:1px solid rgba(251,184,58,.3);border-left:3px solid var(--amber);border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer"
+            onclick="toggleNotifPanel();showPage('holiday');setTimeout(()=>switchHolTab('${role==='consultant'?'myhol':'requests'}'),200)">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <span style="font-size:16px">${r.status==='pending'?'⏳':r.status==='approved'?'✅':'❌'}</span>
+              <div>
+                <div style="font-size:12px;font-weight:700">${role==='consultant'?'Your holiday request':r.colleague+' — Holiday Request'}</div>
+                <div style="font-size:10px;color:var(--text3);font-family:var(--fm)">${r.totalHours}h · ${r.dates?.length||1} day(s) · ${new Date(r.createdAt).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</div>
+              </div>
+            </div>
+            ${role!=='consultant'?'<div style="font-size:11px;color:var(--amber);font-weight:700;text-align:right">Tap to review →</div>':''}
+          </div>`).join('')}`;
+      list.insertAdjacentHTML('beforeend', hrHtml);
+    }
+  }
 }
 
 // ── Open compose modal ────────────────────────────────────────────
@@ -12924,13 +12922,24 @@ function _configHolTabs(){
   const myHolBtn = document.getElementById('holTabMyHolBtn');
   const reqBtn   = document.getElementById('holTabReqBtn');
 
-  if(myHolBtn) myHolBtn.style.display = isConsultant ? '' : 'none';
-  if(reqBtn)   reqBtn.style.display   = isMgr        ? '' : 'none';
+  // Ensure buttons are explicitly shown/hidden based on role
+  if(myHolBtn){
+    myHolBtn.style.display = isConsultant ? '' : 'none';
+    myHolBtn.style.visibility = '';  // clear any visibility override
+  }
+  if(reqBtn){
+    reqBtn.style.display = isMgr ? '' : 'none';
+  }
+
+  // Ensure listener is running (safe to call multiple times)
+  if(!_holReqListener && _currentUser) startHolReqListener();
 }
 
-// ── Patch switchHolTab to handle new tabs ────────────────────────
-const _origSwitchHolTab = switchHolTab;
-function switchHolTab(tab){
+// ── Full switchHolTab implementation (all 5 tabs) ─────────────────
+function _switchHolTabImpl(tab){
+  // Always run config first so role-based tabs are shown/hidden correctly
+  _configHolTabs();
+
   const panelMap = {
     calendar:'holCalPanel', totals:'holTotPanel', summary:'holSumPanel',
     myhol:'holMyHolPanel', requests:'holRequestsPanel'
@@ -12952,6 +12961,8 @@ function switchHolTab(tab){
   if(tab==='myhol')     renderMyHolidays();
   if(tab==='requests')  renderHolRequests();
 }
+// switchHolTab is the public entry point
+function switchHolTab(tab){ _switchHolTabImpl(tab); }
 
 // ═══════════════════════════════════════════════════════════════════
 // MY HOLIDAYS TAB (consultant-facing)
@@ -13527,101 +13538,11 @@ function reviewHolRequest(reqId, decision){
   }).catch(()=>showToast('Failed to update request','err'));
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// HOOK INTO EXISTING NOTIFICATION SYSTEM
-// ═══════════════════════════════════════════════════════════════════
 
-// Extend badge updater to include holiday requests
-const _origUpdateBadgeWithMsgs = _updateNotifBadgeWithMsgs;
-function _updateNotifBadgeWithMsgs(){
-  _origUpdateBadgeWithMsgs();
-  _updateHolReqBadge();
 
-  // Also add holReq count to main bell badge
-  const role   = _currentUser?.role||'';
-  const myName = _currentUser?.name||'';
-  const bell   = document.getElementById('notifBell');
-  const badge  = document.getElementById('notifBadge');
-  if(!bell||!badge) return;
+// ── Init: startHolReqListener is called from _configHolTabs lazily ─
+// and also explicitly called after login via _startWithRole patch below
 
-  let holReqCount = 0;
-  if(role==='manager'||role==='master'||role==='compliance'){
-    const myTeam = (role==='master'||role==='compliance') ? null : new Set(_getMyTeamMembers());
-    holReqCount = Object.values(_holRequests).filter(r=>
-      r.status==='pending' && (!myTeam || myTeam.has(r.colleague))
-    ).length;
-  } else if(role==='consultant'){
-    holReqCount = Object.values(_holRequests).filter(r=>r.colleague===myName&&r.status==='pending').length;
-  }
-
-  // Add to current badge count
-  const current = parseInt(badge.textContent)||0;
-  const newTotal = current + holReqCount;
-  if(newTotal>0){
-    badge.style.display='';
-    badge.textContent = newTotal>9?'9+':String(newTotal);
-  }
-}
-
-// Extend notification panel to show holiday requests
-const _origRenderNotifListV2 = _renderNotifList;
-function _renderNotifList(){
-  _origRenderNotifListV2();
-
-  // Append holiday requests section to the notif panel
-  const list = document.getElementById('notifList');
-  if(!list) return;
-
-  const role   = _currentUser?.role||'';
-  const myName = _currentUser?.name||'';
-  const myTeam = (role==='master'||role==='compliance') ? null : new Set(_getMyTeamMembers());
-
-  let reqs = [];
-  if(role==='manager'||role==='master'||role==='compliance'){
-    reqs = Object.values(_holRequests)
-      .filter(r=>r.status==='pending'&&(!myTeam||myTeam.has(r.colleague)))
-      .sort((a,b)=>b.createdAt.localeCompare(a.createdAt))
-      .slice(0,10);
-  } else if(role==='consultant'){
-    reqs = Object.values(_holRequests)
-      .filter(r=>r.colleague===myName)
-      .sort((a,b)=>b.createdAt.localeCompare(a.createdAt))
-      .slice(0,5);
-  }
-
-  if(!reqs.length) return;
-
-  const reqHtml = `
-    <div style="font-size:10px;font-weight:700;color:var(--amber);letter-spacing:.08em;text-transform:uppercase;margin:14px 0 8px;font-family:var(--fm);display:flex;align-items:center;gap:6px">
-      <span style="width:7px;height:7px;background:var(--amber);border-radius:50%;display:inline-block"></span>
-      Holiday Requests (${reqs.length})
-    </div>
-    ${reqs.map(r=>`
-      <div style="background:var(--surface2);border:1px solid rgba(251,184,58,.3);border-left:3px solid var(--amber);border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer"
-        onclick="toggleNotifPanel();showPage('holiday');setTimeout(()=>switchHolTab('${role==='consultant'?'myhol':'requests'}'),200)">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-          <span style="font-size:16px">${r.status==='pending'?'⏳':r.status==='approved'?'✅':'❌'}</span>
-          <div>
-            <div style="font-size:12px;font-weight:700">${role==='consultant'?'Your request':r.colleague+' — Holiday Request'}</div>
-            <div style="font-size:10px;color:var(--text3);font-family:var(--fm)">${r.totalHours}h · ${r.dates?.length||1} day(s) · ${new Date(r.createdAt).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</div>
-          </div>
-        </div>
-        ${role!=='consultant'?`<div style="font-size:11px;color:var(--amber);font-weight:700;text-align:right">Tap to review →</div>`:''}
-      </div>`).join('')}`;
-
-  list.insertAdjacentHTML('beforeend', reqHtml);
-}
-
-// ── Init: start listener when role is determined ─────────────────
-const _origStartNotifListenerV2 = startNotifListener;
-function startNotifListener(){
-  _origStartNotifListenerV2();
-  startHolReqListener();
-  setTimeout(_configHolTabs, 300);
-}
-
-// Also configure tabs when holiday page opens
-const _origShowPage = typeof showPage === 'function' ? showPage : null;
 
 function logoutUser(){
   sessionStorage.removeItem('pd_auth');
