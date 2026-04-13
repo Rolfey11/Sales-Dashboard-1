@@ -187,6 +187,86 @@ body{background:var(--bg);color:var(--text);font-family:var(--fh);min-height:100
 ::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:3px;}
 ::-webkit-scrollbar-thumb:hover{background:var(--border2);}
 
+/* ═══ REMEDIAL ACTION STYLES ═══════════════════════════════════════ */
+.rem-tab-bar{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px;}
+.rem-tab{background:none;border:none;border-bottom:3px solid transparent;color:var(--text3);font-family:var(--fh);font-size:13px;font-weight:600;padding:10px 20px;cursor:pointer;transition:all .15s;margin-bottom:-2px;letter-spacing:.01em;display:flex;align-items:center;gap:7px;}
+.rem-tab:hover{color:var(--text2);}
+.rem-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.rem-badge{background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;font-family:var(--fm);min-width:18px;text-align:center;}
+.rem-badge.green{background:var(--green);}
+.rem-badge.amber{background:var(--amber);}
+
+/* Remedial card */
+.rem-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:0;margin-bottom:14px;overflow:hidden;transition:box-shadow .2s;}
+.rem-card:hover{box-shadow:0 4px 20px rgba(0,0,0,.3);}
+.rem-card-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);gap:12px;flex-wrap:wrap;}
+.rem-card-body{padding:18px;}
+.rem-card-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;}
+@media(max-width:900px){.rem-card-cols{grid-template-columns:1fr 1fr;}}
+@media(max-width:600px){.rem-card-cols{grid-template-columns:1fr;}}
+.rem-field{display:flex;flex-direction:column;gap:4px;}
+.rem-field-label{font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;}
+.rem-field-val{font-size:13px;font-family:var(--fm);color:var(--text);line-height:1.4;}
+.rem-action-box{background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:14px 16px;margin-bottom:16px;border-left:3px solid var(--red);}
+.rem-action-box.manager{border-left-color:var(--amber);}
+.rem-action-box.completed{border-left-color:var(--green);}
+.rem-action-title{font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;font-family:var(--fm);margin-bottom:8px;}
+.rem-action-text{font-size:13px;line-height:1.7;color:var(--text2);}
+
+/* Status pills */
+.rem-status{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.04em;font-family:var(--fm);text-transform:uppercase;}
+.rem-status.pending{background:rgba(251,184,58,0.15);color:var(--amber);border:1px solid rgba(251,184,58,0.3);}
+.rem-status.released{background:rgba(94,156,245,0.15);color:var(--blue);border:1px solid rgba(94,156,245,0.3);}
+.rem-status.completed{background:rgba(45,206,137,0.15);color:var(--green);border:1px solid rgba(45,206,137,0.3);}
+.rem-status.overdue{background:rgba(245,54,92,0.15);color:var(--red);border:1px solid rgba(245,54,92,0.3);}
+
+/* Attempt grid */
+.rem-attempts-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;}
+@media(max-width:700px){.rem-attempts-grid{grid-template-columns:1fr 1fr;}}
+.rem-attempt-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;}
+.rem-attempt-card.filled{border-color:var(--accent);}
+.rem-attempt-num{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;font-family:var(--fm);margin-bottom:8px;}
+
+/* Progress bar */
+.rem-progress-wrap{background:var(--surface2);border-radius:4px;height:8px;overflow:hidden;margin:4px 0;}
+.rem-progress-fill{height:100%;border-radius:4px;transition:width .5s ease;}
+
+/* Compliance overview table */
+.rem-ov-table{width:100%;border-collapse:collapse;font-family:var(--fm);font-size:12px;}
+.rem-ov-th{background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:11px 14px;border:1px solid var(--border);text-align:left;white-space:nowrap;}
+.rem-ov-td{padding:10px 14px;border:1px solid var(--border);vertical-align:middle;background:var(--surface);}
+.rem-ov-tr:hover .rem-ov-td{background:var(--surface2);}
+
+/* Manager queue */
+.rem-queue-header{background:linear-gradient(135deg,#7a4a00,#3d2800);border-radius:10px 10px 0 0;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;}
+.rem-release-btn{background:linear-gradient(135deg,var(--green),#1a9955);color:#fff;border:none;padding:8px 18px;border-radius:8px;font-family:var(--fh);font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;box-shadow:0 2px 10px rgba(45,206,137,.3);}
+.rem-release-btn:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(45,206,137,.4);}
+.rem-release-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+
+/* Section divider */
+.rem-section-divider{display:flex;align-items:center;gap:10px;margin:20px 0 14px;}
+.rem-section-divider-line{flex:1;height:1px;background:var(--border2);}
+.rem-section-divider-label{font-size:11px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;}
+
+/* CAV RISK section */
+.rem-cav-section{background:rgba(167,139,250,0.07);border:1px solid rgba(167,139,250,0.2);border-radius:10px;padding:14px 16px;margin-bottom:14px;}
+.rem-cav-title{font-size:11px;font-weight:700;color:var(--purple);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;margin-bottom:12px;}
+
+/* Letter tracking */
+.rem-letter-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+
+/* Stat cards row */
+.rem-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+@media(max-width:800px){.rem-stats-row{grid-template-columns:repeat(2,1fr);}}
+.rem-stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;text-align:center;}
+.rem-stat-val{font-size:28px;font-weight:700;font-family:var(--fm);line-height:1;margin-bottom:4px;}
+.rem-stat-label{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;font-family:var(--fm);}
+.rem-stat-sub{font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:3px;}
+
+/* Collapse toggle */
+.rem-collapse-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:2px 6px;border-radius:4px;transition:color .15s;line-height:1;}
+.rem-collapse-btn:hover{color:var(--text);}
+
 /* GREETING OVERLAY */
 #greetingOverlay{
   position:fixed;inset:0;z-index:99999;
@@ -848,6 +928,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     <button class="nav-tab" onclick="showPage('compliance')" id="complianceTab" style="color:#fff;background:#1a3060;border-radius:6px 6px 0 0;font-weight:700;">🛡 Compliance</button>
     <button class="nav-tab" onclick="showPage('calloutcomes')" id="callOutcomesTab" style="color:#fff;background:#3d1a60;border-radius:6px 6px 0 0;font-weight:700;">📊 Call Outcomes</button>
     <button class="nav-tab" onclick="showPage('consultantdaily')" id="consultantDailyTab" style="color:#fff;background:#1a4a1a;border-radius:6px 6px 0 0;font-weight:700;">📅 Consultant Daily</button>
+    <button class="nav-tab" onclick="showPage('remedialmanager')" id="remedialManagerTab" style="color:#fff;background:#7a3a00;border-radius:6px 6px 0 0;font-weight:700;">⚠️ Remedial Queue <span id="remMgrBadge" style="display:none;background:#f5365c;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;margin-left:4px;font-family:var(--fm)"></span></button>
   </div>
 </nav>
 
@@ -1459,6 +1540,15 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     </div>
   </div>
 
+  <!-- Sub-tab navigation -->
+  <div class="rem-tab-bar">
+    <button class="rem-tab active" id="coTabOverview" onclick="switchCoTab('overview')">📊 Overview</button>
+    <button class="rem-tab" id="coTabRemedial" onclick="switchCoTab('remedial')">⚠️ Remedial Actions <span class="rem-badge" id="coRemBadge" style="display:none">0</span></button>
+    <button class="rem-tab" id="coTabCompleted" onclick="switchCoTab('completed')">✅ Completed Remedials <span class="rem-badge green" id="coCompBadge" style="display:none">0</span></button>
+  </div>
+
+  <!-- OVERVIEW PANEL -->
+  <div id="coPanel-overview">
   <!-- Filters -->
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:16px;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">
     <div>
@@ -1525,8 +1615,51 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 
   <!-- Results table -->
   <div id="co-table-wrap"></div>
+  </div><!-- /coPanel-overview -->
+
+  <!-- REMEDIAL ACTIONS PANEL -->
+  <div id="coPanel-remedial" style="display:none;">
+    <div class="rem-stats-row" id="remStatsRow"></div>
+    <div id="remOutstandingList"></div>
+  </div>
+
+  <!-- COMPLETED REMEDIALS PANEL -->
+  <div id="coPanel-completed" style="display:none;">
+    <div id="remCompletedList"></div>
+  </div>
 </div>
 
+
+<!-- MANAGER REMEDIAL QUEUE PAGE -->
+<div class="page" id="page-remedialmanager">
+  <!-- Header -->
+  <div style="background:linear-gradient(135deg,#7a3a00 0%,#3d1a00 100%);border-radius:var(--radius);padding:18px 28px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+    <div>
+      <div style="font-size:22px;font-weight:700;color:#fff;letter-spacing:.04em;">REMEDIAL ACTION MANAGER</div>
+      <div style="font-size:11px;color:rgba(255,255,255,.65);font-family:var(--fm);margin-top:3px;" id="rem-mgr-subtitle">Review and release fail assessments to consultants</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn btn-s" onclick="loadRemedials(true)" style="font-size:12px;background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:#fff;">↺ Refresh</button>
+      <button class="btn btn-s" onclick="exportRemedialsCSV()" style="font-size:12px;background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:#fff;">↓ Export CSV</button>
+    </div>
+  </div>
+
+  <!-- Sub-tabs -->
+  <div class="rem-tab-bar">
+    <button class="rem-tab active" id="mgrRemTab1" onclick="switchMgrRemTab('pending')">⏳ Pending Release <span class="rem-badge" id="mgrPendBadge" style="display:none">0</span></button>
+    <button class="rem-tab" id="mgrRemTab2" onclick="switchMgrRemTab('released')">📤 Released to Consultants <span class="rem-badge" id="mgrRelBadge" style="display:none">0</span></button>
+    <button class="rem-tab" id="mgrRemTab3" onclick="switchMgrRemTab('completed')">✅ Completed <span class="rem-badge green" id="mgrCompBadge" style="display:none">0</span></button>
+    <button class="rem-tab" id="mgrRemTab4" onclick="switchMgrRemTab('overview')">📊 Team Overview</button>
+  </div>
+
+  <!-- Manager stats row -->
+  <div class="rem-stats-row" id="mgrRemStatsRow"></div>
+
+  <!-- Content area (renders dynamically) -->
+  <div id="mgrRemContent"></div>
+</div>
+
+<!-- COMPLIANCE REMEDIAL OVERVIEW PAGE (embedded in call outcomes compliance view) -->
 <!-- NOTIFICATION PANEL -->
 <div id="notifPanel" style="display:none;position:fixed;top:0;right:0;width:420px;max-width:100vw;height:100vh;background:var(--surface);border-left:1px solid var(--border2);z-index:500;box-shadow:-8px 0 32px rgba(0,0,0,.4);overflow-y:auto;flex-direction:column;">
   <div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface2);position:sticky;top:0;z-index:1;">
@@ -1774,8 +1907,8 @@ async function _sha256(str){
 const ROLE_ACCESS = {
   master:     null, // all tabs
   manager:    ['dashboard','biz','teams','summary','entry','monthlysummary','leaderboard',
-               'history','daybyday','holiday','settings','manageroverview','staffperf','calloutcomes','consultantdaily'],
-  compliance: ['compliance','calloutcomes'],
+               'history','daybyday','holiday','settings','manageroverview','staffperf','calloutcomes','consultantdaily','remedialmanager'],
+  compliance: ['compliance','calloutcomes','remedialmanager'],
   consultant: ['consultantdaily','teams','calloutcomes']
 };
 const ROLE_LABELS = { master:'Master', manager:'Manager', compliance:'Compliance', consultant:'Consultant' };
@@ -3642,7 +3775,8 @@ function showPage(id){
   if(id==='dailysend')     { populateAllSelects(); renderDailySend(); }
   if(id==='staffperf')     { renderStaffPerf(); }
   if(id==='compliance')    { renderCompliancePage(); }
-  if(id==='calloutcomes')  { renderCallOutcomes(); }
+  if(id==='calloutcomes')  { loadCallOutcomes(); startRemedialListener(); }
+  if(id==='remedialmanager'){ loadRemedials(); renderMgrRemPage(); }
   if(id==='consultantdaily'){ populateAllSelects(); renderConsultantDaily(); }
 }
 
@@ -4735,8 +4869,16 @@ function submitCompliance(){
   if(msg) msg.textContent = 'Saving…';
 
   const save = ref
-    ? ref.set(d).then(()=>{ showToast('Assessment submitted ✓'); if(msg) msg.textContent='Saved ✓ '+new Date().toLocaleTimeString('en-GB'); clearComplianceForm(true); })
-        .catch(()=>{ showToast('Save failed — check connection','err'); if(msg) msg.textContent=''; })
+    ? ref.set(d).then(()=>{
+        showToast('Assessment submitted ✓');
+        if(msg) msg.textContent='Saved ✓ '+new Date().toLocaleTimeString('en-GB');
+        // If fail or reg non-compliant → queue a remedial for manager review
+        if(d.initialOutcome==='Fail' || d.regCompliant==='No'){
+          maybeCreateRemedial(d);
+        }
+        clearComplianceForm(true);
+      })
+      .catch(()=>{ showToast('Save failed — check connection','err'); if(msg) msg.textContent=''; })
     : Promise.resolve().then(()=>{ showToast('Not connected to database','err'); if(msg) msg.textContent=''; });
   return save;
 }
@@ -8608,6 +8750,7 @@ _dbRef.once('value').then(snap=>{
   populateAllSelects();
   renderDashboard();
   startNotifListener();
+  startRemedialListener();
 
   // Real-time listener — fires whenever any client saves
   _dbRef.on('value', snap=>{
@@ -8801,6 +8944,982 @@ function saveNewUser(){
     })
     .catch(()=>showToast('Failed to add user','err'));
 }
+
+
+// ═══════════════════════════════════════════════════════════════════
+// REMEDIAL ACTION SYSTEM
+// Flow: Compliance submits Fail → pending_manager → manager reviews →
+//       releases → consultant sees & works → marks complete
+// ═══════════════════════════════════════════════════════════════════
+
+const _remRef = () => _dbRef ? _db.ref((DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey+'/remedials') : null;
+
+let _remAll       = {};   // all remedial records keyed by id
+let _remListener  = null; // live Firebase listener
+
+// ── Bootstrap: call once on page load ────────────────────────────
+function startRemedialListener(){
+  const ref = _remRef();
+  if(!ref) return;
+  if(_remListener){ _remListener.off(); }
+  _remListener = ref;
+  ref.on('value', snap=>{
+    _remAll = snap.val()||{};
+    _updateRemBadges();
+    // Re-render if we're currently on a remedial view
+    const activePage = document.querySelector('.page.active')?.id;
+    if(activePage==='page-remedialmanager') renderMgrRemContent();
+    if(activePage==='page-calloutcomes'){
+      const activeTab = document.querySelector('.rem-tab.active')?.id;
+      if(activeTab==='coTabRemedial') renderCoRemedialTab();
+      if(activeTab==='coTabCompleted') renderCoCompletedTab();
+    }
+  });
+}
+
+// ── Create remedial record when Fail is submitted ─────────────────
+// Called from submitCompliance() AFTER assessment is saved
+function maybeCreateRemedial(assessmentData){
+  if(assessmentData.initialOutcome!=='Fail' && assessmentData.regCompliant!=='No') return;
+  const ref = _remRef();
+  if(!ref) return;
+  const id = 'rem_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+
+  // Build remedial action summary from section notes + outcome rationale
+  const actionParts = [];
+  if(assessmentData.outcomeRationale) actionParts.push(assessmentData.outcomeRationale);
+  if(assessmentData.regFailRationale) actionParts.push('Regulatory fail: '+assessmentData.regFailRationale);
+  if(assessmentData.transcriptNotes)  actionParts.push(assessmentData.transcriptNotes);
+  const s1 = assessmentData.sectionNotes?.s1; if(s1) actionParts.push('Products & Services: '+s1);
+  const s2 = assessmentData.sectionNotes?.s2; if(s2) actionParts.push('Price & Value: '+s2);
+  const s3 = assessmentData.sectionNotes?.s3; if(s3) actionParts.push('Consumer Understanding: '+s3);
+  const s4 = assessmentData.sectionNotes?.s4; if(s4) actionParts.push('Consumer Support: '+s4);
+
+  const record = {
+    id,
+    assessmentId:     assessmentData.id,
+    status:           'pending_manager',  // → released → completed
+    colleague:        assessmentData.colleague||'',
+    teamKey:          assessmentData.teamKey||'',
+    team:             assessmentData.team||'',
+    assessor:         assessmentData.assessor||'',
+    initialOutcome:   assessmentData.initialOutcome||'',
+    regCompliant:     assessmentData.regCompliant||'',
+    dateIssued:       new Date().toISOString().split('T')[0],
+    crmRef:           assessmentData.fmpRef||'',
+    customerSurname:  assessmentData.client||'',
+    dateTimeOfCall:   (assessmentData.dateObs||'')+(assessmentData.duration?' '+assessmentData.duration:''),
+    callAssessor:     assessmentData.assessor||'',
+    remedialActionRequired: actionParts.join('\n\n') || 'See assessment for full details.',
+    brand:            assessmentData.brand||'',
+    divKey:           _currentDivKey||'branch',
+    // Manager review fields
+    managerNotes:     '',
+    releasedAt:       null,
+    releasedBy:       '',
+    // Attempt tracking
+    callAttempt1:     {date:'',time:''},
+    callAttempt2:     {date:'',time:''},
+    callAttempt3:     {date:'',time:''},
+    letter1:          '',
+    letter2:          '',
+    // Completion fields
+    completedRemedialDetail: '',
+    remedialActionComplete:  'No',
+    // CAV Risk
+    cavBpOversightComplete:   '',
+    cavCompletionReviewNotes: '',
+    cavCallRecordingsAvailable: '',
+    cavActualDetriment:       '',
+    cavFinalCustomerOutcome:  '',
+    validatedBy:              '',
+    completedAt:              null,
+    createdAt:                new Date().toISOString(),
+  };
+  ref.child(id).set(record)
+    .then(()=>{ showToast('Remedial action queued for manager review ⚠️'); _updateRemBadges(); })
+    .catch(()=>{ showToast('Could not queue remedial','err'); });
+}
+
+// ── Load all remedials (one-time fetch, listener handles updates) ──
+function loadRemedials(force){
+  startRemedialListener();
+}
+
+// ── Badge counters ────────────────────────────────────────────────
+function _updateRemBadges(){
+  const role = _currentUser?.role||'consultant';
+  const myName = _currentUser?.name||'';
+  const recs = Object.values(_remAll);
+
+  // Manager / compliance: pending manager review count
+  if(role==='manager'||role==='master'||role==='compliance'){
+    let pending = recs.filter(r=>r.status==='pending_manager');
+    // Managers only see their own team's
+    if(role==='manager'){
+      const myTeamMembers = _getMyTeamMembers();
+      pending = pending.filter(r=>myTeamMembers.includes(r.colleague));
+    }
+    const badge = document.getElementById('remMgrBadge');
+    if(badge){
+      badge.textContent = pending.length;
+      badge.style.display = pending.length ? '' : 'none';
+    }
+    const mgrBadge = document.getElementById('mgrPendBadge');
+    if(mgrBadge){
+      mgrBadge.textContent = pending.length;
+      mgrBadge.style.display = pending.length ? '' : 'none';
+    }
+  }
+
+  // Call Outcomes remedial tab badges
+  let myReleased   = recs.filter(r=>r.status==='released');
+  let myCompleted  = recs.filter(r=>r.status==='completed');
+  if(role==='consultant'){
+    myReleased  = myReleased.filter(r=>r.colleague===myName);
+    myCompleted = myCompleted.filter(r=>r.colleague===myName);
+  } else if(role==='manager'){
+    const team = _getMyTeamMembers();
+    myReleased  = myReleased.filter(r=>team.includes(r.colleague));
+    myCompleted = myCompleted.filter(r=>team.includes(r.colleague));
+  }
+  const coRem  = document.getElementById('coRemBadge');
+  const coComp = document.getElementById('coCompBadge');
+  if(coRem){  coRem.textContent  = myReleased.length;  coRem.style.display  = myReleased.length  ? '' : 'none'; }
+  if(coComp){ coComp.textContent = myCompleted.length; coComp.style.display = myCompleted.length ? '' : 'none'; }
+}
+
+// ── Helper: get team members for a manager ───────────────────────
+function _getMyTeamMembers(){
+  const name = _currentUser?.name||'';
+  if(!APP.teams) return APP.people.map(p=>p.name);
+  // Find teams where this person is listed as TL or find their team assignment
+  const allTeamMembers = [];
+  Object.values(APP.teams).forEach(members=>{
+    if(Array.isArray(members)) allTeamMembers.push(...members);
+  });
+  // For simplicity: manager sees all consultants in the division
+  return APP.people.map(p=>p.name);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CALL OUTCOMES SUB-TAB SWITCHING
+// ═══════════════════════════════════════════════════════════════════
+function switchCoTab(tab){
+  ['overview','remedial','completed'].forEach(t=>{
+    const panel = document.getElementById('coPanel-'+t);
+    const btn   = document.getElementById('coTab'+t.charAt(0).toUpperCase()+t.slice(1));
+    if(panel) panel.style.display = t===tab ? '' : 'none';
+    if(btn)   btn.classList.toggle('active', t===tab);
+  });
+  if(tab==='remedial') renderCoRemedialTab();
+  if(tab==='completed') renderCoCompletedTab();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CONSULTANT / ALL-ROLES — OUTSTANDING REMEDIALS
+// ═══════════════════════════════════════════════════════════════════
+function renderCoRemedialTab(){
+  const role   = _currentUser?.role||'consultant';
+  const myName = _currentUser?.name||'';
+  let recs     = Object.values(_remAll).filter(r=>r.status==='released');
+
+  if(role==='consultant'){
+    recs = recs.filter(r=>r.colleague===myName);
+  } else if(role==='manager'){
+    const team = _getMyTeamMembers();
+    recs = recs.filter(r=>team.includes(r.colleague));
+  }
+  // compliance / master sees all
+
+  recs.sort((a,b)=>a.dateIssued.localeCompare(b.dateIssued));
+
+  // Stats row
+  const total     = recs.length;
+  const noAttempt = recs.filter(r=>!r.callAttempt1?.date).length;
+  const attempted = total - noAttempt;
+  const overdue   = recs.filter(r=>{
+    const d = new Date(r.dateIssued);
+    return (Date.now()-d.getTime()) > 10*24*60*60*1000; // >10 days
+  }).length;
+
+  const statsEl = document.getElementById('remStatsRow');
+  if(statsEl) statsEl.innerHTML = _remStatCard(total,'var(--blue)','Outstanding Remedials','Awaiting completion')+
+    _remStatCard(attempted,'var(--amber)','Attempts Made','Contact logged')+
+    _remStatCard(noAttempt,'var(--red)','No Contact Yet','Action needed')+
+    _remStatCard(overdue,'var(--purple)','Overdue (>10d)','Past target date');
+
+  const listEl = document.getElementById('remOutstandingList');
+  if(!listEl) return;
+
+  if(!recs.length){
+    listEl.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--text3);">
+      <div style="font-size:36px;margin-bottom:12px">✅</div>
+      <div style="font-size:16px;font-weight:700;margin-bottom:8px">No Outstanding Remedial Actions</div>
+      <div style="font-size:12px;font-family:var(--fm)">All remedial actions are completed or none have been released yet.</div>
+    </div>`;
+    return;
+  }
+
+  listEl.innerHTML = recs.map(r=>_renderRemedialCard(r, role)).join('');
+}
+
+function _remStatCard(val, color, label, sub){
+  return `<div class="rem-stat-card">
+    <div class="rem-stat-val" style="color:${color}">${val}</div>
+    <div class="rem-stat-label">${label}</div>
+    <div class="rem-stat-sub">${sub}</div>
+  </div>`;
+}
+
+// ── Main remedial card renderer ───────────────────────────────────
+function _renderRemedialCard(r, role){
+  const daysSince = Math.floor((Date.now()-new Date(r.dateIssued).getTime())/86400000);
+  const isOverdue = daysSince > 10;
+  const isConsultant = role==='consultant';
+  const canEdit = role==='consultant'||role==='manager'||role==='master';
+
+  const att1Filled = r.callAttempt1?.date;
+  const att2Filled = r.callAttempt2?.date;
+  const att3Filled = r.callAttempt3?.date;
+
+  // Progress calc
+  const steps = [att1Filled,att2Filled,att3Filled,r.letter1,r.completedRemedialDetail].filter(Boolean).length;
+  const pct   = Math.round((steps/5)*100);
+
+  const statusBadge = isOverdue
+    ? `<span class="rem-status overdue">⏰ Overdue (${daysSince}d)</span>`
+    : `<span class="rem-status released">📤 Released — Day ${daysSince}</span>`;
+
+  const outcomeBadge = r.initialOutcome==='Fail'
+    ? `<span style="background:#fde0e6;color:#9b1d35;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:var(--fm);">● FAIL</span>`
+    : `<span style="background:#fde0e6;color:#9b1d35;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;font-family:var(--fm);">● REG FAIL</span>`;
+
+  return `<div class="rem-card" id="remcard_${r.id}">
+    <div class="rem-card-head">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="font-size:16px;font-weight:700;font-family:var(--fm)">${r.id.split('_')[1]?.toUpperCase()||r.id} · ${r.colleague||'—'}</div>
+        ${outcomeBadge}
+        ${statusBadge}
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        ${canEdit ? `<button class="btn btn-s" style="font-size:12px" onclick="toggleRemCard('${r.id}')">▾ Details</button>` : ''}
+        ${(role==='manager'||role==='master'||role==='compliance') && r.status!=='completed'
+          ? `<button class="btn btn-d" style="font-size:12px" onclick="openMarkCompleteModal('${r.id}')">Mark Complete</button>` : ''}
+      </div>
+    </div>
+    <div id="remcard_body_${r.id}" style="display:block">
+      <div class="rem-card-body">
+        <!-- Progress bar -->
+        <div style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;font-family:var(--fm);color:var(--text3);margin-bottom:4px">
+            <span>Remedial Progress</span><span style="font-weight:700;color:${pct>=100?'var(--green)':pct>=50?'var(--amber)':'var(--red)'}">${pct}%</span>
+          </div>
+          <div class="rem-progress-wrap">
+            <div class="rem-progress-fill" style="width:${pct}%;background:${pct>=100?'var(--green)':pct>=50?'var(--amber)':'var(--red)'}"></div>
+          </div>
+        </div>
+
+        <!-- Top info grid -->
+        <div class="rem-card-cols">
+          <div class="rem-field"><span class="rem-field-label">CRM Ref</span><span class="rem-field-val">${r.crmRef||'—'}</span></div>
+          <div class="rem-field"><span class="rem-field-label">Date Remedial Issued</span><span class="rem-field-val">${_fmtDate(r.dateIssued)}</span></div>
+          <div class="rem-field"><span class="rem-field-label">Colleague Name</span><span class="rem-field-val">${r.colleague||'—'}</span></div>
+          <div class="rem-field"><span class="rem-field-label">Team / Dept</span><span class="rem-field-val">${r.team||TEAM_LABELS[r.teamKey]||r.teamKey||'—'}</span></div>
+          <div class="rem-field"><span class="rem-field-label">Customer Surname</span><span class="rem-field-val">${r.customerSurname||'—'}</span></div>
+          <div class="rem-field"><span class="rem-field-label">Date &amp; Time of Call</span><span class="rem-field-val">${r.dateTimeOfCall||'—'}</span></div>
+          <div class="rem-field"><span class="rem-field-label">Call Assessor</span><span class="rem-field-val">${r.callAssessor||'—'}</span></div>
+          <div class="rem-field"><span class="rem-field-label">Initial Outcome</span><span class="rem-field-val" style="color:var(--red);font-weight:700">${r.initialOutcome||'—'}</span></div>
+          <div class="rem-field"><span class="rem-field-label">Reg Compliant</span><span class="rem-field-val" style="color:${r.regCompliant==='No'?'var(--red)':'var(--text)'}">${r.regCompliant||'—'}</span></div>
+        </div>
+
+        <!-- Remedial Action Required -->
+        <div class="rem-action-box">
+          <div class="rem-action-title">⚠️ Remedial Action Required</div>
+          <div class="rem-action-text" style="white-space:pre-line">${r.remedialActionRequired||'See original assessment.'}</div>
+        </div>
+
+        ${r.managerNotes ? `<div class="rem-action-box manager"><div class="rem-action-title">👤 Manager Notes</div><div class="rem-action-text">${r.managerNotes}</div></div>` : ''}
+
+        <!-- Completed Remedial Detail -->
+        <div style="margin-bottom:16px">
+          <div class="rem-field-label" style="margin-bottom:6px">Completed Remediation Detail</div>
+          ${canEdit
+            ? `<textarea rows="3" id="rem_detail_${r.id}" placeholder="Enter completed remediation detail…"
+                style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none;resize:vertical;"
+                onchange="saveRemField('${r.id}','completedRemedialDetail',this.value)">${r.completedRemedialDetail||''}</textarea>`
+            : `<div class="rem-field-val">${r.completedRemedialDetail||'<span style="color:var(--text3)">Not yet entered</span>'}</div>`}
+        </div>
+
+        <!-- SECTION DIVIDER: Contact Attempts -->
+        <div class="rem-section-divider"><div class="rem-section-divider-line"></div><div class="rem-section-divider-label">📞 Contact Attempts</div><div class="rem-section-divider-line"></div></div>
+
+        <div class="rem-attempts-grid">
+          ${[1,2,3].map(n=>{
+            const att = r['callAttempt'+n]||{date:'',time:''};
+            return `<div class="rem-attempt-card ${att.date?'filled':''}">
+              <div class="rem-attempt-num">Call Attempt ${n}</div>
+              ${canEdit ? `
+                <div class="rem-field-label" style="margin-bottom:4px">Date</div>
+                <input type="date" id="rem_att${n}d_${r.id}" value="${att.date||''}"
+                  onchange="saveRemAttempt('${r.id}',${n},'date',this.value)"
+                  style="width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:7px;padding:7px 10px;font-size:12px;font-family:var(--fm);color:var(--text);outline:none;margin-bottom:6px">
+                <div class="rem-field-label" style="margin-bottom:4px">Time</div>
+                <input type="time" id="rem_att${n}t_${r.id}" value="${att.time||''}"
+                  onchange="saveRemAttempt('${r.id}',${n},'time',this.value)"
+                  style="width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:7px;padding:7px 10px;font-size:12px;font-family:var(--fm);color:var(--text);outline:none">`
+              : `<div class="rem-field-val">${att.date ? att.date+(att.time?' '+att.time:'') : '<span style="color:var(--text3)">Not logged</span>'}</div>`
+            }
+            </div>`;
+          }).join('')}
+        </div>
+
+        <!-- Letters -->
+        <div class="rem-section-divider"><div class="rem-section-divider-line"></div><div class="rem-section-divider-label">✉️ Letters Sent</div><div class="rem-section-divider-line"></div></div>
+        <div class="rem-letter-row">
+          <div>
+            <div class="rem-field-label" style="margin-bottom:5px">Letter 1</div>
+            ${canEdit
+              ? `<input type="date" id="rem_l1_${r.id}" value="${r.letter1||''}"
+                  onchange="saveRemField('${r.id}','letter1',this.value)"
+                  style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none">`
+              : `<div class="rem-field-val">${r.letter1||'<span style="color:var(--text3)">—</span>'}</div>`}
+          </div>
+          <div>
+            <div class="rem-field-label" style="margin-bottom:5px">Letter 2</div>
+            ${canEdit
+              ? `<input type="date" id="rem_l2_${r.id}" value="${r.letter2||''}"
+                  onchange="saveRemField('${r.id}','letter2',this.value)"
+                  style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none">`
+              : `<div class="rem-field-val">${r.letter2||'<span style="color:var(--text3)">—</span>'}</div>`}
+          </div>
+        </div>
+
+        <!-- Remedial Action Complete toggle -->
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;padding:12px 16px;background:var(--surface2);border-radius:10px;border:1px solid var(--border2)">
+          <div class="rem-field-label">Remedial Action Complete</div>
+          ${canEdit
+            ? `<select id="rem_complete_${r.id}" onchange="handleRemCompleteToggle('${r.id}',this.value)"
+                style="background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:8px 14px;font-size:13px;font-family:var(--fm);color:var(--text);font-weight:700;outline:none;cursor:pointer">
+                <option value="No" ${r.remedialActionComplete!=='Yes'?'selected':''}>No</option>
+                <option value="Yes" ${r.remedialActionComplete==='Yes'?'selected':''}>Yes</option>
+              </select>`
+            : `<span style="font-weight:700;color:${r.remedialActionComplete==='Yes'?'var(--green)':'var(--red)'}">${r.remedialActionComplete||'No'}</span>`}
+        </div>
+
+        <!-- CAV RISK section -->
+        <div class="rem-cav-section">
+          <div class="rem-cav-title">🟣 CAV RISK ONLY</div>
+          <div class="rem-card-cols" style="margin-bottom:12px">
+            <div class="rem-field">
+              <span class="rem-field-label">BP Oversight Complete</span>
+              ${canEdit
+                ? `<select id="rem_cavbp_${r.id}" onchange="saveRemField('${r.id}','cavBpOversightComplete',this.value)"
+                    style="background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:12px;font-family:var(--fm);color:var(--text);outline:none;width:100%">
+                    <option value="" ${!r.cavBpOversightComplete?'selected':''}>—</option>
+                    <option value="Yes" ${r.cavBpOversightComplete==='Yes'?'selected':''}>Yes</option>
+                    <option value="No"  ${r.cavBpOversightComplete==='No'?'selected':''}>No</option>
+                  </select>`
+                : `<span class="rem-field-val">${r.cavBpOversightComplete||'—'}</span>`}
+            </div>
+            <div class="rem-field">
+              <span class="rem-field-label">Call Recordings Available</span>
+              ${canEdit
+                ? `<select id="rem_cavrec_${r.id}" onchange="saveRemField('${r.id}','cavCallRecordingsAvailable',this.value)"
+                    style="background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:12px;font-family:var(--fm);color:var(--text);outline:none;width:100%">
+                    <option value="" ${!r.cavCallRecordingsAvailable?'selected':''}>—</option>
+                    <option value="Yes" ${r.cavCallRecordingsAvailable==='Yes'?'selected':''}>Yes</option>
+                    <option value="No"  ${r.cavCallRecordingsAvailable==='No'?'selected':''}>No</option>
+                  </select>`
+                : `<span class="rem-field-val">${r.cavCallRecordingsAvailable||'—'}</span>`}
+            </div>
+            <div class="rem-field">
+              <span class="rem-field-label">Actual Detriment</span>
+              ${canEdit
+                ? `<input type="text" id="rem_cavdet_${r.id}" value="${r.cavActualDetriment||''}" placeholder="—"
+                    onchange="saveRemField('${r.id}','cavActualDetriment',this.value)"
+                    style="width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:12px;font-family:var(--fm);color:var(--text);outline:none">`
+                : `<span class="rem-field-val">${r.cavActualDetriment||'—'}</span>`}
+            </div>
+            <div class="rem-field">
+              <span class="rem-field-label">Final Customer Outcome</span>
+              ${canEdit
+                ? `<input type="text" id="rem_cavout_${r.id}" value="${r.cavFinalCustomerOutcome||''}" placeholder="—"
+                    onchange="saveRemField('${r.id}','cavFinalCustomerOutcome',this.value)"
+                    style="width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:12px;font-family:var(--fm);color:var(--text);outline:none">`
+                : `<span class="rem-field-val">${r.cavFinalCustomerOutcome||'—'}</span>`}
+            </div>
+          </div>
+          <div class="rem-field" style="margin-bottom:10px">
+            <span class="rem-field-label" style="margin-bottom:5px">Completion Review Notes</span>
+            ${canEdit
+              ? `<textarea rows="2" id="rem_cavnotes_${r.id}" placeholder="Enter CAV completion review notes…"
+                  onchange="saveRemField('${r.id}','cavCompletionReviewNotes',this.value)"
+                  style="width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none;resize:vertical">${r.cavCompletionReviewNotes||''}</textarea>`
+              : `<div class="rem-field-val">${r.cavCompletionReviewNotes||'—'}</div>`}
+          </div>
+        </div>
+
+        <!-- Validated By -->
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
+          <div class="rem-field-label" style="white-space:nowrap">Validated By</div>
+          ${canEdit
+            ? `<input type="text" id="rem_validby_${r.id}" value="${r.validatedBy||''}" placeholder="Enter name or email address"
+                onchange="saveRemField('${r.id}','validatedBy',this.value)"
+                style="flex:1;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none">`
+            : `<span class="rem-field-val">${r.validatedBy||'—'}</span>`}
+        </div>
+
+        <!-- Save + Complete buttons -->
+        ${canEdit ? `<div style="display:flex;gap:10px;align-items:center;padding-top:8px;border-top:1px solid var(--border)">
+          <button class="btn btn-p" onclick="saveRemCardAll('${r.id}')" style="font-size:13px">💾 Save Progress</button>
+          <button class="btn" onclick="openMarkCompleteModal('${r.id}')"
+            style="background:rgba(45,206,137,0.15);color:var(--green);border:1px solid rgba(45,206,137,0.3);font-size:13px">✅ Mark as Complete</button>
+        </div>` : ''}
+
+      </div>
+    </div>
+  </div>`;
+}
+
+function toggleRemCard(id){
+  const body = document.getElementById('remcard_body_'+id);
+  if(body) body.style.display = body.style.display==='none' ? 'block' : 'none';
+}
+
+// ── Save individual field to Firebase ────────────────────────────
+function saveRemField(remId, field, value){
+  const ref = _remRef();
+  if(!ref) return;
+  const update = {};
+  update[field] = value;
+  _remAll[remId] = _remAll[remId]||{};
+  _remAll[remId][field] = value;
+  ref.child(remId).update(update).catch(()=>showToast('Save failed','err'));
+}
+
+// ── Save call attempt ─────────────────────────────────────────────
+function saveRemAttempt(remId, num, part, value){
+  const ref = _remRef();
+  if(!ref) return;
+  const key = 'callAttempt'+num;
+  const existing = (_remAll[remId]&&_remAll[remId][key]) || {date:'',time:''};
+  existing[part] = value;
+  _remAll[remId] = _remAll[remId]||{};
+  _remAll[remId][key] = existing;
+  const update = {};
+  update[key] = existing;
+  ref.child(remId).update(update).catch(()=>showToast('Save failed','err'));
+}
+
+// ── Save all visible fields on a card at once ─────────────────────
+function saveRemCardAll(remId){
+  const r = _remAll[remId];
+  if(!r) return;
+  const ref = _remRef();
+  if(!ref){ showToast('Not connected','err'); return; }
+  const updates = {};
+  const safeVal = id => { const el=document.getElementById(id); return el?el.value||'':''; };
+  updates.completedRemedialDetail       = safeVal('rem_detail_'+remId);
+  updates.letter1                       = safeVal('rem_l1_'+remId);
+  updates.letter2                       = safeVal('rem_l2_'+remId);
+  updates.remedialActionComplete        = safeVal('rem_complete_'+remId);
+  updates.cavBpOversightComplete        = safeVal('rem_cavbp_'+remId);
+  updates.cavCallRecordingsAvailable    = safeVal('rem_cavrec_'+remId);
+  updates.cavActualDetriment            = safeVal('rem_cavdet_'+remId);
+  updates.cavFinalCustomerOutcome       = safeVal('rem_cavout_'+remId);
+  updates.cavCompletionReviewNotes      = safeVal('rem_cavnotes_'+remId);
+  updates.validatedBy                   = safeVal('rem_validby_'+remId);
+  [1,2,3].forEach(n=>{
+    updates['callAttempt'+n] = {
+      date: safeVal('rem_att'+n+'d_'+remId),
+      time: safeVal('rem_att'+n+'t_'+remId)
+    };
+  });
+  Object.assign(_remAll[remId], updates);
+  ref.child(remId).update(updates)
+    .then(()=>showToast('Progress saved ✓'))
+    .catch(()=>showToast('Save failed','err'));
+}
+
+// ── Handle "Remedial Action Complete" toggle ──────────────────────
+function handleRemCompleteToggle(remId, val){
+  saveRemField(remId,'remedialActionComplete',val);
+  if(val==='Yes') openMarkCompleteModal(remId);
+}
+
+// ── Mark Complete Modal ───────────────────────────────────────────
+function openMarkCompleteModal(remId){
+  const r = _remAll[remId];
+  if(!r){ showToast('Record not found','err'); return; }
+  const modal = document.getElementById('reviewModal');
+  document.getElementById('reviewModalTitle').textContent = '✅ Mark Remedial Complete — '+r.colleague;
+  document.getElementById('reviewModalBody').innerHTML = `
+    <div style="background:rgba(45,206,137,0.08);border-left:3px solid var(--green);border-radius:6px;padding:12px 16px;margin-bottom:16px;font-size:12px;font-family:var(--fm);color:var(--green)">
+      This will move the remedial action to the Completed section and notify all relevant parties.
+    </div>
+    <div style="margin-bottom:12px">
+      <div class="field-lbl">Completed Remediation Detail *</div>
+      <textarea rows="4" id="mc_detail" style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none;resize:vertical" placeholder="Describe what remedial action was completed…">${r.completedRemedialDetail||''}</textarea>
+    </div>
+    <div style="margin-bottom:12px">
+      <div class="field-lbl">Validated By</div>
+      <input type="text" id="mc_validby" value="${r.validatedBy||''}" placeholder="Name or email of validator"
+        style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none">
+    </div>`;
+  document.getElementById('reviewModalBtns').innerHTML = `
+    <button class="btn btn-s" onclick="document.getElementById('reviewModal').classList.remove('open')">Cancel</button>
+    <button class="btn" onclick="confirmMarkComplete('${remId}')"
+      style="background:var(--green);color:#fff;box-shadow:0 2px 12px rgba(45,206,137,.3)">✅ Confirm Complete</button>`;
+  modal.classList.add('open');
+  setTimeout(()=>document.getElementById('mc_detail')?.focus(),100);
+}
+
+function confirmMarkComplete(remId){
+  const detail  = document.getElementById('mc_detail')?.value?.trim();
+  const validBy = document.getElementById('mc_validby')?.value?.trim();
+  if(!detail){ showToast('Please enter completion detail','err'); return; }
+  const ref = _remRef();
+  if(!ref){ showToast('Not connected','err'); return; }
+  const updates = {
+    status:'completed',
+    completedRemedialDetail: detail,
+    validatedBy: validBy,
+    remedialActionComplete: 'Yes',
+    completedAt: new Date().toISOString(),
+    completedBy: _currentUser?.name||''
+  };
+  Object.assign(_remAll[remId], updates);
+  ref.child(remId).update(updates).then(()=>{
+    document.getElementById('reviewModal').classList.remove('open');
+    showToast('Remedial marked complete ✓');
+    _updateRemBadges();
+    renderCoRemedialTab();
+    renderCoCompletedTab();
+  }).catch(()=>showToast('Save failed','err'));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// COMPLETED REMEDIALS TAB
+// ═══════════════════════════════════════════════════════════════════
+function renderCoCompletedTab(){
+  const role   = _currentUser?.role||'consultant';
+  const myName = _currentUser?.name||'';
+  let recs     = Object.values(_remAll).filter(r=>r.status==='completed');
+
+  if(role==='consultant'){
+    recs = recs.filter(r=>r.colleague===myName);
+  } else if(role==='manager'){
+    const team = _getMyTeamMembers();
+    recs = recs.filter(r=>team.includes(r.colleague));
+  }
+  recs.sort((a,b)=>(b.completedAt||'').localeCompare(a.completedAt||''));
+
+  const listEl = document.getElementById('remCompletedList');
+  if(!listEl) return;
+
+  if(!recs.length){
+    listEl.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--text3);">
+      <div style="font-size:36px;margin-bottom:12px">📋</div>
+      <div style="font-size:16px;font-weight:700;margin-bottom:8px">No Completed Remedials Yet</div>
+      <div style="font-size:12px;font-family:var(--fm)">Completed remedial actions will appear here.</div>
+    </div>`;
+    return;
+  }
+
+  const thS = 'style="padding:9px 12px;background:rgba(45,206,137,0.15);color:var(--green);font-size:10px;font-weight:700;font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;border:1px solid rgba(45,206,137,0.2);white-space:nowrap"';
+  const rows = recs.map(r=>`<tr style="border-bottom:1px solid var(--border);font-size:12px;font-family:var(--fm)">
+    <td style="padding:9px 12px;font-weight:700;border:1px solid var(--border)">${r.colleague||'—'}</td>
+    <td style="padding:9px 12px;border:1px solid var(--border)">${r.team||r.teamKey||'—'}</td>
+    <td style="padding:9px 12px;border:1px solid var(--border)">${r.crmRef||'—'}</td>
+    <td style="padding:9px 12px;border:1px solid var(--border)">${_fmtDate(r.dateIssued)}</td>
+    <td style="padding:9px 12px;border:1px solid var(--border)">${_fmtDate(r.completedAt?.split('T')[0])}</td>
+    <td style="padding:9px 12px;border:1px solid var(--border);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.completedRemedialDetail||''}">${r.completedRemedialDetail||'—'}</td>
+    <td style="padding:9px 12px;border:1px solid var(--border)">${r.validatedBy||'—'}</td>
+    <td style="padding:9px 12px;text-align:center;border:1px solid var(--border)"><span class="rem-status completed">✅ Complete</span></td>
+    <td style="padding:9px 12px;border:1px solid var(--border)">
+      <button class="btn btn-s" style="font-size:11px;padding:4px 10px" onclick="openRemDetailModal('${r.id}')">View</button>
+    </td>
+  </tr>`).join('');
+
+  listEl.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;overflow-x:auto">
+      <div style="padding:12px 18px;background:rgba(45,206,137,0.1);border-bottom:1px solid rgba(45,206,137,0.2);display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:13px;font-weight:700;color:var(--green)">✅ Completed Remedial Actions</div>
+        <div style="font-size:11px;font-family:var(--fm);color:var(--text3)">${recs.length} records</div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;min-width:900px">
+        <thead><tr>
+          <th ${thS}>Colleague</th>
+          <th ${thS}>Team</th>
+          <th ${thS}>CRM Ref</th>
+          <th ${thS}>Date Issued</th>
+          <th ${thS}>Completed</th>
+          <th ${thS}>Remediation Detail</th>
+          <th ${thS}>Validated By</th>
+          <th ${thS}>Status</th>
+          <th ${thS}>Actions</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+// ── View detail of any record in a modal ─────────────────────────
+function openRemDetailModal(remId){
+  const r = _remAll[remId];
+  if(!r) return;
+  const modal = document.getElementById('reviewModal');
+  document.getElementById('reviewModalTitle').textContent = '📋 Remedial Detail — '+r.colleague;
+  document.getElementById('reviewModalBody').innerHTML = _renderRemedialCard(r,'view_only_role');
+  document.getElementById('reviewModalBtns').innerHTML =
+    `<button class="btn btn-s" onclick="document.getElementById('reviewModal').classList.remove('open')">Close</button>`;
+  modal.classList.add('open');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MANAGER REMEDIAL QUEUE PAGE
+// ═══════════════════════════════════════════════════════════════════
+let _mgrRemActiveTab = 'pending';
+
+function renderMgrRemPage(){
+  loadRemedials();
+  renderMgrRemStats();
+  switchMgrRemTab(_mgrRemActiveTab);
+}
+
+function switchMgrRemTab(tab){
+  _mgrRemActiveTab = tab;
+  ['pending','released','completed','overview'].forEach(t=>{
+    const btn = document.getElementById('mgrRemTab'+['pending','released','completed','overview'].indexOf(t)+'')
+              || document.querySelector(`[onclick="switchMgrRemTab('${t}')"]`);
+    if(btn) btn.classList.toggle('active', t===tab);
+  });
+  renderMgrRemContent();
+}
+
+function renderMgrRemStats(){
+  const role = _currentUser?.role||'manager';
+  let recs = Object.values(_remAll);
+  if(role==='manager'){
+    const team = _getMyTeamMembers();
+    recs = recs.filter(r=>team.includes(r.colleague));
+  }
+  const pending   = recs.filter(r=>r.status==='pending_manager').length;
+  const released  = recs.filter(r=>r.status==='released').length;
+  const completed = recs.filter(r=>r.status==='completed').length;
+  const total     = recs.length;
+  const compPct   = total ? Math.round(completed/total*100) : 0;
+
+  const el = document.getElementById('mgrRemStatsRow');
+  if(el) el.innerHTML =
+    _remStatCard(pending,'var(--amber)','Awaiting Release','Needs manager review')+
+    _remStatCard(released,'var(--blue)','In Progress','Released to consultant')+
+    _remStatCard(completed,'var(--green)','Completed',compPct+'% completion rate')+
+    _remStatCard(total,'var(--text2)','Total Remedials','All time');
+}
+
+function renderMgrRemContent(){
+  renderMgrRemStats();
+  const role = _currentUser?.role||'manager';
+  const tab  = _mgrRemActiveTab;
+  let recs = Object.values(_remAll);
+  if(role==='manager'){
+    const team = _getMyTeamMembers();
+    recs = recs.filter(r=>team.includes(r.colleague));
+  }
+
+  const el = document.getElementById('mgrRemContent');
+  if(!el) return;
+
+  if(tab==='overview'){
+    el.innerHTML = _renderRemTeamOverview(recs);
+    return;
+  }
+
+  const statusMap = {pending:'pending_manager', released:'released', completed:'completed'};
+  const filtered  = recs.filter(r=>r.status===statusMap[tab])
+    .sort((a,b)=>a.dateIssued.localeCompare(b.dateIssued));
+
+  if(tab==='pending'){
+    el.innerHTML = _renderPendingQueue(filtered);
+  } else if(tab==='released'){
+    el.innerHTML = _renderReleasedList(filtered);
+  } else if(tab==='completed'){
+    el.innerHTML = _renderCompletedSummary(filtered);
+  }
+}
+
+// ── Pending manager queue ─────────────────────────────────────────
+function _renderPendingQueue(recs){
+  if(!recs.length) return `<div style="text-align:center;padding:60px 20px;color:var(--text3)">
+    <div style="font-size:36px;margin-bottom:12px">🎉</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px">No Pending Remedials</div>
+    <div style="font-size:12px;font-family:var(--fm)">All fail assessments have been reviewed and released.</div>
+  </div>`;
+
+  return recs.map(r=>`
+    <div class="rem-card">
+      <div class="rem-card-head">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div style="font-size:15px;font-weight:700">${r.colleague||'—'}</div>
+          <span class="rem-status pending">⏳ Awaiting Release</span>
+          <span style="font-size:11px;font-family:var(--fm);color:var(--text3)">Created: ${_fmtDate(r.dateIssued)}</span>
+        </div>
+        <button class="rem-release-btn" onclick="openReleaseModal('${r.id}')">🚀 Review &amp; Release to Consultant</button>
+      </div>
+      <div class="rem-card-body">
+        <div class="rem-card-cols">
+          <div class="rem-field"><span class="rem-field-label">Colleague</span><span class="rem-field-val">${r.colleague||'—'}</span></div>
+          <div class="rem-field"><span class="rem-field-label">Team / Dept</span><span class="rem-field-val">${r.team||r.teamKey||'—'}</span></div>
+          <div class="rem-field"><span class="rem-field-label">Assessor</span><span class="rem-field-val">${r.callAssessor||r.assessor||'—'}</span></div>
+          <div class="rem-field"><span class="rem-field-label">CRM Ref</span><span class="rem-field-val">${r.crmRef||'—'}</span></div>
+          <div class="rem-field"><span class="rem-field-label">Customer Surname</span><span class="rem-field-val">${r.customerSurname||'—'}</span></div>
+          <div class="rem-field"><span class="rem-field-label">Date of Call</span><span class="rem-field-val">${r.dateTimeOfCall||'—'}</span></div>
+          <div class="rem-field"><span class="rem-field-label">Initial Outcome</span><span class="rem-field-val" style="color:var(--red);font-weight:700">${r.initialOutcome||'—'}</span></div>
+          <div class="rem-field"><span class="rem-field-label">Reg Compliant</span><span class="rem-field-val" style="color:${r.regCompliant==='No'?'var(--red)':'var(--text)'}">${r.regCompliant||'—'}</span></div>
+        </div>
+        <div class="rem-action-box">
+          <div class="rem-action-title">⚠️ Remedial Action Required</div>
+          <div class="rem-action-text" style="white-space:pre-line">${r.remedialActionRequired||'See original assessment.'}</div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ── Release modal ─────────────────────────────────────────────────
+function openReleaseModal(remId){
+  const r = _remAll[remId];
+  if(!r) return;
+  const modal = document.getElementById('reviewModal');
+  document.getElementById('reviewModalTitle').textContent = '🚀 Release Remedial — '+r.colleague;
+  document.getElementById('reviewModalBody').innerHTML = `
+    <div style="background:rgba(251,184,58,0.1);border-left:3px solid var(--amber);border-radius:6px;padding:12px 16px;margin-bottom:16px;font-size:12px;font-family:var(--fm);color:var(--amber)">
+      Releasing this will send the remedial action directly to <strong>${r.colleague}</strong>'s Call Outcomes page.
+      They will be able to log contact attempts and mark it complete.
+    </div>
+    <div style="margin-bottom:14px;padding:12px 16px;background:var(--surface2);border-radius:10px;font-size:12px;font-family:var(--fm)">
+      <div style="font-weight:700;margin-bottom:8px;font-size:13px">Assessment Summary</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div><span style="color:var(--text3)">Colleague: </span><strong>${r.colleague}</strong></div>
+        <div><span style="color:var(--text3)">CRM Ref: </span><strong>${r.crmRef||'—'}</strong></div>
+        <div><span style="color:var(--text3)">Outcome: </span><strong style="color:var(--red)">${r.initialOutcome}</strong></div>
+        <div><span style="color:var(--text3)">Date: </span><strong>${_fmtDate(r.dateIssued)}</strong></div>
+      </div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div class="field-lbl">Remedial Action Required (editable before release)</div>
+      <textarea rows="5" id="rel_action" style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none;resize:vertical">${r.remedialActionRequired||''}</textarea>
+    </div>
+    <div>
+      <div class="field-lbl">Manager Notes (optional — visible to consultant)</div>
+      <textarea rows="3" id="rel_notes" style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:9px 12px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none;resize:vertical" placeholder="Add any additional context for the consultant…"></textarea>
+    </div>`;
+  document.getElementById('reviewModalBtns').innerHTML = `
+    <button class="btn btn-s" onclick="document.getElementById('reviewModal').classList.remove('open')">Cancel</button>
+    <button class="rem-release-btn" onclick="confirmRelease('${remId}')">🚀 Release to Consultant</button>`;
+  modal.classList.add('open');
+}
+
+function confirmRelease(remId){
+  const action = document.getElementById('rel_action')?.value?.trim();
+  const notes  = document.getElementById('rel_notes')?.value?.trim();
+  if(!action){ showToast('Remedial action required cannot be empty','err'); return; }
+  const ref = _remRef();
+  if(!ref){ showToast('Not connected','err'); return; }
+  const updates = {
+    status: 'released',
+    remedialActionRequired: action,
+    managerNotes: notes||'',
+    releasedAt:   new Date().toISOString(),
+    releasedBy:   _currentUser?.name||''
+  };
+  Object.assign(_remAll[remId], updates);
+  ref.child(remId).update(updates).then(()=>{
+    document.getElementById('reviewModal').classList.remove('open');
+    showToast('Remedial released to '+(_remAll[remId]?.colleague||'consultant')+' ✓');
+    _updateRemBadges();
+    renderMgrRemContent();
+  }).catch(()=>showToast('Release failed','err'));
+}
+
+// ── Released list (in-progress) ───────────────────────────────────
+function _renderReleasedList(recs){
+  if(!recs.length) return `<div style="text-align:center;padding:60px 20px;color:var(--text3)">
+    <div style="font-size:36px;margin-bottom:12px">📭</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px">No Active Remedials</div>
+    <div style="font-size:12px;font-family:var(--fm)">No released remedials currently in progress.</div>
+  </div>`;
+
+  return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;overflow-x:auto;margin-bottom:16px">
+    <div style="padding:12px 18px;background:rgba(94,156,245,0.1);border-bottom:1px solid rgba(94,156,245,0.2);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:13px;font-weight:700;color:var(--blue)">📤 Released — In Progress</div>
+      <div style="font-size:11px;font-family:var(--fm);color:var(--text3)">${recs.length} active</div>
+    </div>
+    <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;min-width:900px">
+      <thead><tr>
+        <th style="padding:9px 12px;background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;border:1px solid var(--border);text-align:left">Colleague</th>
+        <th style="padding:9px 12px;background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;border:1px solid var(--border);text-align:left">CRM Ref</th>
+        <th style="padding:9px 12px;background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;border:1px solid var(--border)">Issued</th>
+        <th style="padding:9px 12px;background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;border:1px solid var(--border)">Days Open</th>
+        <th style="padding:9px 12px;background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;border:1px solid var(--border)">Attempts</th>
+        <th style="padding:9px 12px;background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;border:1px solid var(--border)">Progress</th>
+        <th style="padding:9px 12px;background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;border:1px solid var(--border)">Actions</th>
+      </tr></thead>
+      <tbody>
+        ${recs.map(r=>{
+          const days = Math.floor((Date.now()-new Date(r.dateIssued).getTime())/86400000);
+          const isOverdue = days>10;
+          const atts = [r.callAttempt1,r.callAttempt2,r.callAttempt3].filter(a=>a?.date).length;
+          const steps = [r.callAttempt1?.date,r.callAttempt2?.date,r.callAttempt3?.date,r.letter1,r.completedRemedialDetail].filter(Boolean).length;
+          const pct   = Math.round((steps/5)*100);
+          return `<tr style="border-bottom:1px solid var(--border);font-size:12px;font-family:var(--fm)">
+            <td style="padding:9px 12px;font-weight:700;border:1px solid var(--border)">${r.colleague||'—'}</td>
+            <td style="padding:9px 12px;border:1px solid var(--border)">${r.crmRef||'—'}</td>
+            <td style="padding:9px 12px;border:1px solid var(--border);text-align:center">${_fmtDate(r.dateIssued)}</td>
+            <td style="padding:9px 12px;border:1px solid var(--border);text-align:center;color:${isOverdue?'var(--red)':'var(--text)'};font-weight:${isOverdue?'700':'400'}">${days}d${isOverdue?' ⏰':''}</td>
+            <td style="padding:9px 12px;border:1px solid var(--border);text-align:center">${atts}/3</td>
+            <td style="padding:9px 12px;border:1px solid var(--border);min-width:120px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <div class="rem-progress-wrap" style="flex:1"><div class="rem-progress-fill" style="width:${pct}%;background:${pct>=80?'var(--green)':pct>=40?'var(--amber)':'var(--red)'}"></div></div>
+                <span style="font-size:11px;font-weight:700;color:${pct>=80?'var(--green)':pct>=40?'var(--amber)':'var(--red)'}">${pct}%</span>
+              </div>
+            </td>
+            <td style="padding:9px 12px;border:1px solid var(--border)">
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-s" style="font-size:11px;padding:4px 10px" onclick="openRemDetailModal('${r.id}')">View</button>
+                <button class="btn" onclick="openMarkCompleteModal('${r.id}')"
+                  style="font-size:11px;padding:4px 10px;background:rgba(45,206,137,0.15);color:var(--green);border:1px solid rgba(45,206,137,0.3)">Complete</button>
+              </div>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    </div></div>`;
+}
+
+// ── Completed summary ─────────────────────────────────────────────
+function _renderCompletedSummary(recs){
+  if(!recs.length) return `<div style="text-align:center;padding:60px 20px;color:var(--text3)">
+    <div style="font-size:36px;margin-bottom:12px">📋</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px">No Completed Remedials Yet</div>
+  </div>`;
+  return `<div>${recs.map(r=>`
+    <div class="rem-card rem-action-box completed" style="border-radius:var(--radius);margin-bottom:12px;padding:16px 18px;cursor:pointer" onclick="openRemDetailModal('${r.id}')">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:15px;font-weight:700">${r.colleague||'—'}</span>
+          <span class="rem-status completed">✅ Complete</span>
+          <span style="font-size:11px;font-family:var(--fm);color:var(--text3)">CRM: ${r.crmRef||'—'}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px;font-size:11px;font-family:var(--fm);color:var(--text3)">
+          <span>Issued: ${_fmtDate(r.dateIssued)}</span>
+          <span>Completed: ${_fmtDate(r.completedAt?.split('T')[0])}</span>
+          <span>Validated: ${r.validatedBy||'—'}</span>
+        </div>
+      </div>
+    </div>`).join('')}</div>`;
+}
+
+// ── Team Overview (compliance/manager) ───────────────────────────
+function _renderRemTeamOverview(allRecs){
+  // Group by colleague
+  const byColleague = {};
+  allRecs.forEach(r=>{
+    const name = r.colleague||'Unknown';
+    if(!byColleague[name]) byColleague[name]={name,total:0,pending:0,released:0,completed:0,overdue:0};
+    byColleague[name].total++;
+    if(r.status==='pending_manager') byColleague[name].pending++;
+    else if(r.status==='released'){
+      byColleague[name].released++;
+      const days = Math.floor((Date.now()-new Date(r.dateIssued).getTime())/86400000);
+      if(days>10) byColleague[name].overdue++;
+    }
+    else if(r.status==='completed') byColleague[name].completed++;
+  });
+
+  const rows = Object.values(byColleague).sort((a,b)=>b.total-a.total);
+  if(!rows.length) return `<div style="text-align:center;padding:60px 20px;color:var(--text3)">
+    <div style="font-size:36px;margin-bottom:12px">📊</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px">No Data Yet</div>
+  </div>`;
+
+  const thS = 'style="padding:9px 14px;background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;border:1px solid var(--border);white-space:nowrap"';
+
+  return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;overflow-x:auto">
+    <div style="padding:12px 18px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:13px;font-weight:700">👥 Team Remedial Overview</div>
+      <div style="font-size:11px;font-family:var(--fm);color:var(--text3)">${rows.length} colleagues</div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;min-width:750px">
+      <thead><tr>
+        <th ${thS} style="text-align:left">Colleague</th>
+        <th ${thS}>Total</th>
+        <th ${thS}>Awaiting Mgr</th>
+        <th ${thS}>In Progress</th>
+        <th ${thS}>Overdue</th>
+        <th ${thS}>Completed</th>
+        <th ${thS}>Completion Rate</th>
+        <th ${thS}>Progress</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(r=>{
+          const compPct = r.total ? Math.round(r.completed/r.total*100) : 0;
+          const barCol  = compPct>=80?'var(--green)':compPct>=50?'var(--amber)':'var(--red)';
+          return `<tr style="border-bottom:1px solid var(--border);font-size:12px;font-family:var(--fm)" class="rem-ov-tr">
+            <td class="rem-ov-td" style="font-weight:700;text-align:left">${r.name}</td>
+            <td class="rem-ov-td" style="text-align:center">${r.total}</td>
+            <td class="rem-ov-td" style="text-align:center;color:${r.pending?'var(--amber)':'var(--text3)'};font-weight:${r.pending?'700':'400'}">${r.pending||'—'}</td>
+            <td class="rem-ov-td" style="text-align:center;color:${r.released?'var(--blue)':'var(--text3)'};font-weight:${r.released?'700':'400'}">${r.released||'—'}</td>
+            <td class="rem-ov-td" style="text-align:center;color:${r.overdue?'var(--red)':'var(--text3)'};font-weight:${r.overdue?'700':'400'}">${r.overdue||'—'}</td>
+            <td class="rem-ov-td" style="text-align:center;color:${r.completed?'var(--green)':'var(--text3)'};font-weight:${r.completed?'700':'400'}">${r.completed||'—'}</td>
+            <td class="rem-ov-td" style="text-align:center;font-weight:700;color:${barCol}">${compPct}%</td>
+            <td class="rem-ov-td" style="min-width:120px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <div class="rem-progress-wrap" style="flex:1"><div class="rem-progress-fill" style="width:${compPct}%;background:${barCol}"></div></div>
+                <span style="font-size:11px;color:${barCol};font-weight:700">${compPct}%</span>
+              </div>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+// ── Export all remedials as CSV ───────────────────────────────────
+function exportRemedialsCSV(){
+  const recs = Object.values(_remAll);
+  if(!recs.length){ showToast('No data to export','err'); return; }
+  const headers = ['ID','Colleague','Team','CRM Ref','Customer','Date Issued','Date of Call','Assessor',
+    'Initial Outcome','Reg Compliant','Status','Attempts','Letter1','Letter2',
+    'Completed Detail','Validated By','Completed At','Manager Notes'];
+  const esc = v=>'"'+String(v||'').replace(/"/g,'""')+'"';
+  let csv = headers.map(esc).join(',')+'\n';
+  recs.forEach(r=>{
+    const atts=[r.callAttempt1,r.callAttempt2,r.callAttempt3].filter(a=>a?.date).length;
+    csv+=[r.id,r.colleague,r.team||r.teamKey,r.crmRef,r.customerSurname,r.dateIssued,
+      r.dateTimeOfCall,r.callAssessor,r.initialOutcome,r.regCompliant,r.status,atts,
+      r.letter1,r.letter2,r.completedRemedialDetail,r.validatedBy,
+      r.completedAt||'',r.managerNotes].map(esc).join(',')+'\n';
+  });
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='remedial_actions.csv';
+  a.click();
+  showToast('Remedials exported ✓');
+}
+
+// ── Date formatter ───────────────────────────────────────────────
+function _fmtDate(ds){
+  if(!ds) return '—';
+  try{ return new Date(ds+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }
+  catch(e){ return ds; }
+}
+
+
 
 function logoutUser(){
   sessionStorage.removeItem('pd_auth');
