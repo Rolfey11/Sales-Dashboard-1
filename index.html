@@ -4011,60 +4011,7 @@ function exportSummaryCSV(){
 // ═══════════════════════════════════════════════════════════════════
 // HOLIDAY RENDER
 // ═══════════════════════════════════════════════════════════════════
-function renderHoliday(){
-  populateAllSelects();
-  const mk = document.getElementById('holMonth').value || APP.activeMonth;
-  const [y, m] = mk.split('-').map(Number);
-  const daysInMonth = new Date(y, m, 0).getDate();
-  const people = APP.people.filter(p => personTargetForMonth(p, mk) > 0);
-
-  if(!people.length){
-    document.getElementById('holTbl').innerHTML = '<tr><td style="padding:24px;color:var(--text3);font-family:var(--fm)">No consultants set up yet.</td></tr>';
-    return;
-  }
-
-  // build date info for every day of the month
-  const dates = [];
-  for(let d = 1; d <= daysInMonth; d++){
-    const dt = new Date(y, m-1, d);
-    const dow = dt.getDay();
-    const isWE = dow === 0 || dow === 6;
-    const ds = y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-    const dayLtr = ['S','M','T','W','T','F','S'][dow];
-    dates.push({d, ds, isWE, dayLtr});
-  }
-
-  let html = '<thead><tr>';
-  html += '<th class="hol-th nc">Consultant</th>';
-  dates.forEach(({d, dayLtr, isWE}) => {
-    html += '<th class="hol-th" style="'+(isWE?'color:var(--text3)':'')+'">'+d+'<br><span style="font-size:9px">'+dayLtr+'</span></th>';
-  });
-  html += '<th class="hol-th">Days off</th></tr></thead><tbody>';
-
-  people.forEach(p => {
-    const hols = getHols(mk, p.name);
-    const sick = getSick(mk, p.name);
-    const totalOff = new Set([...hols, ...sick]).size;
-    html += '<tr><td class="hol-td nc">'+p.name+'</td>';
-    dates.forEach(({ds, isWE}) => {
-      if(isWE){
-        html += '<td class="hol-td we"><span style="color:var(--text3);font-size:10px">—</span></td>';
-      } else if(isBankHoliday(ds)){
-        html += '<td class="hol-td" style="background:rgba(131,5,68,0.08)"><div class="hol-cell" style="background:rgba(131,5,68,0.15);color:#830544;cursor:default;font-size:8px;font-weight:700" title="UK Bank Holiday">BH</div></td>';
-      } else {
-        const status = getDayStatus(mk, p.name, ds);
-        const cls = status==='hol' ? 'on-hol' : status==='sick' ? 'on-sick' : '';
-        const lbl = status==='hol' ? 'H' : status==='sick' ? 'S' : '';
-        const title = status==='hol' ? 'Planned holiday' : status==='sick' ? 'Sickness/unplanned' : 'Click to mark holiday';
-        html += '<td class="hol-td"><div class="hol-cell '+cls+'" data-mk="'+mk+'" data-name="'+p.name.replace(/"/g,'&quot;')+'" data-ds="'+ds+'" onclick="holClick(this)" title="'+title+'">'+lbl+'</div></td>';
-      }
-    });
-    html += '<td class="hol-td" style="font-size:10px;font-family:var(--fm)"><span style="color:var(--red)">H:'+hols.length+'</span> <span style="color:var(--amber)">S:'+sick.length+'</span></td></tr>';
-  });
-
-  html += '</tbody>';
-  document.getElementById('holTbl').innerHTML = html;
-}
+// renderHoliday — see full implementation above (includes consultant row filtering)
 
 // ═══════════════════════════════════════════════════════════════════
 // FORMAT HELPERS
