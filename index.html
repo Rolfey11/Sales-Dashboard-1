@@ -1288,6 +1288,132 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 .cop-amber{ animation:copAmber 2s ease-in-out infinite; }
 .cop-red  { animation:copRed   1.4s ease-in-out infinite; }
 
+/* ═══════════════════════════════════════════════════════════════════
+   CONSULTANT LANDING FEATURES
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* COP Banner */
+#copBanner{
+  position:fixed;top:0;left:0;right:0;z-index:9000;
+  transform:translateY(-100%);transition:transform .5s cubic-bezier(.16,1,.3,1);
+  pointer-events:none;
+}
+#copBanner.show{
+  transform:translateY(0);pointer-events:auto;
+}
+.cop-banner-inner{
+  margin:8px 16px;border-radius:12px;
+  padding:10px 18px;display:flex;align-items:center;gap:10px;
+  font-family:var(--fm);font-size:13px;font-weight:700;
+  box-shadow:0 4px 24px rgba(0,0,0,.35);
+  background:linear-gradient(135deg,#0e6e44,#1a9955);color:#fff;
+  border:1px solid rgba(255,255,255,.2);
+}
+.cop-banner-inner.behind{
+  background:linear-gradient(135deg,#9b1d35,#d92f53);
+}
+.cop-banner-close{
+  margin-left:auto;background:none;border:none;color:rgba(255,255,255,.7);
+  font-size:16px;cursor:pointer;padding:2px 6px;line-height:1;
+  transition:color .15s;flex-shrink:0;
+}
+.cop-banner-close:hover{ color:#fff; }
+
+/* Today's Focus Card */
+#todayFocusCard{
+  background:linear-gradient(135deg,var(--surface) 0%,var(--surface2) 100%);
+  border:1px solid var(--border2);border-radius:16px;
+  padding:20px 22px;margin-bottom:20px;position:relative;overflow:hidden;
+  animation:focusSlideIn .6s cubic-bezier(.16,1,.3,1) forwards;
+  box-shadow:0 4px 24px rgba(0,0,0,.18);
+}
+@keyframes focusSlideIn{
+  from{opacity:0;transform:translateY(-16px) scale(.98)}
+  to  {opacity:1;transform:translateY(0) scale(1)}
+}
+#todayFocusCard::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--accent),var(--green),var(--purple));
+}
+.focus-dismiss{
+  position:absolute;top:10px;right:12px;background:none;border:none;
+  color:var(--text3);font-size:15px;cursor:pointer;padding:4px;
+  transition:color .15s;line-height:1;
+}
+.focus-dismiss:hover{ color:var(--text2); }
+.focus-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
+  gap:12px;margin-top:14px;
+}
+.focus-kpi{
+  background:var(--surface3);border:1px solid var(--border);
+  border-radius:10px;padding:12px 14px;text-align:center;
+}
+.focus-kpi-val{
+  font-family:var(--fm);font-size:1.35rem;font-weight:800;
+  line-height:1;margin-bottom:4px;
+}
+.focus-kpi-lbl{
+  font-size:9px;font-weight:700;color:var(--text3);
+  letter-spacing:.08em;text-transform:uppercase;
+}
+.focus-nudge{
+  margin-top:14px;padding:10px 14px;border-radius:10px;
+  background:rgba(94,156,245,.08);border-left:3px solid var(--accent);
+  font-size:12px;font-family:var(--fm);color:var(--text2);line-height:1.6;
+}
+
+/* Target Road Track */
+#targetRoadWrap{
+  margin:16px 0;position:relative;
+}
+.road-track{
+  height:28px;background:var(--surface3);border-radius:14px;
+  overflow:visible;position:relative;border:1px solid var(--border);
+}
+.road-fill{
+  height:100%;border-radius:14px;
+  background:linear-gradient(90deg,var(--accent),var(--green));
+  transition:width 1.4s cubic-bezier(.4,0,.2,1);
+  position:relative;min-width:0;
+}
+.road-fill::after{
+  content:'';position:absolute;inset:0;border-radius:14px;
+  background:linear-gradient(180deg,rgba(255,255,255,.18) 0%,transparent 60%);
+}
+.road-car{
+  position:absolute;top:50%;transform:translate(-50%,-50%);
+  font-size:18px;transition:left 1.4s cubic-bezier(.4,0,.2,1);
+  filter:drop-shadow(0 2px 4px rgba(0,0,0,.4));z-index:2;
+}
+.road-finish{
+  position:absolute;right:-2px;top:50%;transform:translateY(-50%);
+  font-size:20px;z-index:3;
+  animation:finishPulse 2s ease-in-out infinite;
+}
+@keyframes finishPulse{
+  0%,100%{filter:drop-shadow(0 0 4px rgba(255,215,0,.4));}
+  50%    {filter:drop-shadow(0 0 12px rgba(255,215,0,.8));}
+}
+.road-pct-label{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  font-family:var(--fm);font-size:11px;font-weight:800;
+  color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.5);z-index:4;
+  pointer-events:none;
+}
+.road-markers{
+  display:flex;justify-content:space-between;
+  font-size:9px;color:var(--text3);font-family:var(--fm);
+  margin-top:4px;padding:0 2px;
+}
+
+/* Bell pending pulse */
+@keyframes bellAmber{
+  0%,100%{box-shadow:0 0 0 0 rgba(251,184,58,0);}
+  50%    {box-shadow:0 0 0 6px rgba(251,184,58,.25);}
+}
+.bell-hol-pending{ animation:bellAmber 2.5s ease-in-out infinite; border-radius:50%; }
+
 </style>
 <body class="pre-auth">
 
@@ -2436,6 +2562,13 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 
 <!-- CONSULTANT DAILY -->
 <div class="page" id="page-consultantdaily">
+<div id="copBanner">
+  <div class="cop-banner-inner" id="copBannerInner">
+    <span id="copBannerIcon">✅</span>
+    <span id="copBannerText">You're ahead of COP</span>
+    <button class="cop-banner-close" onclick="dismissCopBanner()">✕</button>
+  </div>
+</div>
   <div class="section-head">
     <div>
       <div class="section-title">📅 Consultant Daily</div>
@@ -7947,15 +8080,46 @@ function renderConsultantDaily(){
           ).join('')}
         </div>
 
-        <!-- Progress bar -->
+        <!-- Target Road -->
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;">
-          <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;font-family:var(--fm)">Target Progress</div>
-          <div style="font-size:24px;font-weight:700;font-family:var(--fm);color:${pct>=100?'var(--green)':pct>=75?'var(--amber)':'var(--text)'};">${pct}%</div>
-          <div style="background:var(--surface3);border-radius:4px;height:8px;margin-top:8px;overflow:hidden;"><div style="height:100%;width:${Math.min(pct,100)}%;background:${pct>=100?'var(--green)':pct>=75?'var(--amber)':'var(--blue)'};border-radius:4px;transition:width .6s;"></div></div>
-          <div style="font-size:11px;color:var(--text3);margin-top:6px;font-family:var(--fm)">£${Math.round(revMTD).toLocaleString()} of £${target.toLocaleString()}</div>
+          <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-bottom:10px;font-family:var(--fm)">Progress to Target</div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+            <span style="font-size:24px;font-weight:800;font-family:var(--fm);color:${pct>=100?'var(--green)':pct>=75?'var(--amber)':'var(--text)'}">${pct}%</span>
+            <span style="font-size:11px;color:var(--text3);font-family:var(--fm)">£${Math.round(target-revMTD)>0?Math.round(target-revMTD).toLocaleString()+' to go':'Target reached!'}</span>
+          </div>
+          <div class="road-track" style="margin-bottom:4px">
+            <div class="road-fill" id="roadFill" style="width:0%;background:${pct>=100?'linear-gradient(90deg,var(--green),#1a9955)':pct>=75?'linear-gradient(90deg,var(--amber),#d4820a)':pct>=50?'linear-gradient(90deg,var(--blue),var(--accent))':'linear-gradient(90deg,#f5365c,#d92f53)'}"></div>
+            <div class="road-pct-label">${pct}%</div>
+            <div class="road-car" id="roadCar" style="left:2%">${pct>=100?'🏆':pct>=75?'🚗':pct>=50?'🚙':'🚕'}</div>
+            <div class="road-finish">🏁</div>
+          </div>
+          <div class="road-markers"><span>£0</span><span>25%</span><span>50%</span><span>75%</span><span>£${target.toLocaleString()}</span></div>
         </div>
       </div>
     </div>`;
+
+  // Animate road track
+  if(typeof _animateRoad==='function') setTimeout(()=>_animateRoad(pct), 120);
+
+  // ── Consultant landing features ──────────────────────────────────
+  if(role==='consultant' && typeof _injectConsultantLandingFeatures==='function'){
+    const [_y,_m] = mk.split('-').map(Number);
+    const _daysInMonth = new Date(_y,_m,0).getDate();
+    const _today2 = _localDateStr(new Date());
+    let _daysLeft = 0;
+    for(let _d=parseInt(_today2.slice(8))+1;_d<=_daysInMonth;_d++){
+      const _ds2=_y+'-'+String(_m).padStart(2,'0')+'-'+String(_d).padStart(2,'0');
+      const _dow2=new Date(_ds2+'T12:00:00').getDay();
+      if(_dow2!==0&&_dow2!==6&&!isBankHoliday(_ds2)) _daysLeft++;
+    }
+    const _streak2 = typeof _calcStreak==='function' ? _calcStreak(myName, mk) : 0;
+    setTimeout(()=>_injectConsultantLandingFeatures(mk, myName, {
+      target, revMTD, pct, riskPerDay, effectiveDaysT, elapsed,
+      copRiskNeeded, copNmNeeded, daysLeft:_daysLeft,
+      rpdNeeded: _daysLeft>0 ? Math.max(0,target-revMTD)/_daysLeft : 0,
+      streak: _streak2
+    }), 80);
+  }
 }
 
 // ── Toggle individual deal breakdown row ──────────────────────────
@@ -14445,6 +14609,255 @@ function _enhanceDashboardCards(){
   if(_origEnhanceDash) _origEnhanceDash();
   // Check for month-end on first load
   if(!window._cinChecked){ window._cinChecked=true; setTimeout(_checkMonthEndCinematic, 500); }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CONSULTANT LANDING FEATURES
+// 1. COP Banner  2. Bell pulse  3. Today's Focus card  4. Target road
+// ═══════════════════════════════════════════════════════════════════
+
+// ── 1. COP BANNER ────────────────────────────────────────────────
+let _copBannerTimer = null;
+
+function showCopBanner(copRev, copNm, riskPerDay){
+  const banner = document.getElementById('copBanner');
+  const inner  = document.getElementById('copBannerInner');
+  const icon   = document.getElementById('copBannerIcon');
+  const text   = document.getElementById('copBannerText');
+  if(!banner||!inner||!icon||!text) return;
+
+  const isAhead = copRev <= 0; // COP negative = ahead
+  const aheadAmt = Math.abs(copRev);
+  const aheadNm  = Math.abs(copNm).toFixed(1);
+
+  if(isAhead){
+    inner.className = 'cop-banner-inner';
+    icon.textContent = '🟢';
+    text.textContent = '+£'+Math.round(aheadAmt).toLocaleString()+' ahead of COP · NM +'+aheadNm+' ahead — great work, keep it up!';
+  } else {
+    inner.className = 'cop-banner-inner behind';
+    icon.textContent = '🔴';
+    const needed = Math.abs(copRev);
+    text.textContent = '£'+Math.round(needed).toLocaleString()+' needed to hit COP today — you\'ve got this!';
+  }
+
+  // Slide down
+  banner.classList.add('show');
+
+  // Auto-dismiss after 6s
+  if(_copBannerTimer) clearTimeout(_copBannerTimer);
+  _copBannerTimer = setTimeout(dismissCopBanner, 6000);
+}
+
+function dismissCopBanner(){
+  const banner = document.getElementById('copBanner');
+  if(banner) banner.classList.remove('show');
+  if(_copBannerTimer){ clearTimeout(_copBannerTimer); _copBannerTimer=null; }
+}
+
+// ── 2. BELL PULSE for pending holiday requests ────────────────────
+function _updateBellPulse(){
+  const bell   = document.getElementById('notifBell');
+  if(!bell) return;
+  const role   = _currentUser?.role||'';
+  const myName = _currentUser?.name||'';
+  let hasPending = false;
+
+  if(typeof _holRequests !== 'undefined'){
+    if(role==='consultant'){
+      hasPending = Object.values(_holRequests).some(r=>r.colleague===myName&&r.status==='pending');
+    } else {
+      const myTeam = (role==='master'||role==='compliance') ? null : new Set(typeof _getMyTeamMembers==='function'?_getMyTeamMembers():[]);
+      hasPending = Object.values(_holRequests).some(r=>r.status==='pending'&&(!myTeam||myTeam.has(r.colleague)));
+    }
+  }
+
+  if(hasPending){
+    bell.classList.add('bell-hol-pending');
+  } else {
+    bell.classList.remove('bell-hol-pending');
+  }
+}
+
+// ── 3. TODAY'S FOCUS CARD ─────────────────────────────────────────
+const _FOCUS_DISMISS_KEY = 'focus_dismissed_';
+
+function _todayFocusKey(){
+  return _FOCUS_DISMISS_KEY + _localDateStr(new Date());
+}
+
+function _shouldShowFocus(){
+  return !sessionStorage.getItem(_todayFocusKey());
+}
+
+function _nudgeText(pct, daysLeft, rpdNeeded, streak, copAhead){
+  if(daysLeft===0) return '🏁 Last chance — give it everything you\'ve got today!';
+  if(pct>=100)     return '🎉 Target smashed! Every sale from here is a bonus — make it count.';
+  if(copAhead && streak>=3) return '🔥 You\'re ahead on COP and on a '+streak+'-day streak. Momentum is everything — push on.';
+  if(copAhead)     return '✅ You\'re ahead of COP today. Stay focused and close out the day strong.';
+  if(daysLeft<=3)  return '⚡ Just '+daysLeft+' day'+(daysLeft>1?'s':'')+' left. £'+Math.round(rpdNeeded).toLocaleString()+'/day needed — now is the time.';
+  if(pct<50 && daysLeft<10) return '📈 £'+Math.round(rpdNeeded).toLocaleString()+'/day needed for the rest of the month. Break it into daily wins.';
+  if(streak>=5)    return '🔥 '+streak+'-day streak! Consistency is your superpower — keep showing up.';
+  if(streak>0)     return '💪 '+streak+'-day streak going. One more great day adds to your momentum.';
+  if(pct>=75)      return '👊 In the home stretch at '+pct+'%. Stay disciplined and finish strong.';
+  return '🎯 £'+Math.round(rpdNeeded).toLocaleString()+'/day keeps you on track. Focus on the next call.';
+}
+
+function renderTodayFocusCard(mk, myName, data){
+  if(!_shouldShowFocus()) return '';
+  const { target, revMTD, pct, riskPerDay, effectiveDaysT, elapsed,
+          copRiskNeeded, streak, daysLeft, rpdNeeded } = data;
+  if(!target||target<=0) return '';
+
+  const remaining  = Math.max(0, target - revMTD);
+  const copAhead   = copRiskNeeded <= 0;
+  const nudge      = _nudgeText(pct, daysLeft, rpdNeeded, streak, copAhead);
+  const rpdColor   = rpdNeeded<=riskPerDay?'var(--green)':rpdNeeded<=riskPerDay*1.5?'var(--amber)':'var(--red)';
+  const daysColor  = daysLeft<=3?'var(--red)':daysLeft<=7?'var(--amber)':'var(--green)';
+
+  const hour = new Date().getHours();
+  const greeting = hour<12?'Good morning':hour<17?'Good afternoon':'Good evening';
+
+  return `<div id="todayFocusCard">
+    <button class="focus-dismiss" onclick="_dismissFocusCard()" title="Dismiss for today">✕</button>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:2px">
+      <span style="font-size:20px">☀️</span>
+      <div>
+        <div style="font-size:15px;font-weight:800">${greeting}, ${myName.split(' ')[0]}</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</div>
+      </div>
+    </div>
+    <div class="focus-grid">
+      <div class="focus-kpi">
+        <div class="focus-kpi-val" style="color:${daysColor}">${daysLeft}</div>
+        <div class="focus-kpi-lbl">Days Left</div>
+      </div>
+      <div class="focus-kpi">
+        <div class="focus-kpi-val" style="color:${rpdColor}">£${Math.round(rpdNeeded).toLocaleString()}</div>
+        <div class="focus-kpi-lbl">Needed / Day</div>
+      </div>
+      <div class="focus-kpi">
+        <div class="focus-kpi-val" style="color:var(--text)">£${Math.round(remaining).toLocaleString()}</div>
+        <div class="focus-kpi-lbl">Still to Target</div>
+      </div>
+      ${streak>=3?`<div class="focus-kpi">
+        <div class="focus-kpi-val" style="color:var(--amber)">🔥 ${streak}</div>
+        <div class="focus-kpi-lbl">Day Streak</div>
+      </div>`:''}
+    </div>
+    <div class="focus-nudge">${nudge}</div>
+  </div>`;
+}
+
+function _dismissFocusCard(){
+  sessionStorage.setItem(_todayFocusKey(), '1');
+  const card = document.getElementById('todayFocusCard');
+  if(card){
+    card.style.transition='all .35s cubic-bezier(.4,0,.2,1)';
+    card.style.opacity='0';
+    card.style.transform='translateY(-12px) scale(.97)';
+    setTimeout(()=>card.remove(), 360);
+  }
+}
+
+// ── 4. TARGET ROAD TRACK ──────────────────────────────────────────
+function renderTargetRoad(pct, target, revMTD){
+  const safePct   = Math.min(pct, 100);
+  const barColor  = pct>=100?'linear-gradient(90deg,var(--green),#1a9955)':
+                    pct>=75 ?'linear-gradient(90deg,var(--amber),#d4820a)':
+                    pct>=50 ?'linear-gradient(90deg,var(--blue),var(--accent))':
+                             'linear-gradient(90deg,#f5365c,#d92f53)';
+  const carEmoji  = pct>=100?'🏆':pct>=75?'🚗':pct>=50?'🚙':'🚕';
+  // Car sits at the fill edge, clamped 2–96%
+  const carLeft   = Math.max(2, Math.min(safePct, 96));
+
+  return `<div id="targetRoadWrap">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <span style="font-size:11px;font-weight:700;color:var(--text2)">Progress to Target</span>
+      <span style="font-size:11px;font-family:var(--fm);color:var(--text3)">£${Math.round(revMTD).toLocaleString()} of £${target.toLocaleString()}</span>
+    </div>
+    <div class="road-track">
+      <div class="road-fill" id="roadFill" style="width:0%;background:${barColor}"></div>
+      <div class="road-pct-label">${pct}%</div>
+      <div class="road-car" id="roadCar" style="left:2%">${carEmoji}</div>
+      <div class="road-finish" style="right:-12px" title="Target!">🏁</div>
+    </div>
+    <div class="road-markers">
+      <span>£0</span><span>25%</span><span>50%</span><span>75%</span><span>£${target.toLocaleString()}</span>
+    </div>
+  </div>`;
+}
+
+function _animateRoad(pct){
+  const fill = document.getElementById('roadFill');
+  const car  = document.getElementById('roadCar');
+  if(!fill||!car) return;
+  const safePct = Math.min(pct, 100);
+  setTimeout(()=>{
+    fill.style.width = safePct+'%';
+    car.style.left   = Math.max(2, Math.min(safePct, 94))+'%';
+    // If hit target, add celebration glow to car
+    if(pct>=100){
+      fill.style.background = 'linear-gradient(90deg,var(--green),#1a9955)';
+      car.style.filter = 'drop-shadow(0 0 8px rgba(255,215,0,.8))';
+    }
+  }, 150);
+}
+
+// ── PATCH renderConsultantDaily to inject all features ────────────
+// Called at end of renderConsultantDaily by direct hook below
+
+function _injectConsultantLandingFeatures(mk, myName, data){
+  // 1. COP Banner
+  if(mk === APP.activeMonth){
+    const dismissed = sessionStorage.getItem('cop_banner_dismissed_'+_localDateStr(new Date()));
+    if(!dismissed) showCopBanner(data.copRiskNeeded, data.copNmNeeded, data.riskPerDay);
+  }
+
+  // 2. Bell pulse
+  _updateBellPulse();
+
+  // 3. Today's Focus card — inject before #cdContent
+  const cdContent = document.getElementById('cdContent');
+  if(cdContent && mk === APP.activeMonth){
+    const existing = document.getElementById('todayFocusCard');
+    if(!existing){
+      const focusHtml = renderTodayFocusCard(mk, myName, data);
+      if(focusHtml) cdContent.insertAdjacentHTML('beforebegin', focusHtml);
+    }
+  }
+
+  // 4. Target road — inject into cdContent after the KPI panel
+  const roadTarget = document.getElementById('roadFillTarget');
+  if(!roadTarget && cdContent){
+    const roadHtml = renderTargetRoad(data.pct, data.target, data.revMTD);
+    // Find the monthly summary panel and insert after it
+    const summaryPanel = cdContent.querySelector('div[style*="Monthly Summary"]');
+    if(summaryPanel && summaryPanel.parentElement){
+      summaryPanel.parentElement.insertAdjacentHTML('afterend', roadHtml);
+      _animateRoad(data.pct);
+    } else {
+      // Fallback: prepend to cdContent
+      cdContent.insertAdjacentHTML('afterbegin', roadHtml);
+      _animateRoad(data.pct);
+    }
+  } else if(roadTarget){
+    _animateRoad(data.pct);
+  }
+}
+
+function dismissCopBanner(){
+  const banner = document.getElementById('copBanner');
+  if(banner) banner.classList.remove('show');
+  sessionStorage.setItem('cop_banner_dismissed_'+_localDateStr(new Date()), '1');
+  if(_copBannerTimer){ clearTimeout(_copBannerTimer); _copBannerTimer=null; }
+}
+
+// Wire bell pulse into holRequests listener
+const _origHolReqUpdate = typeof _updateHolReqBadge==='function' ? _updateHolReqBadge : null;
+function _updateHolReqBadge(){
+  if(_origHolReqUpdate) _origHolReqUpdate();
+  _updateBellPulse();
 }
 
 function logoutUser(){
