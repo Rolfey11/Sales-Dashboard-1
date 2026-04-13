@@ -3946,13 +3946,31 @@ function _populateHolSelects(){
       APP.people.map(p=>`<option value="${p.name}">${p.name}</option>`).join('');
     if([...personSel.options].some(o=>o.value===prev)) personSel.value=prev;
   }
-  // Hours custom toggle
-  const hrsSel = document.getElementById('absHoursInput');
-  const hrsCustom = document.getElementById('absHoursCustom');
-  if(hrsSel && hrsCustom){
-    hrsSel.onchange = () => {
-      hrsCustom.style.display = hrsSel.value==='custom' ? '' : 'none';
-    };
+  // ── holMonth: always show full year (past + future months) ─────────
+  const holMonthSel = document.getElementById('holMonth');
+  if(holMonthSel){
+    const today     = new Date();
+    const curYear   = today.getFullYear();
+    const curMonth  = today.getMonth() + 1; // 1-indexed
+
+    // Build set of all months to show:
+    // all existing months from APP.months + all 12 months of current year
+    const mkSet = new Set(allMonthKeys()); // existing months
+    for(let m = 1; m <= 12; m++){
+      mkSet.add(curYear+'-'+String(m).padStart(2,'0'));
+    }
+    // Also include next year so they can plan ahead
+    for(let m = 1; m <= 12; m++){
+      mkSet.add((curYear+1)+'-'+String(m).padStart(2,'0'));
+    }
+
+    const allMks = [...mkSet].sort(); // chronological
+    const prevVal = holMonthSel.value || APP.activeMonth;
+    holMonthSel.innerHTML = allMks.map(mk =>
+      `<option value="${mk}"${mk===prevVal?' selected':''}>${monthLabel(mk)}</option>`
+    ).join('');
+    // Keep current selection or fall back to active month
+    if(!allMks.includes(holMonthSel.value)) holMonthSel.value = APP.activeMonth;
   }
 }
 
@@ -5208,7 +5226,7 @@ function clearAllData(){
 function populateAllSelects(){
   const months = allMonthKeys();
 
-  ['entryMonth','lbMonth','histMonth','activeMonthSel','holMonth','bizMonth','teamsMonth','dbdMonth','mcsMonth','moMonth','dsMonth','cdMonth'].forEach(id=>{
+  ['entryMonth','lbMonth','histMonth','activeMonthSel','bizMonth','teamsMonth','dbdMonth','mcsMonth','moMonth','dsMonth','cdMonth'].forEach(id=>{
     const el = document.getElementById(id);
     if(!el) return;
     const cur = el.value || APP.activeMonth;
