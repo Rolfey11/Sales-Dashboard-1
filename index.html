@@ -1164,6 +1164,130 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 .ticker-item .t-time{ color:var(--text3);font-size:10px; }
 .ticker-sep{ color:var(--border);padding:0 4px; }
 
+/* ═══════════════════════════════════════════════════════════════════
+   MONTH-END CINEMATIC
+   ═══════════════════════════════════════════════════════════════════ */
+#cinematicOverlay{
+  position:fixed;inset:0;z-index:99998;display:none;
+  background:radial-gradient(ellipse at 50% 50%, #0d1829 0%, #050a14 70%, #000 100%);
+  overflow:hidden;align-items:center;justify-content:center;flex-direction:column;
+}
+#cinematicOverlay.show{ display:flex; }
+#cinematicCanvas{ position:absolute;inset:0;width:100%;height:100%;pointer-events:none; }
+.cin-content{
+  position:relative;z-index:2;text-align:center;max-width:860px;padding:40px 24px;
+  display:flex;flex-direction:column;align-items:center;gap:0;
+}
+.cin-eyebrow{
+  font-family:var(--fm);font-size:11px;font-weight:700;letter-spacing:.25em;
+  text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:18px;
+  opacity:0;animation:cinFade .6s .3s forwards;
+}
+.cin-headline{
+  font-family:var(--fh);font-size:clamp(28px,5vw,64px);font-weight:800;
+  color:#fff;line-height:1.05;letter-spacing:-.02em;margin-bottom:8px;
+  text-shadow:0 0 60px rgba(45,206,137,.5),0 0 120px rgba(45,206,137,.25);
+  opacity:0;animation:cinSlideUp .8s .6s cubic-bezier(.16,1,.3,1) forwards;
+}
+.cin-sub{
+  font-family:var(--fm);font-size:clamp(14px,2vw,20px);color:rgba(255,255,255,.55);
+  margin-bottom:40px;
+  opacity:0;animation:cinFade .6s 1s forwards;
+}
+.cin-stats-row{
+  display:flex;gap:32px;flex-wrap:wrap;justify-content:center;margin-bottom:44px;
+  opacity:0;animation:cinFade .8s 1.3s forwards;
+}
+.cin-stat{
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+  border-radius:16px;padding:22px 28px;text-align:center;min-width:160px;
+  transition:transform .2s;
+}
+.cin-stat:hover{ transform:translateY(-4px); }
+.cin-stat-val{
+  font-family:var(--fm);font-size:2rem;font-weight:800;color:#fff;line-height:1;
+  margin-bottom:6px;
+}
+.cin-stat-lbl{
+  font-size:10px;font-weight:700;color:rgba(255,255,255,.45);
+  letter-spacing:.1em;text-transform:uppercase;
+}
+.cin-podium{
+  display:flex;gap:16px;justify-content:center;margin-bottom:40px;
+  opacity:0;animation:cinFade .8s 1.8s forwards;
+}
+.cin-pod{
+  border-radius:14px;padding:16px 20px;text-align:center;min-width:130px;
+  border:1px solid rgba(255,255,255,.12);
+}
+.cin-pod.gold  { background:linear-gradient(135deg,rgba(255,215,0,.2),rgba(255,165,0,.1)); border-color:rgba(255,215,0,.4); }
+.cin-pod.silver{ background:linear-gradient(135deg,rgba(192,192,192,.2),rgba(148,148,148,.1)); border-color:rgba(192,192,192,.35); }
+.cin-pod.bronze{ background:linear-gradient(135deg,rgba(205,127,50,.2),rgba(160,100,40,.1)); border-color:rgba(205,127,50,.35); }
+.cin-pod-emoji { font-size:28px;margin-bottom:6px; }
+.cin-pod-name  { font-size:13px;font-weight:700;color:#fff;margin-bottom:3px; }
+.cin-pod-val   { font-size:11px;color:rgba(255,255,255,.55);font-family:var(--fm); }
+.cin-close-btn{
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+  color:#fff;padding:12px 36px;border-radius:40px;font-family:var(--fh);
+  font-size:15px;font-weight:600;cursor:pointer;letter-spacing:.05em;
+  transition:all .2s;opacity:0;animation:cinFade .5s 2.4s forwards;
+}
+.cin-close-btn:hover{ background:rgba(255,255,255,.18);transform:translateY(-2px); }
+@keyframes cinFade{ from{opacity:0} to{opacity:1} }
+@keyframes cinSlideUp{ from{opacity:0;transform:translateY(40px)} to{opacity:1;transform:translateY(0)} }
+
+/* ═══════════════════════════════════════════════════════════════════
+   LIVE REVENUE PULSE
+   ═══════════════════════════════════════════════════════════════════ */
+@keyframes revPulse{
+  0%  { box-shadow:0 0 0 0 rgba(45,206,137,0); transform:scale(1); }
+  30% { box-shadow:0 0 0 12px rgba(45,206,137,.25),inset 0 0 20px rgba(45,206,137,.08); transform:scale(1.015); }
+  60% { box-shadow:0 0 0 24px rgba(45,206,137,.08); transform:scale(1.005); }
+  100%{ box-shadow:0 0 0 0 rgba(45,206,137,0); transform:scale(1); }
+}
+.rev-pulse{ animation:revPulse 1.2s cubic-bezier(.4,0,.2,1) forwards; }
+
+@keyframes numTick{
+  from{ opacity:.4;transform:translateY(-6px); }
+  to  { opacity:1; transform:translateY(0); }
+}
+.num-tick{ animation:numTick .35s cubic-bezier(.4,0,.2,1) forwards; }
+
+/* Floating +£ toast per card */
+.rev-float{
+  position:absolute;top:-8px;right:8px;
+  background:linear-gradient(135deg,#2dce89,#1a9955);color:#fff;
+  font-family:var(--fm);font-size:11px;font-weight:700;
+  padding:3px 9px;border-radius:12px;pointer-events:none;z-index:10;
+  animation:floatUp 1.6s cubic-bezier(.4,0,.2,1) forwards;
+  white-space:nowrap;
+}
+@keyframes floatUp{
+  0%  { opacity:0;transform:translateY(0); }
+  15% { opacity:1; }
+  80% { opacity:1;transform:translateY(-32px); }
+  100%{ opacity:0;transform:translateY(-40px); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   COP TRAFFIC LIGHT BORDERS
+   ═══════════════════════════════════════════════════════════════════ */
+@keyframes copGreen{
+  0%,100%{ box-shadow:0 0 0 1px rgba(45,206,137,.2),0 2px 8px rgba(0,0,0,.2); border-color:rgba(45,206,137,.4); }
+  50%    { box-shadow:0 0 0 3px rgba(45,206,137,.15),0 4px 16px rgba(45,206,137,.12); border-color:rgba(45,206,137,.65); }
+}
+@keyframes copAmber{
+  0%,100%{ box-shadow:0 0 0 1px rgba(251,184,58,.2),0 2px 8px rgba(0,0,0,.2); border-color:rgba(251,184,58,.4); }
+  50%    { box-shadow:0 0 0 3px rgba(251,184,58,.18),0 4px 16px rgba(251,184,58,.12); border-color:rgba(251,184,58,.7); }
+}
+@keyframes copRed{
+  0%,100%{ box-shadow:0 0 0 1px rgba(245,54,92,.25),0 2px 8px rgba(0,0,0,.2); border-color:rgba(245,54,92,.45); }
+  50%    { box-shadow:0 0 0 4px rgba(245,54,92,.2),0 4px 20px rgba(245,54,92,.15); border-color:rgba(245,54,92,.75); }
+}
+.cop-green{ animation:copGreen 3s ease-in-out infinite; }
+.cop-amber{ animation:copAmber 2s ease-in-out infinite; }
+.cop-red  { animation:copRed   1.4s ease-in-out infinite; }
+
 </style>
 <body class="pre-auth">
 
@@ -14027,7 +14151,8 @@ function _buildEnhancedCard(p, mk){
   const presStatus = _getPresence(p.name);
   const presHtml   = `<span class="presence-dot ${presStatus}" data-name="${p.name}" title="${presStatus}"></span>`;
 
-  return `<div class="p-card ${cardCls}${isPB?' pb-glow':''}" onclick="openPerson('${p.name.replace(/'/g,"\\'")}',this)" style="cursor:pointer;" title="Click to view full profile">
+  const _trafficCls = typeof _copTrafficClass==='function' ? _copTrafficClass(p) : '';
+  return `<div class="p-card ${cardCls}${isPB?' pb-glow':''}${_trafficCls?' '+_trafficCls:''}" onclick="openPerson('${p.name.replace(/'/g,"\\'")}',this)" style="cursor:pointer;" title="Click to view full profile">
     <div class="p-name" style="display:flex;align-items:center;justify-content:space-between">
       <div style="display:flex;align-items:center;gap:5px">${presHtml}${p.name}${pbHtml}</div>
       <span style="font-size:9px;color:var(--text3);font-weight:400">view ↗</span>
@@ -14088,6 +14213,239 @@ function _onEntrySaved(name, revenue, nm, mk){
 
 // Refresh ticker every 30s
 setInterval(function(){ if(typeof _renderTicker==='function') _renderTicker(); }, 30000);
+
+// ═══════════════════════════════════════════════════════════════════
+// 1. MONTH-END CINEMATIC
+// ═══════════════════════════════════════════════════════════════════
+let _cinConfettiAnim = null;
+
+function showMonthEndCinematic(mk){
+  const stats  = calcStats(mk);
+  const active = stats.filter(s=>s.target>0);
+  if(!active.length) return;
+
+  const totalRev  = active.reduce((s,p)=>s+p.revMTD, 0);
+  const totalTgt  = active.reduce((s,p)=>s+p.target, 0);
+  const totalNM   = active.reduce((s,p)=>s+p.nmMTD, 0);
+  const pct       = totalTgt>0 ? Math.round(totalRev/totalTgt*100) : 0;
+  const hitTarget = active.filter(p=>p.revPct>=100).length;
+  const sorted    = [...active].sort((a,b)=>b.revMTD-a.revMTD);
+  const medals    = ['🥇','🥈','🥉'];
+
+  // Fill content
+  const mLabel = monthLabel(mk);
+  document.getElementById('cinEyebrow').textContent   = mLabel + ' · Final Results';
+  document.getElementById('cinHeadline').textContent  = '£'+Math.round(totalRev).toLocaleString();
+  document.getElementById('cinSub').textContent       = pct+'% of £'+Math.round(totalTgt).toLocaleString()+' team target';
+
+  document.getElementById('cinStatsRow').innerHTML = [
+    { val: pct+'%',                     lbl: 'Target Hit',      col: pct>=100?'#2dce89':pct>=75?'#fbb83a':'#f5365c' },
+    { val: totalNM,                     lbl: 'Needs Met',       col: '#5e9cf5' },
+    { val: hitTarget+'/'+active.length, lbl: 'Hit 100%',        col: '#a78bfa' },
+    { val: active.length,               lbl: 'Consultants',     col: 'rgba(255,255,255,.7)' },
+  ].map(s=>`<div class="cin-stat">
+    <div class="cin-stat-val" style="color:${s.col}">${s.val}</div>
+    <div class="cin-stat-lbl">${s.lbl}</div>
+  </div>`).join('');
+
+  const podCls = ['gold','silver','bronze'];
+  document.getElementById('cinPodium').innerHTML = sorted.slice(0,3).map((p,i)=>`
+    <div class="cin-pod ${podCls[i]}" style="animation-delay:${1.8+i*.15}s">
+      <div class="cin-pod-emoji">${medals[i]}</div>
+      <div class="cin-pod-name">${p.name.split(' ')[0]}</div>
+      <div class="cin-pod-val">£${Math.round(p.revMTD).toLocaleString()} · ${p.revPct}%</div>
+    </div>`).join('');
+
+  // Show overlay
+  const overlay = document.getElementById('cinematicOverlay');
+  overlay.classList.add('show');
+
+  // Launch cinematic confetti
+  _launchCinematicConfetti();
+
+  // Animated number count-up on headline
+  _countUp('cinHeadline', 0, totalRev, 1800, v=>'£'+Math.round(v).toLocaleString());
+}
+
+function closeCinematic(){
+  const overlay = document.getElementById('cinematicOverlay');
+  overlay.style.transition='opacity .5s';
+  overlay.style.opacity='0';
+  setTimeout(()=>{
+    overlay.classList.remove('show');
+    overlay.style.opacity='';
+    overlay.style.transition='';
+    if(_cinConfettiAnim){ cancelAnimationFrame(_cinConfettiAnim); _cinConfettiAnim=null; }
+    const canvas = document.getElementById('cinematicCanvas');
+    if(canvas) canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+  }, 500);
+}
+
+function _countUp(elId, from, to, duration, formatter){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  const start = performance.now();
+  function step(now){
+    const p = Math.min((now-start)/duration, 1);
+    const ease = 1 - Math.pow(1-p, 3); // cubic ease-out
+    el.textContent = formatter(from + (to-from)*ease);
+    if(p<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+function _launchCinematicConfetti(){
+  const canvas = document.getElementById('cinematicCanvas');
+  if(!canvas) return;
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const ctx  = canvas.getContext('2d');
+  const COLS = ['#2dce89','#5e9cf5','#fbb83a','#f5365c','#a78bfa','#ffffff','#ffd700'];
+  const pieces = [];
+  for(let i=0;i<120;i++){
+    pieces.push({
+      x: Math.random()*canvas.width,
+      y: -10 - Math.random()*canvas.height*.5,
+      vx: (Math.random()-.5)*4,
+      vy: Math.random()*3+1,
+      rot: Math.random()*360,
+      vr: (Math.random()-.5)*5,
+      size: Math.random()*10+5,
+      color: COLS[Math.floor(Math.random()*COLS.length)],
+      shape: Math.random()<.5?'rect':'circle',
+      alpha: 1,
+    });
+  }
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    let alive=0;
+    pieces.forEach(p=>{
+      p.x+=p.vx; p.y+=p.vy; p.rot+=p.vr; p.vy+=.04;
+      if(p.y>canvas.height+20) return;
+      alive++;
+      ctx.save();
+      ctx.globalAlpha=p.alpha;
+      ctx.translate(p.x,p.y);
+      ctx.rotate(p.rot*Math.PI/180);
+      ctx.fillStyle=p.color;
+      if(p.shape==='rect') ctx.fillRect(-p.size/2,-p.size/3,p.size,p.size*.6);
+      else{ ctx.beginPath(); ctx.arc(0,0,p.size/2,0,Math.PI*2); ctx.fill(); }
+      ctx.restore();
+    });
+    if(alive>0) _cinConfettiAnim=requestAnimationFrame(draw);
+  }
+  _cinConfettiAnim=requestAnimationFrame(draw);
+}
+
+// Auto-trigger cinematic: check if last month ended and hasn't been shown yet
+function _checkMonthEndCinematic(){
+  const today    = new Date();
+  const todayStr = _localDateStr(today);
+  // Last day of previous month
+  const prevMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+  const prevMk    = prevMonth.getFullYear()+'-'+String(prevMonth.getMonth()+1).padStart(2,'0');
+
+  // Only show on the 1st or 2nd of the month, once per session
+  if(today.getDate()>2) return;
+  const seenKey = 'cin_seen_'+prevMk;
+  if(sessionStorage.getItem(seenKey)) return;
+
+  // Check if there's data for prev month
+  const entries = getEntries(prevMk);
+  if(!entries.length) return;
+
+  sessionStorage.setItem(seenKey,'1');
+  setTimeout(()=>showMonthEndCinematic(prevMk), 2000);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 2. LIVE REVENUE PULSE
+// ═══════════════════════════════════════════════════════════════════
+
+// Called from _onEntrySaved — pulses the matching card and KPI row
+function _triggerRevPulse(name, amount, mk){
+  // Pulse KPI cards at top
+  document.querySelectorAll('.kpi-card').forEach(el=>{
+    el.classList.remove('rev-pulse');
+    void el.offsetWidth; // reflow
+    el.classList.add('rev-pulse');
+    setTimeout(()=>el.classList.remove('rev-pulse'), 1400);
+  });
+
+  // Find the specific consultant card and add float toast
+  const cards = document.querySelectorAll('.p-card');
+  cards.forEach(card=>{
+    const nameEl = card.querySelector('.p-name');
+    if(!nameEl) return;
+    if(!nameEl.textContent.includes(name)) return;
+
+    card.classList.remove('rev-pulse');
+    void card.offsetWidth;
+    card.classList.add('rev-pulse');
+
+    // Floating +£ amount
+    const float = document.createElement('div');
+    float.className = 'rev-float';
+    float.textContent = '+£'+Math.round(amount).toLocaleString();
+    card.style.position = 'relative';
+    card.appendChild(float);
+    setTimeout(()=>float.remove(), 1700);
+
+    // Tick the revenue figure
+    const revEl = card.querySelector('.p-rev');
+    if(revEl){
+      revEl.classList.remove('num-tick');
+      void revEl.offsetWidth;
+      revEl.classList.add('num-tick');
+      setTimeout(()=>revEl.classList.remove('num-tick'), 400);
+    }
+
+    setTimeout(()=>card.classList.remove('rev-pulse'), 1400);
+  });
+
+  // Re-render dashboard after a beat so figures are fresh
+  setTimeout(renderDashboard, 400);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 3. COP TRAFFIC LIGHT BORDERS
+// ═══════════════════════════════════════════════════════════════════
+
+// Returns CSS class based on how far a consultant is from COP
+function _copTrafficClass(p){
+  if(p.target<=0) return '';
+  const pct = p.revPct||0;
+  // If they have no target yet today return neutral
+  if(!p.calDays) return '';
+  // Well ahead (COP positive by >10% of daily target)
+  if(p.riskAhead && Math.abs(p.copRev) > (p.target/20)) return 'cop-green';
+  // Slightly ahead or very close
+  if(p.riskAhead) return 'cop-amber';
+  // Behind but not critically (within 1 day's RPD)
+  const rpd = p.riskPerDay||0;
+  if(!p.riskAhead && Math.abs(p.copRev) < rpd) return 'cop-amber';
+  // Significantly behind
+  return 'cop-red';
+}
+
+// Traffic light class is applied inside _buildEnhancedCard directly (see below)
+
+// ═══════════════════════════════════════════════════════════════════
+// WIRE UP: extend _onEntrySaved to trigger pulse
+// ═══════════════════════════════════════════════════════════════════
+const _origOnEntrySaved = typeof _onEntrySaved==='function' ? _onEntrySaved : null;
+function _onEntrySaved(name, revenue, nm, mk){
+  if(_origOnEntrySaved) _origOnEntrySaved(name, revenue, nm, mk);
+  if(revenue>0) _triggerRevPulse(name, revenue, mk);
+}
+
+// ── Call cinematic check after dashboard loads ────────────────────
+const _origEnhanceDash = typeof _enhanceDashboardCards==='function' ? _enhanceDashboardCards : null;
+function _enhanceDashboardCards(){
+  if(_origEnhanceDash) _origEnhanceDash();
+  // Check for month-end on first load
+  if(!window._cinChecked){ window._cinChecked=true; setTimeout(_checkMonthEndCinematic, 500); }
+}
 
 function logoutUser(){
   sessionStorage.removeItem('pd_auth');
@@ -14171,6 +14529,19 @@ if(sessionStorage.getItem('pd_auth')==='1'){
   <div class="ticker-label">⚡ Live</div>
   <div style="flex:1;overflow:hidden;position:relative">
     <div id="tickerTrack"></div>
+  </div>
+</div>
+
+<!-- MONTH-END CINEMATIC OVERLAY -->
+<div id="cinematicOverlay">
+  <canvas id="cinematicCanvas"></canvas>
+  <div class="cin-content">
+    <div class="cin-eyebrow" id="cinEyebrow">Month-End Review</div>
+    <div class="cin-headline" id="cinHeadline">£0</div>
+    <div class="cin-sub" id="cinSub">Team revenue for the month</div>
+    <div class="cin-stats-row" id="cinStatsRow"></div>
+    <div class="cin-podium" id="cinPodium"></div>
+    <button class="cin-close-btn" onclick="closeCinematic()">✨ Start New Month</button>
   </div>
 </div>
 
