@@ -1431,17 +1431,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
         Select absence type to book — then click a cell
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center" id="absTypePills"></div>
-      <div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap">
-        <span style="font-size:11px;color:var(--text2);font-family:var(--fm)">Hours for this booking:</span>
-        <select id="absHoursInput" style="width:100px;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:5px 10px;font-size:12px;font-family:var(--fm);color:var(--text)">
-          <option value="7.5">7.5 hrs (full day)</option>
-          <option value="3.75">3.75 hrs (half day)</option>
-          <option value="1.875">1.875 hrs (quarter day)</option>
-          <option value="custom">Custom…</option>
-        </select>
-        <input type="number" id="absHoursCustom" step="0.25" min="0.25" max="15" placeholder="hrs"
-          style="display:none;width:80px;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:5px 10px;font-size:12px;font-family:var(--fm);color:var(--text)">
-      </div>
+
     </div>
 
     <div style="overflow-x:auto;border-radius:12px;border:1px solid var(--border)">
@@ -2656,6 +2646,21 @@ function allMonthKeys(){
   if(!keys.includes(APP.activeMonth)) keys.push(APP.activeMonth);
   return [...new Set(keys)].sort().reverse();
 }
+// Extended version that also includes months from APP.absences (used by holiday tracker)
+function allMonthKeysWithAbsences(){
+  const keys = new Set(Object.keys(APP.months));
+  keys.add(APP.activeMonth);
+  // Add months from absences data
+  if(APP.absences){
+    Object.keys(APP.absences).forEach(mk => keys.add(mk));
+  }
+  // Always include all 12 months of the current year so totals/summary always render
+  const curYr = new Date().getFullYear();
+  for(let m=1; m<=12; m++){
+    keys.add(curYr+'-'+String(m).padStart(2,'0'));
+  }
+  return [...keys].sort();
+}
 
 // ── entry helpers (source of truth) ───────────────────────────────
 // An entry = {date:'YYYY-MM-DD', name:String, revenue:Number, nm:Number}
@@ -2997,7 +3002,7 @@ function setAllowance(name, field, val){
 function getAbsenceTotalsForYear(name, yr){
   const totals = {};
   Object.keys(ABS_TYPES).forEach(k => totals[k] = 0);
-  allMonthKeys().filter(mk => mk.startsWith(yr)).forEach(mk => {
+  allMonthKeysWithAbsences().filter(mk => mk.startsWith(yr)).forEach(mk => {
     const abs = getAbsences(mk, name);
     Object.values(abs).forEach(entry => {
       if(entry && entry.type && totals[entry.type] !== undefined){
@@ -3415,19 +3420,29 @@ function renderHolTotals(){
   _populateHolSelects();
   const yr = document.getElementById('holTotYear')?.value || String(new Date().getFullYear());
   const teamFilter = document.getElementById('holTotTeam')?.value || 'all';
+  // Use ALL people — not filtered by target (absence tracking applies to everyone)
   let people = APP.people.slice();
+  if(!people.length){
+    // Also check if there are people in absences data without being in APP.people
+    people = [];
+  }
   if(teamFilter !== 'all'){
     const members = APP.teams[teamFilter]||[];
     people = people.filter(p => members.includes(p.name));
   }
 
   if(!people.length){
-    document.getElementById('holTotContent').innerHTML = '<div class="empty"><div>No consultants found.</div></div>';
+    document.getElementById('holTotContent').innerHTML = `
+      <div style="text-align:center;padding:60px 20px;color:var(--text3);">
+        <div style="font-size:32px;margin-bottom:12px">👥</div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:8px">No Consultants Set Up</div>
+        <div style="font-size:12px;font-family:var(--fm)">Go to Settings to add consultants first.</div>
+      </div>`;
     return;
   }
 
   const HDR = '#6b0d2d';
-  const months = allMonthKeys().filter(mk => mk.startsWith(yr));
+  const months = allMonthKeysWithAbsences().filter(mk => mk.startsWith(yr));
   const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
   // Headers
@@ -3549,10 +3564,18 @@ function renderHolSummary(){
   let people = APP.people.slice();
   if(teamFilter !== 'all'){ const m=APP.teams[teamFilter]||[]; people=people.filter(p=>m.includes(p.name)); }
   if(personF !== 'all') people = people.filter(p=>p.name===personF);
-  if(!people.length){ document.getElementById('holSumContent').innerHTML='<div class="empty"><div>No consultants found.</div></div>'; return; }
+  if(!people.length){
+    document.getElementById('holSumContent').innerHTML = `
+      <div style="text-align:center;padding:60px 20px;color:var(--text3);">
+        <div style="font-size:32px;margin-bottom:12px">👥</div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:8px">No Consultants Set Up</div>
+        <div style="font-size:12px;font-family:var(--fm)">Go to Settings to add consultants first.</div>
+      </div>`;
+    return;
+  }
 
   const absKeys = Object.keys(ABS_TYPES);
-  const months  = allMonthKeys().filter(mk=>mk.startsWith(yr));
+  const months  = allMonthKeysWithAbsences().filter(mk=>mk.startsWith(yr));
 
   // ── KPI cards ────────────────────────────────────────────────────
   let totalHolHrs=0, totalSickHrs=0, totalOtherHrs=0, totalAllowance=0, totalUsed=0;
@@ -3680,9 +3703,9 @@ function _getAbsColor(code){
 
 // ── Populate selectors ────────────────────────────────────────────
 function _populateHolSelects(){
-  // Year selectors — always show current year ± 2 even if no months exist
+  // Year selectors — always include current year regardless of data
   const curYr = new Date().getFullYear();
-  const fromKeys = [...new Set(allMonthKeys().map(mk=>mk.slice(0,4)))].map(Number);
+  const fromKeys = [...new Set(allMonthKeysWithAbsences().map(mk=>mk.slice(0,4)))].map(Number);
   const yrNums = new Set([...fromKeys, curYr-1, curYr, curYr+1]);
   const yrs = [...yrNums].sort((a,b)=>b-a).map(String);
   ['holTotYear','holSumYear'].forEach(id => {
