@@ -5909,6 +5909,7 @@ function onSpTeamChange(){
 function renderSpTable(){
   if(!_spDivData){ return; }
   const data       = _spDivData;
+  const yr         = parseInt(document.getElementById('spYearSel')?.value || new Date().getFullYear());
   const teamFilter = document.getElementById('spTeamSel').value;
   const consFilter = document.getElementById('spConsSel').value;
 
@@ -5920,193 +5921,263 @@ function renderSpTable(){
   if(consFilter !== 'all' && consFilter !== '__div__'){
     people = people.filter(p => p.name === consFilter);
   }
-
   if(!people.length){
     document.getElementById('spContent').innerHTML =
       '<div class="empty"><div>No consultants found for this selection.</div></div>';
     return;
   }
 
-  // ── Title ──────────────────────────────────────────────────────────
   const divLabel  = DIVISIONS[_spDivKey].label;
   const teamLabel = teamFilter !== 'all' ? (TEAM_LABELS[teamFilter]||teamFilter) : 'All Teams';
   const consLabel = consFilter !== 'all' && consFilter !== '__div__'
-    ? consFilter + ' — Consultant'
+    ? consFilter + ' — Senior Consultant'
     : 'All Consultants (Combined)';
-  const headerTitle = `${divLabel}  ·  ${teamLabel}  ·  ${consLabel}`;
+  const headerTitle = `${divLabel}  ·  ${consLabel}`;
 
-  const yr = document.getElementById('spYearSel')?.value || new Date().getFullYear();
-  document.getElementById('sp-sub').textContent = `${yr} performance breakdown by consultant — revenue & needs met`;
+  document.getElementById('sp-sub').textContent =
+    `${yr} performance — revenue, needs met & call compliance outcomes`;
 
-  // ── Build monthly data — always all 12 months ──────────────────────
+  // ── Build compliance map from records for this division & year ─────
+  function _buildCompMap(recs){
+    const map = {};
+    recs.forEach(d=>{
+      const mk = (d.dateObs||'').slice(0,7);
+      if(!mk) return;
+      if(!people.some(p=>p.name===d.colleague)) return;
+      if(!map[mk]) map[mk]={assessments:0,pass:0,passDev:0,fail:0,regPass:0,regFail:0};
+      map[mk].assessments++;
+      if(d.initialOutcome==='Pass') map[mk].pass++;
+      else if(d.initialOutcome==='Pass with Development') map[mk].passDev++;
+      else if(d.initialOutcome==='Fail') map[mk].fail++;
+      if(d.regCompliant==='Yes') map[mk].regPass++;
+      if(d.regCompliant==='No')  map[mk].regFail++;
+    });
+    return map;
+  }
+
+  // ── Monthly revenue & NM ─────────────────────────────────────────
   const allMonthlyData = _spMonths().map((mk, idx) => {
-    let target = 0, actual = 0, nmTarget = 0, nmActual = 0;
+    let target=0, actual=0, nmTarget=0, nmActual=0;
     people.forEach(p => {
       const ovr   = ((data.monthOverrides||{})[mk]||{})[p.name] || {};
       const rpd   = ovr.riskPerDay !== undefined ? ovr.riskPerDay : 0;
       const daysT = ovr.daysT      !== undefined ? ovr.daysT      : 0;
-      if(rpd > 0 && daysT > 0){
+      if(rpd>0&&daysT>0){
         target   += Math.round(rpd * daysT);
         nmTarget += daysT * nmRateFor(p.name);
       }
-      const mine = ((data.months||{})[mk]||{entries:[]}).entries.filter(e => e.name === p.name);
+      const mine = ((data.months||{})[mk]||{entries:[]}).entries.filter(e=>e.name===p.name);
       actual   += mine.reduce((s,e)=>s+(e.revenue||0),0);
       nmActual += mine.reduce((s,e)=>s+(e.nm||0),0);
     });
-    const hasData = target > 0 || actual > 0 || nmActual > 0;
-    const diff   = actual - target;
-    const pct    = target > 0 ? Math.round(actual/target*100) : null;
-    const nmDiff = nmActual - nmTarget;
-    const nmPct  = nmTarget > 0 ? Math.round(nmActual/nmTarget*100) : null;
-    return { mk, idx, target, actual, diff, pct, nmTarget, nmActual, nmDiff, nmPct, hasData };
+    const hasData = target>0||actual>0||nmActual>0;
+    return { mk, idx, target, actual, diff:actual-target,
+             pct:target>0?Math.round(actual/target*100):null,
+             nmTarget, nmActual, nmDiff:nmActual-nmTarget,
+             nmPct:nmTarget>0?Math.round(nmActual/nmTarget*100):null, hasData };
   });
 
-  // All 12 months always shown
-  const monthlyData = allMonthlyData;
+  // ── Render once compliance data ready ────────────────────────────
+  function _render(compMap){
+    const HDR    = '#1a4040';
+    const fmtGBP = v => '£'+parseFloat(v).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const fmtNm  = v => parseFloat(v).toLocaleString('en-GB',{minimumFractionDigits:1,maximumFractionDigits:1});
+    const fmtPct = v => v===null ? '—' : v+'%';
+    const cellS  = (bg,bold) => `style="padding:6px 10px;background:${bg};border:1px solid #000;text-align:center;font-size:12px;${bold?'font-weight:700;':''}color:#111;"`;
+    const nameS  = bg => `style="padding:6px 14px;background:${bg};border:1px solid #000;text-align:left;font-size:12px;font-weight:600;color:#111;white-space:nowrap;"`;
+    const thS    = `style="padding:8px 10px;background:${HDR};color:#fff;border:1px solid #222;text-align:center;font-size:11px;font-weight:700;white-space:nowrap;"`;
+    const thLS   = `style="padding:8px 14px;background:${HDR};color:#fff;border:1px solid #222;text-align:left;font-size:11px;font-weight:700;white-space:nowrap;min-width:110px;"`;
+    const thC    = `style="padding:8px 10px;background:#0e6e44;color:#fff;border:1px solid #222;text-align:center;font-size:11px;font-weight:700;white-space:nowrap;"`;
 
-  // Quarter helper — works on filtered months by matching their original idx
-  function qTotals(qIdx){
-    const rows = monthlyData.filter(r => Math.floor(r.idx/3) === qIdx);
-    const t = {target:0,actual:0,nmTarget:0,nmActual:0};
-    rows.forEach(r=>{ t.target+=r.target; t.actual+=r.actual; t.nmTarget+=r.nmTarget; t.nmActual+=r.nmActual; });
-    t.diff   = t.actual - t.target;
-    t.nmDiff = t.nmActual - t.nmTarget;
-    t.pct    = t.target  > 0 ? Math.round(t.actual/t.target*100)  : null;
-    t.nmPct  = t.nmTarget> 0 ? Math.round(t.nmActual/t.nmTarget*100) : null;
-    return t;
-  }
+    const compCell = pct => {
+      if(pct===null) return `style="padding:6px 10px;background:#f5f5f5;border:1px solid #ccc;text-align:center;font-size:12px;color:#bbb;"`;
+      const bg  = pct>=90?'#c8f2d8':pct>=75?'#fef3c0':'#fde0e6';
+      const col = pct>=90?'#0e6e44':pct>=75?'#92540a':'#9b1d35';
+      return `style="padding:6px 10px;background:${bg};border:1px solid #ccc;text-align:center;font-size:12px;font-weight:700;color:${col};"`;
+    };
 
-  // Annual totals
-  const tot = { target:0, actual:0, nmTarget:0, nmActual:0 };
-  monthlyData.forEach(r=>{ tot.target+=r.target; tot.actual+=r.actual; tot.nmTarget+=r.nmTarget; tot.nmActual+=r.nmActual; });
-  tot.diff   = tot.actual - tot.target;
-  tot.nmDiff = tot.nmActual - tot.nmTarget;
-  tot.pct    = tot.target  > 0 ? Math.round(tot.actual/tot.target*100)    : null;
-  tot.nmPct  = tot.nmTarget> 0 ? Math.round(tot.nmActual/tot.nmTarget*100): null;
+    function qTotals(qIdx){
+      const rows = allMonthlyData.filter(r=>Math.floor(r.idx/3)===qIdx);
+      const t={target:0,actual:0,nmTarget:0,nmActual:0,
+               assessments:0,pass:0,passDev:0,fail:0,regPass:0,regFail:0};
+      rows.forEach(r=>{
+        t.target+=r.target; t.actual+=r.actual;
+        t.nmTarget+=r.nmTarget; t.nmActual+=r.nmActual;
+        const c=compMap[r.mk]||{};
+        t.assessments+=(c.assessments||0); t.pass+=(c.pass||0);
+        t.passDev+=(c.passDev||0); t.fail+=(c.fail||0);
+        t.regPass+=(c.regPass||0); t.regFail+=(c.regFail||0);
+      });
+      t.diff=t.actual-t.target; t.nmDiff=t.nmActual-t.nmTarget;
+      t.pct   = t.target>0   ? Math.round(t.actual/t.target*100)    : null;
+      t.nmPct = t.nmTarget>0 ? Math.round(t.nmActual/t.nmTarget*100) : null;
+      const outTot = t.assessments;
+      t.outPct = outTot>0 ? Math.round((t.pass+t.passDev)/outTot*100)          : null;
+      t.regPct = (t.regPass+t.regFail)>0 ? Math.round(t.regPass/(t.regPass+t.regFail)*100) : null;
+      return t;
+    }
 
-  // ── Style helpers ──────────────────────────────────────────────────
-  const HDR   = '#1a4040';
-  const fmtGBP = v => '£'+parseFloat(v).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
-  const fmtNm  = v => parseFloat(v).toLocaleString('en-GB',{minimumFractionDigits:1,maximumFractionDigits:1});
-  const fmtPct = v => v === null ? '—' : v+'%';
-  const cellS  = (bg,bold) => `style="padding:6px 10px;background:${bg};border:1px solid #000;text-align:center;font-size:12px;${bold?'font-weight:700;':''}color:#111;"`;
-  const nameS  = bg => `style="padding:6px 14px;background:${bg};border:1px solid #000;text-align:left;font-size:12px;font-weight:600;color:#111;white-space:nowrap;"`;
-  const thS    = `style="padding:8px 10px;background:${HDR};color:#fff;border:1px solid #222;text-align:center;font-size:11px;font-weight:700;white-space:nowrap;"`;
-  const thLS   = `style="padding:8px 14px;background:${HDR};color:#fff;border:1px solid #222;text-align:left;font-size:11px;font-weight:700;white-space:nowrap;min-width:110px;"`;
+    const tot={target:0,actual:0,nmTarget:0,nmActual:0,
+               assessments:0,pass:0,passDev:0,fail:0,regPass:0,regFail:0};
+    allMonthlyData.forEach(r=>{
+      tot.target+=r.target; tot.actual+=r.actual;
+      tot.nmTarget+=r.nmTarget; tot.nmActual+=r.nmActual;
+      const c=compMap[r.mk]||{};
+      tot.assessments+=(c.assessments||0); tot.pass+=(c.pass||0);
+      tot.passDev+=(c.passDev||0); tot.fail+=(c.fail||0);
+      tot.regPass+=(c.regPass||0); tot.regFail+=(c.regFail||0);
+    });
+    tot.diff=tot.actual-tot.target; tot.nmDiff=tot.nmActual-tot.nmTarget;
+    tot.pct   = tot.target>0   ? Math.round(tot.actual/tot.target*100)    : null;
+    tot.nmPct = tot.nmTarget>0 ? Math.round(tot.nmActual/tot.nmTarget*100) : null;
+    tot.outPct = tot.assessments>0 ? Math.round((tot.pass+tot.passDev)/tot.assessments*100) : null;
+    tot.regPct = (tot.regPass+tot.regFail)>0 ? Math.round(tot.regPass/(tot.regPass+tot.regFail)*100) : null;
 
-  // ── Build rows — always all 4 quarters, all 12 months ─────────────
-  let rowsHtml = '';
-  [0,1,2,3].forEach(qIdx => {
-    const qLabel   = ['Q1','Q2','Q3','Q4'][qIdx];
-    const qt       = qTotals(qIdx);
-    const qRevBg   = qt.diff >= 0 ? '#c8f2d8' : '#f8d0d0';
-    const qNmBg    = qt.nmDiff >= 0 ? '#c8f2d8' : '#f8d0d0';
-    const qMonths  = monthlyData.filter(r => Math.floor(r.idx/3) === qIdx);
-    const rowspan  = qMonths.length; // always 3
+    let rowsHtml = '';
+    [0,1,2,3].forEach(qIdx => {
+      const qLabel  = ['Q1','Q2','Q3','Q4'][qIdx];
+      const qt      = qTotals(qIdx);
+      const qRevBg  = qt.diff>=0  ? '#c8f2d8' : '#f8d0d0';
+      const qNmBg   = qt.nmDiff>=0? '#c8f2d8' : '#f8d0d0';
+      const qMonths = allMonthlyData.filter(r=>Math.floor(r.idx/3)===qIdx);
+      const rowspan = qMonths.length;
 
-    qMonths.forEach((r, mi) => {
-      const rowBg     = mi % 2 === 0 ? '#ffffff' : '#f5f7fb';
-      const emptyBg   = '#f0f2f6';
-      const revDiffBg = !r.hasData ? emptyBg : r.diff  >= 0 ? '#c8f2d8' : '#f8d0d0';
-      const nmDiffBg  = !r.hasData ? emptyBg : r.nmTarget === 0 ? '#fff8ee'
-                       : r.nmDiff >= 0 ? '#c8f2d8' : '#f8d0d0';
-      const empty     = `style="padding:6px 10px;background:${emptyBg};border:1px solid #ccc;text-align:center;font-size:12px;color:#bbb;"`;
+      qMonths.forEach((r, mi) => {
+        const rowBg    = mi%2===0 ? '#ffffff' : '#f5f7fb';
+        const emptyBg  = '#f0f2f6';
+        const revDiffBg= !r.hasData ? emptyBg : r.diff>=0  ? '#c8f2d8' : '#f8d0d0';
+        const nmDiffBg = !r.hasData ? emptyBg : r.nmTarget===0 ? '#fff8ee'
+                         : r.nmDiff>=0 ? '#c8f2d8' : '#f8d0d0';
+        const empty    = `style="padding:6px 10px;background:${emptyBg};border:1px solid #ccc;text-align:center;font-size:12px;color:#bbb;"`;
 
-      const qRevCell = mi === 0
-        ? `<td rowspan="${rowspan}" style="padding:6px 10px;background:${qRevBg};border:1px solid #000;text-align:center;font-size:12px;font-weight:700;color:#111;vertical-align:middle;">
-             <div style="font-size:10px;font-weight:600;color:#555;margin-bottom:3px">${qLabel}</div>
-             ${qt.actual > 0 ? fmtGBP(qt.actual) : '—'}<br>
-             <span style="font-size:10px;color:#555">${fmtPct(qt.pct)}</span>
-           </td>` : '';
-      const qNmCell = mi === 0
-        ? `<td rowspan="${rowspan}" style="padding:6px 10px;background:${qNmBg};border:1px solid #000;text-align:center;font-size:12px;font-weight:700;color:#111;vertical-align:middle;">
-             <div style="font-size:10px;font-weight:600;color:#555;margin-bottom:3px">${qLabel}</div>
-             ${qt.nmActual > 0 ? fmtNm(qt.nmActual) : '—'}<br>
-             <span style="font-size:10px;color:#555">${fmtPct(qt.nmPct)}</span>
-           </td>` : '';
+        const comp    = compMap[r.mk]||{};
+        const mAssess = comp.assessments||0;
+        const mOutPct = mAssess>0 ? Math.round(((comp.pass||0)+(comp.passDev||0))/mAssess*100) : null;
+        const regTot  = (comp.regPass||0)+(comp.regFail||0);
+        const mRegPct = regTot>0  ? Math.round((comp.regPass||0)/regTot*100) : null;
 
-      if(!r.hasData){
-        rowsHtml += `<tr>
-          <td ${nameS(emptyBg)} style="padding:6px 14px;background:${emptyBg};border:1px solid #ccc;text-align:left;font-size:12px;font-weight:400;color:#aaa;">${SP_MONTH_NAMES[r.idx]}</td>
-          <td ${empty}>—</td>
-          <td ${empty}>—</td>
-          <td ${empty}>—</td>
-          <td ${empty}>—</td>
-          ${qRevCell}
-          <td ${empty}>—</td>
-          <td ${empty}>—</td>
-          <td ${empty}>—</td>
-          <td ${empty}>—</td>
-          ${qNmCell}
-        </tr>`;
-      } else {
-        rowsHtml += `<tr>
-          <td ${nameS(rowBg)}>${SP_MONTH_NAMES[r.idx]}</td>
-          <td ${cellS(rowBg,false)}>${r.target > 0 ? fmtGBP(r.target) : '£0.00'}</td>
-          <td ${cellS(rowBg,false)}>${r.actual > 0 ? fmtGBP(r.actual) : '£0.00'}</td>
-          <td ${cellS(revDiffBg,true)}>${fmtGBP(r.diff)}</td>
-          <td ${cellS(revDiffBg,false)}>${r.target > 0 ? fmtPct(r.pct) : '—'}</td>
-          ${qRevCell}
-          <td ${cellS(rowBg,false)}>${r.nmTarget > 0 ? fmtNm(r.nmTarget) : '0'}</td>
-          <td ${cellS(rowBg,false)}>${r.nmActual}</td>
-          <td ${cellS(nmDiffBg,true)}>${fmtNm(r.nmDiff)}</td>
-          <td ${cellS(nmDiffBg,false)}>${r.nmTarget > 0 ? fmtPct(r.nmPct) : '—'}</td>
-          ${qNmCell}
-        </tr>`;
-      }
+        const qRevCell = mi===0 ? `<td rowspan="${rowspan}" style="padding:6px 10px;background:${qRevBg};border:1px solid #000;text-align:center;font-size:12px;font-weight:700;color:#111;vertical-align:middle;">
+          <div style="font-size:10px;font-weight:600;color:#555;margin-bottom:3px">${qLabel}</div>
+          ${qt.actual>0?fmtGBP(qt.actual):'—'}<br>
+          <span style="font-size:10px;color:#555">${fmtPct(qt.pct)}</span>
+        </td>` : '';
+
+        const qNmCell = mi===0 ? `<td rowspan="${rowspan}" style="padding:6px 10px;background:${qNmBg};border:1px solid #000;text-align:center;font-size:12px;font-weight:700;color:#111;vertical-align:middle;">
+          <div style="font-size:10px;font-weight:600;color:#555;margin-bottom:3px">${qLabel}</div>
+          ${qt.nmActual>0?fmtNm(qt.nmActual):'—'}<br>
+          <span style="font-size:10px;color:#555">${fmtPct(qt.nmPct)}</span>
+        </td>` : '';
+
+        const qCompBg  = qt.outPct===null?emptyBg:qt.outPct>=90?'#c8f2d8':qt.outPct>=75?'#fef3c0':'#fde0e6';
+        const qCompCol = qt.outPct===null?'#bbb':qt.outPct>=90?'#0e6e44':qt.outPct>=75?'#92540a':'#9b1d35';
+        const qCompCell= mi===0 ? `<td rowspan="${rowspan}" style="padding:6px 8px;background:${qCompBg};border:1px solid #ccc;text-align:center;font-size:11px;font-weight:700;color:${qCompCol};vertical-align:middle;">
+          <div style="font-size:10px;font-weight:600;color:#555;margin-bottom:3px">${qLabel}</div>
+          ${qt.outPct===null?'—':qt.outPct+'%'}<br>
+          <div style="font-size:10px;margin-top:2px;color:#555">${qt.assessments>0?qt.assessments+' calls':''}</div>
+        </td>` : '';
+
+        if(!r.hasData && mAssess===0){
+          rowsHtml += `<tr>
+            <td style="padding:6px 14px;background:${emptyBg};border:1px solid #ccc;font-size:12px;font-weight:400;color:#aaa;">${SP_MONTH_NAMES[r.idx]}</td>
+            <td ${empty}>—</td><td ${empty}>—</td><td ${empty}>—</td><td ${empty}>—</td>
+            ${qRevCell}
+            <td ${empty}>—</td><td ${empty}>—</td><td ${empty}>—</td><td ${empty}>—</td>
+            ${qNmCell}
+            <td ${empty}>—</td><td ${empty}>—</td>${qCompCell}
+          </tr>`;
+        } else {
+          rowsHtml += `<tr>
+            <td ${nameS(r.hasData?rowBg:emptyBg)}>${SP_MONTH_NAMES[r.idx]}</td>
+            <td ${cellS(r.hasData?rowBg:emptyBg,false)}>${r.target>0?fmtGBP(r.target):'£0.00'}</td>
+            <td ${cellS(r.hasData?rowBg:emptyBg,false)}>${r.actual>0?fmtGBP(r.actual):'£0.00'}</td>
+            <td ${cellS(revDiffBg,true)}>${fmtGBP(r.diff)}</td>
+            <td ${cellS(revDiffBg,false)}>${r.target>0?fmtPct(r.pct):'—'}</td>
+            ${qRevCell}
+            <td ${cellS(r.hasData?rowBg:emptyBg,false)}>${r.nmTarget>0?fmtNm(r.nmTarget):'0'}</td>
+            <td ${cellS(r.hasData?rowBg:emptyBg,false)}>${r.nmActual}</td>
+            <td ${cellS(nmDiffBg,true)}>${fmtNm(r.nmDiff)}</td>
+            <td ${cellS(nmDiffBg,false)}>${r.nmTarget>0?fmtPct(r.nmPct):'—'}</td>
+            ${qNmCell}
+            <td ${compCell(mOutPct)}>${mOutPct===null?'—':mOutPct+'%'}${mAssess>0?'<br><span style="font-size:10px;font-weight:400;color:#777">'+mAssess+' calls</span>':''}</td>
+            <td ${compCell(mRegPct)}>${mRegPct===null?'—':mRegPct+'%'}</td>
+            ${qCompCell}
+          </tr>`;
+        }
+      });
+      rowsHtml += `<tr><td colspan="14" style="height:4px;background:#d8dde6;border:none;padding:0"></td></tr>`;
     });
 
-    // Quarter separator
-    rowsHtml += `<tr><td colspan="11" style="height:4px;background:#d8dde6;border:none;padding:0"></td></tr>`;
-  });
+    // Annual total row
+    const totRevBg = tot.diff>=0  ? '#a8e6c0' : '#f5b0b0';
+    const totNmBg  = tot.nmDiff>=0? '#a8e6c0' : '#f5b0b0';
+    rowsHtml += `<tr>
+      <td style="padding:8px 14px;background:${HDR};color:#fff;border:1px solid #222;font-size:12px;font-weight:700;">Annual Total</td>
+      <td ${cellS('#e0e4ec',true)}>${fmtGBP(tot.target)}</td>
+      <td ${cellS('#e0e4ec',true)}>${fmtGBP(tot.actual)}</td>
+      <td ${cellS(totRevBg,true)}>${fmtGBP(tot.diff)}</td>
+      <td ${cellS(totRevBg,true)}>${fmtPct(tot.pct)}</td>
+      <td ${cellS('#e0e4ec',false)}></td>
+      <td ${cellS('#e0e4ec',true)}>${fmtNm(tot.nmTarget)}</td>
+      <td ${cellS('#e0e4ec',true)}>${tot.nmActual}</td>
+      <td ${cellS(tot.nmDiff>=0?'#a8e6c0':'#f5b0b0',true)}>${fmtNm(tot.nmDiff)}</td>
+      <td ${cellS(tot.nmDiff>=0?'#a8e6c0':'#f5b0b0',true)}>${fmtPct(tot.nmPct)}</td>
+      <td ${cellS('#e0e4ec',false)}></td>
+      <td ${compCell(tot.outPct)}>${tot.outPct===null?'—':tot.outPct+'%'}${tot.assessments>0?'<br><span style="font-size:10px;font-weight:400">'+tot.assessments+' calls</span>':''}</td>
+      <td ${compCell(tot.regPct)}>${tot.regPct===null?'—':tot.regPct+'%'}</td>
+      <td ${cellS('#e0e4ec',false)}></td>
+    </tr>`;
 
-  // Total row
-  const totRevBg = tot.diff >= 0 ? '#a8e6c0' : '#f5b0b0';
-  const totNmBg  = tot.nmDiff >= 0 ? '#a8e6c0' : '#f5b0b0';
-  rowsHtml += `<tr>
-    <td style="padding:8px 14px;background:${HDR};color:#fff;border:1px solid #222;font-size:12px;font-weight:700;">Annual Total</td>
-    <td ${cellS('#e0e4ec',true)}>${fmtGBP(tot.target)}</td>
-    <td ${cellS('#e0e4ec',true)}>${fmtGBP(tot.actual)}</td>
-    <td ${cellS(totRevBg,true)}>${fmtGBP(tot.diff)}</td>
-    <td ${cellS(totRevBg,true)}>${fmtPct(tot.pct)}</td>
-    <td ${cellS('#e0e4ec',false)}></td>
-    <td ${cellS('#e0e4ec',true)}>${fmtNm(tot.nmTarget)}</td>
-    <td ${cellS('#e0e4ec',true)}>${tot.nmActual}</td>
-    <td ${cellS(totNmBg,true)}>${fmtNm(tot.nmDiff)}</td>
-    <td ${cellS(totNmBg,true)}>${fmtPct(tot.nmPct)}</td>
-    <td ${cellS('#e0e4ec',false)}></td>
-  </tr>`;
+    document.getElementById('spContent').innerHTML = `
+      <div style="background:${HDR};color:#fff;padding:11px 18px;border-radius:8px 8px 0 0;font-size:13px;font-weight:700;letter-spacing:.02em;">${headerTitle}</div>
+      <div style="background:#fff;border-radius:0 0 8px 8px;overflow-x:auto;box-shadow:0 2px 16px rgba(0,0,0,.18);">
+        <table style="border-collapse:collapse;width:100%;font-family:Calibri,Arial,sans-serif;min-width:920px;">
+          <thead>
+            <tr>
+              <th ${thLS}> </th>
+              <th ${thS}>Target</th>
+              <th ${thS}>Actual</th>
+              <th ${thS}>Difference</th>
+              <th ${thS}>Percentage</th>
+              <th ${thS}>Quarter</th>
+              <th ${thS}>NM Target</th>
+              <th ${thS}>NM Actual</th>
+              <th ${thS}>NM Diff</th>
+              <th ${thS}>NM %</th>
+              <th ${thS}>Quarter</th>
+              <th ${thC}>Outcomes</th>
+              <th ${thC}>Reg Compliance</th>
+              <th ${thC}>Quarter</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:var(--text3);font-family:var(--fm);display:flex;gap:16px;flex-wrap:wrap;">
+        <span><span style="color:#2dce89;font-weight:700">■</span> Above target / ≥90%</span>
+        <span><span style="color:#d4820a;font-weight:700">■</span> 75–89%</span>
+        <span><span style="color:#f5365c;font-weight:700">■</span> Below target / &lt;75%</span>
+        <span style="color:var(--text3)">Outcomes = Fair / total assessed · Reg Compliance = Reg Pass / total</span>
+      </div>`;
+  }
 
-  // ── Render ────────────────────────────────────────────────────────
-  document.getElementById('spContent').innerHTML = `
-    <div style="background:${HDR};color:#fff;padding:11px 18px;border-radius:8px 8px 0 0;font-size:13px;font-weight:700;letter-spacing:.02em;">
-      ${headerTitle}
-    </div>
-    <div style="background:#fff;border-radius:0 0 8px 8px;overflow-x:auto;box-shadow:0 2px 16px rgba(0,0,0,.18);">
-      <table style="border-collapse:collapse;width:100%;font-family:Calibri,Arial,sans-serif;min-width:760px;">
-        <thead>
-          <tr>
-            <th ${thLS}> </th>
-            <th ${thS}>Target</th>
-            <th ${thS}>Actual</th>
-            <th ${thS}>Difference</th>
-            <th ${thS}>Percentage</th>
-            <th ${thS}>Quarter</th>
-            <th ${thS}>NM Target</th>
-            <th ${thS}>NM Actual</th>
-            <th ${thS}>NM Difference</th>
-            <th ${thS}>NM Percentage</th>
-            <th ${thS}>Quarter</th>
-          </tr>
-        </thead>
-        <tbody>${rowsHtml}</tbody>
-      </table>
-    </div>
-    <div style="margin-top:10px;font-size:11px;color:var(--text3);font-family:var(--fm)">
-      <span style="color:#2dce89;font-weight:700">■</span> Above target &nbsp;·&nbsp;
-      <span style="color:#f5365c;font-weight:700">■</span> Below target &nbsp;·&nbsp;
-      Quarter cells show combined actual + % for that quarter
-    </div>`;
+  // ── Fetch compliance data then render ────────────────────────────
+  const divDbKey = DIVISIONS[_spDivKey]?.dbKey;
+
+  function _fetchAndRender(){
+    const ref = _dbRef ? _db.ref(divDbKey+'/compliance') : null;
+    if(!ref){ _render({}); return; }
+    ref.once('value').then(snap=>{
+      const recs = Object.values(snap.val()||{}).filter(d=>parseInt((d.dateObs||'').slice(0,4))===yr);
+      _render(_buildCompMap(recs));
+    }).catch(()=>_render({}));
+  }
+
+  if(_coAllData && _coAllData.length>0 && _spDivKey===_currentDivKey){
+    const yearRecs = _coAllData.filter(d=>parseInt((d.dateObs||'').slice(0,4))===yr);
+    _render(_buildCompMap(yearRecs));
+  } else {
+    _fetchAndRender();
+  }
 }
 
 // ── CSV export ────────────────────────────────────────────────────
@@ -6114,30 +6185,56 @@ function exportSpCSV(){
   if(!_spDivData){ showToast('No data loaded','err'); return; }
   const teamFilter = document.getElementById('spTeamSel').value;
   const consFilter = document.getElementById('spConsSel').value;
+  const yr = parseInt(document.getElementById('spYearSel')?.value||new Date().getFullYear());
   let people = (_spDivData.people||[]).slice();
   if(teamFilter!=='all'){ const m=(_spDivData.teams||{})[teamFilter]||[]; people=people.filter(p=>m.includes(p.name)); }
   if(consFilter!=='all'&&consFilter!=='__div__') people=people.filter(p=>p.name===consFilter);
-  let csv = 'Month,Target,Actual,Difference,Percentage,NM Target,NM Actual,NM Difference,NM Percentage\n';
-  _spMonths().forEach((mk,i)=>{
-    let tgt=0,act=0,nmT=0,nmA=0;
-    people.forEach(p=>{
-      const ovr=(((_spDivData.monthOverrides||{})[mk])||{})[p.name]||{};
-      const rpd=ovr.riskPerDay!==undefined?ovr.riskPerDay:0;
-      const dt=ovr.daysT!==undefined?ovr.daysT:0;
-      if(rpd>0&&dt>0){ tgt+=Math.round(rpd*dt); nmT+=dt*1.75; }
-      const mine=(((_spDivData.months||{})[mk])||{entries:[]}).entries.filter(e=>e.name===p.name);
-      act+=mine.reduce((s,e)=>s+(e.revenue||0),0);
-      nmA+=mine.reduce((s,e)=>s+(e.nm||0),0);
+
+  const buildMap = recs => {
+    const map={};
+    recs.filter(d=>parseInt((d.dateObs||'').slice(0,4))===yr&&people.some(p=>p.name===d.colleague)).forEach(d=>{
+      const mk=(d.dateObs||'').slice(0,7); if(!mk) return;
+      if(!map[mk]) map[mk]={assessments:0,pass:0,passDev:0,regPass:0,regFail:0};
+      map[mk].assessments++;
+      if(d.initialOutcome==='Pass') map[mk].pass++;
+      if(d.initialOutcome==='Pass with Development') map[mk].passDev++;
+      if(d.regCompliant==='Yes') map[mk].regPass++;
+      if(d.regCompliant==='No')  map[mk].regFail++;
     });
-    const pct=tgt>0?Math.round(act/tgt*100):'—';
-    const nmPct=nmT>0?Math.round(nmA/nmT*100):'—';
-    csv+=`${SP_MONTH_NAMES[i]},${tgt.toFixed(2)},${act.toFixed(2)},${(act-tgt).toFixed(2)},${pct}%,${nmT.toFixed(1)},${nmA},${(nmA-nmT).toFixed(1)},${nmPct}%\n`;
-  });
-  const a=document.createElement('a');
-  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-  a.download='staff_performance_2026.csv';
-  a.click();
-  showToast('CSV exported');
+    return map;
+  };
+
+  function doExport(compMap){
+    let csv='Month,Target,Actual,Difference,Percentage,NM Target,NM Actual,NM Difference,NM Percentage,Assessments,Outcomes %,Reg Compliance %\n';
+    _spMonths().forEach((mk,i)=>{
+      let tgt=0,act=0,nmT=0,nmA=0;
+      people.forEach(p=>{
+        const ovr=(((_spDivData.monthOverrides||{})[mk])||{})[p.name]||{};
+        const rpd=ovr.riskPerDay!==undefined?ovr.riskPerDay:0, dt=ovr.daysT!==undefined?ovr.daysT:0;
+        if(rpd>0&&dt>0){ tgt+=Math.round(rpd*dt); nmT+=dt*nmRateFor(p.name); }
+        const mine=(((_spDivData.months||{})[mk])||{entries:[]}).entries.filter(e=>e.name===p.name);
+        act+=mine.reduce((s,e)=>s+(e.revenue||0),0);
+        nmA+=mine.reduce((s,e)=>s+(e.nm||0),0);
+      });
+      const c=compMap[mk]||{};
+      const outPct=c.assessments>0?Math.round(((c.pass||0)+(c.passDev||0))/c.assessments*100)+'%':'—';
+      const regTot=(c.regPass||0)+(c.regFail||0);
+      const regPct=regTot>0?Math.round((c.regPass||0)/regTot*100)+'%':'—';
+      csv+=`${SP_MONTH_NAMES[i]},${tgt.toFixed(2)},${act.toFixed(2)},${(act-tgt).toFixed(2)},${tgt>0?Math.round(act/tgt*100)+'%':'—'},${nmT.toFixed(1)},${nmA},${(nmA-nmT).toFixed(1)},${nmT>0?Math.round(nmA/nmT*100)+'%':'—'},${c.assessments||0},${outPct},${regPct}\n`;
+    });
+    const a=document.createElement('a');
+    a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+    a.download='staff_performance_'+yr+'.csv'; a.click();
+    showToast('CSV exported');
+  }
+
+  if(_coAllData&&_coAllData.length>0&&_spDivKey===_currentDivKey){
+    doExport(buildMap(_coAllData));
+  } else {
+    const ref=_dbRef?_db.ref(DIVISIONS[_spDivKey].dbKey+'/compliance'):null;
+    if(!ref){ doExport({}); return; }
+    ref.once('value').then(snap=>doExport(buildMap(Object.values(snap.val()||{})))).catch(()=>doExport({}));
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
