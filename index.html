@@ -3240,92 +3240,159 @@ function switchHolTab(tab){ _switchHolTabImpl(tab); }
 function renderHoliday(){
   if(typeof _configHolTabs === 'function') _configHolTabs();
   _populateHolSelects();
-  _buildAbsTypePills();
-  _buildHolLegend();
 
   const mk = document.getElementById('holMonth')?.value || APP.activeMonth;
-  const teamFilter = document.getElementById('holTeamFilter')?.value || 'all';
   const [y, m] = mk.split('-').map(Number);
   const daysInMonth = new Date(y, m, 0).getDate();
 
-  const isConsultant = (_currentUser?.role||'') === 'consultant';
+  const role = _currentUser?.role||'';
+  const isConsultant = role === 'consultant';
   const myName = _currentUser?.name||'';
 
-  // Consultants only see their own row
-  let people = isConsultant
-    ? APP.people.filter(p => p.name === myName)
-    : APP.people.filter(p => personTargetForMonth(p, mk) > 0);
+  // ── MANAGER / MASTER / COMPLIANCE: original look ─────────────────
+  if(!isConsultant){
+    _buildAbsTypePills();
+    _buildHolLegend();
 
-  if(!isConsultant && teamFilter !== 'all'){
-    const members = (APP.teams[teamFilter])||[];
-    people = people.filter(p => members.includes(p.name));
-  }
+    const teamFilter = document.getElementById('holTeamFilter')?.value || 'all';
+    let people = APP.people.filter(p => personTargetForMonth(p, mk) > 0);
+    if(!people.length) people = APP.people.slice();
+    if(teamFilter !== 'all'){
+      const members = (APP.teams[teamFilter])||[];
+      people = people.filter(p => members.includes(p.name));
+    }
 
-  if(!people.length){
-    document.getElementById('holTbl').innerHTML = '<tr><td style="padding:24px;color:var(--text3);font-family:var(--fm)">No consultants found.</td></tr>';
+    if(!people.length){
+      document.getElementById('holTbl').innerHTML =
+        '<tr><td style="padding:24px;color:var(--text3);font-family:var(--fm)">No consultants set up yet.</td></tr>';
+      return;
+    }
+
+    const dates = [];
+    for(let d=1; d<=daysInMonth; d++){
+      const dt  = new Date(y, m-1, d);
+      const dow = dt.getDay();
+      const isWE = dow===0||dow===6;
+      const ds   = y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+      dates.push({d, ds, isWE, dayLtr:['S','M','T','W','T','F','S'][dow]});
+    }
+
+    let html = '<thead><tr>';
+    html += '<th class="hol-th nc">Consultant</th>';
+    dates.forEach(({d, dayLtr, isWE}) => {
+      html += '<th class="hol-th" style="'+(isWE?'color:var(--text3)':'')+'">'+d+'<br><span style="font-size:9px">'+dayLtr+'</span></th>';
+    });
+    html += '<th class="hol-th">Days off</th></tr></thead><tbody>';
+
+    people.forEach(p => {
+      const hols = getHols(mk, p.name);
+      const sick = getSick(mk, p.name);
+      // Also pick up new-format absences
+      const newAbs = getAbsences(mk, p.name);
+      const totalOff = new Set([...hols, ...sick, ...Object.keys(newAbs)]).size;
+      html += '<tr><td class="hol-td nc">'+p.name+'</td>';
+      dates.forEach(({ds, isWE}) => {
+        if(isWE){
+          html += '<td class="hol-td we"><span style="color:var(--text3);font-size:10px">—</span></td>';
+        } else if(isBankHoliday(ds)){
+          html += '<td class="hol-td" style="background:rgba(131,5,68,0.08)"><div class="hol-cell" style="background:rgba(131,5,68,0.15);color:#830544;cursor:default;font-size:8px;font-weight:700" title="UK Bank Holiday">BH</div></td>';
+        } else {
+          // Check new-format first, fall back to legacy
+          const newEntry = newAbs[ds];
+          if(newEntry && ABS_TYPES[newEntry.type]){
+            const td = ABS_TYPES[newEntry.type];
+            const cls = newEntry.type==='S'?'on-sick':'on-hol';
+            const safe = p.name.replace(/"/g,'&quot;');
+            html += '<td class="hol-td"><div class="hol-cell '+cls+'" data-mk="'+mk+'" data-name="'+safe+'" data-ds="'+ds+'" onclick="holClick(this)" title="'+td.label+' ('+newEntry.hours+'h)">'+td.code+'</div></td>';
+          } else {
+            const status = getDayStatus(mk, p.name, ds);
+            const cls   = status==='hol'?'on-hol':status==='sick'?'on-sick':'';
+            const lbl   = status==='hol'?'H':status==='sick'?'S':'';
+            const title = status==='hol'?'Planned holiday':status==='sick'?'Sickness/unplanned':'Click to mark holiday';
+            html += '<td class="hol-td"><div class="hol-cell '+cls+'" data-mk="'+mk+'" data-name="'+p.name.replace(/"/g,'&quot;')+'" data-ds="'+ds+'" onclick="holClick(this)" title="'+title+'">'+lbl+'</div></td>';
+          }
+        }
+      });
+      html += '<td class="hol-td" style="font-size:10px;font-family:var(--fm)"><span style="color:var(--red)">H:'+hols.length+'</span> <span style="color:var(--amber)">S:'+sick.length+'</span></td></tr>';
+    });
+
+    html += '</tbody>';
+    document.getElementById('holTbl').innerHTML = html;
     return;
   }
 
-  // Build dates
-  const dates = [];
-  for(let d=1; d<=daysInMonth; d++){
-    const dt = new Date(y, m-1, d);
-    const dow = dt.getDay();
-    const isWE = dow===0||dow===6;
-    const ds = y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-    const dayLtr = ['S','M','T','W','T','F','S'][dow];
-    dates.push({d, ds, isWE, dayLtr});
+  // ── CONSULTANT: new view with allowance column ───────────────────
+  _buildAbsTypePills();
+  _buildHolLegend();
+
+  let people = APP.people.filter(p => p.name === myName);
+  if(!people.length){
+    document.getElementById('holTbl').innerHTML =
+      '<tr><td style="padding:24px;color:var(--text3);font-family:var(--fm)">Your profile not found.</td></tr>';
+    return;
   }
 
+  const dates = [];
+  for(let d=1; d<=daysInMonth; d++){
+    const dt  = new Date(y, m-1, d);
+    const dow = dt.getDay();
+    const isWE = dow===0||dow===6;
+    const ds   = y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    dates.push({d, ds, isWE, dayLtr:['S','M','T','W','T','F','S'][dow]});
+  }
+
+  const HDR = 'background:#6b0d2d';
   let html = '<thead><tr>';
-  html += '<th class="hol-th nc" style="min-width:130px">Consultant</th>';
+  html += '<th style="padding:8px 14px;'+HDR+';color:#fff;border:1px solid rgba(255,255,255,.15);text-align:left;font-size:11px;font-weight:700;min-width:130px;position:sticky;left:0;z-index:3;">Consultant</th>';
   dates.forEach(({d, dayLtr, isWE, ds}) => {
     const isBH = isBankHoliday(ds);
-    const bg = isBH ? 'background:rgba(131,5,68,0.15)' : '';
-    html += `<th class="hol-th" style="min-width:30px;${bg}${isWE?';color:var(--text3)':''}">${d}<br><span style="font-size:9px">${dayLtr}</span></th>`;
+    const wkd  = isWE?'opacity:.45;':'';
+    const bhBg = isBH?'background:rgba(131,5,68,.5);':HDR+';';
+    html += '<th style="padding:5px 3px;'+bhBg+'color:#fff;border:1px solid rgba(255,255,255,.15);text-align:center;font-size:10px;font-weight:700;min-width:26px;'+wkd+'">'+d+'<br><span style="font-size:8px;opacity:.75">'+dayLtr+'</span></th>';
   });
-  html += '<th class="hol-th">Summary</th></tr></thead><tbody>';
+  html += '<th style="padding:8px 10px;'+HDR+';color:#fff;border:1px solid rgba(255,255,255,.15);text-align:center;font-size:11px;font-weight:700;white-space:nowrap;min-width:110px;">Allowance</th>';
+  html += '</tr></thead><tbody>';
 
-  people.forEach(p => {
-    const abs    = getAbsences(mk, p.name);
-    const yr     = String(y);
-    const base   = getBaseAllowance(p.name);
-    const carry  = getCarryOver(p.name, yr);
-    const total  = base + carry;
-    const used   = getDeductibleUsed(p.name, yr);
-    const remain = total - used;
+  people.forEach((p, pi) => {
+    const newAbs  = getAbsences(mk, p.name);
+    const legHols = getHols(mk, p.name);
+    const legSick = getSick(mk, p.name);
+    const yr = String(y);
+    const base = getBaseAllowance(p.name), carry = getCarryOver(p.name, yr);
+    const total = base+carry, used = getDeductibleUsed(p.name, yr);
+    const legHolHrs = legHols.filter(ds => !newAbs[ds]).length*7.5;
+    const effectiveUsed = used+legHolHrs, remain = total-effectiveUsed;
+    const usedPct = total>0?Math.min(100,effectiveUsed/total*100):0;
+    const barCol  = usedPct>90?'#d92f53':usedPct>70?'#d4820a':'#2dce89';
+    const rowBg   = 'var(--surface)';
 
-    html += `<tr><td class="hol-td nc">${p.name}</td>`;
+    html += '<tr style="background:'+rowBg+';border-bottom:1px solid var(--border)">';
+    html += '<td class="hol-td nc" style="font-size:12px;font-weight:600;padding:6px 14px;background:'+rowBg+';position:sticky;left:0;z-index:1">'+p.name+'</td>';
+
     dates.forEach(({ds, isWE}) => {
-      if(isWE){
-        html += '<td class="hol-td we"><span style="color:var(--text3);font-size:9px">—</span></td>';
-      } else if(isBankHoliday(ds)){
-        html += '<td class="hol-td" style="background:rgba(131,5,68,0.06)"><div class="hol-cell2 abs-B" title="UK Bank Holiday" style="cursor:default">BH</div></td>';
-      } else {
-        const entry = abs[ds];
-        const typeDef = entry ? ABS_TYPES[entry.type] : null;
-        const cls  = typeDef ? typeDef.cls : '';
-        const code = typeDef ? typeDef.code : '';
-        const hrsTitle = entry ? ` (${entry.hours}h)` : '';
-        const title = typeDef ? typeDef.label + hrsTitle + ' — click to change/clear' : 'Click to book absence';
-        const safeName = p.name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
-        html += `<td class="hol-td"><div class="hol-cell2 ${cls||'empty'}" 
-          data-mk="${mk}" data-name="${safeName}" data-ds="${ds}"
-          onclick="holCellClick(this)"
-          oncontextmenu="holClearCell(event,this)"
-          title="${title}">${code}</div></td>`;
+      if(isWE){ html += '<td class="hol-td we" style="background:var(--surface3)"><span style="color:var(--text3);font-size:9px">—</span></td>'; return; }
+      if(isBankHoliday(ds)){ html += '<td class="hol-td" style="background:rgba(131,5,68,0.08)"><div class="hol-cell2 abs-B" style="cursor:default;font-size:8px" title="UK Bank Holiday">BH</div></td>'; return; }
+      const safe = p.name.replace(/'/g,"\'").replace(/"/g,'&quot;');
+      const newEntry = newAbs[ds];
+      if(newEntry && ABS_TYPES[newEntry.type]){
+        const td = ABS_TYPES[newEntry.type];
+        html += '<td class="hol-td"><div class="hol-cell2 '+td.cls+'" data-mk="'+mk+'" data-name="'+safe+'" data-ds="'+ds+'" onclick="holCellClick(this)" oncontextmenu="holClearCell(event,this)" title="'+td.label+' ('+newEntry.hours+'h) — right-click to clear">'+td.code+'</div></td>';
+        return;
       }
+      const isLH=legHols.includes(ds), isLS=legSick.includes(ds);
+      if(isLH||isLS){
+        const cls2=isLH?'abs-H':'abs-S', code2=isLH?'H':'S';
+        html += '<td class="hol-td"><div class="hol-cell2 '+cls2+'" data-mk="'+mk+'" data-name="'+safe+'" data-ds="'+ds+'" onclick="holCellClick(this)" oncontextmenu="holClearCell(event,this)" title="'+(isLH?'Holiday':'Sickness')+' — right-click to clear">'+code2+'</div></td>';
+        return;
+      }
+      html += '<td class="hol-td"><div class="hol-cell2 empty" data-mk="'+mk+'" data-name="'+safe+'" data-ds="'+ds+'" onclick="holCellClick(this)" title="Click to book absence"></div></td>';
     });
 
-    // Summary cell
-    html += `<td class="hol-td" style="min-width:130px;padding:4px 8px">
-      <div style="font-size:9px;font-family:var(--fm);white-space:nowrap">
-        <span style="color:#9b1d35;font-weight:700">Rem: ${remain.toFixed(1)}h</span> /
-        <span style="color:var(--text2)">${total}h total</span>
-      </div>
-      <div class="abs-bar-bg"><div class="abs-bar-fill" style="width:${Math.min(100,used/total*100||0).toFixed(0)}%;background:#f5365c"></div></div>
-      <div style="font-size:9px;color:var(--text3);font-family:var(--fm)">Used: ${used.toFixed(1)}h this yr</div>
-    </td></tr>`;
+    html += '<td class="hol-td" style="padding:6px 10px;min-width:110px;vertical-align:middle">';
+    html += '<div style="font-size:10px;font-family:var(--fm);white-space:nowrap;margin-bottom:3px"><span style="font-weight:700;color:'+(remain<0?'#d92f53':remain<total*.1?'#d4820a':'#2dce89')+'">'+remain.toFixed(1)+'h left</span><span style="color:var(--text3)"> / '+total+'h</span></div>';
+    html += '<div style="height:5px;background:var(--surface3);border-radius:3px;overflow:hidden"><div style="width:'+usedPct.toFixed(0)+'%;height:100%;background:'+barCol+';border-radius:3px"></div></div>';
+    html += '<div style="font-size:9px;color:var(--text3);font-family:var(--fm);margin-top:2px">'+effectiveUsed.toFixed(1)+'h used</div>';
+    html += '</td></tr>';
   });
 
   html += '</tbody>';
@@ -8138,7 +8205,7 @@ function saveBizTargets(){
 function peopleWorkingOnDate(mk, ds){
   if(isBankHoliday(ds)) return 0;
   const active = APP.people.filter(p=>personTargetForMonth(p,mk)>0);
-  return active.filter(p=>!getHols(mk,p.name).includes(ds)).length;
+  return active.filter(p=>!getHols(mk,p.name).includes(ds)&&!getSick(mk,p.name).includes(ds)).length;
 }
 
 // Get all working dates in a month (Mon-Fri, excluding bank holidays)
@@ -8192,7 +8259,7 @@ function renderBizTarget(){
 
   // Today's run rate
   const today = _localDateStr(new Date());
-  const peopleToday = active.filter(p=>!getHols(mk,p.name).includes(today)).length;
+  const peopleToday = active.filter(p=>!getHols(mk,p.name).includes(today)&&!getSick(mk,p.name).includes(today)).length;
   const todayRunRate = peopleToday * rpp;
 
   const revPct = revTarget>0 ? Math.round(totalRev/revTarget*100) : 0;
