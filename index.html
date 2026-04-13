@@ -1507,79 +1507,169 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 
 <!-- SETTINGS -->
 <div class="page" id="page-settings">
-  <div class="section-head">
-    <div><div class="section-title">Settings</div><div class="section-sub">Manage consultants and monthly targets</div></div>
-  </div>
-  <div class="settings-grid">
+  <!-- Hub view -->
+  <div id="settingsHub">
+    <div class="section-head">
+      <div><div class="section-title">Settings</div><div class="section-sub">Choose a section to configure</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;max-width:900px;">
 
-    <!-- Users & Roles — full width, master-only -->
-    <div class="set-card" style="grid-column:1/-1" id="usersRolesCard">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
-        <div>
-          <div class="set-title" style="margin-bottom:2px">👥 Users & Roles</div>
-          <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">Manage user access, roles and PINs. Only visible to Master users.</div>
-        </div>
-        <button class="btn btn-p" onclick="openAddUserModal()" style="font-size:12px">+ Add User</button>
+      <!-- Users & Roles -->
+      <div id="settingsHubUsersCard" class="set-card" style="cursor:pointer;transition:all .2s;border-left:4px solid var(--blue);"
+        onclick="openSettingsSub('users')"
+        onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='var(--shadow)'"
+        onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="font-size:28px;margin-bottom:10px">👥</div>
+        <div class="set-title" style="margin-bottom:4px">Users &amp; Roles</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm);line-height:1.6">Manage user accounts, roles and PINs</div>
+        <div style="margin-top:12px;font-size:11px;font-weight:700;color:var(--blue)">Open →</div>
       </div>
+
+      <!-- Themes -->
+      <div class="set-card" style="cursor:pointer;transition:all .2s;border-left:4px solid var(--purple);"
+        onclick="openSettingsSub('themes')"
+        onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='var(--shadow)'"
+        onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="font-size:28px;margin-bottom:10px">🎨</div>
+        <div class="set-title" style="margin-bottom:4px">Themes</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm);line-height:1.6">Customise the visual appearance</div>
+        <div style="margin-top:12px;font-size:11px;font-weight:700;color:var(--purple)">Open →</div>
+      </div>
+
+      <!-- Monthly Targets -->
+      <div class="set-card" style="cursor:pointer;transition:all .2s;border-left:4px solid var(--green);"
+        onclick="openSettingsSub('targets')"
+        onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='var(--shadow)'"
+        onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="font-size:28px;margin-bottom:10px">🎯</div>
+        <div class="set-title" style="margin-bottom:4px">Monthly Targets</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm);line-height:1.6">Consultants, NM rates, month management &amp; targets</div>
+        <div style="margin-top:12px;font-size:11px;font-weight:700;color:var(--green)">Open →</div>
+      </div>
+
+      <!-- Direct Reports -->
+      <div class="set-card" style="cursor:pointer;transition:all .2s;border-left:4px solid var(--amber);"
+        onclick="openSettingsSub('directreports')"
+        onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='var(--shadow)'"
+        onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="font-size:28px;margin-bottom:10px">👤</div>
+        <div class="set-title" style="margin-bottom:4px">Direct Reports</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm);line-height:1.6">Assign team members to managers &amp; team leads</div>
+        <div style="margin-top:12px;font-size:11px;font-weight:700;color:var(--amber)">Open →</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── SUB-PAGES ── -->
+
+  <!-- Users & Roles sub-page -->
+  <div id="settingsSubUsers" style="display:none">
+    <div class="section-head">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="btn btn-s" onclick="closeSettingsSub()" style="font-size:12px">← Back</button>
+        <div>
+          <div class="section-title">👥 Users &amp; Roles</div>
+          <div class="section-sub">Manage user accounts, roles and PINs</div>
+        </div>
+      </div>
+      <button class="btn btn-p" onclick="openAddUserModal()" style="font-size:12px">+ Add User</button>
+    </div>
+    <div class="set-card" id="usersRolesCard">
       <div id="usersRolesContent"><div style="font-size:12px;color:var(--text3);font-family:var(--fm)">Loading users…</div></div>
     </div>
+  </div>
 
-    <!-- Theme picker — full width -->
-    <div class="set-card" style="grid-column:1/-1">
-      <div class="set-title">🎨 Theme</div>
-      <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:18px">Choose a visual theme for the dashboard. Your preference is saved automatically.</div>
+  <!-- Themes sub-page -->
+  <div id="settingsSubThemes" style="display:none">
+    <div class="section-head">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="btn btn-s" onclick="closeSettingsSub()" style="font-size:12px">← Back</button>
+        <div>
+          <div class="section-title">🎨 Themes</div>
+          <div class="section-sub">Choose a visual theme — your preference is saved automatically</div>
+        </div>
+      </div>
+    </div>
+    <div class="set-card">
       <div id="themePickerGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;"></div>
     </div>
+  </div>
 
-    <!-- Monthly targets — full width, month picker → consultant table -->
-    <div class="set-card" style="grid-column:1/-1" id="mtCard">
-      <div id="mtContent"></div>
-    </div>
-
-    <!-- Consultant names only -->
-    <div class="set-card">
-      <div class="set-title">Consultants</div>
-      <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:14px">Add or remove consultant names. Set their targets per month below.</div>
-      <div id="personConfigRows"></div>
-      <div style="display:flex;gap:8px;margin-top:12px;">
-        <input type="text" id="newName" placeholder="Consultant name" style="flex:1">
-        <button class="btn btn-p" onclick="addPerson()" style="padding:8px 14px;font-size:13px;">+ Add</button>
-      </div>
-    </div>
-
-    <!-- NM Rate -->
-    <div class="set-card">
-      <div class="set-title">NM Rate</div>
-      <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:12px;line-height:1.6">Needs Met target per working day. Default 1.75.</div>
-      <div style="display:flex;align-items:center;gap:10px;">
-        <input type="number" id="nmRateInput" step="0.25" min="0.25" max="10" style="width:90px"
-          onchange="APP.nmRate=parseFloat(this.value)||1.75;saveApp();showToast('NM rate updated')">
-        <span style="font-size:12px;color:var(--text3);font-family:var(--fm)">per working day</span>
-      </div>
-    </div>
-
-    <!-- Month management -->
-    <div class="set-card">
-      <div class="set-title">Month management</div>
-      <div style="margin-bottom:12px"><div class="field-lbl">Active month</div><select id="activeMonthSel" onchange="setActiveMonth()"></select></div>
-      <button class="btn btn-p btn-w" onclick="openNewMonthModal()">+ Create new month</button>
-    </div>
-
-    <!-- Direct Reports — full width -->
-    <div class="set-card" style="grid-column:1/-1" id="directReportsCard">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:8px;">
+  <!-- Monthly Targets sub-page -->
+  <div id="settingsSubTargets" style="display:none">
+    <div class="section-head">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="btn btn-s" onclick="closeSettingsSub()" style="font-size:12px">← Back</button>
         <div>
-          <div class="set-title" style="margin-bottom:2px">👤 Direct Reports</div>
-          <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">
-            Assign direct reports to each manager. Team-level functions (Call Outcomes, Remedial, Staff Performance) will filter automatically to their team.
+          <div class="section-title">🎯 Monthly Targets</div>
+          <div class="section-sub">Manage consultants, NM rates, months and per-month targets</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px;">
+
+      <!-- Consultants -->
+      <div class="set-card">
+        <div class="set-title">👤 Consultants</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:14px">Add or rename consultants. Set targets per month below.</div>
+        <div id="personConfigRows"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <input type="text" id="newName" placeholder="Consultant name" style="flex:1">
+          <button class="btn btn-p" onclick="addPerson()" style="padding:8px 14px;font-size:13px;">+ Add</button>
+        </div>
+      </div>
+
+      <!-- NM Rate per consultant -->
+      <div class="set-card">
+        <div class="set-title">📊 NM Rate</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:4px;line-height:1.6">Needs Met target per working day. Set a default for all, or override per consultant.</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border)">
+          <div>
+            <div class="field-lbl" style="margin-bottom:4px">Default (all consultants)</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="number" id="nmRateInput" step="0.25" min="0.25" max="10" style="width:90px"
+                onchange="APP.nmRate=parseFloat(this.value)||1.75;saveApp();renderNmRateRows();showToast('Default NM rate updated')">
+              <span style="font-size:12px;color:var(--text3);font-family:var(--fm)">per day</span>
+            </div>
           </div>
         </div>
-        <button class="btn btn-p" onclick="openDirectReportModal()" style="font-size:12px;white-space:nowrap;">+ Assign Reports</button>
+        <div id="nmRateRows"></div>
       </div>
-      <div id="directReportsContent" style="margin-top:14px"></div>
+
+      <!-- Month management -->
+      <div class="set-card">
+        <div class="set-title">📅 Month Management</div>
+        <div style="margin-bottom:12px"><div class="field-lbl">Active month</div><select id="activeMonthSel" onchange="setActiveMonth()"></select></div>
+        <button class="btn btn-p btn-w" onclick="openNewMonthModal()">+ Create new month</button>
+      </div>
+
     </div>
 
+    <!-- Monthly targets table — full width -->
+    <div class="set-card" id="mtCard">
+      <div id="mtContent"></div>
+    </div>
   </div>
+
+  <!-- Direct Reports sub-page -->
+  <div id="settingsSubDirectreports" style="display:none">
+    <div class="section-head">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="btn btn-s" onclick="closeSettingsSub()" style="font-size:12px">← Back</button>
+        <div>
+          <div class="section-title">👤 Direct Reports</div>
+          <div class="section-sub">Assign consultants to managers — team functions will filter to their team automatically</div>
+        </div>
+      </div>
+      <button class="btn btn-p" onclick="openDirectReportModal()" style="font-size:12px;white-space:nowrap;">+ Assign Reports</button>
+    </div>
+    <div class="set-card" id="directReportsCard">
+      <div id="directReportsContent"></div>
+    </div>
+  </div>
+
 </div>
 
 <!-- PERSON PROFILE -->
@@ -2580,7 +2670,7 @@ function _initApp(divKey){
   APP = {
     people:[], months:{}, activeMonth:todayKey(),
     teams:{g:[],james:[],damo:[]}, bizTargets:{},
-    holidays:{}, sickness:{}, absences:{}, allowances:{}, directReports:{}, monthOverrides:{}, manualElapsed:null
+    holidays:{}, sickness:{}, absences:{}, allowances:{}, directReports:{}, nmRates:{}, monthOverrides:{}, manualElapsed:null
   };
   setSyncStatus('connecting');
   _startFirebase();
@@ -2848,7 +2938,7 @@ function calcStats(monthKey){
     const sickWorkDays  = getSickWorkDayCount(monthKey, p.name);
     const effectiveDays = Math.max(0, (ep.daysT||0) - sickWorkDays);
     const target   = Math.round((ep.riskPerDay||0) * effectiveDays);
-    const nmTarget = parseFloat((effectiveDays * nmRate()).toFixed(2));
+    const nmTarget = parseFloat((effectiveDays * nmRateFor(p.name||'')).toFixed(2));
 
     // calendar working days elapsed for this person (holidays excluded)
     const calDays = calWorkDays(monthKey, p.name);
@@ -4591,17 +4681,63 @@ function deleteDeal(mk, date, name, dealIndex){
 // ═══════════════════════════════════════════════════════════════════
 // SETTINGS
 // ═══════════════════════════════════════════════════════════════════
-function renderSettings(){
+// ── Per-consultant NM rate helper ────────────────────────────────
+function nmRateFor(personName){
+  // Check per-person override first, then fall back to global
+  if(APP.nmRates && APP.nmRates[personName] != null) return APP.nmRates[personName];
+  return nmRate(); // global default
+}
+
+// ── Settings: open/close sub-pages ───────────────────────────────
+function openSettingsSub(sub){
+  // Hide hub
+  const hub = document.getElementById('settingsHub');
+  if(hub) hub.style.display = 'none';
+  // Hide all sub-pages
+  ['users','themes','targets','directreports'].forEach(s => {
+    const el = document.getElementById('settingsSub'+s.charAt(0).toUpperCase()+s.slice(1));
+    if(el) el.style.display = 'none';
+  });
+  // Show the requested sub-page
+  const el = document.getElementById('settingsSub'+sub.charAt(0).toUpperCase()+sub.slice(1));
+  if(el) el.style.display = '';
+
+  // Render the relevant content
+  if(sub==='users')         renderUsersRoles();
+  if(sub==='themes')        renderThemePicker();
+  if(sub==='targets')       _renderTargetsSub();
+  if(sub==='directreports') renderDirectReports();
+}
+
+function closeSettingsSub(){
+  // Hide all sub-pages
+  ['users','themes','targets','directreports'].forEach(s => {
+    const el = document.getElementById('settingsSub'+s.charAt(0).toUpperCase()+s.slice(1));
+    if(el) el.style.display = 'none';
+  });
+  // Show hub
+  const hub = document.getElementById('settingsHub');
+  if(hub) hub.style.display = '';
+}
+
+function _renderTargetsSub(){
   populateAllSelects();
-  document.getElementById('activeMonthSel').value = APP.activeMonth;
-  renderThemePicker();
-  renderUsersRoles();
-  // NM Rate input
+  // Make sure activeMonthSel is up to date (it lives in the targets sub-page now)
+  const amSel = document.getElementById('activeMonthSel');
+  if(amSel) amSel.value = APP.activeMonth;
+  // NM Rate default
   const nmEl = document.getElementById('nmRateInput');
   if(nmEl) nmEl.value = nmRate();
+  // Per-consultant rows
+  _renderPersonConfigRows();
+  renderNmRateRows();
+  renderMonthlyTargets();
+}
 
-  // Name-only rows — no risk/day or work days here
-  document.getElementById('personConfigRows').innerHTML = APP.people.length
+function _renderPersonConfigRows(){
+  const el = document.getElementById('personConfigRows');
+  if(!el) return;
+  el.innerHTML = APP.people.length
     ? APP.people.map((p,i)=>`
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">
         <input type="text" value="${p.name}" style="flex:1"
@@ -4609,9 +4745,57 @@ function renderSettings(){
         <button class="icon-btn" onclick="removePerson(${i})" title="Remove">✕</button>
       </div>`).join('')
     : '<div style="font-size:12px;color:var(--text3);font-family:var(--fm);margin-bottom:8px">No consultants yet.</div>';
+}
 
-  renderMonthlyTargets();
-  renderDirectReports();
+function renderNmRateRows(){
+  const el = document.getElementById('nmRateRows');
+  if(!el) return;
+  if(!APP.nmRates) APP.nmRates = {};
+  if(!APP.people.length){
+    el.innerHTML = '<div style="font-size:11px;color:var(--text3);font-family:var(--fm)">No consultants yet.</div>';
+    return;
+  }
+  el.innerHTML = `
+    <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;font-family:var(--fm);margin-bottom:8px">Per-consultant overrides</div>
+    ${APP.people.map((p,i) => {
+      const override = APP.nmRates[p.name];
+      const hasOverride = override != null;
+      const displayVal = hasOverride ? override : nmRate();
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;padding:7px 10px;background:var(--surface2);border:1px solid ${hasOverride?'var(--accent)':'var(--border)'};border-radius:8px;">
+        <span style="flex:1;font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</span>
+        <input type="number" step="0.25" min="0.25" max="10" value="${displayVal}"
+          style="width:72px;text-align:center;background:var(--surface);border:1px solid var(--border2);border-radius:6px;padding:4px 8px;font-size:12px;font-family:var(--fm);color:var(--text)"
+          onchange="setPersonNmRate('${p.name.replace(/'/g,"\'")}',this.value)"
+          title="Override NM rate for ${p.name}">
+        <span style="font-size:10px;color:var(--text3);font-family:var(--fm);white-space:nowrap">per day</span>
+        ${hasOverride ? `<button onclick="clearPersonNmRate('${p.name.replace(/'/g,"\'")}');renderNmRateRows()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:2px 4px;line-height:1" title="Reset to default">↺</button>` : ''}
+      </div>`;
+    }).join('')}
+    <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:6px">
+      Highlighted = custom rate set. Click ↺ to reset to default.
+    </div>`;
+}
+
+function setPersonNmRate(name, val){
+  if(!APP.nmRates) APP.nmRates = {};
+  const parsed = parseFloat(val);
+  if(!isNaN(parsed) && parsed > 0) APP.nmRates[name] = parsed;
+  saveApp();
+  renderNmRateRows();
+  showToast('NM rate updated for '+name);
+}
+
+function clearPersonNmRate(name){
+  if(APP.nmRates && APP.nmRates[name] != null){
+    delete APP.nmRates[name];
+    saveApp();
+    showToast('NM rate reset to default for '+name);
+  }
+}
+
+function renderSettings(){
+  // Always start at the hub when settings page is opened
+  closeSettingsSub();
 }
 
 function updatePerson(i, field, val){
@@ -5304,7 +5488,7 @@ function renderDailySend(){
         const rpd   = ovr.riskPerDay !== undefined ? ovr.riskPerDay : (p.riskPerDay||0);
         const daysT = ovr.daysT      !== undefined ? ovr.daysT      : (p.daysT||0);
         target   += Math.round(rpd * daysT);
-        nmTarget += daysT * 1.75;
+        nmTarget += daysT * nmRateFor(p.name);
       });
       const revMTD = entries.reduce((s,e)=>s+(e.revenue||0),0);
       const nmMTD  = entries.reduce((s,e)=>s+(e.nm||0),0);
@@ -5763,7 +5947,7 @@ function renderSpTable(){
       const daysT = ovr.daysT      !== undefined ? ovr.daysT      : 0;
       if(rpd > 0 && daysT > 0){
         target   += Math.round(rpd * daysT);
-        nmTarget += daysT * 1.75;
+        nmTarget += daysT * nmRateFor(p.name);
       }
       const mine = ((data.months||{})[mk]||{entries:[]}).entries.filter(e => e.name === p.name);
       actual   += mine.reduce((s,e)=>s+(e.revenue||0),0);
@@ -6591,45 +6775,85 @@ function loadCallOutcomes(){
 }
 
 function _populateCoFilterDropdowns(){
-  const colleagues = [...new Set(_coAllData.map(d=>d.colleague).filter(Boolean))].sort();
-  const assessors  = [...new Set(_coAllData.map(d=>d.assessor).filter(Boolean))].sort();
+  const role    = _currentUser?.role||'';
+  const myName  = _currentUser?.name||'';
+  const isManager = role==='manager';
+
+  // For managers: only list colleagues from their own team
+  const allowedSet = isManager
+    ? new Set([..._getMyTeamMembers(), myName])
+    : null; // null = no restriction
+
+  const colleagues = [...new Set(_coAllData
+    .map(d=>d.colleague)
+    .filter(c=>c && (!allowedSet || allowedSet.has(c)))
+  )].sort();
+
+  const assessors = [...new Set(_coAllData.map(d=>d.assessor).filter(Boolean))].sort();
+
   const coSel  = document.getElementById('co_colleague');
   const asSel  = document.getElementById('co_assessor');
   const prevCo = coSel?.value||'';
   const prevAs = asSel?.value||'';
-  if(coSel) coSel.innerHTML = '<option value="">All</option>' + colleagues.map(c=>`<option value="${c}"${c===prevCo?' selected':''}>${c}</option>`).join('');
-  if(asSel) asSel.innerHTML = '<option value="">All Assessors</option>' + assessors.map(a=>`<option value="${a}"${a===prevAs?' selected':''}>${a}</option>`).join('');
+
+  if(coSel) coSel.innerHTML = '<option value="">All</option>' +
+    colleagues.map(c=>`<option value="${c}"${c===prevCo?' selected':''}>${c}</option>`).join('');
+  if(asSel) asSel.innerHTML = '<option value="">All Assessors</option>' +
+    assessors.map(a=>`<option value="${a}"${a===prevAs?' selected':''}>${a}</option>`).join('');
 }
 
 function applyCoFilters(){
-  // Consultants are always locked to their own name regardless of filter state
-  const isConsultant = _currentUser?.role === 'consultant';
-  const colleague = isConsultant
-    ? (_currentUser?.name||'')
-    : (document.getElementById('co_colleague')?.value||'');
-  const teamKey   = isConsultant ? '' : (document.getElementById('co_team')?.value||'');
-  const assessor  = isConsultant ? '' : (document.getElementById('co_assessor')?.value||'');
-  const outcome   = document.getElementById('co_outcome')?.value||'';
-  const from      = document.getElementById('co_from')?.value||'';
-  const to        = document.getElementById('co_to')?.value||'';
+  const role        = _currentUser?.role||'';
+  const myName      = _currentUser?.name||'';
+  const isConsultant= role==='consultant';
+  const isManager   = role==='manager';
+  const isMaster    = role==='master'||role==='compliance';
 
-  // Build team member list if team filter set
+  // ── Visibility scope per role ──────────────────────────────────────
+  // Consultant: only their own calls
+  // Manager: only their direct reports (locked — cannot see other managers' teams)
+  // Master/Compliance: everyone
+  let allowedColleagues = null; // null = no restriction (master/compliance)
+
+  if(isConsultant){
+    allowedColleagues = new Set([myName]);
+  } else if(isManager){
+    const myTeam = _getMyTeamMembers(); // returns direct reports only
+    allowedColleagues = new Set(myTeam);
+    // Also include themselves if they appear as a colleague in any record
+    allowedColleagues.add(myName);
+  }
+  // isMaster/compliance: allowedColleagues stays null (sees all)
+
+  // Filters from UI (managers/masters only)
+  const uiColleague = !isConsultant ? (document.getElementById('co_colleague')?.value||'') : '';
+  const teamKey     = !isConsultant ? (document.getElementById('co_team')?.value||'') : '';
+  const assessor    = !isConsultant ? (document.getElementById('co_assessor')?.value||'') : '';
+  const outcome     = document.getElementById('co_outcome')?.value||'';
+  const from        = document.getElementById('co_from')?.value||'';
+  const to          = document.getElementById('co_to')?.value||'';
+
   const teamMembers = teamKey ? ((APP.teams&&APP.teams[teamKey])||[]) : null;
 
   _coFiltered = _coAllData.filter(d=>{
-    if(colleague && d.colleague !== colleague)               return false;
-    if(teamMembers && !teamMembers.includes(d.colleague))   return false;
-    if(assessor  && d.assessor  !== assessor)               return false;
-    if(outcome   && d.initialOutcome !== outcome)           return false;
-    if(from && d.dateObs < from)                            return false;
-    if(to   && d.dateObs > to)                             return false;
-    // Consultants: Fail/Reg-Non-Compliant calls are hidden until manager releases the remedial
+    // ── Hard scope gate: never show records outside allowed colleagues ──
+    if(allowedColleagues && !allowedColleagues.has(d.colleague)) return false;
+
+    // ── UI filters (only applied on top of the scoped set) ────────────
+    if(uiColleague && d.colleague !== uiColleague)             return false;
+    if(teamMembers && !teamMembers.includes(d.colleague))      return false;
+    if(assessor && d.assessor !== assessor)                    return false;
+    if(outcome  && d.initialOutcome !== outcome)               return false;
+    if(from && d.dateObs < from)                               return false;
+    if(to   && d.dateObs > to)                                 return false;
+
+    // ── Consultant: hide unreleased Fail records ───────────────────────
     if(isConsultant){
       const isFail = d.initialOutcome==='Fail' || d.regCompliant==='No';
       if(isFail){
         const remRec = Object.values(_remAll).find(r=>r.assessmentId===d.id);
-        if(!remRec) return false; // compliance submitted but manager hasn't released yet
-        if(remRec.status==='pending_manager') return false; // manager hasn't reviewed yet
+        if(!remRec) return false;
+        if(remRec.status==='pending_manager') return false;
       }
     }
     return true;
@@ -10170,6 +10394,7 @@ function _applyDefaults(){
   if(!APP.absences)      APP.absences = {};
   if(!APP.allowances)    APP.allowances = {};
   if(!APP.directReports) APP.directReports = {};
+  if(!APP.nmRates)       APP.nmRates = {};
   if(APP.nmRate == null) APP.nmRate = 1.75; // NM per working day target
   if(!APP.monthOverrides) APP.monthOverrides = {};
   if(APP.manualElapsed == null) APP.manualElapsed = null;
@@ -10443,6 +10668,8 @@ function maybeCreateRemedial(assessmentData){
     status:           initialStatus,
     requiresRemedial: requiresRemedial,
     colleague:        assessmentData.colleague||'',
+    // Store the TL who should see this in their queue
+    teamManager:      getManagerOf(assessmentData.colleague||'')||'',
     teamKey:          assessmentData.teamKey||'',
     team:             assessmentData.team||'',
     assessor:         assessmentData.assessor||'',
@@ -10498,11 +10725,12 @@ function _updateRemBadges(){
   // Manager / compliance: pending manager review count
   if(role==='manager'||role==='master'||role==='compliance'){
     let pending = recs.filter(r=>r.status==='pending_manager' && _needsAction(r));
-    // Managers only see their own team's
+    // Managers see only their own direct reports' pending items
     if(role==='manager'){
       const myTeamMembers = _getMyTeamMembers();
       pending = pending.filter(r=>myTeamMembers.includes(r.colleague));
     }
+    // compliance/master sees all pending across division
     const badge = document.getElementById('remMgrBadge');
     if(badge){
       badge.textContent = pending.length;
@@ -10541,14 +10769,21 @@ function _updateRemBadges(){
 // ── Helper: get team members for a manager ───────────────────────
 function _getMyTeamMembers(){
   const name = _currentUser?.name||'';
-  if(!APP.teams) return APP.people.map(p=>p.name);
-  // Find teams where this person is listed as TL or find their team assignment
-  const allTeamMembers = [];
-  Object.values(APP.teams).forEach(members=>{
-    if(Array.isArray(members)) allTeamMembers.push(...members);
-  });
-  // For simplicity: manager sees all consultants in the division
-  return APP.people.map(p=>p.name);
+  const role = _currentUser?.role||'';
+  // Master / compliance roles see everything
+  if(role==='master'||role==='compliance') return APP.people.map(p=>p.name);
+  // Check direct reports first — this is the primary source of truth
+  if(APP.directReports && APP.directReports[name] && APP.directReports[name].length){
+    return APP.directReports[name];
+  }
+  // Fallback: check legacy APP.teams for this manager's name key
+  if(APP.teams){
+    const teamKey = Object.keys(APP.teams).find(k=>k===name||(APP.teams[k]||[]).includes(name));
+    if(teamKey) return APP.teams[teamKey]||[];
+  }
+  // If no direct reports and no team assignment: manager sees ONLY themselves — not everyone
+  // This prevents accidentally seeing another manager's team
+  return [];
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -10604,8 +10839,19 @@ function renderCoRemedialTab(){
   if(isConsultant){
     allReleased = allReleased.filter(r=>r.colleague===myName);
   } else if(role==='manager'){
-    const team = _getMyTeamMembers();
+    const team = _getMyTeamMembers(); // only direct reports now
     allReleased = allReleased.filter(r=>team.includes(r.colleague));
+    if(team.length === 0){
+      const listEl = document.getElementById('remOutstandingList');
+      const statsEl = document.getElementById('remStatsRow');
+      if(statsEl) statsEl.innerHTML = '';
+      if(listEl) listEl.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--text3);">
+        <div style="font-size:32px;margin-bottom:12px">👤</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px">No Direct Reports Assigned</div>
+        <div style="font-size:12px;font-family:var(--fm)">Go to Settings → Direct Reports to set up your team.</div>
+      </div>`;
+      return;
+    }
   }
 
   // Split: informational (Pass/Pass with Dev) vs actionable (Fail/Reg fail)
@@ -11278,11 +11524,14 @@ function switchMgrRemTab(tab){
 
 function renderMgrRemStats(){
   const role = _currentUser?.role||'manager';
+  const myName = _currentUser?.name||'';
   let recs = Object.values(_remAll);
   if(role==='manager'){
-    const team = _getMyTeamMembers();
+    const team = _getMyTeamMembers(); // now only returns direct reports
     recs = recs.filter(r=>team.includes(r.colleague));
   }
+  // compliance/master: see all
+  // manager with no direct reports: sees nothing (empty state shown)
   const pending   = recs.filter(r=>r.status==='pending_manager').length;
   const released  = recs.filter(r=>r.status==='released').length;
   const completed = recs.filter(r=>r.status==='completed').length;
@@ -11299,12 +11548,26 @@ function renderMgrRemStats(){
 
 function renderMgrRemContent(){
   renderMgrRemStats();
-  const role = _currentUser?.role||'manager';
-  const tab  = _mgrRemActiveTab;
+  const role   = _currentUser?.role||'manager';
+  const myName = _currentUser?.name||'';
+  const tab    = _mgrRemActiveTab;
   let recs = Object.values(_remAll);
   if(role==='manager'){
-    const team = _getMyTeamMembers();
+    const team = _getMyTeamMembers(); // only direct reports
     recs = recs.filter(r=>team.includes(r.colleague));
+    // If no direct reports configured, show a helpful notice
+    if(team.length === 0){
+      const el = document.getElementById('mgrRemContent');
+      if(el) el.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--text3);">
+        <div style="font-size:32px;margin-bottom:12px">👤</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:8px">No Direct Reports Assigned</div>
+        <div style="font-size:12px;font-family:var(--fm);max-width:340px;margin:0 auto;line-height:1.7">
+          Go to <strong>Settings → Direct Reports</strong> to assign consultants to your team.
+          Only your direct reports' calls will appear here.
+        </div>
+      </div>`;
+      return;
+    }
   }
 
   const el = document.getElementById('mgrRemContent');
@@ -12394,18 +12657,10 @@ function clearDirectReports(mgr){
   showToast(`Cleared reports for ${mgr}`);
 }
 
-// ── Patch _getMyTeamMembers to use directReports if set ───────────
-const _origGetMyTeamMembers = typeof _getMyTeamMembers === 'function' ? _getMyTeamMembers : null;
-function _getMyTeamMembers(){
-  const name = _currentUser?.name||'';
-  const role = _currentUser?.role||'';
-  // If this manager has direct reports defined, use those
-  const dr = getDirectReports(name);
-  if(dr.length > 0) return dr;
-  // Fallback to original behaviour
-  if(_origGetMyTeamMembers) return _origGetMyTeamMembers();
-  return APP.people.map(p=>p.name);
-}
+// ── _getMyTeamMembers is already defined above with full logic ────
+// No override needed here — direct reports integration is in the
+// primary function above. This stub kept for reference.
+
 
 
 function logoutUser(){
