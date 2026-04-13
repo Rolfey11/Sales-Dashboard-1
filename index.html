@@ -1030,6 +1030,51 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 .abs-type-btn:hover{ transform:scale(1.03); }
 .abs-type-btn.active{ box-shadow:0 0 0 2px var(--accent),0 0 0 4px rgba(94,156,245,.2); }
 
+/* ── HOLIDAY REQUESTS ───────────────────────────────────────────── */
+.hr-req-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:16px 18px;margin-bottom:10px;
+  transition:border-color .2s,transform .15s;cursor:pointer;
+}
+.hr-req-card:hover{ border-color:var(--border2); transform:translateX(3px); }
+.hr-req-card.pending{ border-left:4px solid var(--amber); }
+.hr-req-card.approved{ border-left:4px solid var(--green); }
+.hr-req-card.declined{ border-left:4px solid var(--red); opacity:.75; }
+
+.hr-status-badge{
+  display:inline-block;padding:3px 10px;border-radius:12px;
+  font-size:10px;font-weight:700;font-family:var(--fm);letter-spacing:.05em;
+}
+.hr-status-pending  { background:rgba(251,184,58,.18);color:var(--amber);border:1px solid rgba(251,184,58,.35); }
+.hr-status-approved { background:rgba(45,206,137,.15);color:var(--green);border:1px solid rgba(45,206,137,.3); }
+.hr-status-declined { background:rgba(245,54,92,.12); color:var(--red);  border:1px solid rgba(245,54,92,.25); }
+
+/* My Holiday summary cards */
+.myhol-kpi-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  gap:12px;margin-bottom:22px;
+}
+.myhol-kpi{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:16px 14px;text-align:center;
+}
+.myhol-kpi-val{ font-family:var(--fm);font-size:1.7rem;font-weight:700;line-height:1; }
+.myhol-kpi-lbl{ font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;
+  text-transform:uppercase;margin-top:6px; }
+
+/* Date range picker */
+.hr-date-cell{
+  width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+  border-radius:8px;cursor:pointer;font-size:12px;font-family:var(--fm);
+  transition:all .1s;margin:1px;border:1px solid transparent;
+}
+.hr-date-cell:hover:not(.we):not(.bh){ background:var(--surface3); }
+.hr-date-cell.selected{ background:var(--accent);color:#fff;font-weight:700; }
+.hr-date-cell.in-range{ background:rgba(94,156,245,0.18);color:var(--text); }
+.hr-date-cell.we{ color:var(--text3);cursor:default; }
+.hr-date-cell.bh{ background:rgba(131,5,68,.08);color:#830544;cursor:default;font-size:10px; }
+.hr-date-cell.already-booked{ background:rgba(245,54,92,.15);color:var(--red);cursor:not-allowed; }
+
 </style>
 <body class="pre-auth">
 
@@ -1409,10 +1454,14 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
   </div>
 
   <!-- Sub-tab nav -->
-  <div class="sub-nav">
+  <div class="sub-nav" id="holSubNav">
+    <button class="sub-tab" id="holTabMyHolBtn"  onclick="switchHolTab('myhol')" style="display:none">🌴 My Holidays</button>
     <button class="sub-tab active" id="holTabCalBtn" onclick="switchHolTab('calendar')">📅 Calendar</button>
     <button class="sub-tab" id="holTabTotBtn"  onclick="switchHolTab('totals')">📊 Totals</button>
     <button class="sub-tab" id="holTabSumBtn"  onclick="switchHolTab('summary')">👤 Summary</button>
+    <button class="sub-tab" id="holTabReqBtn"  onclick="switchHolTab('requests')" style="display:none">
+      📋 Requests <span id="holReqBadge" style="display:none;background:var(--red);color:#fff;border-radius:10px;padding:1px 6px;font-size:9px;font-family:var(--fm);margin-left:4px;font-weight:700"></span>
+    </button>
   </div>
 
   <!-- ── CALENDAR TAB ── -->
@@ -1467,6 +1516,54 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <button class="btn btn-s" onclick="exportSummaryCSV()">↓ Export CSV</button>
     </div>
     <div id="holSumContent"></div>
+  </div>
+
+  <!-- ── MY HOLIDAYS TAB (consultants only) ── -->
+  <div id="holMyHolPanel" style="display:none">
+    <div id="holMyHolContent"></div>
+  </div>
+
+  <!-- ── REQUESTS TAB (managers + master) ── -->
+  <div id="holRequestsPanel" style="display:none">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+      <select id="holReqFilterStatus" onchange="renderHolRequests()" style="width:160px">
+        <option value="all">All Requests</option>
+        <option value="pending" selected>Pending Only</option>
+        <option value="approved">Approved</option>
+        <option value="declined">Declined</option>
+      </select>
+      <select id="holReqFilterPerson" onchange="renderHolRequests()" style="width:180px">
+        <option value="all">All Colleagues</option>
+      </select>
+    </div>
+    <div id="holRequestsContent"></div>
+  </div>
+</div>
+
+<!-- HOLIDAY REQUEST MODAL (consultant books) -->
+<div class="modal-overlay" id="holReqModal">
+  <div class="modal" style="width:560px;max-width:96vw;max-height:90vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <div class="modal-title" style="margin-bottom:0">🌴 Request Holiday</div>
+      <button onclick="document.getElementById('holReqModal').classList.remove('open')" style="background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;padding:4px">✕</button>
+    </div>
+    <div id="holReqModalBody"></div>
+    <div class="modal-btns">
+      <button class="btn btn-s" onclick="document.getElementById('holReqModal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-p" onclick="submitHolRequest()" style="background:var(--green);box-shadow:0 2px 12px rgba(45,206,137,.3)">📤 Submit Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- HOLIDAY REQUEST REVIEW MODAL (manager reviews) -->
+<div class="modal-overlay" id="holReviewModal">
+  <div class="modal" style="width:520px;max-width:96vw;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+      <div class="modal-title" style="margin-bottom:0" id="holReviewTitle">Review Request</div>
+      <button onclick="document.getElementById('holReviewModal').classList.remove('open')" style="background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;padding:4px">✕</button>
+    </div>
+    <div id="holReviewBody"></div>
+    <div class="modal-btns" id="holReviewBtns"></div>
   </div>
 </div>
 
@@ -5214,7 +5311,7 @@ function showPage(id){
   if(id==='leaderboard')    { populateAllSelects(); renderLeaderboard(); }
   if(id==='history')        { populateAllSelects(); renderHistory(); }
   if(id==='daybyday')       { populateAllSelects(); renderDayByDay(); }
-  if(id==='holiday')        { populateAllSelects(); _populateHolSelects(); renderHoliday(); switchHolTab('calendar'); }
+  if(id==='holiday')        { populateAllSelects(); _populateHolSelects(); _configHolTabs(); const role2=_currentUser?.role||''; switchHolTab(role2==='consultant'?'myhol':'calendar'); }
   if(id==='settings')        renderSettings();
   if(id==='manageroverview'){ populateAllSelects(); renderManagerOverview(); }
   if(id==='dailysend')     { populateAllSelects(); renderDailySend(); }
@@ -12759,6 +12856,772 @@ function clearDirectReports(mgr){
 // primary function above. This stub kept for reference.
 
 
+
+// ═══════════════════════════════════════════════════════════════════
+// HOLIDAY REQUEST & APPROVAL SYSTEM
+// Firebase: {divDbKey}/holidayRequests/{id}
+// ═══════════════════════════════════════════════════════════════════
+
+const _holReqRef = () => _dbRef
+  ? _db.ref((DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey+'/holidayRequests')
+  : null;
+
+let _holRequests    = {};   // all requests cached
+let _holReqListener = null;
+
+// ── HOL_SUBTYPES for request booking (deductible holiday types only)
+const HOL_REQUEST_TYPES = [
+  { code:'H',  label:'Full Day Holiday',     icon:'🏖️', defaultHrs:8 },
+  { code:'H1', label:'Half Day (Morning)',   icon:'🌅', defaultHrs:4 },
+  { code:'H2', label:'Half Day (Afternoon)', icon:'🌇', defaultHrs:4 },
+  { code:'Q',  label:'Quarter Day',          icon:'🕛', defaultHrs:2 },
+  { code:'L',  label:'Time off In Lieu',     icon:'🔄', defaultHrs:8 },
+];
+
+// ── Start listener ────────────────────────────────────────────────
+function startHolReqListener(){
+  const ref = _holReqRef();
+  if(!ref) return;
+  if(_holReqListener){ _holReqListener.off(); }
+  _holReqListener = ref;
+  ref.on('value', snap=>{
+    _holRequests = snap.val()||{};
+    _updateHolReqBadge();
+    _updateNotifBadgeWithMsgs();
+  });
+}
+
+function _updateHolReqBadge(){
+  const role   = _currentUser?.role||'';
+  const myName = _currentUser?.name||'';
+  const badge  = document.getElementById('holReqBadge');
+  if(!badge) return;
+
+  let count = 0;
+  if(role==='consultant'){
+    // Consultant sees count of their own pending requests
+    count = Object.values(_holRequests).filter(r=>r.colleague===myName&&r.status==='pending').length;
+  } else if(role==='manager'||role==='master'||role==='compliance'){
+    // Managers see pending requests for their team
+    const myTeam = role==='master'||role==='compliance'
+      ? null // sees all
+      : new Set(_getMyTeamMembers());
+    count = Object.values(_holRequests).filter(r=>
+      r.status==='pending' && (!myTeam || myTeam.has(r.colleague))
+    ).length;
+  }
+
+  badge.textContent = count > 9 ? '9+' : String(count);
+  badge.style.display = count > 0 ? '' : 'none';
+}
+
+// ── Show/hide tabs based on role ──────────────────────────────────
+function _configHolTabs(){
+  const role = _currentUser?.role||'';
+  const isConsultant = role==='consultant';
+  const isMgr = role==='manager'||role==='master'||role==='compliance';
+
+  const myHolBtn = document.getElementById('holTabMyHolBtn');
+  const reqBtn   = document.getElementById('holTabReqBtn');
+
+  if(myHolBtn) myHolBtn.style.display = isConsultant ? '' : 'none';
+  if(reqBtn)   reqBtn.style.display   = isMgr        ? '' : 'none';
+}
+
+// ── Patch switchHolTab to handle new tabs ────────────────────────
+const _origSwitchHolTab = switchHolTab;
+function switchHolTab(tab){
+  const panelMap = {
+    calendar:'holCalPanel', totals:'holTotPanel', summary:'holSumPanel',
+    myhol:'holMyHolPanel', requests:'holRequestsPanel'
+  };
+  const btnMap = {
+    calendar:'holTabCalBtn', totals:'holTabTotBtn', summary:'holTabSumBtn',
+    myhol:'holTabMyHolBtn', requests:'holTabReqBtn'
+  };
+  Object.keys(panelMap).forEach(t => {
+    const panel = document.getElementById(panelMap[t]);
+    if(panel) panel.style.display = t===tab ? '' : 'none';
+    const btn = document.getElementById(btnMap[t]);
+    if(btn) btn.classList.toggle('active', t===tab);
+  });
+  _populateHolSelects();
+  if(tab==='calendar')  renderHoliday();
+  if(tab==='totals')    renderHolTotals();
+  if(tab==='summary')   renderHolSummary();
+  if(tab==='myhol')     renderMyHolidays();
+  if(tab==='requests')  renderHolRequests();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MY HOLIDAYS TAB (consultant-facing)
+// ═══════════════════════════════════════════════════════════════════
+function renderMyHolidays(){
+  const myName = _currentUser?.name||'';
+  const yr     = String(new Date().getFullYear());
+  const base   = getBaseAllowance(myName);
+  const carry  = getCarryOver(myName, yr);
+  const total  = base + carry;
+  const used   = getDeductibleUsed(myName, yr);
+  const remain = total - used;
+  const usedPct= total>0 ? Math.min(100,Math.round(used/total*100)) : 0;
+  const barCol = usedPct>90?'var(--red)':usedPct>70?'var(--amber)':'var(--green)';
+
+  // My requests
+  const myReqs = Object.values(_holRequests)
+    .filter(r=>r.colleague===myName)
+    .sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+
+  const pending  = myReqs.filter(r=>r.status==='pending');
+  const approved = myReqs.filter(r=>r.status==='approved');
+  const declined = myReqs.filter(r=>r.status==='declined');
+
+  // Pending hours (not yet added to tracker)
+  const pendingHrs = pending.reduce((s,r)=>s+r.totalHours, 0);
+
+  const el = document.getElementById('holMyHolContent');
+  if(!el) return;
+
+  el.innerHTML = `
+    <!-- Header + Book button -->
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+      <div>
+        <div style="font-size:18px;font-weight:700">${myName}</div>
+        <div style="font-size:12px;color:var(--text2);font-family:var(--fm)">${yr} Holiday Summary</div>
+      </div>
+      <button class="btn btn-p" onclick="openHolRequestModal()"
+        style="background:linear-gradient(135deg,var(--green),#1a9955);font-size:14px;padding:10px 22px;box-shadow:0 3px 16px rgba(45,206,137,.35)">
+        🌴 Request Holiday
+      </button>
+    </div>
+
+    <!-- KPI cards -->
+    <div class="myhol-kpi-grid">
+      <div class="myhol-kpi">
+        <div class="myhol-kpi-val" style="color:var(--text)">${total}h</div>
+        <div class="myhol-kpi-lbl">Total Allowance</div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:3px">${base}h + ${carry}h carry</div>
+      </div>
+      <div class="myhol-kpi">
+        <div class="myhol-kpi-val" style="color:var(--red)">${used.toFixed(1)}h</div>
+        <div class="myhol-kpi-lbl">Used</div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:3px">${usedPct}% of allowance</div>
+      </div>
+      <div class="myhol-kpi">
+        <div class="myhol-kpi-val" style="color:${remain<0?'var(--red)':remain<total*.15?'var(--amber)':'var(--green)'}">${remain.toFixed(1)}h</div>
+        <div class="myhol-kpi-lbl">Remaining</div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:3px">${(remain/7.5).toFixed(1)} days equiv.</div>
+      </div>
+      <div class="myhol-kpi">
+        <div class="myhol-kpi-val" style="color:var(--amber)">${pendingHrs.toFixed(1)}h</div>
+        <div class="myhol-kpi-lbl">Pending Approval</div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:3px">${pending.length} request${pending.length!==1?'s':''}</div>
+      </div>
+      <div class="myhol-kpi">
+        <div class="myhol-kpi-val" style="color:var(--green)">${approved.length}</div>
+        <div class="myhol-kpi-lbl">Approved</div>
+      </div>
+      <div class="myhol-kpi">
+        <div class="myhol-kpi-val" style="color:var(--text3)">${declined.length}</div>
+        <div class="myhol-kpi-lbl">Declined</div>
+      </div>
+    </div>
+
+    <!-- Allowance progress bar -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;font-family:var(--fm);margin-bottom:8px">
+        <span style="font-weight:600">Allowance Used</span>
+        <span style="color:${barCol};font-weight:700">${used.toFixed(1)}h / ${total}h</span>
+      </div>
+      <div style="height:10px;background:var(--surface3);border-radius:5px;overflow:hidden">
+        <div style="width:${usedPct}%;height:100%;background:${barCol};border-radius:5px;transition:width .5s ease"></div>
+      </div>
+      ${pendingHrs>0?`<div style="margin-top:6px;font-size:11px;color:var(--amber);font-family:var(--fm)">⏳ ${pendingHrs.toFixed(1)}h pending approval (not yet deducted)</div>`:''}
+    </div>
+
+    <!-- Requests list -->
+    <div style="font-size:13px;font-weight:700;margin-bottom:12px">My Requests</div>
+    ${myReqs.length ? myReqs.map(r=>_renderReqCard(r, false)).join('') : `
+      <div style="text-align:center;padding:40px 20px;color:var(--text3);background:var(--surface2);border-radius:12px;border:1px solid var(--border)">
+        <div style="font-size:28px;margin-bottom:10px">🌴</div>
+        <div style="font-weight:600;margin-bottom:4px">No requests yet</div>
+        <div style="font-size:12px;font-family:var(--fm)">Click "Request Holiday" to submit your first request</div>
+      </div>`}
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// REQUEST CARD RENDERER (shared by My Holidays + Requests tab)
+// ═══════════════════════════════════════════════════════════════════
+function _renderReqCard(r, isMgr){
+  const statusIcon  = r.status==='pending'?'⏳':r.status==='approved'?'✅':'❌';
+  const statusLabel = r.status==='pending'?'Pending Approval':r.status==='approved'?'Approved':'Declined';
+  const datesFmt    = r.dates ? r.dates.map(d=>d.ds).join(', ') : (r.dateStr||'');
+  const typeDef     = (ABS_TYPES||{})[r.type]||{label:r.type||'Holiday'};
+  const createdFmt  = new Date(r.createdAt).toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
+  return `<div class="hr-req-card ${r.status}" onclick="${isMgr?`openHolReviewModal('${r.id}')`:`openConsultantReqView('${r.id}')`}">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+          ${isMgr?`<span style="font-weight:700;font-size:14px">${r.colleague}</span>`:''}
+          <span class="hr-status-badge hr-status-${r.status}">${statusIcon} ${statusLabel}</span>
+          <span style="font-size:11px;background:var(--surface2);padding:2px 8px;border-radius:8px;font-family:var(--fm)">${typeDef.label||r.type}</span>
+        </div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px">
+          ${r.totalHours}h — ${r.dates?r.dates.length+' day'+(r.dates.length!==1?'s':''):''} 
+        </div>
+        <div style="font-size:11px;color:var(--text2);font-family:var(--fm)">${datesFmt.length>80?datesFmt.slice(0,80)+'…':datesFmt}</div>
+        ${r.notes?`<div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:4px;font-style:italic">"${r.notes}"</div>`:''}
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:10px;color:var(--text3);font-family:var(--fm)">${createdFmt}</div>
+        ${r.reviewedBy?`<div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:2px">By: ${r.reviewedBy}</div>`:''}
+        ${r.reviewNotes?`<div style="font-size:10px;color:var(--text2);font-family:var(--fm);margin-top:2px;font-style:italic">"${r.reviewNotes}"</div>`:''}
+        ${isMgr&&r.status==='pending'?`<div style="font-size:11px;color:var(--amber);font-weight:700;margin-top:4px">Tap to review →</div>`:''}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// REQUESTS TAB (manager-facing)
+// ═══════════════════════════════════════════════════════════════════
+function renderHolRequests(){
+  const role      = _currentUser?.role||'';
+  const myName    = _currentUser?.name||'';
+  const statusF   = document.getElementById('holReqFilterStatus')?.value||'all';
+  const personF   = document.getElementById('holReqFilterPerson')?.value||'all';
+
+  // Scope to team
+  const myTeam = (role==='master'||role==='compliance') ? null : new Set(_getMyTeamMembers());
+
+  let reqs = Object.values(_holRequests)
+    .filter(r => !myTeam || myTeam.has(r.colleague))
+    .filter(r => statusF==='all' || r.status===statusF)
+    .filter(r => personF==='all' || r.colleague===personF)
+    .sort((a,b)=> {
+      // Pending first, then by date desc
+      if(a.status==='pending'&&b.status!=='pending') return -1;
+      if(b.status==='pending'&&a.status!=='pending') return 1;
+      return b.createdAt.localeCompare(a.createdAt);
+    });
+
+  // Populate person filter
+  const personSel = document.getElementById('holReqFilterPerson');
+  if(personSel){
+    const prev = personSel.value;
+    const names = [...new Set(Object.values(_holRequests)
+      .filter(r=>!myTeam||myTeam.has(r.colleague)).map(r=>r.colleague))].sort();
+    personSel.innerHTML = '<option value="all">All Colleagues</option>' +
+      names.map(n=>`<option value="${n}"${n===prev?' selected':''}>${n}</option>`).join('');
+  }
+
+  const pending = reqs.filter(r=>r.status==='pending');
+  const rest    = reqs.filter(r=>r.status!=='pending');
+
+  const el = document.getElementById('holRequestsContent');
+  if(!el) return;
+
+  if(!reqs.length){
+    el.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--text3);background:var(--surface2);border-radius:12px;border:1px solid var(--border)">
+      <div style="font-size:32px;margin-bottom:12px">📋</div>
+      <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">No requests found</div>
+      <div style="font-size:12px;font-family:var(--fm)">Holiday requests from your team will appear here once submitted.</div>
+    </div>`;
+    return;
+  }
+
+  let html = '';
+  if(pending.length){
+    html += `<div style="font-size:11px;font-weight:700;color:var(--amber);letter-spacing:.07em;text-transform:uppercase;font-family:var(--fm);margin-bottom:10px;display:flex;align-items:center;gap:6px">
+      <span style="width:7px;height:7px;background:var(--amber);border-radius:50%;display:inline-block"></span>
+      Pending Review (${pending.length})
+    </div>`;
+    html += pending.map(r=>_renderReqCard(r,true)).join('');
+  }
+  if(rest.length){
+    html += `<div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;font-family:var(--fm);margin:${pending.length?'20px':0} 0 10px">
+      Previous (${rest.length})
+    </div>`;
+    html += rest.slice(0,50).map(r=>_renderReqCard(r,true)).join('');
+  }
+
+  el.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// OPEN REQUEST MODAL (consultant side)
+// ═══════════════════════════════════════════════════════════════════
+let _hrSelectedType  = 'H';
+let _hrSelectedDates = []; // [{ds, hours}]
+let _hrCalYear  = new Date().getFullYear();
+let _hrCalMonth = new Date().getMonth(); // 0-indexed
+
+function openHolRequestModal(){
+  _hrSelectedType  = 'H';
+  _hrSelectedDates = [];
+  _hrCalYear  = new Date().getFullYear();
+  _hrCalMonth = new Date().getMonth();
+  _renderHolRequestModal();
+  document.getElementById('holReqModal').classList.add('open');
+}
+
+function _renderHolRequestModal(){
+  const myName = _currentUser?.name||'';
+  const yr     = String(_hrCalYear);
+  const base   = getBaseAllowance(myName);
+  const carry  = getCarryOver(myName, yr);
+  const total  = base + carry;
+  const used   = getDeductibleUsed(myName, yr);
+  const remain = total - used;
+
+  const reqHrs = _hrSelectedDates.reduce((s,d)=>s+d.hours,0);
+  const afterRemain = remain - reqHrs;
+
+  const MNAMES = ['January','February','March','April','May','June',
+                  'July','August','September','October','November','December'];
+
+  // Build already-booked set for this person
+  const mk = yr+'-'+String(_hrCalMonth+1).padStart(2,'0');
+  const alreadyBooked = new Set(Object.keys(getAbsences(mk, myName)));
+
+  // Calendar
+  const daysInMonth = new Date(_hrCalYear, _hrCalMonth+1, 0).getDate();
+  const firstDow = new Date(_hrCalYear, _hrCalMonth, 1).getDay();
+  const offset = firstDow===0 ? 6 : firstDow-1; // Mon=0
+
+  let calHtml = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px">';
+  ['M','T','W','T','F','S','S'].forEach(d => {
+    calHtml += `<div style="text-align:center;font-size:9px;font-weight:700;color:var(--text3);font-family:var(--fm);padding:3px 0">${d}</div>`;
+  });
+  calHtml += '</div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">';
+
+  for(let i=0;i<offset;i++) calHtml += '<div></div>';
+
+  for(let d=1;d<=daysInMonth;d++){
+    const ds  = yr+'-'+String(_hrCalMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const dow = new Date(_hrCalYear, _hrCalMonth, d).getDay();
+    const isWE = dow===0||dow===6;
+    const isBH = isBankHoliday(ds);
+    const isBooked = alreadyBooked.has(ds);
+    const isSelected = _hrSelectedDates.some(x=>x.ds===ds);
+    const isPast = ds < new Date().toISOString().slice(0,10);
+
+    let cls = 'hr-date-cell';
+    if(isWE)      cls += ' we';
+    else if(isBH) cls += ' bh';
+    else if(isBooked) cls += ' already-booked';
+    else if(isPast)   cls += ' we';
+    else if(isSelected) cls += ' selected';
+
+    const clickable = !isWE && !isBH && !isBooked && !isPast;
+    calHtml += `<div class="${cls}" ${clickable?`onclick="_hrToggleDate('${ds}')"`:''}
+      title="${isBooked?'Already booked':isBH?'Bank Holiday':isWE?'Weekend':isPast?'Past date':ds}">
+      ${d}
+    </div>`;
+  }
+  calHtml += '</div>';
+
+  document.getElementById('holReqModalBody').innerHTML = `
+    <!-- Allowance bar -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-family:var(--fm);font-size:1.3rem;font-weight:700">${remain.toFixed(1)}h</div>
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-top:2px">Remaining</div>
+      </div>
+      <div style="background:${reqHrs>0?'rgba(45,206,137,0.1)':'var(--surface2)'};border:1px solid ${reqHrs>0?'rgba(45,206,137,0.3)':'var(--border)'};border-radius:8px;padding:10px;text-align:center">
+        <div style="font-family:var(--fm);font-size:1.3rem;font-weight:700;color:${reqHrs>0?'var(--green)':'var(--text3)'}">${reqHrs.toFixed(1)}h</div>
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-top:2px">This Request</div>
+      </div>
+      <div style="background:${afterRemain<0?'rgba(245,54,92,0.1)':'var(--surface2)'};border:1px solid ${afterRemain<0?'rgba(245,54,92,.3)':'var(--border)'};border-radius:8px;padding:10px;text-align:center">
+        <div style="font-family:var(--fm);font-size:1.3rem;font-weight:700;color:${afterRemain<0?'var(--red)':afterRemain<total*.1?'var(--amber)':'var(--text3)'}">${afterRemain.toFixed(1)}h</div>
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-top:2px">After Request</div>
+      </div>
+    </div>
+
+    <!-- Absence type -->
+    <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;font-family:var(--fm);margin-bottom:8px">Type of Holiday</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
+      ${HOL_REQUEST_TYPES.map(t=>`
+        <button onclick="_hrSelectType('${t.code}')"
+          class="abs-type-btn ${ABS_TYPES[t.code]?.cls||''}"
+          style="padding:8px 12px;${_hrSelectedType===t.code?'box-shadow:0 0 0 2px var(--accent);':''}"
+          id="hrTypeBtn_${t.code}">
+          ${t.icon} ${t.label}
+          <div style="font-size:9px;font-weight:400;margin-top:2px">${t.defaultHrs}h default</div>
+        </button>`).join('')}
+    </div>
+
+    <!-- Calendar -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <button onclick="_hrNavMonth(-1)" class="btn btn-s" style="font-size:14px;padding:5px 12px">‹</button>
+      <span style="font-weight:700;font-size:14px">${MNAMES[_hrCalMonth]} ${_hrCalYear}</span>
+      <button onclick="_hrNavMonth(1)" class="btn btn-s" style="font-size:14px;padding:5px 12px">›</button>
+    </div>
+    ${calHtml}
+
+    <!-- Selected dates list -->
+    ${_hrSelectedDates.length ? `
+    <div style="margin-top:14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;font-family:var(--fm);margin-bottom:8px">
+        Selected Dates (${_hrSelectedDates.length}) — Total: ${reqHrs.toFixed(1)}h
+      </div>
+      ${_hrSelectedDates.map(d=>`
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:12px;font-family:var(--fm)">${d.ds}</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input type="number" value="${d.hours}" min="0.5" max="15" step="0.5"
+              style="width:60px;text-align:center;background:var(--surface);border:1px solid var(--border2);border-radius:6px;padding:3px 6px;font-size:12px;font-family:var(--fm);color:var(--text)"
+              oninput="_hrUpdateDateHrs('${d.ds}',parseFloat(this.value)||1)">
+            <span style="font-size:11px;color:var(--text3);font-family:var(--fm)">hrs</span>
+            <button onclick="_hrToggleDate('${d.ds}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:2px">✕</button>
+          </div>
+        </div>`).join('')}
+    </div>` : `<div style="margin-top:14px;text-align:center;font-size:12px;color:var(--text3);font-family:var(--fm)">Click days above to select them</div>`}
+
+    <!-- Notes -->
+    <div style="margin-top:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;font-family:var(--fm);margin-bottom:6px">Notes (optional)</div>
+      <textarea id="hrReqNotes" rows="2" placeholder="Any additional notes for your manager…"
+        style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:12px;font-family:var(--fm);color:var(--text);resize:none;outline:none"
+        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border2)'"></textarea>
+    </div>
+
+    ${afterRemain<0?`<div style="margin-top:10px;padding:10px 14px;background:rgba(245,54,92,0.1);border:1px solid rgba(245,54,92,.3);border-radius:8px;font-size:12px;font-family:var(--fm);color:var(--red)">
+      ⚠️ This request exceeds your remaining allowance by ${Math.abs(afterRemain).toFixed(1)}h. Your manager may still approve it.
+    </div>`:''}
+  `;
+}
+
+function _hrSelectType(code){
+  _hrSelectedType = code;
+  const t = HOL_REQUEST_TYPES.find(x=>x.code===code)||{defaultHrs:8};
+  // Update hours on already-selected dates to new type's default
+  _hrSelectedDates = _hrSelectedDates.map(d=>({...d, hours:t.defaultHrs}));
+  _renderHolRequestModal();
+}
+
+function _hrNavMonth(dir){
+  _hrCalMonth += dir;
+  if(_hrCalMonth > 11){ _hrCalMonth=0; _hrCalYear++; }
+  if(_hrCalMonth < 0) { _hrCalMonth=11; _hrCalYear--; }
+  _renderHolRequestModal();
+}
+
+function _hrToggleDate(ds){
+  const t = HOL_REQUEST_TYPES.find(x=>x.code===_hrSelectedType)||{defaultHrs:8};
+  const idx = _hrSelectedDates.findIndex(d=>d.ds===ds);
+  if(idx>=0){
+    _hrSelectedDates.splice(idx,1);
+  } else {
+    _hrSelectedDates.push({ds, hours:t.defaultHrs});
+    _hrSelectedDates.sort((a,b)=>a.ds.localeCompare(b.ds));
+  }
+  _renderHolRequestModal();
+}
+
+function _hrUpdateDateHrs(ds, hrs){
+  const d = _hrSelectedDates.find(x=>x.ds===ds);
+  if(d) d.hours = hrs;
+}
+
+// ── Submit request ────────────────────────────────────────────────
+function submitHolRequest(){
+  const myName = _currentUser?.name||'';
+  if(_hrSelectedDates.length===0){ showToast('Please select at least one date','err'); return; }
+
+  const notes    = document.getElementById('hrReqNotes')?.value?.trim()||'';
+  const totalHrs = _hrSelectedDates.reduce((s,d)=>s+d.hours, 0);
+  const id       = 'hr_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  const mgr      = getManagerOf(myName)||'';
+
+  const req = {
+    id,
+    colleague:    myName,
+    type:         _hrSelectedType,
+    dates:        _hrSelectedDates.slice().sort((a,b)=>a.ds.localeCompare(b.ds)),
+    totalHours:   parseFloat(totalHrs.toFixed(2)),
+    notes,
+    status:       'pending',
+    teamManager:  mgr,
+    createdAt:    new Date().toISOString(),
+    divKey:       _currentDivKey||'branch',
+    reviewedBy:   null,
+    reviewedAt:   null,
+    reviewNotes:  null,
+  };
+
+  const ref = _holReqRef();
+  if(!ref){ showToast('Not connected','err'); return; }
+
+  ref.child(id).set(req)
+    .then(()=>{
+      document.getElementById('holReqModal').classList.remove('open');
+      showToast(`Holiday request submitted — ${totalHrs.toFixed(1)}h across ${_hrSelectedDates.length} day(s) 🌴`);
+      renderMyHolidays();
+    })
+    .catch(()=>showToast('Failed to submit request','err'));
+}
+
+// ── Consultant views their own request ────────────────────────────
+function openConsultantReqView(reqId){
+  const r = _holRequests[reqId];
+  if(!r) return;
+  // Just show a simple info modal
+  document.getElementById('holReviewTitle').textContent = `🌴 Request — ${r.status.charAt(0).toUpperCase()+r.status.slice(1)}`;
+  const typeDef = (ABS_TYPES||{})[r.type]||{label:r.type};
+  document.getElementById('holReviewBody').innerHTML = `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
+        <span class="hr-status-badge hr-status-${r.status}">${r.status==='pending'?'⏳ Pending':r.status==='approved'?'✅ Approved':'❌ Declined'}</span>
+        <span style="font-size:12px;color:var(--text2);font-family:var(--fm)">${typeDef.label} · ${r.totalHours}h total</span>
+      </div>
+      <div style="font-size:12px;font-family:var(--fm);color:var(--text2)">
+        ${r.dates?r.dates.map(d=>`<span style="display:inline-block;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:3px 8px;margin:2px;font-size:11px">${d.ds} (${d.hours}h)</span>`).join(''):''}
+      </div>
+      ${r.notes?`<div style="margin-top:8px;font-size:12px;color:var(--text3);font-family:var(--fm);font-style:italic">"${r.notes}"</div>`:''}
+    </div>
+    ${r.reviewedBy?`<div style="font-size:12px;font-family:var(--fm);color:var(--text2)">
+      Reviewed by <strong>${r.reviewedBy}</strong> on ${new Date(r.reviewedAt).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}
+      ${r.reviewNotes?`<br><em>"${r.reviewNotes}"</em>`:''}
+    </div>`:''}
+  `;
+  document.getElementById('holReviewBtns').innerHTML =
+    `<button class="btn btn-s" onclick="document.getElementById('holReviewModal').classList.remove('open')">Close</button>
+     ${r.status==='pending'?`<button class="btn btn-d" onclick="cancelHolRequest('${r.id}')">🗑 Cancel Request</button>`:''}`;
+  document.getElementById('holReviewModal').classList.add('open');
+}
+
+function cancelHolRequest(reqId){
+  if(!confirm('Cancel this holiday request?')) return;
+  const ref = _holReqRef();
+  if(ref) ref.child(reqId).remove().then(()=>{
+    document.getElementById('holReviewModal').classList.remove('open');
+    showToast('Request cancelled');
+    renderMyHolidays();
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MANAGER REVIEW MODAL
+// ═══════════════════════════════════════════════════════════════════
+function openHolReviewModal(reqId){
+  const r = _holRequests[reqId];
+  if(!r) return;
+  const typeDef = (ABS_TYPES||{})[r.type]||{label:r.type};
+  const myName  = _currentUser?.name||'';
+
+  document.getElementById('holReviewTitle').textContent = `📋 Holiday Request — ${r.colleague}`;
+  document.getElementById('holReviewBody').innerHTML = `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+        <div style="width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff;flex-shrink:0">
+          ${r.colleague.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase()}
+        </div>
+        <div>
+          <div style="font-weight:700;font-size:14px">${r.colleague}</div>
+          <div style="font-size:11px;color:var(--text2);font-family:var(--fm)">${typeDef.label} · ${r.totalHours}h across ${r.dates?.length||1} day${(r.dates?.length||1)!==1?'s':''}</div>
+        </div>
+        <span class="hr-status-badge hr-status-${r.status}">${r.status}</span>
+      </div>
+
+      <div style="font-size:12px;font-family:var(--fm);margin-bottom:8px;line-height:1.8">
+        ${r.dates?r.dates.map(d=>
+          `<span style="display:inline-block;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:3px 8px;margin:2px;font-size:11px">${d.ds} — ${d.hours}h</span>`
+        ).join(''):''}
+      </div>
+      ${r.notes?`<div style="font-size:12px;color:var(--text3);font-family:var(--fm);font-style:italic;padding:8px 12px;background:var(--surface);border-radius:6px;border-left:3px solid var(--border2)">"${r.notes}"</div>`:''}
+    </div>
+
+    <!-- Allowance check -->
+    ${(()=>{
+      const yr = (r.dates?.[0]?.ds||'').slice(0,4)||String(new Date().getFullYear());
+      const base=getBaseAllowance(r.colleague), carry=getCarryOver(r.colleague,yr);
+      const total=base+carry, used=getDeductibleUsed(r.colleague,yr), remain=total-used;
+      const after = remain - r.totalHours;
+      return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:16px">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;font-family:var(--fm);margin-bottom:8px">Allowance Check</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;font-family:var(--fm);font-size:12px">
+          <div><div style="font-weight:700">${remain.toFixed(1)}h</div><div style="color:var(--text3);font-size:10px">Remaining</div></div>
+          <div><div style="font-weight:700;color:var(--amber)">${r.totalHours}h</div><div style="color:var(--text3);font-size:10px">Requested</div></div>
+          <div><div style="font-weight:700;color:${after<0?'var(--red)':'var(--green)'}">${after.toFixed(1)}h</div><div style="color:var(--text3);font-size:10px">After Approval</div></div>
+        </div>
+        ${after<0?`<div style="margin-top:8px;font-size:11px;color:var(--red);text-align:center">⚠️ Would exceed allowance by ${Math.abs(after).toFixed(1)}h</div>`:''}
+      </div>`;
+    })()}
+
+    <!-- Review notes -->
+    ${r.status==='pending'?`<div>
+      <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;font-family:var(--fm);margin-bottom:6px">Notes to colleague (optional)</div>
+      <textarea id="holMgrReviewNotes" rows="2" placeholder="Reason for decision, alternative dates, etc…"
+        style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-size:12px;font-family:var(--fm);color:var(--text);resize:none;outline:none"
+        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border2)'"></textarea>
+    </div>`:
+    `<div style="font-size:12px;font-family:var(--fm);color:var(--text2)">
+      Reviewed by <strong>${r.reviewedBy}</strong> on ${r.reviewedAt?new Date(r.reviewedAt).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'—'}
+      ${r.reviewNotes?`<br><em>"${r.reviewNotes}"</em>`:''}
+    </div>`}
+  `;
+
+  document.getElementById('holReviewBtns').innerHTML = r.status==='pending' ? `
+    <button class="btn btn-s" onclick="document.getElementById('holReviewModal').classList.remove('open')">Cancel</button>
+    <button class="btn" onclick="reviewHolRequest('${reqId}','declined')"
+      style="background:rgba(245,54,92,0.15);color:var(--red);border:1px solid rgba(245,54,92,.3)">❌ Decline</button>
+    <button class="btn btn-p" onclick="reviewHolRequest('${reqId}','approved')"
+      style="background:linear-gradient(135deg,var(--green),#1a9955);box-shadow:0 2px 12px rgba(45,206,137,.3)">✅ Approve</button>
+  ` : `<button class="btn btn-s" onclick="document.getElementById('holReviewModal').classList.remove('open')">Close</button>`;
+
+  document.getElementById('holReviewModal').classList.add('open');
+}
+
+function reviewHolRequest(reqId, decision){
+  const r = _holRequests[reqId];
+  if(!r){ showToast('Request not found','err'); return; }
+  const reviewNotes = document.getElementById('holMgrReviewNotes')?.value?.trim()||'';
+  const reviewer    = _currentUser?.name||'Manager';
+
+  const update = {
+    status:       decision,
+    reviewedBy:   reviewer,
+    reviewedAt:   new Date().toISOString(),
+    reviewNotes:  reviewNotes||null,
+  };
+
+  const ref = _holReqRef();
+  if(!ref){ showToast('Not connected','err'); return; }
+
+  ref.child(reqId).update(update).then(()=>{
+    document.getElementById('holReviewModal').classList.remove('open');
+
+    if(decision==='approved'){
+      // ── Apply all dates to the absence tracker ──────────────────
+      (r.dates||[]).forEach(d=>{
+        const mk = d.ds.slice(0,7);
+        setAbsence(mk, r.colleague, d.ds, r.type, d.hours);
+      });
+      showToast(`✅ Approved — ${r.totalHours}h added to ${r.colleague}'s tracker`);
+    } else {
+      showToast(`Request declined for ${r.colleague}`);
+    }
+
+    // Send notification message to consultant
+    const msg = decision==='approved'
+      ? `Your holiday request for ${r.dates?.length||1} day(s) (${r.totalHours}h) has been approved! 🌴${reviewNotes?' — '+reviewer+': "'+reviewNotes+'"':''}`
+      : `Your holiday request for ${r.dates?.length||1} day(s) has been declined.${reviewNotes?' Reason: "'+reviewNotes+'"':''}`;
+
+    const msgRef = _dbRef ? _db.ref((DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey+'/messages') : null;
+    if(msgRef){
+      const mid = 'msg_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+      msgRef.child(mid).set({
+        id:mid, to:r.colleague, from:reviewer, fromRole:_currentUser?.role||'manager',
+        message:msg, type:'holiday_review', read:false,
+        createdAt:new Date().toISOString(), divKey:_currentDivKey||'branch',
+        holidayRequestId: reqId,
+      });
+    }
+
+    renderHolRequests();
+    // Refresh calendar if open
+    if(document.getElementById('holCalPanel')?.style.display !== 'none') renderHoliday();
+  }).catch(()=>showToast('Failed to update request','err'));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// HOOK INTO EXISTING NOTIFICATION SYSTEM
+// ═══════════════════════════════════════════════════════════════════
+
+// Extend badge updater to include holiday requests
+const _origUpdateBadgeWithMsgs = _updateNotifBadgeWithMsgs;
+function _updateNotifBadgeWithMsgs(){
+  _origUpdateBadgeWithMsgs();
+  _updateHolReqBadge();
+
+  // Also add holReq count to main bell badge
+  const role   = _currentUser?.role||'';
+  const myName = _currentUser?.name||'';
+  const bell   = document.getElementById('notifBell');
+  const badge  = document.getElementById('notifBadge');
+  if(!bell||!badge) return;
+
+  let holReqCount = 0;
+  if(role==='manager'||role==='master'||role==='compliance'){
+    const myTeam = (role==='master'||role==='compliance') ? null : new Set(_getMyTeamMembers());
+    holReqCount = Object.values(_holRequests).filter(r=>
+      r.status==='pending' && (!myTeam || myTeam.has(r.colleague))
+    ).length;
+  } else if(role==='consultant'){
+    holReqCount = Object.values(_holRequests).filter(r=>r.colleague===myName&&r.status==='pending').length;
+  }
+
+  // Add to current badge count
+  const current = parseInt(badge.textContent)||0;
+  const newTotal = current + holReqCount;
+  if(newTotal>0){
+    badge.style.display='';
+    badge.textContent = newTotal>9?'9+':String(newTotal);
+  }
+}
+
+// Extend notification panel to show holiday requests
+const _origRenderNotifListV2 = _renderNotifList;
+function _renderNotifList(){
+  _origRenderNotifListV2();
+
+  // Append holiday requests section to the notif panel
+  const list = document.getElementById('notifList');
+  if(!list) return;
+
+  const role   = _currentUser?.role||'';
+  const myName = _currentUser?.name||'';
+  const myTeam = (role==='master'||role==='compliance') ? null : new Set(_getMyTeamMembers());
+
+  let reqs = [];
+  if(role==='manager'||role==='master'||role==='compliance'){
+    reqs = Object.values(_holRequests)
+      .filter(r=>r.status==='pending'&&(!myTeam||myTeam.has(r.colleague)))
+      .sort((a,b)=>b.createdAt.localeCompare(a.createdAt))
+      .slice(0,10);
+  } else if(role==='consultant'){
+    reqs = Object.values(_holRequests)
+      .filter(r=>r.colleague===myName)
+      .sort((a,b)=>b.createdAt.localeCompare(a.createdAt))
+      .slice(0,5);
+  }
+
+  if(!reqs.length) return;
+
+  const reqHtml = `
+    <div style="font-size:10px;font-weight:700;color:var(--amber);letter-spacing:.08em;text-transform:uppercase;margin:14px 0 8px;font-family:var(--fm);display:flex;align-items:center;gap:6px">
+      <span style="width:7px;height:7px;background:var(--amber);border-radius:50%;display:inline-block"></span>
+      Holiday Requests (${reqs.length})
+    </div>
+    ${reqs.map(r=>`
+      <div style="background:var(--surface2);border:1px solid rgba(251,184,58,.3);border-left:3px solid var(--amber);border-radius:10px;padding:12px 14px;margin-bottom:8px;cursor:pointer"
+        onclick="toggleNotifPanel();showPage('holiday');setTimeout(()=>switchHolTab('${role==='consultant'?'myhol':'requests'}'),200)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="font-size:16px">${r.status==='pending'?'⏳':r.status==='approved'?'✅':'❌'}</span>
+          <div>
+            <div style="font-size:12px;font-weight:700">${role==='consultant'?'Your request':r.colleague+' — Holiday Request'}</div>
+            <div style="font-size:10px;color:var(--text3);font-family:var(--fm)">${r.totalHours}h · ${r.dates?.length||1} day(s) · ${new Date(r.createdAt).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</div>
+          </div>
+        </div>
+        ${role!=='consultant'?`<div style="font-size:11px;color:var(--amber);font-weight:700;text-align:right">Tap to review →</div>`:''}
+      </div>`).join('')}`;
+
+  list.insertAdjacentHTML('beforeend', reqHtml);
+}
+
+// ── Init: start listener when role is determined ─────────────────
+const _origStartNotifListenerV2 = startNotifListener;
+function startNotifListener(){
+  _origStartNotifListenerV2();
+  startHolReqListener();
+  setTimeout(_configHolTabs, 300);
+}
+
+// Also configure tabs when holiday page opens
+const _origShowPage = typeof showPage === 'function' ? showPage : null;
 
 function logoutUser(){
   sessionStorage.removeItem('pd_auth');
