@@ -4552,6 +4552,7 @@ function renderDashboard(){
   if(dashTableEl) dashTableEl.innerHTML = dashDailyTable;
 
   setTimeout(()=>renderDashCharts(mk), 50);
+  if(typeof _enhanceDashboardCards==='function') setTimeout(_enhanceDashboardCards, 80);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -10694,6 +10695,7 @@ _dbRef.once('value').then(snap=>{
   startNotifListener();
   startRemedialListener();
   startHolReqListener();
+  setTimeout(()=>{ if(typeof startPresenceSystem==='function') startPresenceSystem(); if(typeof startActivityTicker==='function') startActivityTicker(); }, 1500);
 
   // Real-time listener — fires whenever any client saves
   _dbRef.on('value', snap=>{
@@ -14059,77 +14061,33 @@ function _animateBars(){
 }
 
 // Hook into the existing renderDashboard — patch the cardsGrid line
-const _origRenderDashboard_visuals = renderDashboard;
-function renderDashboard(){
-  _origRenderDashboard_visuals();
-  // After the original renders, swap cards with enhanced versions
-  setTimeout(()=>{
-    const mk     = document.getElementById('globalMonthSel')?.value || APP.activeMonth;
-    const stats  = calcStats(mk);
-    const active = stats.filter(s=>s.target>0);
-    if(!active.length) return;
-    const grid = document.getElementById('cardsGrid');
-    if(!grid||grid.querySelector('.empty')) return;
-    grid.innerHTML = active.map(p=>_buildEnhancedCard(p, mk)).join('');
-    _animateGauges();
-    _animateBars();
-    _updatePresenceDots();
-  }, 30);
+// ── Visual enhancements: hook points (no override chains) ───────────
+// Called after renderDashboard completes — wired directly below
+function _enhanceDashboardCards(){
+  const mk     = document.getElementById('globalMonthSel')?.value || APP.activeMonth;
+  const stats  = calcStats(mk);
+  const active = stats.filter(s=>s.target>0);
+  if(!active.length) return;
+  const grid = document.getElementById('cardsGrid');
+  if(!grid||grid.querySelector('.empty')) return;
+  grid.innerHTML = active.map(p=>_buildEnhancedCard(p, mk)).join('');
+  _animateGauges();
+  _animateBars();
+  _updatePresenceDots();
 }
 
-// ── Hook into saveEntries to log activity & check PB ─────────────
-// We patch the save flow to fire activity events
-const _origSaveApp_visuals = saveApp;
-function saveApp(){
-  _origSaveApp_visuals();
-}
-
-// Called externally when a new entry is saved (patch into submitEntry)
+// Called when a new entry is saved
 function _onEntrySaved(name, revenue, nm, mk){
   if(!name||!revenue) return;
-
-  // Log activity
-  _logActivity('entry', name, revenue, `logged £${Math.round(revenue).toLocaleString()} · ${nm} NM`);
-
-  // Check personal best
+  _logActivity('entry', name, revenue, 'logged \xA3'+Math.round(revenue).toLocaleString()+' \xB7 '+nm+' NM');
   const pb = _getPersonalBest(name);
-  if(revenue >= pb){
-    _logActivity('best_day', name, revenue, 'new personal best! 🌟');
-  }
-
-  // Check streak
+  if(revenue >= pb) _logActivity('best_day', name, revenue, 'new personal best! \u{1F31F}');
   const streak = _calcStreak(name, mk);
-  if(streak>0 && streak%5===0){
-    _logActivity('streak', name, 0, `🔥 ${streak}-day streak!`);
-  }
+  if(streak>0 && streak%5===0) _logActivity('streak', name, 0, '\uD83D\uDD25 '+streak+'-day streak!');
 }
 
-// ── Init: start presence + ticker on login ────────────────────────
-const _origStartWithRole_visuals = _startWithRole;
-function _startWithRole(){
-  _origStartWithRole_visuals();
-  setTimeout(()=>{
-    startPresenceSystem();
-    startActivityTicker();
-  }, 1500);
-}
-
-// Also start on division select
-const _origSelectDivision_visuals = selectDivision;
-function selectDivision(key){
-  _origSelectDivision_visuals(key);
-  setTimeout(()=>{
-    startPresenceSystem();
-    startActivityTicker();
-  }, 2000);
-}
-
-// ── Patch submitDailyEntry to fire _onEntrySaved ──────────────────
-// Find and wrap the existing entry save logic
-document.addEventListener('DOMContentLoaded', ()=>{
-  // Refresh ticker every 30s
-  setInterval(_renderTicker, 30000);
-});
+// Refresh ticker every 30s
+setInterval(function(){ if(typeof _renderTicker==='function') _renderTicker(); }, 30000);
 
 function logoutUser(){
   sessionStorage.removeItem('pd_auth');
