@@ -951,6 +951,85 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
   box-shadow:0 8px 24px rgba(0,0,0,.3);
 }
 
+/* ── ENHANCED HOLIDAY TRACKER ──────────────────────────────────── */
+/* Absence type colours */
+.abs-H  { background:#fde0e6; color:#9b1d35; border:1px solid #f5a0b0; } /* Holiday */
+.abs-H1 { background:#fce8d5; color:#8b4000; border:1px solid #f5b87a; } /* Half AM */
+.abs-H2 { background:#fff3c4; color:#7a4f00; border:1px solid #f5d87a; } /* Half PM */
+.abs-Q  { background:#e8f4fd; color:#0a4f8a; border:1px solid #7ab8f5; } /* Quarter */
+.abs-E  { background:#f5e0ff; color:#5e1a8a; border:1px solid #c07af5; } /* Custom deductible */
+.abs-S  { background:#fff0b3; color:#7a4f00; border:1px solid #f5c842; } /* Sickness */
+.abs-M  { background:#ffe0e0; color:#8a0a0a; border:1px solid #f58080; } /* Maternity/Pat */
+.abs-L  { background:#e0ffe8; color:#0a6a20; border:1px solid #7af5a0; } /* Time off In Lieu */
+.abs-W  { background:#e0f5ff; color:#0a4a6a; border:1px solid #7ad0f5; } /* Work from home */
+.abs-B  { background:#f0f0f0; color:#333;    border:1px solid #bbb;    } /* Bank holiday */
+.abs-C  { background:#e8e8e8; color:#444;    border:1px solid #aaa;    } /* Compassionate */
+.abs-N  { background:#ffe0ff; color:#6a0a6a; border:1px solid #f57af5; } /* Custom non-ded */
+
+/* Hol cell in grid */
+.hol-cell2{
+  width:28px;height:26px;display:flex;align-items:center;justify-content:center;
+  border-radius:5px;cursor:pointer;transition:all .1s;margin:0 auto;
+  font-size:9px;font-weight:800;letter-spacing:.02em;
+}
+.hol-cell2:hover{ filter:brightness(1.15); transform:scale(1.08); }
+.hol-cell2.empty:hover{ background:var(--surface3) !important; }
+
+/* Allowance edit input */
+.allow-inp{
+  width:52px;background:var(--surface2);border:1px solid var(--border2);
+  border-radius:5px;padding:3px 6px;font-size:11px;font-family:var(--fm);
+  color:var(--text);text-align:center;
+}
+.allow-inp:focus{ outline:none;border-color:var(--accent); }
+
+/* Summary cards */
+.abs-summary-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:20px;
+}
+.abs-summary-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:14px;text-align:center;transition:all .2s;
+}
+.abs-summary-card:hover{ border-color:var(--border2);transform:translateY(-2px); }
+.abs-card-val{ font-family:var(--fm);font-size:1.6rem;font-weight:700;line-height:1; }
+.abs-card-lbl{ font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;margin-top:5px; }
+.abs-card-sub{ font-size:11px;color:var(--text2);font-family:var(--fm);margin-top:3px; }
+
+/* Progress bar in summary table */
+.abs-bar-bg{ height:5px;background:var(--surface3);border-radius:3px;margin-top:4px;overflow:hidden; }
+.abs-bar-fill{ height:100%;border-radius:3px;transition:width .4s ease; }
+
+/* Type legend pills */
+.abs-type-pill{
+  display:inline-flex;align-items:center;gap:4px;padding:3px 10px;
+  border-radius:12px;font-size:10px;font-weight:700;cursor:pointer;
+  transition:all .15s;user-select:none;
+}
+.abs-type-pill:hover{ transform:scale(1.05); }
+.abs-type-pill.selected{ box-shadow:0 0 0 2px var(--accent); }
+
+/* Totals tab table */
+.tot-th{ background:#6b0d2d;color:#fff;padding:8px 12px;font-size:10px;font-weight:700;
+  font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;
+  border:1px solid rgba(255,255,255,.15);text-align:center;white-space:nowrap; }
+.tot-th.left{ text-align:left; }
+.tot-td{ padding:8px 10px;border:1px solid var(--border);text-align:center;
+  font-family:var(--fm);font-size:12px;background:var(--surface); }
+.tot-td.name{ text-align:left;font-weight:600;background:var(--surface);
+  position:sticky;left:0;z-index:1; }
+.tot-tr:hover .tot-td{ background:var(--surface2); }
+
+/* Booking modal type selector */
+.abs-type-grid{ display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px; }
+.abs-type-btn{
+  padding:8px 6px;border-radius:8px;border:1px solid transparent;cursor:pointer;
+  text-align:center;font-size:11px;font-weight:700;transition:all .15s;
+  font-family:var(--fh);
+}
+.abs-type-btn:hover{ transform:scale(1.03); }
+.abs-type-btn.active{ box-shadow:0 0 0 2px var(--accent),0 0 0 4px rgba(94,156,245,.2); }
+
 </style>
 <body class="pre-auth">
 
@@ -1322,24 +1401,94 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 <!-- HOLIDAY -->
 <div class="page" id="page-holiday">
   <div class="section-head">
-    <div><div class="section-title">Holiday Planner</div><div class="section-sub">Click once = planned holiday (excluded from COP & run rate). Click twice = sickness/unplanned (excluded from COP only, not from run rate). Click again to clear.</div></div>
-    <button class="btn btn-s" onclick="exportHolidayCSV()">↓ Export CSV</button>
-  </div>
-  <div style="display:flex;gap:12px;align-items:center;margin-bottom:20px;flex-wrap:wrap">
-    <div style="display:flex;align-items:center;gap:8px">
-      <div class="field-lbl" style="margin-bottom:0;white-space:nowrap">Month:</div>
-      <select id="holMonth" onchange="renderHoliday()" style="width:180px"></select>
+    <div><div class="section-title">Holiday & Absence Tracker</div>
+    <div class="section-sub">Full absence management — book any absence type per person per day</div></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-s" onclick="exportHolidayCSV()">↓ Export CSV</button>
     </div>
-    <button class="btn btn-s" onclick="clearAllHols()">Clear all holidays this month</button>
   </div>
-  <div style="overflow-x:auto;border-radius:12px;border:1px solid var(--border)">
-    <table id="holTbl" style="border-collapse:collapse;font-family:var(--fm);font-size:11px;white-space:nowrap;width:100%"></table>
+
+  <!-- Sub-tab nav -->
+  <div class="sub-nav">
+    <button class="sub-tab active" id="holTabCalBtn" onclick="switchHolTab('calendar')">📅 Calendar</button>
+    <button class="sub-tab" id="holTabTotBtn"  onclick="switchHolTab('totals')">📊 Totals</button>
+    <button class="sub-tab" id="holTabSumBtn"  onclick="switchHolTab('summary')">👤 Summary</button>
   </div>
-  <div style="display:flex;gap:16px;font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:12px;flex-wrap:wrap">
-    <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;background:var(--red-bg);border:1px solid rgba(245,54,92,.4);display:inline-block"></span>Planned holiday — excluded from COP &amp; run rate</span>
-    <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;background:rgba(251,184,58,0.15);border:1px solid rgba(251,184,58,.4);display:inline-block"></span>Sickness/unplanned — excluded from COP only</span>
-    <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;background:rgba(131,5,68,0.15);border:1px solid rgba(131,5,68,.4);display:inline-block"></span>UK Bank Holiday — excluded from all targets &amp; run rate</span>
-    <span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;border-radius:3px;background:var(--surface3);border:1px solid var(--border);display:inline-block"></span>Weekend — already excluded</span>
+
+  <!-- ── CALENDAR TAB ── -->
+  <div id="holCalPanel">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+      <select id="holMonth" onchange="renderHoliday()" style="width:180px"></select>
+      <select id="holTeamFilter" onchange="renderHoliday()" style="width:160px">
+        <option value="all">All Teams</option>
+      </select>
+      <button class="btn btn-s" onclick="clearAllHols()">Clear month</button>
+    </div>
+
+    <!-- Absence type selector -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:14px;">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);margin-bottom:10px;">
+        Select absence type to book — then click a cell
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center" id="absTypePills"></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap">
+        <span style="font-size:11px;color:var(--text2);font-family:var(--fm)">Hours for this booking:</span>
+        <select id="absHoursInput" style="width:100px;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:5px 10px;font-size:12px;font-family:var(--fm);color:var(--text)">
+          <option value="7.5">7.5 hrs (full day)</option>
+          <option value="3.75">3.75 hrs (half day)</option>
+          <option value="1.875">1.875 hrs (quarter day)</option>
+          <option value="custom">Custom…</option>
+        </select>
+        <input type="number" id="absHoursCustom" step="0.25" min="0.25" max="15" placeholder="hrs"
+          style="display:none;width:80px;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:5px 10px;font-size:12px;font-family:var(--fm);color:var(--text)">
+      </div>
+    </div>
+
+    <div style="overflow-x:auto;border-radius:12px;border:1px solid var(--border)">
+      <table id="holTbl" style="border-collapse:collapse;font-family:var(--fm);font-size:11px;white-space:nowrap;width:100%"></table>
+    </div>
+
+    <!-- Legend -->
+    <div style="display:flex;gap:10px;font-size:10px;font-family:var(--fm);margin-top:12px;flex-wrap:wrap" id="holLegend"></div>
+  </div>
+
+  <!-- ── TOTALS TAB ── -->
+  <div id="holTotPanel" style="display:none">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+      <select id="holTotYear" onchange="renderHolTotals()" style="width:140px"></select>
+      <select id="holTotTeam" onchange="renderHolTotals()" style="width:160px">
+        <option value="all">All Teams</option>
+      </select>
+      <button class="btn btn-s" onclick="exportTotalsCSV()">↓ Export CSV</button>
+    </div>
+    <div id="holTotContent"></div>
+  </div>
+
+  <!-- ── SUMMARY TAB ── -->
+  <div id="holSumPanel" style="display:none">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+      <select id="holSumYear" onchange="renderHolSummary()" style="width:140px"></select>
+      <select id="holSumTeam" onchange="renderHolSummaryFilter()" style="width:160px">
+        <option value="all">All Teams</option>
+      </select>
+      <select id="holSumPerson" onchange="renderHolSummary()" style="width:180px">
+        <option value="all">All Consultants</option>
+      </select>
+      <button class="btn btn-s" onclick="exportSummaryCSV()">↓ Export CSV</button>
+    </div>
+    <div id="holSumContent"></div>
+  </div>
+</div>
+
+<!-- ABSENCE BOOKING MODAL -->
+<div class="modal-overlay" id="absBookModal">
+  <div class="modal" style="width:460px;max-width:96vw;">
+    <div class="modal-title" id="absBookTitle">Book Absence</div>
+    <div id="absBookBody"></div>
+    <div class="modal-btns">
+      <button class="btn btn-s" onclick="document.getElementById('absBookModal').classList.remove('open')">Cancel</button>
+      <button class="btn btn-p" onclick="confirmAbsBooking()">✓ Book</button>
+    </div>
   </div>
 </div>
 
@@ -2412,7 +2561,7 @@ function _initApp(divKey){
   APP = {
     people:[], months:{}, activeMonth:todayKey(),
     teams:{g:[],james:[],damo:[]}, bizTargets:{},
-    holidays:{}, sickness:{}, monthOverrides:{}, manualElapsed:null
+    holidays:{}, sickness:{}, absences:{}, allowances:{}, monthOverrides:{}, manualElapsed:null
   };
   setSyncStatus('connecting');
   _startFirebase();
@@ -2755,6 +2904,740 @@ function clearAllHols(){
   if(document.getElementById('page-consultantdaily').classList.contains('active'))  renderConsultantDaily();
   showToast('Holidays cleared');
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// ENHANCED HOLIDAY & ABSENCE TRACKER
+// ═══════════════════════════════════════════════════════════════════
+
+// ── Absence type definitions ─────────────────────────────────────
+const ABS_TYPES = {
+  // Deductible
+  H:  { label:'Holiday',              code:'H',  cls:'abs-H',  deductible:true,  defaultHrs:7.5  },
+  H1: { label:'Half Day (morning)',   code:'H1', cls:'abs-H1', deductible:true,  defaultHrs:3.75 },
+  H2: { label:'Half Day (afternoon)', code:'H2', cls:'abs-H2', deductible:true,  defaultHrs:3.75 },
+  Q:  { label:'Quarter Day',          code:'Q',  cls:'abs-Q',  deductible:true,  defaultHrs:1.875},
+  E:  { label:'Custom deductible',    code:'E',  cls:'abs-E',  deductible:true,  defaultHrs:7.5  },
+  // Non-deductible
+  S:  { label:'Sickness',             code:'S',  cls:'abs-S',  deductible:false, defaultHrs:7.5  },
+  M:  { label:'Maternity/Paternity',  code:'M',  cls:'abs-M',  deductible:false, defaultHrs:7.5  },
+  L:  { label:'Time off In Lieu',     code:'L',  cls:'abs-L',  deductible:false, defaultHrs:7.5  },
+  W:  { label:'Work from home',       code:'W',  cls:'abs-W',  deductible:false, defaultHrs:7.5  },
+  B:  { label:'Bank holiday',         code:'B',  cls:'abs-B',  deductible:false, defaultHrs:7.5  },
+  C:  { label:'Compassionate',        code:'C',  cls:'abs-C',  deductible:false, defaultHrs:7.5  },
+  N:  { label:'Custom non-deductible',code:'N',  cls:'abs-N',  deductible:false, defaultHrs:7.5  },
+};
+const ABS_DEDUCTIBLE = ['H','H1','H2','Q','E'];
+const ABS_NON_DEDUCTIBLE = ['S','M','L','W','B','C','N'];
+
+let _selectedAbsType = 'H'; // currently selected type for booking
+let _holBookingPending = null; // {mk,name,ds} awaiting modal confirm
+
+// ── Data helpers ─────────────────────────────────────────────────
+// APP.absences[monthKey][personName][dateString] = { type:'H', hours:7.5 }
+// We keep backward compat with APP.holidays and APP.sickness
+
+function getAbsences(mk, name){
+  return (APP.absences && APP.absences[mk] && APP.absences[mk][name])
+    ? APP.absences[mk][name] : {};
+}
+
+function setAbsence(mk, name, ds, type, hours){
+  if(!APP.absences) APP.absences = {};
+  if(!APP.absences[mk]) APP.absences[mk] = {};
+  if(!APP.absences[mk][name]) APP.absences[mk][name] = {};
+  if(type === null){
+    delete APP.absences[mk][name][ds];
+  } else {
+    APP.absences[mk][name][ds] = { type, hours: parseFloat(hours)||7.5 };
+  }
+  // Keep legacy holidays/sickness in sync for COP/run rate calculations
+  _syncLegacy(mk, name);
+  saveApp();
+}
+
+function _syncLegacy(mk, name){
+  if(!APP.holidays[mk]) APP.holidays[mk] = {};
+  if(!APP.sickness[mk]) APP.sickness[mk] = {};
+  APP.holidays[mk][name] = [];
+  APP.sickness[mk][name] = [];
+  const abs = getAbsences(mk, name);
+  Object.entries(abs).forEach(([ds, entry]) => {
+    if(!entry) return;
+    const t = entry.type;
+    if(['H','H1','H2','Q','E'].includes(t)){
+      APP.holidays[mk][name].push(ds);
+    } else if(t === 'S'){
+      APP.sickness[mk][name].push(ds);
+    }
+    // W/L/M/C/N don't affect COP or run rate
+  });
+}
+
+// Base allowance per person (hours per year, defaults to 208 = 26 days × 8hrs)
+function getBaseAllowance(name){
+  return (APP.allowances && APP.allowances[name] && APP.allowances[name].base !== undefined)
+    ? APP.allowances[name].base : 208;
+}
+function getCarryOver(name, yr){
+  const key = name+'_'+yr;
+  return (APP.allowances && APP.allowances[key] && APP.allowances[key].carryOver !== undefined)
+    ? APP.allowances[key].carryOver : 0;
+}
+function setAllowance(name, field, val){
+  if(!APP.allowances) APP.allowances = {};
+  if(!APP.allowances[name]) APP.allowances[name] = {};
+  APP.allowances[name][field] = parseFloat(val)||0;
+  saveApp();
+}
+
+// ── Total absence hours per person per year ───────────────────────
+function getAbsenceTotalsForYear(name, yr){
+  const totals = {};
+  Object.keys(ABS_TYPES).forEach(k => totals[k] = 0);
+  allMonthKeys().filter(mk => mk.startsWith(yr)).forEach(mk => {
+    const abs = getAbsences(mk, name);
+    Object.values(abs).forEach(entry => {
+      if(entry && entry.type && totals[entry.type] !== undefined){
+        totals[entry.type] += entry.hours||0;
+      }
+    });
+  });
+  return totals;
+}
+
+function getDeductibleUsed(name, yr){
+  const t = getAbsenceTotalsForYear(name, yr);
+  return ABS_DEDUCTIBLE.reduce((s,k) => s + (t[k]||0), 0);
+}
+
+// ── Tab switching ─────────────────────────────────────────────────
+function switchHolTab(tab){
+  ['calendar','totals','summary'].forEach(t => {
+    const panel = document.getElementById('hol'+t.charAt(0).toUpperCase()+t.slice(1)+'Panel');
+    if(panel) panel.style.display = t===tab ? '' : 'none';
+    const btn = document.getElementById('holTab'+t.charAt(0).toUpperCase()+t.slice(1)+'Btn');
+    if(btn) btn.classList.toggle('active', t===tab);
+  });
+  if(tab==='totals')  renderHolTotals();
+  if(tab==='summary') renderHolSummary();
+}
+
+// ── CALENDAR RENDER ───────────────────────────────────────────────
+function renderHoliday(){
+  _populateHolSelects();
+  _buildAbsTypePills();
+  _buildHolLegend();
+
+  const mk = document.getElementById('holMonth')?.value || APP.activeMonth;
+  const teamFilter = document.getElementById('holTeamFilter')?.value || 'all';
+  const [y, m] = mk.split('-').map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+
+  let people = APP.people.filter(p => personTargetForMonth(p, mk) > 0);
+  if(teamFilter !== 'all'){
+    const members = (APP.teams[teamFilter])||[];
+    people = people.filter(p => members.includes(p.name));
+  }
+
+  if(!people.length){
+    document.getElementById('holTbl').innerHTML = '<tr><td style="padding:24px;color:var(--text3);font-family:var(--fm)">No consultants found.</td></tr>';
+    return;
+  }
+
+  // Build dates
+  const dates = [];
+  for(let d=1; d<=daysInMonth; d++){
+    const dt = new Date(y, m-1, d);
+    const dow = dt.getDay();
+    const isWE = dow===0||dow===6;
+    const ds = y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const dayLtr = ['S','M','T','W','T','F','S'][dow];
+    dates.push({d, ds, isWE, dayLtr});
+  }
+
+  let html = '<thead><tr>';
+  html += '<th class="hol-th nc" style="min-width:130px">Consultant</th>';
+  dates.forEach(({d, dayLtr, isWE, ds}) => {
+    const isBH = isBankHoliday(ds);
+    const bg = isBH ? 'background:rgba(131,5,68,0.15)' : '';
+    html += `<th class="hol-th" style="min-width:30px;${bg}${isWE?';color:var(--text3)':''}">${d}<br><span style="font-size:9px">${dayLtr}</span></th>`;
+  });
+  html += '<th class="hol-th">Summary</th></tr></thead><tbody>';
+
+  people.forEach(p => {
+    const abs    = getAbsences(mk, p.name);
+    const yr     = String(y);
+    const base   = getBaseAllowance(p.name);
+    const carry  = getCarryOver(p.name, yr);
+    const total  = base + carry;
+    const used   = getDeductibleUsed(p.name, yr);
+    const remain = total - used;
+
+    html += `<tr><td class="hol-td nc">${p.name}</td>`;
+    dates.forEach(({ds, isWE}) => {
+      if(isWE){
+        html += '<td class="hol-td we"><span style="color:var(--text3);font-size:9px">—</span></td>';
+      } else if(isBankHoliday(ds)){
+        html += '<td class="hol-td" style="background:rgba(131,5,68,0.06)"><div class="hol-cell2 abs-B" title="UK Bank Holiday" style="cursor:default">BH</div></td>';
+      } else {
+        const entry = abs[ds];
+        const typeDef = entry ? ABS_TYPES[entry.type] : null;
+        const cls  = typeDef ? typeDef.cls : '';
+        const code = typeDef ? typeDef.code : '';
+        const hrsTitle = entry ? ` (${entry.hours}h)` : '';
+        const title = typeDef ? typeDef.label + hrsTitle + ' — click to change/clear' : 'Click to book absence';
+        const safeName = p.name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+        html += `<td class="hol-td"><div class="hol-cell2 ${cls||'empty'}" 
+          data-mk="${mk}" data-name="${safeName}" data-ds="${ds}"
+          onclick="holCellClick(this)"
+          oncontextmenu="holClearCell(event,this)"
+          title="${title}">${code}</div></td>`;
+      }
+    });
+
+    // Summary cell
+    html += `<td class="hol-td" style="min-width:130px;padding:4px 8px">
+      <div style="font-size:9px;font-family:var(--fm);white-space:nowrap">
+        <span style="color:#9b1d35;font-weight:700">Rem: ${remain.toFixed(1)}h</span> /
+        <span style="color:var(--text2)">${total}h total</span>
+      </div>
+      <div class="abs-bar-bg"><div class="abs-bar-fill" style="width:${Math.min(100,used/total*100||0).toFixed(0)}%;background:#f5365c"></div></div>
+      <div style="font-size:9px;color:var(--text3);font-family:var(--fm)">Used: ${used.toFixed(1)}h this yr</div>
+    </td></tr>`;
+  });
+
+  html += '</tbody>';
+  document.getElementById('holTbl').innerHTML = html;
+}
+
+function _buildAbsTypePills(){
+  const container = document.getElementById('absTypePills');
+  if(!container) return;
+  let html = '<div style="display:flex;flex-direction:column;gap:6px;width:100%">';
+  html += '<div style="display:flex;gap:6px;flex-wrap:wrap"><span style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);align-self:center;min-width:110px">Deductible:</span>';
+  ABS_DEDUCTIBLE.forEach(k => {
+    const t = ABS_TYPES[k];
+    const sel = _selectedAbsType===k ? ' selected' : '';
+    html += `<span class="abs-type-pill ${t.cls}${sel}" onclick="selectAbsType('${k}')">${t.code} — ${t.label}</span>`;
+  });
+  html += '</div>';
+  html += '<div style="display:flex;gap:6px;flex-wrap:wrap"><span style="font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);align-self:center;min-width:110px">Non-deductible:</span>';
+  ABS_NON_DEDUCTIBLE.forEach(k => {
+    const t = ABS_TYPES[k];
+    const sel = _selectedAbsType===k ? ' selected' : '';
+    html += `<span class="abs-type-pill ${t.cls}${sel}" onclick="selectAbsType('${k}')">${t.code} — ${t.label}</span>`;
+  });
+  html += '</div></div>';
+  container.innerHTML = html;
+}
+
+function _buildHolLegend(){
+  const el = document.getElementById('holLegend');
+  if(!el) return;
+  el.innerHTML = Object.values(ABS_TYPES).map(t =>
+    `<span style="display:flex;align-items:center;gap:4px">
+      <span class="hol-cell2 ${t.cls}" style="width:20px;height:16px;font-size:8px">${t.code}</span>
+      <span>${t.label}</span>
+    </span>`
+  ).join('') + '<span style="margin-left:8px;color:var(--text3)">Right-click any cell to clear it</span>';
+}
+
+function selectAbsType(code){
+  _selectedAbsType = code;
+  const t = ABS_TYPES[code];
+  // Update hours default
+  const sel = document.getElementById('absHoursInput');
+  if(sel) sel.value = t.defaultHrs <= 1.875 ? '1.875' : t.defaultHrs <= 3.75 ? '3.75' : '7.5';
+  _buildAbsTypePills();
+}
+
+function _getSelectedHours(){
+  const sel = document.getElementById('absHoursInput');
+  if(!sel) return 7.5;
+  if(sel.value === 'custom'){
+    return parseFloat(document.getElementById('absHoursCustom')?.value)||7.5;
+  }
+  return parseFloat(sel.value)||7.5;
+}
+
+// ── Cell click — book selected type ──────────────────────────────
+function holCellClick(el){
+  const mk   = el.getAttribute('data-mk');
+  const name = el.getAttribute('data-name');
+  const ds   = el.getAttribute('data-ds');
+  const abs  = getAbsences(mk, name);
+  const existing = abs[ds];
+
+  // If same type already booked → cycle to next or open modal
+  if(existing && existing.type === _selectedAbsType){
+    // Clear it
+    setAbsence(mk, name, ds, null, 0);
+    renderHoliday();
+    showToast('Absence cleared');
+    return;
+  }
+
+  // Open booking confirmation modal
+  _holBookingPending = {mk, name, ds};
+  const t = ABS_TYPES[_selectedAbsType];
+  const hrs = _getSelectedHours();
+  const dateFmt = new Date(ds+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  document.getElementById('absBookTitle').textContent = `📅 Book Absence — ${name}`;
+  document.getElementById('absBookBody').innerHTML = `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:4px">${dateFmt}</div>
+      ${existing ? `<div style="font-size:11px;color:var(--amber);font-family:var(--fm);margin-bottom:8px">⚠️ Currently: ${ABS_TYPES[existing.type]?.label||existing.type} (${existing.hours}h) — will be replaced</div>` : ''}
+    </div>
+
+    <div style="margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);margin-bottom:8px">Absence Type</div>
+      <div class="abs-type-grid" id="modalAbsTypeGrid"></div>
+    </div>
+
+    <div>
+      <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);margin-bottom:8px">Hours</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${[7.5,3.75,1.875].map(h=>`<button class="btn ${hrs===h?'btn-p':'btn-s'}" style="font-size:12px;padding:7px 14px" onclick="setModalHrs(${h},this)">${h}h</button>`).join('')}
+        <input type="number" id="modalHrsCustom" value="${hrs}" min="0.25" max="15" step="0.25"
+          style="width:80px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:7px 10px;font-size:12px;font-family:var(--fm);color:var(--text)">
+      </div>
+    </div>`;
+
+  // Build type buttons
+  const grid = document.getElementById('modalAbsTypeGrid');
+  if(grid){
+    grid.innerHTML = Object.values(ABS_TYPES).map(tp => {
+      const active = tp.code===_selectedAbsType ? ' active' : '';
+      return `<button class="abs-type-btn ${tp.cls}${active}" onclick="setModalAbsType('${tp.code}',this)">${tp.code}<br><span style="font-size:9px;font-weight:400">${tp.label}</span></button>`;
+    }).join('');
+  }
+
+  document.getElementById('absBookModal').classList.add('open');
+}
+
+function setModalAbsType(code, btn){
+  _selectedAbsType = code;
+  document.querySelectorAll('#modalAbsTypeGrid .abs-type-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  // Update default hours
+  const t = ABS_TYPES[code];
+  const hrsEl = document.getElementById('modalHrsCustom');
+  if(hrsEl) hrsEl.value = t.defaultHrs;
+}
+
+function setModalHrs(hrs, btn){
+  document.querySelectorAll('#absBookBody .btn').forEach(b=>b.classList.remove('btn-p'));
+  btn.classList.add('btn-p');
+  const el = document.getElementById('modalHrsCustom');
+  if(el) el.value = hrs;
+}
+
+function confirmAbsBooking(){
+  if(!_holBookingPending) return;
+  const {mk, name, ds} = _holBookingPending;
+  const hrs = parseFloat(document.getElementById('modalHrsCustom')?.value)||7.5;
+  setAbsence(mk, name, ds, _selectedAbsType, hrs);
+  document.getElementById('absBookModal').classList.remove('open');
+  _holBookingPending = null;
+  renderHoliday();
+  showToast(`${ABS_TYPES[_selectedAbsType].label} (${hrs}h) booked for ${name}`);
+  // Refresh dashboard if open
+  if(document.getElementById('page-dashboard').classList.contains('active')) renderDashboard();
+}
+
+function holClearCell(e, el){
+  e.preventDefault();
+  const mk   = el.getAttribute('data-mk');
+  const name = el.getAttribute('data-name');
+  const ds   = el.getAttribute('data-ds');
+  const abs  = getAbsences(mk, name);
+  if(!abs[ds]){ showToast('Nothing to clear here'); return; }
+  if(!confirm('Clear absence for '+name+' on '+ds+'?')) return;
+  setAbsence(mk, name, ds, null, 0);
+  renderHoliday();
+  showToast('Cleared');
+  if(document.getElementById('page-dashboard').classList.contains('active')) renderDashboard();
+}
+
+// Keep legacy holClick working (redirect to new system)
+function holClick(el){
+  holCellClick(el);
+}
+
+// ── Override clearAllHols to also clear absences ──────────────────
+const _origClearAllHols = clearAllHols;
+function clearAllHols(){
+  const mk = document.getElementById('holMonth')?.value || APP.activeMonth;
+  if(!confirm('Clear ALL absences for ' + monthLabel(mk) + '?')) return;
+  if(APP.holidays[mk]) delete APP.holidays[mk];
+  if(APP.sickness[mk]) delete APP.sickness[mk];
+  if(APP.absences && APP.absences[mk]) delete APP.absences[mk];
+  saveApp(); renderHoliday();
+  if(document.getElementById('page-dashboard').classList.contains('active')) renderDashboard();
+  showToast('All absences cleared for ' + monthLabel(mk));
+}
+
+// ── TOTALS TAB ────────────────────────────────────────────────────
+function renderHolTotals(){
+  _populateHolSelects();
+  const yr = document.getElementById('holTotYear')?.value || String(new Date().getFullYear());
+  const teamFilter = document.getElementById('holTotTeam')?.value || 'all';
+  let people = APP.people.slice();
+  if(teamFilter !== 'all'){
+    const members = APP.teams[teamFilter]||[];
+    people = people.filter(p => members.includes(p.name));
+  }
+
+  if(!people.length){
+    document.getElementById('holTotContent').innerHTML = '<div class="empty"><div>No consultants found.</div></div>';
+    return;
+  }
+
+  const HDR = '#6b0d2d';
+  const months = allMonthKeys().filter(mk => mk.startsWith(yr));
+  const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  // Headers
+  const absKeys = Object.keys(ABS_TYPES);
+
+  let html = `<div style="overflow-x:auto;border-radius:12px;border:1px solid var(--border);margin-bottom:16px">
+    <table style="border-collapse:collapse;width:100%;min-width:900px;font-family:var(--fm);font-size:11px">
+      <thead>
+        <tr>
+          <th class="tot-th left" style="background:${HDR}">Consultant</th>
+          <th class="tot-th" style="background:${HDR}">Base Allow.</th>
+          <th class="tot-th" style="background:${HDR}">Carry Over</th>
+          <th class="tot-th" style="background:${HDR}">Total Allow.</th>
+          <th class="tot-th" style="background:${HDR}">Used (ded.)</th>
+          <th class="tot-th" style="background:${HDR}">Remaining</th>
+          ${absKeys.map(k=>`<th class="tot-th" style="background:${HDR}">${ABS_TYPES[k].code}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>`;
+
+  people.forEach((p, pi) => {
+    const base   = getBaseAllowance(p.name);
+    const carry  = getCarryOver(p.name, yr);
+    const total  = base + carry;
+    const totals = getAbsenceTotalsForYear(p.name, yr);
+    const used   = ABS_DEDUCTIBLE.reduce((s,k)=>s+(totals[k]||0), 0);
+    const remain = total - used;
+    const rowBg  = pi%2===0 ? 'background:var(--surface)' : 'background:var(--surface2)';
+    const remCol = remain < 0 ? 'color:#d92f53;font-weight:700' : remain < total*0.1 ? 'color:#d4820a;font-weight:700' : 'color:var(--green);font-weight:700';
+
+    html += `<tr class="tot-tr">
+      <td class="tot-td name" style="${rowBg}">${p.name}</td>
+      <td class="tot-td" style="${rowBg}">
+        <input class="allow-inp" type="number" step="0.5" min="0" value="${base}"
+          onchange="setAllowance('${p.name.replace(/'/g,"\\'")}','base',this.value);renderHolTotals()">
+      </td>
+      <td class="tot-td" style="${rowBg}">
+        <input class="allow-inp" type="number" step="0.5" min="0" value="${carry}"
+          onchange="setAllowance('${p.name.replace(/'/g,"\\'")}','carryOver',this.value);renderHolTotals()">
+      </td>
+      <td class="tot-td" style="${rowBg};font-weight:700">${total.toFixed(1)}h</td>
+      <td class="tot-td" style="${rowBg};color:#d92f53">${used.toFixed(1)}h</td>
+      <td class="tot-td" style="${rowBg};${remCol}">${remain.toFixed(1)}h</td>
+      ${absKeys.map(k => {
+        const v = totals[k]||0;
+        const t = ABS_TYPES[k];
+        return v>0
+          ? `<td class="tot-td ${t.cls}" style="font-weight:700">${v.toFixed(1)}h</td>`
+          : `<td class="tot-td" style="${rowBg}">—</td>`;
+      }).join('')}
+    </tr>`;
+  });
+
+  // Totals row
+  const allTots = {};
+  absKeys.forEach(k => allTots[k]=0);
+  let totBase=0, totCarry=0, totUsed=0;
+  people.forEach(p => {
+    totBase  += getBaseAllowance(p.name);
+    totCarry += getCarryOver(p.name, yr);
+    const t   = getAbsenceTotalsForYear(p.name, yr);
+    ABS_DEDUCTIBLE.forEach(k => totUsed += t[k]||0);
+    absKeys.forEach(k => allTots[k] += t[k]||0);
+  });
+  html += `<tr>
+    <td class="tot-td name" style="background:${HDR};color:#fff;font-weight:700">TOTAL</td>
+    <td class="tot-td" style="background:${HDR};color:#fff">${totBase}h</td>
+    <td class="tot-td" style="background:${HDR};color:#fff">${totCarry}h</td>
+    <td class="tot-td" style="background:${HDR};color:#fff">${(totBase+totCarry)}h</td>
+    <td class="tot-td" style="background:${HDR};color:#ffd0d0">${totUsed.toFixed(1)}h</td>
+    <td class="tot-td" style="background:${HDR};color:#a0ffc8">${(totBase+totCarry-totUsed).toFixed(1)}h</td>
+    ${absKeys.map(k=>allTots[k]>0?`<td class="tot-td" style="background:${HDR};color:#fff;font-weight:700">${allTots[k].toFixed(1)}h</td>`:`<td class="tot-td" style="background:${HDR};color:rgba(255,255,255,.3)">—</td>`).join('')}
+  </tr>`;
+
+  html += `</tbody></table></div>`;
+
+  // Type key
+  html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px">
+    <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);margin-bottom:10px">Absence Type Key</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px">
+      ${Object.values(ABS_TYPES).map(t=>`<span style="display:flex;align-items:center;gap:6px;font-size:11px">
+        <span class="hol-cell2 ${t.cls}" style="width:26px;height:20px;font-size:9px;flex-shrink:0">${t.code}</span>
+        ${t.label} ${t.deductible?'<span style="color:#d92f53;font-size:9px">(deductible)</span>':'<span style="color:var(--text3);font-size:9px">(non-ded)</span>'}
+      </span>`).join('')}
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:var(--text2);font-family:var(--fm)">
+      Click Base Allowance or Carry Over cells to edit them directly. Changes save automatically.
+    </div>
+  </div>`;
+
+  document.getElementById('holTotContent').innerHTML = html;
+}
+
+// ── SUMMARY TAB ───────────────────────────────────────────────────
+function renderHolSummaryFilter(){
+  _populateHolSelects();
+  const teamFilter = document.getElementById('holSumTeam')?.value || 'all';
+  let people = APP.people.slice();
+  if(teamFilter !== 'all'){
+    const members = APP.teams[teamFilter]||[];
+    people = people.filter(p => members.includes(p.name));
+  }
+  const sel = document.getElementById('holSumPerson');
+  if(sel){
+    const prev = sel.value;
+    sel.innerHTML = '<option value="all">All Consultants</option>' +
+      people.map(p=>`<option value="${p.name}">${p.name}</option>`).join('');
+    if([...sel.options].some(o=>o.value===prev)) sel.value=prev;
+  }
+  renderHolSummary();
+}
+
+function renderHolSummary(){
+  _populateHolSelects();
+  const yr         = document.getElementById('holSumYear')?.value || String(new Date().getFullYear());
+  const teamFilter = document.getElementById('holSumTeam')?.value || 'all';
+  const personF    = document.getElementById('holSumPerson')?.value || 'all';
+
+  let people = APP.people.slice();
+  if(teamFilter !== 'all'){ const m=APP.teams[teamFilter]||[]; people=people.filter(p=>m.includes(p.name)); }
+  if(personF !== 'all') people = people.filter(p=>p.name===personF);
+  if(!people.length){ document.getElementById('holSumContent').innerHTML='<div class="empty"><div>No consultants found.</div></div>'; return; }
+
+  const absKeys = Object.keys(ABS_TYPES);
+  const months  = allMonthKeys().filter(mk=>mk.startsWith(yr));
+
+  // ── KPI cards ────────────────────────────────────────────────────
+  let totalHolHrs=0, totalSickHrs=0, totalOtherHrs=0, totalAllowance=0, totalUsed=0;
+  people.forEach(p => {
+    const t    = getAbsenceTotalsForYear(p.name, yr);
+    totalHolHrs  += (t.H||0)+(t.H1||0)+(t.H2||0)+(t.Q||0)+(t.E||0);
+    totalSickHrs += t.S||0;
+    totalOtherHrs+= (t.M||0)+(t.L||0)+(t.W||0)+(t.C||0)+(t.N||0);
+    totalAllowance += getBaseAllowance(p.name)+getCarryOver(p.name,yr);
+    totalUsed      += ABS_DEDUCTIBLE.reduce((s,k)=>s+(t[k]||0),0);
+  });
+
+  let html = '<div class="abs-summary-grid">';
+  const kpis = [
+    { val:(totalAllowance-totalUsed).toFixed(0)+'h', lbl:'Remaining Allowance',  sub:'across team', col:'var(--green)' },
+    { val:totalHolHrs.toFixed(0)+'h',  lbl:'Holiday Hours Used',    sub:people.length+' people', col:'#9b1d35' },
+    { val:totalSickHrs.toFixed(0)+'h', lbl:'Sickness Hours',         sub:yr, col:'var(--amber)' },
+    { val:totalOtherHrs.toFixed(0)+'h',lbl:'Other Absence',          sub:'TOIL, WFH, etc', col:'var(--blue)' },
+    { val:people.length>0?(totalUsed/totalAllowance*100||0).toFixed(0)+'%':'—', lbl:'Allowance Used %', sub:'deductible only', col:'var(--purple)' },
+    { val:(totalSickHrs/(people.length||1)/7.5).toFixed(1), lbl:'Avg Sick Days/Person', sub:yr, col:'var(--text2)' },
+  ];
+  kpis.forEach(k => {
+    html += `<div class="abs-summary-card"><div class="abs-card-val" style="color:${k.col}">${k.val}</div>
+      <div class="abs-card-lbl">${k.lbl}</div><div class="abs-card-sub">${k.sub}</div></div>`;
+  });
+  html += '</div>';
+
+  // ── Per-person table ──────────────────────────────────────────────
+  const thS = 'style="padding:8px 10px;background:#1a3060;color:#fff;font-size:10px;font-weight:700;font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;border:1px solid rgba(255,255,255,.15);text-align:center;white-space:nowrap"';
+  const thL = 'style="padding:8px 12px;background:#1a3060;color:#fff;font-size:10px;font-weight:700;font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;border:1px solid rgba(255,255,255,.15);text-align:left"';
+
+  html += `<div style="overflow-x:auto;border-radius:12px;border:1px solid var(--border);margin-bottom:20px">
+    <table style="border-collapse:collapse;width:100%;min-width:800px;font-family:var(--fm);font-size:11px">
+      <thead><tr>
+        <th ${thL}>Consultant</th>
+        <th ${thS}>Allow.</th><th ${thS}>Used</th><th ${thS}>Remain</th><th ${thS}>Used%</th>
+        ${absKeys.map(k=>`<th ${thS}><span class="hol-cell2 ${ABS_TYPES[k].cls}" style="width:22px;height:16px;font-size:8px;margin:0 auto">${k}</span></th>`).join('')}
+        <th ${thS}>Sick Days</th><th ${thS}>Trends</th>
+      </tr></thead>
+      <tbody>`;
+
+  people.forEach((p, pi) => {
+    const base  = getBaseAllowance(p.name);
+    const carry = getCarryOver(p.name, yr);
+    const total = base + carry;
+    const t     = getAbsenceTotalsForYear(p.name, yr);
+    const used  = ABS_DEDUCTIBLE.reduce((s,k)=>s+(t[k]||0), 0);
+    const remain= total-used;
+    const usedPct= total>0 ? Math.round(used/total*100) : 0;
+    const sickDays= (t.S||0)/7.5;
+    const rowBg = pi%2===0 ? 'var(--surface)':'var(--surface2)';
+    const remCol= remain<0?'#d92f53':remain<total*.1?'#d4820a':'var(--green)';
+
+    // Sparkline for monthly absence
+    const mVals = months.map(mk => {
+      const abs = getAbsences(mk, p.name);
+      return Object.values(abs).reduce((s,e)=>s+(e?.hours||0),0);
+    });
+    const maxV = Math.max(...mVals, 1);
+    const sparkBars = mVals.map((v,i) => {
+      const h = Math.round((v/maxV)*20)||1;
+      const bg = v>0 ? '#f5365c' : 'var(--surface3)';
+      return `<span style="display:inline-block;width:6px;height:${h}px;background:${bg};border-radius:2px;margin:0 1px;vertical-align:bottom" title="${months[i]}: ${v.toFixed(1)}h"></span>`;
+    }).join('');
+
+    html += `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:8px 12px;background:${rowBg};font-weight:600;border:1px solid var(--border)">${p.name}</td>
+      <td style="padding:7px 10px;background:${rowBg};text-align:center;border:1px solid var(--border)">${total}h</td>
+      <td style="padding:7px 10px;background:${rowBg};text-align:center;color:#d92f53;border:1px solid var(--border)">${used.toFixed(1)}h</td>
+      <td style="padding:7px 10px;background:${rowBg};text-align:center;color:${remCol};font-weight:700;border:1px solid var(--border)">${remain.toFixed(1)}h</td>
+      <td style="padding:7px 10px;background:${rowBg};text-align:center;border:1px solid var(--border)">
+        <div>${usedPct}%</div>
+        <div class="abs-bar-bg" style="width:60px;margin:3px auto 0"><div class="abs-bar-fill" style="width:${Math.min(100,usedPct)}%;background:${usedPct>90?'#d92f53':usedPct>70?'#d4820a':'#2dce89'}"></div></div>
+      </td>
+      ${absKeys.map(k => {
+        const v = t[k]||0;
+        return v>0
+          ? `<td style="padding:7px 10px;text-align:center;border:1px solid var(--border)" class="${ABS_TYPES[k].cls}">${v.toFixed(1)}h</td>`
+          : `<td style="padding:7px 10px;background:${rowBg};text-align:center;color:var(--text3);border:1px solid var(--border)">—</td>`;
+      }).join('')}
+      <td style="padding:7px 10px;background:${rowBg};text-align:center;color:${sickDays>5?'#d92f53':sickDays>2?'#d4820a':'var(--text)'};font-weight:${sickDays>2?'700':'400'};border:1px solid var(--border)">${sickDays.toFixed(1)}</td>
+      <td style="padding:7px 10px;background:${rowBg};text-align:center;border:1px solid var(--border)"><div style="display:flex;align-items:flex-end;justify-content:center;height:22px">${sparkBars}</div></td>
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+
+  // ── Monthly breakdown chart ───────────────────────────────────────
+  if(personF !== 'all'){
+    const p = people[0];
+    html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:14px">📅 Monthly Absence Breakdown — ${p.name}</div>
+      <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:4px">`;
+    const MNAMES=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    months.forEach((mk, mi) => {
+      const abs = getAbsences(mk, p.name);
+      const entries = Object.values(abs);
+      const total = entries.reduce((s,e)=>s+(e?.hours||0),0);
+      html += `<div style="text-align:center">
+        <div style="font-size:9px;color:var(--text3);font-family:var(--fm);margin-bottom:4px">${MNAMES[mi]}</div>
+        <div style="height:60px;background:var(--surface2);border-radius:6px;position:relative;overflow:hidden">
+          ${entries.length>0 ? Object.entries(
+            entries.reduce((acc,e)=>{ if(e?.type){ acc[e.type]=(acc[e.type]||0)+(e.hours||0); } return acc; },{})
+          ).map(([type,hrs]) => {
+            const pct = Math.min(100,Math.round(hrs/7.5*100));
+            return `<div title="${ABS_TYPES[type]?.label}: ${hrs}h" style="position:absolute;bottom:0;left:0;right:0;height:${pct}%;background:${_getAbsColor(type)}"></div>`;
+          }).join('') : ''}
+        </div>
+        <div style="font-size:9px;font-family:var(--fm);color:${total>0?'var(--text)':'var(--text3)'};margin-top:3px">${total>0?total.toFixed(1)+'h':'—'}</div>
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  document.getElementById('holSumContent').innerHTML = html;
+}
+
+function _getAbsColor(code){
+  const colorMap = {
+    H:'#f5365c',H1:'#f5a06a',H2:'#f5d040',Q:'#5e9cf5',E:'#c07af5',
+    S:'#fbb83a',M:'#f58080',L:'#7af5a0',W:'#7ad0f5',B:'#aaa',C:'#888',N:'#f57af5'
+  };
+  return colorMap[code]||'#888';
+}
+
+// ── Populate selectors ────────────────────────────────────────────
+function _populateHolSelects(){
+  // Year selectors
+  const yrs = [...new Set(allMonthKeys().map(mk=>mk.slice(0,4)))].sort().reverse();
+  const curYr = String(new Date().getFullYear());
+  ['holTotYear','holSumYear'].forEach(id => {
+    const sel = document.getElementById(id);
+    if(!sel) return;
+    const prev = sel.value;
+    sel.innerHTML = yrs.map(y=>`<option value="${y}"${y===curYr?' selected':''}>${y}</option>`).join('');
+    if(yrs.includes(prev)) sel.value = prev;
+  });
+  // Team selectors
+  const teamEntries = Object.entries(APP.teams||{}).filter(([,m])=>m&&m.length>0);
+  const teamOpts = '<option value="all">All Teams</option>' +
+    teamEntries.map(([k])=>`<option value="${k}">${TEAM_LABELS[k]||k}</option>`).join('');
+  ['holTeamFilter','holTotTeam','holSumTeam'].forEach(id => {
+    const sel = document.getElementById(id);
+    if(!sel) return;
+    const prev = sel.value;
+    sel.innerHTML = teamOpts;
+    if([...sel.options].some(o=>o.value===prev)) sel.value=prev;
+  });
+  // Person selector
+  const personSel = document.getElementById('holSumPerson');
+  if(personSel){
+    const prev = personSel.value;
+    personSel.innerHTML = '<option value="all">All Consultants</option>' +
+      APP.people.map(p=>`<option value="${p.name}">${p.name}</option>`).join('');
+    if([...personSel.options].some(o=>o.value===prev)) personSel.value=prev;
+  }
+  // Hours custom toggle
+  const hrsSel = document.getElementById('absHoursInput');
+  const hrsCustom = document.getElementById('absHoursCustom');
+  if(hrsSel && hrsCustom){
+    hrsSel.onchange = () => {
+      hrsCustom.style.display = hrsSel.value==='custom' ? '' : 'none';
+    };
+  }
+}
+
+// ── Export functions ──────────────────────────────────────────────
+function exportHolidayCSV(){
+  const mk = document.getElementById('holMonth')?.value || APP.activeMonth;
+  const people = APP.people.filter(p=>personTargetForMonth(p,mk)>0);
+  const rows = [['Month','Consultant','Date','Absence Type','Hours','Deductible','Day of Week']];
+  people.forEach(p => {
+    const abs = getAbsences(mk, p.name);
+    Object.entries(abs).forEach(([ds, entry]) => {
+      if(!entry) return;
+      const t = ABS_TYPES[entry.type]||{label:entry.type, deductible:false};
+      const dow = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(ds+'T12:00:00').getDay()];
+      rows.push([monthLabel(mk), p.name, ds, t.label, entry.hours, t.deductible?'Yes':'No', dow]);
+    });
+    // Legacy fallback
+    if(!Object.keys(abs).length){
+      getHols(mk,p.name).forEach(ds=>{
+        rows.push([monthLabel(mk),p.name,ds,'Holiday',7.5,'Yes',['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(ds+'T12:00:00').getDay()]]);
+      });
+      getSick(mk,p.name).forEach(ds=>{
+        rows.push([monthLabel(mk),p.name,ds,'Sickness',7.5,'No',['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][new Date(ds+'T12:00:00').getDay()]]);
+      });
+    }
+  });
+  if(rows.length===1){ showToast('No absence data to export','err'); return; }
+  rows.sort((a,b)=>a[2]<b[2]?-1:1);
+  downloadCSV('absences_'+mk+'.csv', rows);
+}
+
+function exportTotalsCSV(){
+  const yr = document.getElementById('holTotYear')?.value || String(new Date().getFullYear());
+  const absKeys = Object.keys(ABS_TYPES);
+  const rows = [['Consultant','Base Allowance','Carry Over','Total','Used','Remaining',...absKeys]];
+  APP.people.forEach(p => {
+    const base = getBaseAllowance(p.name), carry = getCarryOver(p.name,yr);
+    const t = getAbsenceTotalsForYear(p.name, yr);
+    const used = ABS_DEDUCTIBLE.reduce((s,k)=>s+(t[k]||0),0);
+    rows.push([p.name, base, carry, base+carry, used.toFixed(1), (base+carry-used).toFixed(1), ...absKeys.map(k=>(t[k]||0).toFixed(1))]);
+  });
+  downloadCSV('totals_'+yr+'.csv', rows);
+}
+
+function exportSummaryCSV(){
+  const yr = document.getElementById('holSumYear')?.value || String(new Date().getFullYear());
+  exportTotalsCSV(); // Same data
+}
+
+// ── Ensure APP.absences exists on load ───────────────────────────
+(function initAbsences(){
+  if(!APP.absences) APP.absences = {};
+  if(!APP.allowances) APP.allowances = {};
+})();
 
 // ═══════════════════════════════════════════════════════════════════
 // HOLIDAY RENDER
@@ -3959,7 +4842,7 @@ function showPage(id){
   if(id==='leaderboard')    { populateAllSelects(); renderLeaderboard(); }
   if(id==='history')        { populateAllSelects(); renderHistory(); }
   if(id==='daybyday')       { populateAllSelects(); renderDayByDay(); }
-  if(id==='holiday')        { populateAllSelects(); renderHoliday(); }
+  if(id==='holiday')        { populateAllSelects(); _populateHolSelects(); renderHoliday(); switchHolTab('calendar'); }
   if(id==='settings')        renderSettings();
   if(id==='manageroverview'){ populateAllSelects(); renderManagerOverview(); }
   if(id==='dailysend')     { populateAllSelects(); renderDailySend(); }
@@ -4654,7 +5537,6 @@ function onSpTeamChange(){
 function renderSpTable(){
   if(!_spDivData){ return; }
   const data       = _spDivData;
-  const yr         = parseInt(document.getElementById('spYearSel')?.value || new Date().getFullYear());
   const teamFilter = document.getElementById('spTeamSel').value;
   const consFilter = document.getElementById('spConsSel').value;
 
@@ -4673,6 +5555,7 @@ function renderSpTable(){
     return;
   }
 
+  // ── Title ──────────────────────────────────────────────────────────
   const divLabel  = DIVISIONS[_spDivKey].label;
   const teamLabel = teamFilter !== 'all' ? (TEAM_LABELS[teamFilter]||teamFilter) : 'All Teams';
   const consLabel = consFilter !== 'all' && consFilter !== '__div__'
@@ -4680,263 +5563,178 @@ function renderSpTable(){
     : 'All Consultants (Combined)';
   const headerTitle = `${divLabel}  ·  ${teamLabel}  ·  ${consLabel}`;
 
-  document.getElementById('sp-sub').textContent =
-    `${yr} performance — revenue, needs met & call compliance outcomes`;
+  const yr = document.getElementById('spYearSel')?.value || new Date().getFullYear();
+  document.getElementById('sp-sub').textContent = `${yr} performance breakdown by consultant — revenue & needs met`;
 
-  // ── Build compliance map { monthKey: {assessments,pass,passDev,fail,regPass,regFail} } ──
-  function _buildComplianceMap(recs){
-    const map = {};
-    recs.forEach(d=>{
-      const mk = (d.dateObs||'').slice(0,7);
-      if(!mk) return;
-      if(!people.some(p=>p.name===d.colleague)) return;
-      if(!map[mk]) map[mk]={assessments:0,pass:0,passDev:0,fail:0,regPass:0,regFail:0};
-      map[mk].assessments++;
-      if(d.initialOutcome==='Pass') map[mk].pass++;
-      else if(d.initialOutcome==='Pass with Development') map[mk].passDev++;
-      else if(d.initialOutcome==='Fail') map[mk].fail++;
-      if(d.regCompliant==='Yes') map[mk].regPass++;
-      if(d.regCompliant==='No')  map[mk].regFail++;
-    });
-    return map;
-  }
-
-  // ── Monthly revenue & NM ─────────────────────────────────────────
+  // ── Build monthly data — always all 12 months ──────────────────────
   const allMonthlyData = _spMonths().map((mk, idx) => {
-    let target=0, actual=0, nmTarget=0, nmActual=0;
+    let target = 0, actual = 0, nmTarget = 0, nmActual = 0;
     people.forEach(p => {
       const ovr   = ((data.monthOverrides||{})[mk]||{})[p.name] || {};
       const rpd   = ovr.riskPerDay !== undefined ? ovr.riskPerDay : 0;
       const daysT = ovr.daysT      !== undefined ? ovr.daysT      : 0;
-      if(rpd>0&&daysT>0){ target+=Math.round(rpd*daysT); nmTarget+=daysT*1.75; }
-      const mine = ((data.months||{})[mk]||{entries:[]}).entries.filter(e=>e.name===p.name);
+      if(rpd > 0 && daysT > 0){
+        target   += Math.round(rpd * daysT);
+        nmTarget += daysT * 1.75;
+      }
+      const mine = ((data.months||{})[mk]||{entries:[]}).entries.filter(e => e.name === p.name);
       actual   += mine.reduce((s,e)=>s+(e.revenue||0),0);
       nmActual += mine.reduce((s,e)=>s+(e.nm||0),0);
     });
-    const hasData = target>0||actual>0||nmActual>0;
-    const diff=actual-target, nmDiff=nmActual-nmTarget;
-    const pct   = target>0   ? Math.round(actual/target*100)    : null;
-    const nmPct = nmTarget>0 ? Math.round(nmActual/nmTarget*100) : null;
+    const hasData = target > 0 || actual > 0 || nmActual > 0;
+    const diff   = actual - target;
+    const pct    = target > 0 ? Math.round(actual/target*100) : null;
+    const nmDiff = nmActual - nmTarget;
+    const nmPct  = nmTarget > 0 ? Math.round(nmActual/nmTarget*100) : null;
     return { mk, idx, target, actual, diff, pct, nmTarget, nmActual, nmDiff, nmPct, hasData };
   });
 
-  // ── Render once compliance data is ready ────────────────────────
-  function _render(compMap){
-    const HDR   = '#1a4040';
-    const fmtGBP = v => '£'+parseFloat(v).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
-    const fmtNm  = v => parseFloat(v).toLocaleString('en-GB',{minimumFractionDigits:1,maximumFractionDigits:1});
-    const fmtPct = v => v===null ? '—' : v+'%';
-    const cellS  = (bg,bold) =>
-      `style="padding:6px 10px;background:${bg};border:1px solid #000;text-align:center;font-size:12px;${bold?'font-weight:700;':''}color:#111;"`;
-    const nameS  = bg =>
-      `style="padding:6px 14px;background:${bg};border:1px solid #000;text-align:left;font-size:12px;font-weight:600;color:#111;white-space:nowrap;"`;
-    const thS  = `style="padding:8px 10px;background:${HDR};color:#fff;border:1px solid #222;text-align:center;font-size:11px;font-weight:700;white-space:nowrap;"`;
-    const thLS = `style="padding:8px 14px;background:${HDR};color:#fff;border:1px solid #222;text-align:left;font-size:11px;font-weight:700;white-space:nowrap;min-width:110px;"`;
-    // Dark green header for compliance columns — matches screenshot
-    const thC  = `style="padding:8px 10px;background:#0e6e44;color:#fff;border:1px solid #222;text-align:center;font-size:11px;font-weight:700;white-space:nowrap;"`;
+  // All 12 months always shown
+  const monthlyData = allMonthlyData;
 
-    // Compliance cell colour: ≥90% green, ≥75% amber, <75% red
-    const compCell = pct => {
-      if(pct===null) return `style="padding:6px 10px;background:#f5f5f5;border:1px solid #ccc;text-align:center;font-size:12px;color:#bbb;"`;
-      const bg  = pct>=90?'#c8f2d8':pct>=75?'#fef3c0':'#fde0e6';
-      const col = pct>=90?'#0e6e44':pct>=75?'#92540a':'#9b1d35';
-      return `style="padding:6px 10px;background:${bg};border:1px solid #ccc;text-align:center;font-size:12px;font-weight:700;color:${col};"`;
-    };
+  // Quarter helper — works on filtered months by matching their original idx
+  function qTotals(qIdx){
+    const rows = monthlyData.filter(r => Math.floor(r.idx/3) === qIdx);
+    const t = {target:0,actual:0,nmTarget:0,nmActual:0};
+    rows.forEach(r=>{ t.target+=r.target; t.actual+=r.actual; t.nmTarget+=r.nmTarget; t.nmActual+=r.nmActual; });
+    t.diff   = t.actual - t.target;
+    t.nmDiff = t.nmActual - t.nmTarget;
+    t.pct    = t.target  > 0 ? Math.round(t.actual/t.target*100)  : null;
+    t.nmPct  = t.nmTarget> 0 ? Math.round(t.nmActual/t.nmTarget*100) : null;
+    return t;
+  }
 
-    // Quarter subtotals including compliance
-    function qTotals(qIdx){
-      const rows = allMonthlyData.filter(r=>Math.floor(r.idx/3)===qIdx);
-      const t={target:0,actual:0,nmTarget:0,nmActual:0,
-               assessments:0,pass:0,passDev:0,fail:0,regPass:0,regFail:0};
-      rows.forEach(r=>{
-        t.target+=r.target; t.actual+=r.actual;
-        t.nmTarget+=r.nmTarget; t.nmActual+=r.nmActual;
-        const c=compMap[r.mk]||{};
-        t.assessments+=(c.assessments||0); t.pass+=(c.pass||0);
-        t.passDev+=(c.passDev||0);         t.fail+=(c.fail||0);
-        t.regPass+=(c.regPass||0);         t.regFail+=(c.regFail||0);
-      });
-      t.diff=t.actual-t.target; t.nmDiff=t.nmActual-t.nmTarget;
-      t.pct   = t.target>0   ? Math.round(t.actual/t.target*100)    : null;
-      t.nmPct = t.nmTarget>0 ? Math.round(t.nmActual/t.nmTarget*100) : null;
-      const outTot = t.assessments;
-      t.outPct = outTot>0 ? Math.round((t.pass+t.passDev)/outTot*100)            : null;
-      t.regPct = outTot>0 ? Math.round(t.regPass/(t.regPass+t.regFail||1)*100)   : null;
-      return t;
-    }
+  // Annual totals
+  const tot = { target:0, actual:0, nmTarget:0, nmActual:0 };
+  monthlyData.forEach(r=>{ tot.target+=r.target; tot.actual+=r.actual; tot.nmTarget+=r.nmTarget; tot.nmActual+=r.nmActual; });
+  tot.diff   = tot.actual - tot.target;
+  tot.nmDiff = tot.nmActual - tot.nmTarget;
+  tot.pct    = tot.target  > 0 ? Math.round(tot.actual/tot.target*100)    : null;
+  tot.nmPct  = tot.nmTarget> 0 ? Math.round(tot.nmActual/tot.nmTarget*100): null;
 
-    // Annual totals
-    const tot={target:0,actual:0,nmTarget:0,nmActual:0,
-               assessments:0,pass:0,passDev:0,fail:0,regPass:0,regFail:0};
-    allMonthlyData.forEach(r=>{
-      tot.target+=r.target; tot.actual+=r.actual;
-      tot.nmTarget+=r.nmTarget; tot.nmActual+=r.nmActual;
-      const c=compMap[r.mk]||{};
-      tot.assessments+=(c.assessments||0); tot.pass+=(c.pass||0);
-      tot.passDev+=(c.passDev||0);         tot.fail+=(c.fail||0);
-      tot.regPass+=(c.regPass||0);         tot.regFail+=(c.regFail||0);
-    });
-    tot.diff=tot.actual-tot.target; tot.nmDiff=tot.nmActual-tot.nmTarget;
-    tot.pct   = tot.target>0   ? Math.round(tot.actual/tot.target*100)    : null;
-    tot.nmPct = tot.nmTarget>0 ? Math.round(tot.nmActual/tot.nmTarget*100) : null;
-    const totOut = tot.assessments;
-    tot.outPct = totOut>0 ? Math.round((tot.pass+tot.passDev)/totOut*100)          : null;
-    tot.regPct = totOut>0 ? Math.round(tot.regPass/(tot.regPass+tot.regFail||1)*100): null;
+  // ── Style helpers ──────────────────────────────────────────────────
+  const HDR   = '#1a4040';
+  const fmtGBP = v => '£'+parseFloat(v).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fmtNm  = v => parseFloat(v).toLocaleString('en-GB',{minimumFractionDigits:1,maximumFractionDigits:1});
+  const fmtPct = v => v === null ? '—' : v+'%';
+  const cellS  = (bg,bold) => `style="padding:6px 10px;background:${bg};border:1px solid #000;text-align:center;font-size:12px;${bold?'font-weight:700;':''}color:#111;"`;
+  const nameS  = bg => `style="padding:6px 14px;background:${bg};border:1px solid #000;text-align:left;font-size:12px;font-weight:600;color:#111;white-space:nowrap;"`;
+  const thS    = `style="padding:8px 10px;background:${HDR};color:#fff;border:1px solid #222;text-align:center;font-size:11px;font-weight:700;white-space:nowrap;"`;
+  const thLS   = `style="padding:8px 14px;background:${HDR};color:#fff;border:1px solid #222;text-align:left;font-size:11px;font-weight:700;white-space:nowrap;min-width:110px;"`;
 
-    // ── Build rows ─────────────────────────────────────────────────
-    let rowsHtml = '';
-    [0,1,2,3].forEach(qIdx => {
-      const qLabel  = ['Q1','Q2','Q3','Q4'][qIdx];
-      const qt      = qTotals(qIdx);
-      const qRevBg  = qt.diff>=0  ? '#c8f2d8' : '#f8d0d0';
-      const qNmBg   = qt.nmDiff>=0? '#c8f2d8' : '#f8d0d0';
-      const qMonths = allMonthlyData.filter(r=>Math.floor(r.idx/3)===qIdx);
-      const rowspan = qMonths.length; // always 3
+  // ── Build rows — always all 4 quarters, all 12 months ─────────────
+  let rowsHtml = '';
+  [0,1,2,3].forEach(qIdx => {
+    const qLabel   = ['Q1','Q2','Q3','Q4'][qIdx];
+    const qt       = qTotals(qIdx);
+    const qRevBg   = qt.diff >= 0 ? '#c8f2d8' : '#f8d0d0';
+    const qNmBg    = qt.nmDiff >= 0 ? '#c8f2d8' : '#f8d0d0';
+    const qMonths  = monthlyData.filter(r => Math.floor(r.idx/3) === qIdx);
+    const rowspan  = qMonths.length; // always 3
 
-      qMonths.forEach((r, mi) => {
-        const rowBg    = mi%2===0 ? '#ffffff' : '#f5f7fb';
-        const emptyBg  = '#f0f2f6';
-        const revDiffBg= !r.hasData ? emptyBg : r.diff>=0  ? '#c8f2d8' : '#f8d0d0';
-        const nmDiffBg = !r.hasData ? emptyBg : r.nmTarget===0 ? '#fff8ee'
-                         : r.nmDiff>=0 ? '#c8f2d8' : '#f8d0d0';
-        const empty    = `style="padding:6px 10px;background:${emptyBg};border:1px solid #ccc;text-align:center;font-size:12px;color:#bbb;"`;
+    qMonths.forEach((r, mi) => {
+      const rowBg     = mi % 2 === 0 ? '#ffffff' : '#f5f7fb';
+      const emptyBg   = '#f0f2f6';
+      const revDiffBg = !r.hasData ? emptyBg : r.diff  >= 0 ? '#c8f2d8' : '#f8d0d0';
+      const nmDiffBg  = !r.hasData ? emptyBg : r.nmTarget === 0 ? '#fff8ee'
+                       : r.nmDiff >= 0 ? '#c8f2d8' : '#f8d0d0';
+      const empty     = `style="padding:6px 10px;background:${emptyBg};border:1px solid #ccc;text-align:center;font-size:12px;color:#bbb;"`;
 
-        // Compliance data for this month
-        const comp    = compMap[r.mk]||{};
-        const mAssess = comp.assessments||0;
-        // Outcomes = (Pass + Pass with Dev) / total  — "fair" rate
-        const mOutPct = mAssess>0 ? Math.round(((comp.pass||0)+(comp.passDev||0))/mAssess*100) : null;
-        const regTot  = (comp.regPass||0)+(comp.regFail||0);
-        const mRegPct = regTot>0  ? Math.round((comp.regPass||0)/regTot*100) : null;
+      const qRevCell = mi === 0
+        ? `<td rowspan="${rowspan}" style="padding:6px 10px;background:${qRevBg};border:1px solid #000;text-align:center;font-size:12px;font-weight:700;color:#111;vertical-align:middle;">
+             <div style="font-size:10px;font-weight:600;color:#555;margin-bottom:3px">${qLabel}</div>
+             ${qt.actual > 0 ? fmtGBP(qt.actual) : '—'}<br>
+             <span style="font-size:10px;color:#555">${fmtPct(qt.pct)}</span>
+           </td>` : '';
+      const qNmCell = mi === 0
+        ? `<td rowspan="${rowspan}" style="padding:6px 10px;background:${qNmBg};border:1px solid #000;text-align:center;font-size:12px;font-weight:700;color:#111;vertical-align:middle;">
+             <div style="font-size:10px;font-weight:600;color:#555;margin-bottom:3px">${qLabel}</div>
+             ${qt.nmActual > 0 ? fmtNm(qt.nmActual) : '—'}<br>
+             <span style="font-size:10px;color:#555">${fmtPct(qt.nmPct)}</span>
+           </td>` : '';
 
-        // Quarter merged cells (revenue)
-        const qRevCell = mi===0 ? `<td rowspan="${rowspan}" style="padding:6px 10px;background:${qRevBg};border:1px solid #000;text-align:center;font-size:12px;font-weight:700;color:#111;vertical-align:middle;">
-          <div style="font-size:10px;font-weight:600;color:#555;margin-bottom:3px">${qLabel}</div>
-          ${qt.actual>0?fmtGBP(qt.actual):'—'}<br>
-          <span style="font-size:10px;color:#555">${fmtPct(qt.pct)}</span>
-        </td>` : '';
-
-        // Quarter merged cells (NM)
-        const qNmCell = mi===0 ? `<td rowspan="${rowspan}" style="padding:6px 10px;background:${qNmBg};border:1px solid #000;text-align:center;font-size:12px;font-weight:700;color:#111;vertical-align:middle;">
-          <div style="font-size:10px;font-weight:600;color:#555;margin-bottom:3px">${qLabel}</div>
-          ${qt.nmActual>0?fmtNm(qt.nmActual):'—'}<br>
-          <span style="font-size:10px;color:#555">${fmtPct(qt.nmPct)}</span>
-        </td>` : '';
-
-        // Quarter merged cells (compliance)
-        const qCompBg  = qt.outPct===null?emptyBg:qt.outPct>=90?'#c8f2d8':qt.outPct>=75?'#fef3c0':'#fde0e6';
-        const qCompCol = qt.outPct===null?'#bbb':qt.outPct>=90?'#0e6e44':qt.outPct>=75?'#92540a':'#9b1d35';
-        const qCompCell= mi===0 ? `<td rowspan="${rowspan}" style="padding:6px 8px;background:${qCompBg};border:1px solid #ccc;text-align:center;font-size:11px;font-weight:700;color:${qCompCol};vertical-align:middle;">
-          <div style="font-size:10px;font-weight:600;color:#555;margin-bottom:3px">${qLabel}</div>
-          ${qt.outPct===null?'—':qt.outPct+'%'}<br>
-          <div style="font-size:10px;margin-top:2px;color:#555">${qt.assessments>0?qt.assessments+' calls':''}</div>
-        </td>` : '';
-
-        if(!r.hasData && mAssess===0){
-          rowsHtml += `<tr>
-            <td style="padding:6px 14px;background:${emptyBg};border:1px solid #ccc;text-align:left;font-size:12px;font-weight:400;color:#aaa;">${SP_MONTH_NAMES[r.idx]}</td>
-            <td ${empty}>—</td><td ${empty}>—</td><td ${empty}>—</td><td ${empty}>—</td>
-            ${qRevCell}
-            <td ${empty}>—</td><td ${empty}>—</td><td ${empty}>—</td><td ${empty}>—</td>
-            ${qNmCell}
-            <td ${empty}>—</td><td ${empty}>—</td>
-            ${qCompCell}
-          </tr>`;
-        } else {
-          rowsHtml += `<tr>
-            <td ${nameS(r.hasData?rowBg:emptyBg)}>${SP_MONTH_NAMES[r.idx]}</td>
-            <td ${cellS(r.hasData?rowBg:emptyBg,false)}>${r.target>0?fmtGBP(r.target):'£0.00'}</td>
-            <td ${cellS(r.hasData?rowBg:emptyBg,false)}>${r.actual>0?fmtGBP(r.actual):'£0.00'}</td>
-            <td ${cellS(revDiffBg,true)}>${fmtGBP(r.diff)}</td>
-            <td ${cellS(revDiffBg,false)}>${r.target>0?fmtPct(r.pct):'—'}</td>
-            ${qRevCell}
-            <td ${cellS(r.hasData?rowBg:emptyBg,false)}>${r.nmTarget>0?fmtNm(r.nmTarget):'0'}</td>
-            <td ${cellS(r.hasData?rowBg:emptyBg,false)}>${r.nmActual}</td>
-            <td ${cellS(nmDiffBg,true)}>${fmtNm(r.nmDiff)}</td>
-            <td ${cellS(nmDiffBg,false)}>${r.nmTarget>0?fmtPct(r.nmPct):'—'}</td>
-            ${qNmCell}
-            <td ${compCell(mOutPct)}>${mOutPct===null?'—':mOutPct+'%'}${mAssess>0?'<br><span style="font-size:10px;font-weight:400;color:#777">'+mAssess+' calls</span>':''}</td>
-            <td ${compCell(mRegPct)}>${mRegPct===null?'—':mRegPct+'%'}</td>
-            ${qCompCell}
-          </tr>`;
-        }
-      });
-
-      rowsHtml += `<tr><td colspan="14" style="height:4px;background:#d8dde6;border:none;padding:0"></td></tr>`;
+      if(!r.hasData){
+        rowsHtml += `<tr>
+          <td ${nameS(emptyBg)} style="padding:6px 14px;background:${emptyBg};border:1px solid #ccc;text-align:left;font-size:12px;font-weight:400;color:#aaa;">${SP_MONTH_NAMES[r.idx]}</td>
+          <td ${empty}>—</td>
+          <td ${empty}>—</td>
+          <td ${empty}>—</td>
+          <td ${empty}>—</td>
+          ${qRevCell}
+          <td ${empty}>—</td>
+          <td ${empty}>—</td>
+          <td ${empty}>—</td>
+          <td ${empty}>—</td>
+          ${qNmCell}
+        </tr>`;
+      } else {
+        rowsHtml += `<tr>
+          <td ${nameS(rowBg)}>${SP_MONTH_NAMES[r.idx]}</td>
+          <td ${cellS(rowBg,false)}>${r.target > 0 ? fmtGBP(r.target) : '£0.00'}</td>
+          <td ${cellS(rowBg,false)}>${r.actual > 0 ? fmtGBP(r.actual) : '£0.00'}</td>
+          <td ${cellS(revDiffBg,true)}>${fmtGBP(r.diff)}</td>
+          <td ${cellS(revDiffBg,false)}>${r.target > 0 ? fmtPct(r.pct) : '—'}</td>
+          ${qRevCell}
+          <td ${cellS(rowBg,false)}>${r.nmTarget > 0 ? fmtNm(r.nmTarget) : '0'}</td>
+          <td ${cellS(rowBg,false)}>${r.nmActual}</td>
+          <td ${cellS(nmDiffBg,true)}>${fmtNm(r.nmDiff)}</td>
+          <td ${cellS(nmDiffBg,false)}>${r.nmTarget > 0 ? fmtPct(r.nmPct) : '—'}</td>
+          ${qNmCell}
+        </tr>`;
+      }
     });
 
-    // Annual total row
-    const totRevBg = tot.diff>=0  ? '#a8e6c0' : '#f5b0b0';
-    const totNmBg  = tot.nmDiff>=0? '#a8e6c0' : '#f5b0b0';
-    rowsHtml += `<tr>
-      <td style="padding:8px 14px;background:${HDR};color:#fff;border:1px solid #222;font-size:12px;font-weight:700;">Annual Total</td>
-      <td ${cellS('#e0e4ec',true)}>${fmtGBP(tot.target)}</td>
-      <td ${cellS('#e0e4ec',true)}>${fmtGBP(tot.actual)}</td>
-      <td ${cellS(totRevBg,true)}>${fmtGBP(tot.diff)}</td>
-      <td ${cellS(totRevBg,true)}>${fmtPct(tot.pct)}</td>
-      <td ${cellS('#e0e4ec',false)}></td>
-      <td ${cellS('#e0e4ec',true)}>${fmtNm(tot.nmTarget)}</td>
-      <td ${cellS('#e0e4ec',true)}>${tot.nmActual}</td>
-      <td ${cellS(tot.nmDiff>=0?'#a8e6c0':'#f5b0b0',true)}>${fmtNm(tot.nmDiff)}</td>
-      <td ${cellS(tot.nmDiff>=0?'#a8e6c0':'#f5b0b0',true)}>${fmtPct(tot.nmPct)}</td>
-      <td ${cellS('#e0e4ec',false)}></td>
-      <td ${compCell(tot.outPct)}>${tot.outPct===null?'—':tot.outPct+'%'}${tot.assessments>0?'<br><span style="font-size:10px;font-weight:400">'+tot.assessments+' calls</span>':''}</td>
-      <td ${compCell(tot.regPct)}>${tot.regPct===null?'—':tot.regPct+'%'}</td>
-      <td ${cellS('#e0e4ec',false)}></td>
-    </tr>`;
+    // Quarter separator
+    rowsHtml += `<tr><td colspan="11" style="height:4px;background:#d8dde6;border:none;padding:0"></td></tr>`;
+  });
 
-    document.getElementById('spContent').innerHTML = `
-      <div style="background:${HDR};color:#fff;padding:11px 18px;border-radius:8px 8px 0 0;font-size:13px;font-weight:700;letter-spacing:.02em;">${headerTitle}</div>
-      <div style="background:#fff;border-radius:0 0 8px 8px;overflow-x:auto;box-shadow:0 2px 16px rgba(0,0,0,.18);">
-        <table style="border-collapse:collapse;width:100%;font-family:Calibri,Arial,sans-serif;min-width:900px;">
-          <thead>
-            <tr>
-              <th ${thLS}> </th>
-              <th ${thS}>Target</th>
-              <th ${thS}>Actual</th>
-              <th ${thS}>Difference</th>
-              <th ${thS}>Percentage</th>
-              <th ${thS}>Quarter</th>
-              <th ${thS}>NM Target</th>
-              <th ${thS}>NM Actual</th>
-              <th ${thS}>NM Diff</th>
-              <th ${thS}>NM %</th>
-              <th ${thS}>Quarter</th>
-              <th ${thC}>Outcomes</th>
-              <th ${thC}>Reg Compliance</th>
-              <th ${thC}>Quarter</th>
-            </tr>
-          </thead>
-          <tbody>${rowsHtml}</tbody>
-        </table>
-      </div>
-      <div style="margin-top:10px;font-size:11px;color:var(--text3);font-family:var(--fm);display:flex;gap:16px;flex-wrap:wrap;">
-        <span><span style="color:#2dce89;font-weight:700">■</span> Above target / ≥90%</span>
-        <span><span style="color:#d4820a;font-weight:700">■</span> 75–89%</span>
-        <span><span style="color:#f5365c;font-weight:700">■</span> Below target / &lt;75%</span>
-        <span style="color:var(--text3)">Outcomes = Fair / total assessed · Reg Compliance = Reg Pass / total</span>
-      </div>`;
-  }
+  // Total row
+  const totRevBg = tot.diff >= 0 ? '#a8e6c0' : '#f5b0b0';
+  const totNmBg  = tot.nmDiff >= 0 ? '#a8e6c0' : '#f5b0b0';
+  rowsHtml += `<tr>
+    <td style="padding:8px 14px;background:${HDR};color:#fff;border:1px solid #222;font-size:12px;font-weight:700;">Annual Total</td>
+    <td ${cellS('#e0e4ec',true)}>${fmtGBP(tot.target)}</td>
+    <td ${cellS('#e0e4ec',true)}>${fmtGBP(tot.actual)}</td>
+    <td ${cellS(totRevBg,true)}>${fmtGBP(tot.diff)}</td>
+    <td ${cellS(totRevBg,true)}>${fmtPct(tot.pct)}</td>
+    <td ${cellS('#e0e4ec',false)}></td>
+    <td ${cellS('#e0e4ec',true)}>${fmtNm(tot.nmTarget)}</td>
+    <td ${cellS('#e0e4ec',true)}>${tot.nmActual}</td>
+    <td ${cellS(totNmBg,true)}>${fmtNm(tot.nmDiff)}</td>
+    <td ${cellS(totNmBg,true)}>${fmtPct(tot.nmPct)}</td>
+    <td ${cellS('#e0e4ec',false)}></td>
+  </tr>`;
 
-  // ── Fetch compliance, then render ───────────────────────────────
-  const divDbKey = DIVISIONS[_spDivKey]?.dbKey;
-
-  function _fetchAndRender(){
-    const ref = _dbRef ? _db.ref(divDbKey+'/compliance') : null;
-    if(!ref){ _render({}); return; }
-    ref.once('value').then(snap=>{
-      const recs = Object.values(snap.val()||{}).filter(d=>parseInt((d.dateObs||'').slice(0,4))===yr);
-      _render(_buildComplianceMap(recs));
-    }).catch(()=>_render({}));
-  }
-
-  // Reuse cached Call Outcomes data if available for same division
-  if(_coAllData && _coAllData.length>0 && _spDivKey===_currentDivKey){
-    const yearRecs = _coAllData.filter(d=>parseInt((d.dateObs||'').slice(0,4))===yr);
-    _render(_buildComplianceMap(yearRecs));
-  } else {
-    _fetchAndRender();
-  }
+  // ── Render ────────────────────────────────────────────────────────
+  document.getElementById('spContent').innerHTML = `
+    <div style="background:${HDR};color:#fff;padding:11px 18px;border-radius:8px 8px 0 0;font-size:13px;font-weight:700;letter-spacing:.02em;">
+      ${headerTitle}
+    </div>
+    <div style="background:#fff;border-radius:0 0 8px 8px;overflow-x:auto;box-shadow:0 2px 16px rgba(0,0,0,.18);">
+      <table style="border-collapse:collapse;width:100%;font-family:Calibri,Arial,sans-serif;min-width:760px;">
+        <thead>
+          <tr>
+            <th ${thLS}> </th>
+            <th ${thS}>Target</th>
+            <th ${thS}>Actual</th>
+            <th ${thS}>Difference</th>
+            <th ${thS}>Percentage</th>
+            <th ${thS}>Quarter</th>
+            <th ${thS}>NM Target</th>
+            <th ${thS}>NM Actual</th>
+            <th ${thS}>NM Difference</th>
+            <th ${thS}>NM Percentage</th>
+            <th ${thS}>Quarter</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:var(--text3);font-family:var(--fm)">
+      <span style="color:#2dce89;font-weight:700">■</span> Above target &nbsp;·&nbsp;
+      <span style="color:#f5365c;font-weight:700">■</span> Below target &nbsp;·&nbsp;
+      Quarter cells show combined actual + % for that quarter
+    </div>`;
 }
 
 // ── CSV export ────────────────────────────────────────────────────
@@ -4944,57 +5742,30 @@ function exportSpCSV(){
   if(!_spDivData){ showToast('No data loaded','err'); return; }
   const teamFilter = document.getElementById('spTeamSel').value;
   const consFilter = document.getElementById('spConsSel').value;
-  const yr = parseInt(document.getElementById('spYearSel')?.value||new Date().getFullYear());
   let people = (_spDivData.people||[]).slice();
   if(teamFilter!=='all'){ const m=(_spDivData.teams||{})[teamFilter]||[]; people=people.filter(p=>m.includes(p.name)); }
   if(consFilter!=='all'&&consFilter!=='__div__') people=people.filter(p=>p.name===consFilter);
-
-  const buildMap = recs => {
-    const map={};
-    recs.filter(d=>parseInt((d.dateObs||'').slice(0,4))===yr&&people.some(p=>p.name===d.colleague)).forEach(d=>{
-      const mk=(d.dateObs||'').slice(0,7); if(!mk) return;
-      if(!map[mk]) map[mk]={assessments:0,pass:0,passDev:0,regPass:0,regFail:0};
-      map[mk].assessments++;
-      if(d.initialOutcome==='Pass') map[mk].pass++;
-      if(d.initialOutcome==='Pass with Development') map[mk].passDev++;
-      if(d.regCompliant==='Yes') map[mk].regPass++;
-      if(d.regCompliant==='No')  map[mk].regFail++;
+  let csv = 'Month,Target,Actual,Difference,Percentage,NM Target,NM Actual,NM Difference,NM Percentage\n';
+  _spMonths().forEach((mk,i)=>{
+    let tgt=0,act=0,nmT=0,nmA=0;
+    people.forEach(p=>{
+      const ovr=(((_spDivData.monthOverrides||{})[mk])||{})[p.name]||{};
+      const rpd=ovr.riskPerDay!==undefined?ovr.riskPerDay:0;
+      const dt=ovr.daysT!==undefined?ovr.daysT:0;
+      if(rpd>0&&dt>0){ tgt+=Math.round(rpd*dt); nmT+=dt*1.75; }
+      const mine=(((_spDivData.months||{})[mk])||{entries:[]}).entries.filter(e=>e.name===p.name);
+      act+=mine.reduce((s,e)=>s+(e.revenue||0),0);
+      nmA+=mine.reduce((s,e)=>s+(e.nm||0),0);
     });
-    return map;
-  };
-
-  function doExport(compMap){
-    let csv='Month,Target,Actual,Difference,Percentage,NM Target,NM Actual,NM Difference,NM Percentage,Assessments,Outcomes %,Reg Compliance %\n';
-    _spMonths().forEach((mk,i)=>{
-      let tgt=0,act=0,nmT=0,nmA=0;
-      people.forEach(p=>{
-        const ovr=(((_spDivData.monthOverrides||{})[mk])||{})[p.name]||{};
-        const rpd=ovr.riskPerDay!==undefined?ovr.riskPerDay:0, dt=ovr.daysT!==undefined?ovr.daysT:0;
-        if(rpd>0&&dt>0){ tgt+=Math.round(rpd*dt); nmT+=dt*1.75; }
-        const mine=(((_spDivData.months||{})[mk])||{entries:[]}).entries.filter(e=>e.name===p.name);
-        act+=mine.reduce((s,e)=>s+(e.revenue||0),0);
-        nmA+=mine.reduce((s,e)=>s+(e.nm||0),0);
-      });
-      const c=compMap[mk]||{};
-      const outPct=c.assessments>0?Math.round(((c.pass||0)+(c.passDev||0))/c.assessments*100)+'%':'—';
-      const regTot=(c.regPass||0)+(c.regFail||0);
-      const regPct=regTot>0?Math.round((c.regPass||0)/regTot*100)+'%':'—';
-      csv+=`${SP_MONTH_NAMES[i]},${tgt.toFixed(2)},${act.toFixed(2)},${(act-tgt).toFixed(2)},${tgt>0?Math.round(act/tgt*100)+'%':'—'},${nmT.toFixed(1)},${nmA},${(nmA-nmT).toFixed(1)},${nmT>0?Math.round(nmA/nmT*100)+'%':'—'},${c.assessments||0},${outPct},${regPct}
-`;
-    });
-    const a=document.createElement('a');
-    a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-    a.download='staff_performance_'+yr+'.csv'; a.click();
-    showToast('CSV exported');
-  }
-
-  if(_coAllData&&_coAllData.length>0&&_spDivKey===_currentDivKey){
-    doExport(buildMap(_coAllData));
-  } else {
-    const ref=_dbRef?_db.ref(DIVISIONS[_spDivKey].dbKey+'/compliance'):null;
-    if(!ref){ doExport({}); return; }
-    ref.once('value').then(snap=>doExport(buildMap(Object.values(snap.val()||{})))).catch(()=>doExport({}));
-  }
+    const pct=tgt>0?Math.round(act/tgt*100):'—';
+    const nmPct=nmT>0?Math.round(nmA/nmT*100):'—';
+    csv+=`${SP_MONTH_NAMES[i]},${tgt.toFixed(2)},${act.toFixed(2)},${(act-tgt).toFixed(2)},${pct}%,${nmT.toFixed(1)},${nmA},${(nmA-nmT).toFixed(1)},${nmPct}%\n`;
+  });
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='staff_performance_2026.csv';
+  a.click();
+  showToast('CSV exported');
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -9208,6 +9979,8 @@ function _applyDefaults(){
   if(!APP.bizTargets)    APP.bizTargets = {};
   if(!APP.holidays)      APP.holidays = {};
   if(!APP.sickness)      APP.sickness = {};
+  if(!APP.absences)      APP.absences = {};
+  if(!APP.allowances)    APP.allowances = {};
   if(APP.nmRate == null) APP.nmRate = 1.75; // NM per working day target
   if(!APP.monthOverrides) APP.monthOverrides = {};
   if(APP.manualElapsed == null) APP.manualElapsed = null;
