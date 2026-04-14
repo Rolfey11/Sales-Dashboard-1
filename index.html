@@ -14295,6 +14295,7 @@ function _buildEnhancedCard(p, mk){
         :`<span style="font-size:9px;color:var(--text3);font-weight:400">view ↗</span>`}
     </div>
 
+    ${typeof _buildGauge==='function' ? _buildGauge(p.revPct) : ''}
     <div class="p-rev">£${Math.round(p.revMTD).toLocaleString()}</div>
     <div class="p-sub">${p.revPct}% of £${p.target.toLocaleString()}</div>
     <div class="bar-bg"><div class="bar-fill animate" style="width:0%;background:${rbc}" data-w="${Math.min(p.revPct,100)}"></div></div>
