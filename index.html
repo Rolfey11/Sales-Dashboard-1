@@ -1570,10 +1570,10 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     <button class="nav-tab" onclick="showPage('dailysend')" id="dailySendTab" style="color:#fff;background:#6b0d2d;border-radius:6px 6px 0 0;font-weight:700;">📤 Daily Send</button>
     <button class="nav-tab" onclick="showPage('staffperf')" id="staffPerfTab" style="color:#fff;background:#1a4040;border-radius:6px 6px 0 0;font-weight:700;">📋 Staff Performance</button>
     <button class="nav-tab" onclick="showPage('compliance')" id="complianceTab" style="color:#fff;background:#1a3060;border-radius:6px 6px 0 0;font-weight:700;">🛡 Compliance</button>
-    <button class="nav-tab" onclick="showPage('calloutcomes')" id="callOutcomesTab" style="color:#fff;background:#3d1a60;border-radius:6px 6px 0 0;font-weight:700;">📊 Call Outcomes</button>
-    <button class="nav-tab" onclick="showPage('consultantdaily')" id="consultantDailyTab" style="color:#fff;background:#1a4a1a;border-radius:6px 6px 0 0;font-weight:700;">📅 Consultant Daily</button>
-    <button class="nav-tab" onclick="showPage('bonuscalc')" id="bonusCalcTab" style="color:#fff;background:#2a1a4a;border-radius:6px 6px 0 0;font-weight:700;">💰 Bonus Calculator</button>
-    <button class="nav-tab" onclick="showPage('remedialmanager')" id="remedialManagerTab" style="color:#fff;background:#7a3a00;border-radius:6px 6px 0 0;font-weight:700;">⚠️ Remedial Queue <span id="remMgrBadge" style="display:none;background:#f5365c;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;margin-left:4px;font-family:var(--fm)"></span></button>
+    <button class="nav-tab" onclick="showPage('calloutcomes')" id="callOutcomesTab" style="font-weight:700;">📊 Call Outcomes</button>
+    <button class="nav-tab" onclick="showPage('consultantdaily')" id="consultantDailyTab" style="font-weight:700;">📅 Consultant Daily</button>
+    <button class="nav-tab" onclick="showPage('bonuscalc')" id="bonusCalcTab" style="font-weight:700;">💰 Bonus Calculator</button>
+    <button class="nav-tab" onclick="showPage('remedialmanager')" id="remedialManagerTab" style="font-weight:700;">⚠️ Remedial Queue <span id="remMgrBadge" style="display:none;background:#f5365c;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;margin-left:4px;font-family:var(--fm)"></span></button>
   </div>
 </nav>
 
@@ -3278,6 +3278,8 @@ const DIVISIONS = {
 };
 
 const PASS_HASH = '04f5b70888c0c4bf5956cbca32acbd8701ae8d1d83db91fed942861c56934775';
+// Admin PIN stored as SHA-256 hash — change the hash here to change the PIN
+const ADMIN_PIN_HASH = '9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0'; // SHA-256 of '0000'
 
 async function _sha256(str){
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
@@ -3491,14 +3493,15 @@ function showAdminLogin(){
 }
 
 // ─── LOGIN STEP 3: PIN verification ─────────────────────────────
-function attemptPinLogin(){
+async function attemptPinLogin(){
   const pin  = document.getElementById('loginPin').value;
   const err3 = document.getElementById('loginErr3');
   if(!pin){ err3.textContent='Please enter your PIN.'; return; }
 
-  // Admin bootstrap override
+  // Admin bootstrap override — compare against hashed PIN, never plaintext
   if(_adminLoginMode){
-    if(pin !== '0000'){
+    const pinHash = await _sha256(pin);
+    if(pinHash !== ADMIN_PIN_HASH){
       err3.textContent='Incorrect admin PIN.';
       document.getElementById('loginPin').value='';
       document.getElementById('loginPin').focus();
@@ -3520,10 +3523,10 @@ function attemptPinLogin(){
 
   const uid  = document.getElementById('loginUserSel').value;
   const user = _allUsers[uid];
- if(!user){
-  err3.textContent = 'Session error — go back and reselect.';
-  return;
-}
+  if(!user){
+    err3.textContent = 'Session error — go back and reselect.';
+    return;
+  }
   if(String(user.pin) !== String(pin)){
     err3.textContent='Incorrect PIN. Please try again.';
     document.getElementById('loginPin').value='';
@@ -3907,7 +3910,8 @@ function calcStats(monthKey){
 
     // ── COP (next working day checkpoint) ────────────────────────
     const copRev = (calDays * (ep.riskPerDay||0) + (ep.riskPerDay||0)) - revMTD;
-    const copNm  = (calDays * nmRate() + nmRate()) - nmMTD;
+    const _nmR   = nmRateFor(p.name||'');
+    const copNm  = (calDays * _nmR + _nmR) - nmMTD;
 
     // ── percentages ──────────────────────────────────────────────
     const revPct = target>0   ? Math.round(revMTD  / target   * 100) : 0;
@@ -7516,7 +7520,7 @@ function renderArchive(){
               <td style="padding:9px 12px">${d.assessor||'—'}</td>
               <td style="padding:9px 12px">${d.brand||'—'}</td>
               <td style="padding:9px 12px;font-weight:700;color:${outCol(d.initialOutcome)}">${d.initialOutcome||'—'}</td>
-              <td style="padding:9px 12px;font-weight:600" style="color:${d.regCompliant==='Yes'?'var(--green)':d.regCompliant==='No'?'var(--red)':'var(--text3)'}">${d.regCompliant||'—'}</td>
+              <td style="padding:9px 12px;font-weight:600;color:${d.regCompliant==='Yes'?'var(--green)':d.regCompliant==='No'?'var(--red)':'var(--text3)'}">${d.regCompliant||'—'}</td>
               <td style="padding:9px 12px;color:${d.procCompliant==='Yes'?'var(--green)':d.procCompliant==='No'?'var(--red)':'var(--text3)'}">${d.procCompliant||'—'}</td>
               <td style="padding:9px 12px;white-space:nowrap">
                 <button class="btn btn-s" onclick="viewComplianceRecord('${d.id}')" style="font-size:11px;padding:4px 10px">View</button>
@@ -10812,11 +10816,11 @@ function exportHolidayCSV(){
     const hols = getHols(mk, p.name);
     const sick = getSick(mk, p.name);
     hols.forEach(ds => {
-      const dow = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date(ds).getDay()];
+      const dow = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date(ds+'T12:00:00').getDay()];
       rows.push([monthLabel(mk), p.name, ds, 'Planned Holiday', dow]);
     });
     sick.forEach(ds => {
-      const dow = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date(ds).getDay()];
+      const dow = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date(ds+'T12:00:00').getDay()];
       rows.push([monthLabel(mk), p.name, ds, 'Sickness/Unplanned', dow]);
     });
   });
@@ -11234,7 +11238,7 @@ function _startSessionTimeout(){
 function getSickWorkDayCount(mk, personName){
   const sickDates = getSick(mk, personName);
   return sickDates.filter(ds=>{
-    const dow = new Date(ds).getDay();
+    const dow = new Date(ds+'T12:00:00').getDay();
     return dow !== 0 && dow !== 6 && !isBankHoliday(ds);
   }).length;
 }
@@ -11257,7 +11261,7 @@ function personAdjustedTarget(p, mk){
 // Adjusted NM target accounting for sickness
 function personAdjustedNmTarget(p, mk){
   const effectiveDays = personEffectiveDaysT(p, mk);
-  return parseFloat((effectiveDays * 1.75).toFixed(2));
+  return parseFloat((effectiveDays * nmRateFor(p.name||'')).toFixed(2));
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -14716,16 +14720,22 @@ function _logActivity(type, name, amount, extra){
   const ref = _activityRef();
   if(!ref) return;
   const id = 'act_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+  // Write first, then trim oldest entries if we're over the 50-item limit
   ref.child(id).set({
     id, type, name, amount, extra: extra||'',
     ts: Date.now(),
     date: _localDateStr(new Date())
-  });
-  // Keep only last 50
-  ref.orderByChild('ts').limitToFirst(1).once('value').then(snap=>{
-    const keys = Object.keys(snap.val()||{});
-    if(keys.length) ref.child(keys[0]).remove().catch(()=>{});
-  });
+  }).then(()=>{
+    // Count total entries; only trim if we exceed 50
+    ref.orderByChild('ts').once('value').then(snap=>{
+      const val = snap.val()||{};
+      const entries = Object.entries(val).sort((a,b)=>a[1].ts-b[1].ts);
+      const excess = entries.length - 50;
+      if(excess > 0){
+        entries.slice(0, excess).forEach(([k])=>ref.child(k).remove().catch(()=>{}));
+      }
+    }).catch(()=>{});
+  }).catch(()=>{});
 }
 
 function _relativeTime(ts){
@@ -15338,10 +15348,20 @@ function dismissCopBanner(){
 }
 
 // Wire bell pulse into holRequests listener
-const _origHolReqUpdate = typeof _updateHolReqBadge==='function' ? _updateHolReqBadge : null;
-function _updateHolReqBadge(){
-  if(_origHolReqUpdate) _origHolReqUpdate();
-  _updateBellPulse();
+// NOTE: _updateHolReqBadge is already defined above; we patch startHolReqListener
+// to also call _updateBellPulse after updating the badge, avoiding infinite recursion.
+const _origStartHolReqListener = startHolReqListener;
+function startHolReqListener(){
+  const ref = _holReqRef();
+  if(!ref) return;
+  if(_holReqListener){ _holReqListener.off(); }
+  _holReqListener = ref;
+  ref.on('value', snap=>{
+    _holRequests = snap.val()||{};
+    _updateHolReqBadge();
+    _updateBellPulse();
+    _updateNotifBadgeWithMsgs();
+  });
 }
 
 function logoutUser(){
