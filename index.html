@@ -2677,66 +2677,22 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 .bc-hit-icon{font-size:36px;line-height:1;flex-shrink:0;}
 .bc-hit-title{font-size:17px;font-weight:700;color:var(--green);letter-spacing:-.01em;}
 .bc-hit-sub{font-size:12px;color:var(--text2);font-family:var(--fm);margin-top:3px;}
-
-/* ─── BONUS SUBMISSIONS MODAL ───────────────────────────────────── */
-#bonusSubModal{position:fixed;inset:0;z-index:9200;display:none;align-items:flex-start;justify-content:center;padding:40px 16px;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);}
-#bonusSubModal.open{display:flex;}
-#bonusSubBox{background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:100%;max-width:1100px;max-height:85vh;display:flex;flex-direction:column;box-shadow:var(--shadow);}
-.bsm-head{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
-.bsm-title{font-size:18px;font-weight:700;letter-spacing:-.02em;}
-.bsm-close{background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;padding:4px 8px;border-radius:6px;transition:background .15s;}
-.bsm-close:hover{background:var(--surface2);}
-.bsm-toolbar{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;flex-wrap:wrap;}
-.bsm-month-sel{background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:8px 14px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none;cursor:pointer;}
-.bsm-month-sel:focus{border-color:var(--accent);}
-.bsm-filter-tabs{display:flex;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;}
-.bsm-ftab{background:none;border:none;color:var(--text3);font-family:var(--fh);font-size:12px;font-weight:600;padding:5px 14px;border-radius:6px;cursor:pointer;transition:all .15s;}
-.bsm-ftab.active{background:var(--accent);color:#fff;}
-.bsm-body{flex:1;overflow-y:auto;padding:20px 24px;}
-.bsm-table-wrap{overflow-x:auto;}
-.bsm-table{width:100%;border-collapse:collapse;font-family:var(--fm);font-size:13px;min-width:800px;}
-.bsm-th{background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:10px 14px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap;}
-.bsm-th:first-child{text-align:left;}
-.bsm-td{padding:12px 14px;border-bottom:1px solid var(--border);color:var(--text2);text-align:right;vertical-align:middle;}
-.bsm-td:first-child{text-align:left;color:var(--text);font-weight:600;}
-.bsm-tr:hover{background:rgba(255,255,255,.02);}
-.bsm-tr:last-child .bsm-td{border-bottom:none;}
-.bsm-status-badge{display:inline-block;font-size:10px;font-weight:700;padding:3px 10px;border-radius:10px;letter-spacing:.04em;}
-.bsm-status-pending{background:var(--amber-bg);color:var(--amber);}
-.bsm-status-approved{background:var(--green-bg);color:var(--green);}
-.bsm-status-revised{background:var(--blue-bg);color:var(--blue);}
-.bsm-edit-btn{background:var(--surface2);border:1px solid var(--border2);color:var(--text2);font-size:11px;font-weight:600;font-family:var(--fh);padding:4px 12px;border-radius:6px;cursor:pointer;transition:all .15s;}
-.bsm-edit-btn:hover{border-color:var(--accent);color:var(--accent);}
-.bsm-approve-btn{background:var(--green-bg);border:1px solid rgba(45,206,137,.3);color:var(--green);font-size:11px;font-weight:600;font-family:var(--fh);padding:4px 12px;border-radius:6px;cursor:pointer;transition:all .15s;margin-left:4px;}
-.bsm-approve-btn:hover{background:rgba(45,206,137,.2);}
-.bsm-input-edit{background:var(--surface2);border:1px solid var(--accent);border-radius:6px;padding:4px 8px;font-size:13px;font-family:var(--fm);color:var(--text);width:90px;text-align:right;outline:none;}
-.bsm-save-btn{background:var(--accent);border:none;color:#fff;font-size:11px;font-weight:700;font-family:var(--fh);padding:4px 12px;border-radius:6px;cursor:pointer;margin-left:4px;}
-.bsm-cancel-btn{background:var(--surface3);border:none;color:var(--text2);font-size:11px;font-weight:600;font-family:var(--fh);padding:4px 10px;border-radius:6px;cursor:pointer;margin-left:2px;}
-.bsm-empty{text-align:center;padding:60px 20px;color:var(--text3);}
-.bsm-empty-icon{font-size:48px;margin-bottom:12px;}
-.bsm-empty-text{font-size:14px;font-family:var(--fm);}
-.bsm-foot{padding:16px 24px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-shrink:0;}
-@media(max-width:700px){#bonusSubBox{max-height:92vh;}.bsm-toolbar{gap:8px;}}
 </style>
 
 <div class="bc-wrap">
-  <div class="bc-hero">
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">
-      <div>
-        <div class="bc-hero-title">💰 Bonus Calculator</div>
-        <div class="bc-hero-sub">Estimate your monthly incentive based on your current performance</div>
-        <div class="bc-type-toggle" style="margin-top:16px;">
-          <button class="bc-type-btn active" id="bcTypeNonSenior" onclick="bcSetType('nonsenior')">Non-Senior</button>
-          <button class="bc-type-btn" id="bcTypeSenior" onclick="bcSetType('senior')">Senior</button>
-        </div>
+  <div class="bc-hero" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+    <div>
+      <div class="bc-hero-title">💰 Bonus Calculator</div>
+      <div class="bc-hero-sub">Estimate your monthly incentive based on your current performance</div>
+      <div class="bc-type-toggle">
+        <button class="bc-type-btn active" id="bcTypeNonSenior" onclick="bcSetType('nonsenior')">Non-Senior</button>
+        <button class="bc-type-btn" id="bcTypeSenior" onclick="bcSetType('senior')">Senior</button>
       </div>
-      <!-- Manager/Master: Bonus Submissions button -->
-      <button id="bcSubmissionsBtn" onclick="openBonusSubmissions()"
-        style="display:none;align-items:center;gap:8px;background:linear-gradient(135deg,rgba(94,156,245,.18),rgba(167,139,250,.12));border:1.5px solid rgba(94,156,245,.4);color:var(--blue);font-family:var(--fh);font-size:13px;font-weight:700;padding:10px 20px;border-radius:10px;cursor:pointer;transition:all .2s;white-space:nowrap;flex-shrink:0;">
-        <span style="font-size:16px;">📋</span> Bonus Submissions
-        <span id="bcSubmissionsBadge" style="display:none;background:var(--blue);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:4px;font-family:var(--fm)"></span>
-      </button>
     </div>
+    <button id="bcSubmissionsBtn" onclick="openBonusSubmissions()" style="display:none;align-items:center;gap:8px;background:rgba(94,156,245,.15);border:1.5px solid rgba(94,156,245,.35);color:var(--blue);font-family:var(--fh);font-size:13px;font-weight:700;padding:10px 20px;border-radius:10px;cursor:pointer;transition:all .2s;white-space:nowrap;flex-shrink:0;margin-top:4px;">
+      📋 Bonus Submissions
+      <span id="bcSubmissionsBadge" style="display:none;background:var(--blue);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;font-family:var(--fm);"></span>
+    </button>
   </div>
 
   <div class="bc-inputs-grid" style="grid-template-columns:1fr 1fr 1fr 1fr;">
@@ -2769,19 +2725,18 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     </div>
   </div>
 
-  <!-- Consultant: Submit Bonus button -->
-  <div id="bcSubmitBonusWrap" style="display:none;margin-top:24px;padding-top:24px;border-top:1px solid var(--border);">
+  <!-- Consultant only: Submit Bonus -->
+  <div id="bcSubmitBonusWrap" style="display:none;margin-top:24px;padding:20px 24px;background:linear-gradient(135deg,rgba(45,206,137,.07),rgba(45,206,137,.03));border:1px solid rgba(45,206,137,.2);border-radius:14px;">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
       <div>
-        <div style="font-size:14px;font-weight:700;margin-bottom:4px;">Ready to submit your bonus?</div>
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px;color:var(--text);">Ready to submit your bonus?</div>
         <div style="font-size:12px;color:var(--text2);font-family:var(--fm);">Your manager will be notified to review and sign off your bonus claim.</div>
       </div>
-      <button id="bcSubmitBonusBtn" onclick="submitConsultantBonus()"
-        style="display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--green),#1a9955);color:#fff;font-family:var(--fh);font-size:14px;font-weight:700;padding:12px 28px;border-radius:10px;border:none;cursor:pointer;box-shadow:0 2px 16px rgba(45,206,137,.35);transition:all .2s;">
-        <span>✅</span> Submit Bonus
+      <button id="bcSubmitBonusBtn" onclick="submitConsultantBonus()" style="display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--green),#1a9955);color:#fff;font-family:var(--fh);font-size:14px;font-weight:700;padding:12px 28px;border-radius:10px;border:none;cursor:pointer;box-shadow:0 2px 16px rgba(45,206,137,.3);transition:all .2s;">
+        &#x2705; Submit Bonus
       </button>
     </div>
-    <div id="bcSubmitStatus" style="display:none;margin-top:12px;padding:12px 16px;border-radius:10px;font-size:13px;font-family:var(--fm);"></div>
+    <div id="bcSubmitStatus" style="display:none;margin-top:12px;padding:10px 14px;border-radius:8px;font-size:13px;font-family:var(--fm);"></div>
   </div>
 </div>
 </div>
@@ -2833,7 +2788,6 @@ function bcOnRevenueEdit(){
   document.getElementById('bcAutoTag').style.display = 'none';
   document.getElementById('bcRevenueHint').textContent = 'Manually entered — change month to re-sync';
   bcRecalc();
-  _bcToggleSubmitBtn();
 }
 
 function bcAutoPopulate(){
@@ -2862,8 +2816,9 @@ function bcAutoPopulate(){
     }
   }
   bcRecalc();
-  if(typeof _bcToggleSubmitBtn === 'function') _bcToggleSubmitBtn();
 }
+
+function bcCountMonthWorkDays(mk){
   const [y, m] = mk.split('-').map(Number);
   const lastDay = new Date(y, m, 0).getDate();
   let count = 0;
@@ -3141,399 +3096,6 @@ function bcRecalc(){
   if(document.getElementById('bcMonth')) { if(typeof APP !== 'undefined' && APP.people) bcInit(); }
   // bcInit is also called from showPage('bonuscalc')
 })();
-
-// ─── BONUS SUBMISSIONS SYSTEM ──────────────────────────────────────
-
-// Show/hide bonus UI elements based on role
-function bcApplyRoleUI(){
-  const role = _currentUser?.role || 'consultant';
-  const isConsultant = role === 'consultant';
-  const isManagerPlus = role === 'manager' || role === 'master';
-
-  const submitWrap = document.getElementById('bcSubmitBonusWrap');
-  const subBtn     = document.getElementById('bcSubmissionsBtn');
-
-  if(submitWrap) submitWrap.style.display = isConsultant ? '' : 'none';
-  if(subBtn)     subBtn.style.display     = isManagerPlus ? 'flex' : 'none';
-  if(isManagerPlus) _bcLoadSubmissionBadge();
-}
-
-// Ref helper for bonus submissions
-function _bcSubRef(divKey, month){
-  if(!_db) return null;
-  const divDbKey = (DIVISIONS[divKey] || DIVISIONS.branch).dbKey;
-  return month
-    ? _db.ref(`${divDbKey}/bonusSubmissions/${month}`)
-    : _db.ref(`${divDbKey}/bonusSubmissions`);
-}
-
-// Load badge count (pending submissions for manager's division)
-function _bcLoadSubmissionBadge(){
-  const divKey = _currentDivKey || _currentUser?.divKey || 'branch';
-  const ref = _bcSubRef(divKey);
-  if(!ref) return;
-  ref.once('value', snap => {
-    const all = snap.val() || {};
-    let pending = 0;
-    Object.values(all).forEach(monthData => {
-      Object.values(monthData).forEach(sub => {
-        if(sub.status === 'pending') pending++;
-      });
-    });
-    const badge = document.getElementById('bcSubmissionsBadge');
-    if(badge){
-      if(pending > 0){
-        badge.style.display = '';
-        badge.textContent   = pending;
-      } else {
-        badge.style.display = 'none';
-      }
-    }
-  });
-}
-
-// Called by consultant: submit their current bonus calculation
-function submitConsultantBonus(){
-  const role = _currentUser?.role || 'consultant';
-  if(role !== 'consultant'){ alert('Only consultants can submit a bonus.'); return; }
-
-  const monthEl  = document.getElementById('bcMonth');
-  const wdmEl    = document.getElementById('bcWorkingDaysMonth');
-  const ydEl     = document.getElementById('bcYourDays');
-  const revEl    = document.getElementById('bcRevenue');
-
-  const month    = monthEl?.value;
-  const wdm      = parseInt(wdmEl?.value) || 22;
-  const yourDays = parseInt(ydEl?.value)  || wdm;
-  const revenue  = parseFloat(revEl?.value) || 0;
-
-  if(!revenue || revenue <= 0){
-    _bcShowSubmitStatus('error','⚠️ Please enter your revenue before submitting.');
-    return;
-  }
-  if(!month){
-    _bcShowSubmitStatus('error','⚠️ Please select a month.');
-    return;
-  }
-
-  const rpd = yourDays > 0 ? revenue / yourDays : 0;
-  const { bonus: fullBonus } = bcBonusForRPD(rpd, _bcType);
-  const proRata = fullBonus * (yourDays / wdm);
-
-  const uid    = _currentUser.id;
-  const name   = _currentUser.name;
-  const divKey = _currentDivKey || _currentUser?.divKey || 'branch';
-  const ref    = _bcSubRef(divKey, month);
-  if(!ref){ _bcShowSubmitStatus('error','⚠️ Database not available.'); return; }
-
-  // Check if already submitted for this month
-  ref.child(uid).once('value', snap => {
-    const existing = snap.val();
-    if(existing && existing.status === 'approved'){
-      _bcShowSubmitStatus('error','⚠️ Your bonus for this month has already been approved.');
-      return;
-    }
-
-    const payload = {
-      name,
-      month,
-      workingDaysMonth: wdm,
-      yourDays,
-      revenue,
-      rpd: Math.round(rpd),
-      fullBonus: Math.round(fullBonus * 100) / 100,
-      proRataBonus: Math.round(proRata * 100) / 100,
-      type: _bcType,
-      status: 'pending',
-      submittedAt: Date.now(),
-      divKey
-    };
-
-    ref.child(uid).set(payload).then(() => {
-      _bcShowSubmitStatus('success','✅ Bonus submitted! Your manager has been notified.');
-      const btn = document.getElementById('bcSubmitBonusBtn');
-      if(btn){ btn.textContent = '✅ Submitted'; btn.disabled = true; btn.style.opacity = '.6'; }
-    }).catch(e => {
-      _bcShowSubmitStatus('error','⚠️ Failed to submit: ' + e.message);
-    });
-  });
-}
-
-function _bcShowSubmitStatus(type, msg){
-  const el = document.getElementById('bcSubmitStatus');
-  if(!el) return;
-  el.style.display = '';
-  el.style.background = type === 'success' ? 'var(--green-bg)' : 'var(--red-bg)';
-  el.style.color      = type === 'success' ? 'var(--green)'    : 'var(--red)';
-  el.style.border     = `1px solid ${type === 'success' ? 'rgba(45,206,137,.25)' : 'rgba(245,54,92,.25)'}`;
-  el.textContent = msg;
-  if(type === 'success') setTimeout(()=>{ el.style.display='none'; }, 6000);
-}
-
-// Show submit-bonus button only when revenue is present
-function _bcToggleSubmitBtn(){
-  const role = _currentUser?.role || 'consultant';
-  if(role !== 'consultant') return;
-  const rev  = parseFloat(document.getElementById('bcRevenue')?.value) || 0;
-  const wrap = document.getElementById('bcSubmitBonusWrap');
-  if(wrap) wrap.style.display = rev > 0 ? '' : 'none';
-}
-
-// ─── BONUS SUBMISSIONS MODAL (Manager / Master) ────────────────────
-
-let _bsmCurrentMonth  = null;
-let _bsmFilter        = 'all'; // 'all' | 'pending' | 'approved'
-let _bsmEditingUid    = null;
-let _bsmSubmissions   = {};
-
-function openBonusSubmissions(){
-  const modal = document.getElementById('bonusSubModal');
-  if(!modal) return;
-  modal.classList.add('open');
-  _bsmInit();
-}
-
-function closeBonusSubmissions(){
-  const modal = document.getElementById('bonusSubModal');
-  if(modal) modal.classList.remove('open');
-}
-
-function _bsmInit(){
-  // Populate month selector
-  const sel = document.getElementById('bsmMonthSel');
-  if(sel && !sel.options.length){
-    const months = typeof getAllMonthKeys === 'function' ? getAllMonthKeys() : _bcGetMonthKeys();
-    months.forEach(mk => {
-      const o = document.createElement('option');
-      o.value = mk; o.textContent = _bcFmtMonth(mk);
-      sel.appendChild(o);
-    });
-  }
-  // Default to active month
-  if(sel && APP?.activeMonth){
-    sel.value = APP.activeMonth;
-  }
-  _bsmCurrentMonth = sel?.value || APP?.activeMonth || null;
-  _bsmFilter = 'all';
-  const tabs = document.querySelectorAll('.bsm-ftab');
-  tabs.forEach(t => t.classList.toggle('active', t.dataset.filter === 'all'));
-  _bsmLoad();
-}
-
-function _bcGetMonthKeys(){
-  const keys = [];
-  const now   = new Date();
-  for(let i = 0; i < 12; i++){
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    keys.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
-  }
-  return keys;
-}
-
-function _bcFmtMonth(mk){
-  if(!mk) return '';
-  const [y,m] = mk.split('-');
-  return new Date(y, m-1, 1).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
-}
-
-function bsmSelectMonth(val){
-  _bsmCurrentMonth = val;
-  _bsmLoad();
-}
-
-function bsmSetFilter(filter){
-  _bsmFilter = filter;
-  document.querySelectorAll('.bsm-ftab').forEach(t => {
-    t.classList.toggle('active', t.dataset.filter === filter);
-  });
-  _bsmRender();
-}
-
-function _bsmLoad(){
-  const body = document.getElementById('bsmBody');
-  if(body) body.innerHTML = '<div class="bsm-empty"><div class="bsm-empty-icon">⏳</div><div class="bsm-empty-text">Loading submissions…</div></div>';
-
-  // Managers see their division; masters can see the currently selected division
-  const divKey = _currentDivKey || _currentUser?.divKey || 'branch';
-  const ref    = _bcSubRef(divKey, _bsmCurrentMonth);
-  if(!ref){
-    if(body) body.innerHTML = '<div class="bsm-empty"><div class="bsm-empty-icon">❌</div><div class="bsm-empty-text">Database unavailable.</div></div>';
-    return;
-  }
-
-  ref.on('value', snap => {
-    _bsmSubmissions = snap.val() || {};
-    _bsmRender();
-    // Update badge
-    _bcLoadSubmissionBadge();
-  });
-}
-
-function _bsmRender(){
-  const body = document.getElementById('bsmBody');
-  if(!body) return;
-
-  let entries = Object.entries(_bsmSubmissions)
-    .map(([uid, data]) => ({ uid, ...data }))
-    .sort((a,b) => (a.name||'').localeCompare(b.name||''));
-
-  if(_bsmFilter !== 'all'){
-    entries = entries.filter(e => e.status === _bsmFilter);
-  }
-
-  if(entries.length === 0){
-    body.innerHTML = `<div class="bsm-empty"><div class="bsm-empty-icon">📭</div><div class="bsm-empty-text">${
-      _bsmFilter === 'pending' ? 'No pending submissions' :
-      _bsmFilter === 'approved' ? 'No approved submissions yet' :
-      'No bonus submissions for this month'
-    }</div></div>`;
-    return;
-  }
-
-  const fmt = v => '£' + Number(v||0).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
-
-  body.innerHTML = `
-    <div class="bsm-table-wrap">
-      <table class="bsm-table">
-        <thead>
-          <tr>
-            <th class="bsm-th">Name</th>
-            <th class="bsm-th">Working Days</th>
-            <th class="bsm-th">Your Days</th>
-            <th class="bsm-th">Total Revenue</th>
-            <th class="bsm-th">Risk / Day</th>
-            <th class="bsm-th">Full Bonus</th>
-            <th class="bsm-th">Pro-Rata Bonus</th>
-            <th class="bsm-th">Status</th>
-            <th class="bsm-th" style="text-align:center;">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="bsmTbody">
-          ${entries.map(e => _bsmRowHtml(e, fmt)).join('')}
-        </tbody>
-      </table>
-    </div>
-  `;
-}
-
-function _bsmRowHtml(e, fmt){
-  const fmtFn = fmt || (v => '£' + Number(v||0).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}));
-  const statusHtml = e.status === 'approved'
-    ? '<span class="bsm-status-badge bsm-status-approved">✅ Approved</span>'
-    : e.status === 'revised'
-    ? '<span class="bsm-status-badge bsm-status-revised">✏️ Revised</span>'
-    : '<span class="bsm-status-badge bsm-status-pending">⏳ Pending</span>';
-
-  const isEditing = _bsmEditingUid === e.uid;
-
-  const actionBtns = e.status !== 'approved'
-    ? `<button class="bsm-edit-btn" onclick="bsmStartEdit('${e.uid}')">✏️ Edit</button>
-       <button class="bsm-approve-btn" onclick="bsmApprove('${e.uid}')">✅ Approve</button>`
-    : `<span style="font-size:11px;color:var(--text3);font-family:var(--fm);">Signed off</span>`;
-
-  if(isEditing){
-    return `
-      <tr class="bsm-tr" id="bsmRow_${e.uid}" style="background:rgba(94,156,245,.06);">
-        <td class="bsm-td">${e.name||'—'}</td>
-        <td class="bsm-td"><input class="bsm-input-edit" id="bsmEdit_wdm_${e.uid}" value="${e.workingDaysMonth||22}" type="number" min="18" max="23" onchange="bsmRecalcEdit('${e.uid}')"></td>
-        <td class="bsm-td"><input class="bsm-input-edit" id="bsmEdit_yd_${e.uid}" value="${e.yourDays||e.workingDaysMonth||22}" type="number" min="1" max="23" onchange="bsmRecalcEdit('${e.uid}')"></td>
-        <td class="bsm-td"><input class="bsm-input-edit" id="bsmEdit_rev_${e.uid}" value="${e.revenue||0}" type="number" min="0" step="100" oninput="bsmRecalcEdit('${e.uid}')"></td>
-        <td class="bsm-td" id="bsmEdit_rpd_${e.uid}" style="color:var(--blue);">${fmtFn(e.rpd)}</td>
-        <td class="bsm-td" id="bsmEdit_full_${e.uid}" style="color:var(--amber);">${fmtFn(e.fullBonus)}</td>
-        <td class="bsm-td" id="bsmEdit_prorataVal_${e.uid}" style="color:var(--green);font-weight:700;">${fmtFn(e.proRataBonus)}</td>
-        <td class="bsm-td">${statusHtml}</td>
-        <td class="bsm-td" style="text-align:center;">
-          <button class="bsm-save-btn" onclick="bsmSaveEdit('${e.uid}')">Save</button>
-          <button class="bsm-cancel-btn" onclick="bsmCancelEdit()">Cancel</button>
-        </td>
-      </tr>`;
-  }
-
-  return `
-    <tr class="bsm-tr" id="bsmRow_${e.uid}">
-      <td class="bsm-td">${e.name||'—'}</td>
-      <td class="bsm-td">${e.workingDaysMonth||'—'}</td>
-      <td class="bsm-td">${e.yourDays||'—'}</td>
-      <td class="bsm-td">${fmtFn(e.revenue)}</td>
-      <td class="bsm-td" style="color:var(--blue);">${fmtFn(e.rpd)}</td>
-      <td class="bsm-td" style="color:var(--amber);">${fmtFn(e.fullBonus)}</td>
-      <td class="bsm-td" style="color:var(--green);font-weight:700;">${fmtFn(e.proRataBonus)}</td>
-      <td class="bsm-td">${statusHtml}</td>
-      <td class="bsm-td" style="text-align:center;white-space:nowrap;">${actionBtns}</td>
-    </tr>`;
-}
-
-function bsmStartEdit(uid){
-  _bsmEditingUid = uid;
-  _bsmRender();
-}
-
-function bsmCancelEdit(){
-  _bsmEditingUid = null;
-  _bsmRender();
-}
-
-function bsmRecalcEdit(uid){
-  const wdm = parseInt(document.getElementById(`bsmEdit_wdm_${uid}`)?.value) || 22;
-  const yd  = parseInt(document.getElementById(`bsmEdit_yd_${uid}`)?.value)  || wdm;
-  const rev = parseFloat(document.getElementById(`bsmEdit_rev_${uid}`)?.value) || 0;
-  const rpd = yd > 0 ? rev / yd : 0;
-  const type = _bsmSubmissions[uid]?.type || 'nonsenior';
-  const { bonus: fullBonus } = bcBonusForRPD(rpd, type);
-  const proRata = fullBonus * (yd / wdm);
-  const fmt = v => '£' + Number(v||0).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
-  const rpdEl   = document.getElementById(`bsmEdit_rpd_${uid}`);
-  const fullEl  = document.getElementById(`bsmEdit_full_${uid}`);
-  const proEl   = document.getElementById(`bsmEdit_prorataVal_${uid}`);
-  if(rpdEl)  rpdEl.textContent  = fmt(Math.round(rpd));
-  if(fullEl) fullEl.textContent = fmt(Math.round(fullBonus * 100) / 100);
-  if(proEl)  proEl.textContent  = fmt(Math.round(proRata * 100) / 100);
-}
-
-function bsmSaveEdit(uid){
-  const wdm = parseInt(document.getElementById(`bsmEdit_wdm_${uid}`)?.value) || 22;
-  const yd  = parseInt(document.getElementById(`bsmEdit_yd_${uid}`)?.value)  || wdm;
-  const rev = parseFloat(document.getElementById(`bsmEdit_rev_${uid}`)?.value) || 0;
-  const rpd = yd > 0 ? rev / yd : 0;
-  const type = _bsmSubmissions[uid]?.type || 'nonsenior';
-  const { bonus: fullBonus } = bcBonusForRPD(rpd, type);
-  const proRata = fullBonus * (yd / wdm);
-
-  const divKey = _currentDivKey || _currentUser?.divKey || 'branch';
-  const ref    = _bcSubRef(divKey, _bsmCurrentMonth);
-  if(!ref) return;
-
-  ref.child(uid).update({
-    workingDaysMonth: wdm,
-    yourDays: yd,
-    revenue: rev,
-    rpd: Math.round(rpd),
-    fullBonus: Math.round(fullBonus * 100) / 100,
-    proRataBonus: Math.round(proRata * 100) / 100,
-    status: 'revised',
-    revisedBy: _currentUser?.name || 'Manager',
-    revisedAt: Date.now()
-  }).then(() => {
-    _bsmEditingUid = null;
-    // _bsmRender() will be triggered by the listener
-  }).catch(e => alert('Save failed: ' + e.message));
-}
-
-function bsmApprove(uid){
-  const divKey = _currentDivKey || _currentUser?.divKey || 'branch';
-  const ref    = _bcSubRef(divKey, _bsmCurrentMonth);
-  if(!ref) return;
-  ref.child(uid).update({
-    status: 'approved',
-    approvedBy: _currentUser?.name || 'Manager',
-    approvedAt: Date.now()
-  }).catch(e => alert('Approve failed: ' + e.message));
-}
-
-// Patch bcRecalc to show submit button
-const _origBcRecalc = typeof bcRecalc !== 'undefined' ? bcRecalc : null;
-// We hook through bcOnRevenueEdit since that fires on manual input
-const _origBcOnRevenueEdit = typeof bcOnRevenueEdit !== 'undefined' ? bcOnRevenueEdit : null;
 </script>
 <!-- END BONUS CALCULATOR PAGE -->
 
@@ -6661,7 +6223,7 @@ function showPage(id){
   if(id==='calloutcomes')  { loadCallOutcomes(); startRemedialListener(); }
   if(id==='remedialmanager'){ loadRemedials(); renderMgrRemPage(); }
   if(id==='consultantdaily'){ populateAllSelects(); renderConsultantDaily(); }
-  if(id==='bonuscalc'){ if(typeof bcInit==='function') bcInit(); if(typeof bcApplyRoleUI==='function') bcApplyRoleUI(); }
+  if(id==='bonuscalc'){ if(typeof bcInit==='function') bcInit(); }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -15907,35 +15469,6 @@ if(sessionStorage.getItem('pd_auth')==='1'){
   </div>
 </div>
 
-<!-- BONUS SUBMISSIONS MODAL -->
-<div id="bonusSubModal" onclick="if(event.target===this)closeBonusSubmissions()">
-  <div id="bonusSubBox">
-    <div class="bsm-head">
-      <div>
-        <div class="bsm-title">📋 Bonus Submissions</div>
-        <div style="font-size:12px;color:var(--text2);font-family:var(--fm);margin-top:3px;" id="bsmDivLabel">Team submissions for review &amp; sign-off</div>
-      </div>
-      <button class="bsm-close" onclick="closeBonusSubmissions()">✕</button>
-    </div>
-    <div class="bsm-toolbar">
-      <select class="bsm-month-sel" id="bsmMonthSel" onchange="bsmSelectMonth(this.value)"></select>
-      <div class="bsm-filter-tabs">
-        <button class="bsm-ftab active" data-filter="all" onclick="bsmSetFilter('all')">All</button>
-        <button class="bsm-ftab" data-filter="pending" onclick="bsmSetFilter('pending')">⏳ Pending</button>
-        <button class="bsm-ftab" data-filter="approved" onclick="bsmSetFilter('approved')">✅ Approved</button>
-      </div>
-      <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-left:auto;">Bonuses are shared across all managers in this division</div>
-    </div>
-    <div class="bsm-body" id="bsmBody">
-      <div class="bsm-empty"><div class="bsm-empty-icon">⏳</div><div class="bsm-empty-text">Loading…</div></div>
-    </div>
-    <div class="bsm-foot">
-      <span id="bsmSummaryText" style="font-size:12px;color:var(--text2);font-family:var(--fm);margin-right:auto;"></span>
-      <button class="btn btn-s" onclick="closeBonusSubmissions()">Close</button>
-    </div>
-  </div>
-</div>
-
 <!-- MONTH-END CINEMATIC OVERLAY -->
 <div id="cinematicOverlay">
   <canvas id="cinematicCanvas"></canvas>
@@ -15945,9 +15478,415 @@ if(sessionStorage.getItem('pd_auth')==='1'){
     <div class="cin-sub" id="cinSub">Team revenue for the month</div>
     <div class="cin-stats-row" id="cinStatsRow"></div>
     <div class="cin-podium" id="cinPodium"></div>
-    <button class="cin-close-btn" onclick="closeCinematic()">✨ Start New Month</button>
+    <button class="cin-close-btn" onclick="closeCinematic()">&#x2728; Start New Month</button>
   </div>
 </div>
+
+<!-- BONUS SUBMISSIONS MODAL -->
+<div id="bonusSubModal" style="display:none;position:fixed;inset:0;z-index:9200;align-items:flex-start;justify-content:center;padding:40px 16px;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);" onclick="if(event.target===this)closeBonusSubmissions()">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:100%;max-width:1100px;max-height:85vh;display:flex;flex-direction:column;box-shadow:var(--shadow);overflow:hidden;">
+    <!-- Header -->
+    <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div>
+        <div style="font-size:18px;font-weight:700;letter-spacing:-.02em;">&#x1F4CB; Bonus Submissions</div>
+        <div style="font-size:12px;color:var(--text2);font-family:var(--fm);margin-top:3px;">Team submissions for review &amp; sign-off — shared across all managers in this division</div>
+      </div>
+      <button onclick="closeBonusSubmissions()" style="background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;padding:4px 8px;border-radius:6px;">&#x2715;</button>
+    </div>
+    <!-- Toolbar -->
+    <div style="padding:14px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-shrink:0;flex-wrap:wrap;">
+      <select id="bsmMonthSel" onchange="bsmSelectMonth(this.value)" style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:8px 14px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none;cursor:pointer;"></select>
+      <div style="display:flex;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
+        <button class="bsmFtab" id="bsmTab_all"      data-f="all"      onclick="bsmSetFilter('all')"      style="background:var(--accent);color:#fff;border:none;font-family:var(--fh);font-size:12px;font-weight:600;padding:5px 14px;border-radius:6px;cursor:pointer;">All</button>
+        <button class="bsmFtab" id="bsmTab_pending"  data-f="pending"  onclick="bsmSetFilter('pending')"  style="background:none;color:var(--text3);border:none;font-family:var(--fh);font-size:12px;font-weight:600;padding:5px 14px;border-radius:6px;cursor:pointer;">&#x23F3; Pending</button>
+        <button class="bsmFtab" id="bsmTab_approved" data-f="approved" onclick="bsmSetFilter('approved')" style="background:none;color:var(--text3);border:none;font-family:var(--fh);font-size:12px;font-weight:600;padding:5px 14px;border-radius:6px;cursor:pointer;">&#x2705; Approved</button>
+      </div>
+    </div>
+    <!-- Body -->
+    <div id="bsmBody" style="flex:1;overflow-y:auto;padding:20px 24px;"></div>
+    <!-- Footer -->
+    <div style="padding:14px 24px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:flex-end;flex-shrink:0;">
+      <button onclick="closeBonusSubmissions()" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text2);font-family:var(--fh);font-size:13px;font-weight:600;padding:8px 20px;border-radius:8px;cursor:pointer;">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// BONUS SUBMISSION SYSTEM
+// ═══════════════════════════════════════════════════════
+
+// ── Firebase ref helper ─────────────────────────────────
+function _bsRef(month){
+  if(!_db || !_currentDivKey) return null;
+  const dbKey = (DIVISIONS[_currentDivKey] || DIVISIONS.branch).dbKey;
+  return month
+    ? _db.ref(dbKey + '/bonusSubmissions/' + month)
+    : _db.ref(dbKey + '/bonusSubmissions');
+}
+
+// ── Show/hide role-specific UI when bonus calc opens ────
+function bcApplyRoleUI(){
+  const role = _currentUser?.role || 'consultant';
+  const isConsultant  = role === 'consultant';
+  const isMgrPlus     = role === 'manager' || role === 'master';
+  const submitWrap    = document.getElementById('bcSubmitBonusWrap');
+  const subBtn        = document.getElementById('bcSubmissionsBtn');
+  // Submit wrap: only shown for consultants AND only after revenue entered
+  if(submitWrap){
+    if(!isConsultant){ submitWrap.style.display = 'none'; }
+    // if consultant, visibility controlled by _bcToggleSubmitBtn()
+  }
+  if(subBtn){
+    subBtn.style.display = isMgrPlus ? 'flex' : 'none';
+    if(isMgrPlus) _bsLoadBadge();
+  }
+}
+
+// Show submit button only when consultant has revenue entered
+function _bcToggleSubmitBtn(){
+  if((_currentUser?.role || 'consultant') !== 'consultant') return;
+  const rev  = parseFloat(document.getElementById('bcRevenue')?.value) || 0;
+  const wrap = document.getElementById('bcSubmitBonusWrap');
+  if(wrap) wrap.style.display = (rev > 0) ? '' : 'none';
+  // Reset status message and button if revenue cleared
+  if(rev <= 0){
+    const st  = document.getElementById('bcSubmitStatus');
+    const btn = document.getElementById('bcSubmitBonusBtn');
+    if(st)  { st.style.display = 'none'; }
+    if(btn) { btn.disabled = false; btn.style.opacity = '1'; btn.innerHTML = '&#x2705; Submit Bonus'; }
+  }
+}
+
+// ── Patch bcOnRevenueEdit to toggle the button ──────────
+const _bcOrig_bcOnRevenueEdit = window.bcOnRevenueEdit;
+window.bcOnRevenueEdit = function(){
+  if(typeof _bcOrig_bcOnRevenueEdit === 'function') _bcOrig_bcOnRevenueEdit();
+  _bcToggleSubmitBtn();
+};
+
+// Also hook bcAutoPopulate (fires when month changes and auto-pulls revenue)
+const _bcOrig_bcAutoPopulate = window.bcAutoPopulate;
+window.bcAutoPopulate = function(){
+  if(typeof _bcOrig_bcAutoPopulate === 'function') _bcOrig_bcAutoPopulate();
+  _bcToggleSubmitBtn();
+};
+
+// ── Patch showPage to call bcApplyRoleUI ────────────────
+const _bcOrig_showPage = window.showPage;
+window.showPage = function(id){
+  if(typeof _bcOrig_showPage === 'function') _bcOrig_showPage(id);
+  if(id === 'bonuscalc') bcApplyRoleUI();
+};
+
+// ── Consultant: submit bonus ────────────────────────────
+function submitConsultantBonus(){
+  const role = _currentUser?.role || 'consultant';
+  if(role !== 'consultant'){ return; }
+
+  const monthEl = document.getElementById('bcMonth');
+  const wdmEl   = document.getElementById('bcWorkingDaysMonth');
+  const ydEl    = document.getElementById('bcYourDays');
+  const revEl   = document.getElementById('bcRevenue');
+
+  const month    = monthEl?.value;
+  const wdm      = parseInt(wdmEl?.value)  || 22;
+  const yourDays = parseInt(ydEl?.value)   || wdm;
+  const revenue  = parseFloat(revEl?.value) || 0;
+
+  if(!revenue || revenue <= 0){
+    _bsStatus('error', '&#x26A0;&#xFE0F; Please enter your revenue before submitting.');
+    return;
+  }
+  if(!month){
+    _bsStatus('error', '&#x26A0;&#xFE0F; Please select a month.');
+    return;
+  }
+
+  const rpd = yourDays > 0 ? revenue / yourDays : 0;
+  const { bonus: fullBonus } = bcBonusForRPD(rpd, _bcType || 'nonsenior');
+  const proRata = fullBonus * (yourDays / wdm);
+
+  const uid    = _currentUser.id;
+  const divKey = _currentDivKey || _currentUser?.divKey || 'branch';
+  const ref    = _bsRef(month);
+  if(!ref){ _bsStatus('error', '&#x26A0;&#xFE0F; Database unavailable.'); return; }
+
+  ref.child(uid).once('value', snap => {
+    const ex = snap.val();
+    if(ex && ex.status === 'approved'){
+      _bsStatus('error', '&#x26A0;&#xFE0F; Your bonus for this month has already been approved.');
+      return;
+    }
+    ref.child(uid).set({
+      name:             _currentUser.name,
+      month,
+      workingDaysMonth: wdm,
+      yourDays,
+      revenue,
+      rpd:              Math.round(rpd),
+      fullBonus:        Math.round(fullBonus * 100) / 100,
+      proRataBonus:     Math.round(proRata  * 100) / 100,
+      type:             _bcType || 'nonsenior',
+      status:           'pending',
+      submittedAt:      Date.now(),
+      divKey
+    }).then(() => {
+      _bsStatus('success', '&#x2705; Bonus submitted! Your manager has been notified.');
+      const btn = document.getElementById('bcSubmitBonusBtn');
+      if(btn){ btn.innerHTML = '&#x2705; Submitted'; btn.disabled = true; btn.style.opacity = '.6'; }
+    }).catch(e => _bsStatus('error', '&#x26A0;&#xFE0F; Failed: ' + e.message));
+  });
+}
+
+function _bsStatus(type, msg){
+  const el = document.getElementById('bcSubmitStatus');
+  if(!el) return;
+  el.style.display    = '';
+  el.style.background = type === 'success' ? 'rgba(45,206,137,.12)'  : 'rgba(245,54,92,.1)';
+  el.style.color      = type === 'success' ? 'var(--green)'          : 'var(--red)';
+  el.style.border     = '1px solid ' + (type === 'success' ? 'rgba(45,206,137,.25)' : 'rgba(245,54,92,.25)');
+  el.innerHTML = msg;
+  if(type === 'success') setTimeout(() => { el.style.display = 'none'; }, 7000);
+}
+
+// ── Pending badge on the Bonus Submissions button ───────
+function _bsLoadBadge(){
+  const ref = _bsRef(null);
+  if(!ref) return;
+  ref.once('value', snap => {
+    const all = snap.val() || {};
+    let pending = 0;
+    Object.values(all).forEach(mo => Object.values(mo).forEach(s => { if(s.status === 'pending') pending++; }));
+    const badge = document.getElementById('bcSubmissionsBadge');
+    if(badge){ badge.style.display = pending > 0 ? '' : 'none'; badge.textContent = pending || ''; }
+  });
+}
+
+// ── Submissions modal ────────────────────────────────────
+let _bsmMonth    = null;
+let _bsmFilter   = 'all';
+let _bsmEditUid  = null;
+let _bsmData     = {};
+let _bsmListener = null;
+
+function openBonusSubmissions(){
+  const modal = document.getElementById('bonusSubModal');
+  if(!modal) return;
+  modal.style.display = 'flex';
+
+  // Populate month dropdown once
+  const sel = document.getElementById('bsmMonthSel');
+  if(sel && !sel.options.length){
+    const months = _bsmGetMonths();
+    months.forEach(mk => {
+      const o = document.createElement('option');
+      o.value = mk;
+      o.textContent = new Date(mk + '-02').toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+      sel.appendChild(o);
+    });
+  }
+  if(sel && !sel.value){
+    sel.value = APP?.activeMonth || sel.options[0]?.value || '';
+  }
+  _bsmMonth  = sel?.value || null;
+  _bsmFilter = 'all';
+  _bsmSyncFilterButtons();
+  _bsmAttachListener();
+}
+
+function closeBonusSubmissions(){
+  const modal = document.getElementById('bonusSubModal');
+  if(modal) modal.style.display = 'none';
+  if(_bsmListener){ try{ _bsmListener.off(); }catch(e){} _bsmListener = null; }
+}
+
+function _bsmGetMonths(){
+  const keys = []; const now = new Date();
+  for(let i = 0; i < 13; i++){
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    keys.push(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'));
+  }
+  return keys;
+}
+
+function bsmSelectMonth(val){
+  _bsmMonth = val;
+  _bsmEditUid = null;
+  if(_bsmListener){ try{ _bsmListener.off(); }catch(e){} _bsmListener = null; }
+  _bsmAttachListener();
+}
+
+function bsmSetFilter(f){
+  _bsmFilter = f;
+  _bsmEditUid = null;
+  _bsmSyncFilterButtons();
+  _bsmRender();
+}
+
+function _bsmSyncFilterButtons(){
+  ['all','pending','approved'].forEach(f => {
+    const btn = document.getElementById('bsmTab_' + f);
+    if(!btn) return;
+    const isActive = f === _bsmFilter;
+    btn.style.background = isActive ? 'var(--accent)' : 'none';
+    btn.style.color      = isActive ? '#fff'           : 'var(--text3)';
+  });
+}
+
+function _bsmAttachListener(){
+  const ref = _bsRef(_bsmMonth);
+  if(!ref){
+    _bsmData = {};
+    _bsmRender();
+    return;
+  }
+  _bsmListener = ref;
+  ref.on('value', snap => {
+    _bsmData = snap.val() || {};
+    _bsmRender();
+    _bsLoadBadge();
+  });
+}
+
+function _bsmRender(){
+  const body = document.getElementById('bsmBody');
+  if(!body) return;
+
+  let rows = Object.entries(_bsmData)
+    .map(([uid, d]) => Object.assign({ uid }, d))
+    .sort((a,b) => (a.name||'').localeCompare(b.name||''));
+
+  if(_bsmFilter !== 'all') rows = rows.filter(r => r.status === _bsmFilter);
+
+  if(!rows.length){
+    body.innerHTML = '<div style="text-align:center;padding:60px 20px;color:var(--text3);"><div style="font-size:48px;margin-bottom:12px;">&#x1F4ED;</div><div style="font-size:14px;font-family:var(--fm);">No '+ (_bsmFilter==='all'?'':''+_bsmFilter+' ') +'submissions for this month</div></div>';
+    return;
+  }
+
+  const fmt = v => '&#163;' + Number(v||0).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const thStyle = 'background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:10px 14px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap;';
+  const thL     = thStyle.replace('text-align:right','text-align:left');
+  const tdStyle = 'padding:12px 14px;border-bottom:1px solid var(--border);color:var(--text2);text-align:right;vertical-align:middle;';
+  const tdL     = tdStyle.replace('text-align:right','text-align:left;color:var(--text);font-weight:600;');
+
+  body.innerHTML = `
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-family:var(--fm);font-size:13px;min-width:820px;">
+        <thead><tr>
+          <th style="${thL}">Name</th>
+          <th style="${thStyle}">Working Days</th>
+          <th style="${thStyle}">Your Days</th>
+          <th style="${thStyle}">Total Revenue</th>
+          <th style="${thStyle}">Risk / Day</th>
+          <th style="${thStyle}">Full Bonus</th>
+          <th style="${thStyle}">Pro-Rata Bonus</th>
+          <th style="${thStyle}">Status</th>
+          <th style="${thStyle.replace('text-align:right','text-align:center')}">Actions</th>
+        </tr></thead>
+        <tbody>${rows.map(r => _bsmRow(r, tdStyle, tdL, fmt)).join('')}</tbody>
+      </table>
+    </div>`;
+}
+
+function _bsmRow(r, tdS, tdL, fmt){
+  const statusHtml = r.status === 'approved'
+    ? '<span style="background:var(--green-bg);color:var(--green);font-size:10px;font-weight:700;padding:3px 10px;border-radius:10px;">&#x2705; Approved</span>'
+    : r.status === 'revised'
+    ? '<span style="background:var(--blue-bg);color:var(--blue);font-size:10px;font-weight:700;padding:3px 10px;border-radius:10px;">&#x270F;&#xFE0F; Revised</span>'
+    : '<span style="background:var(--amber-bg);color:var(--amber);font-size:10px;font-weight:700;padding:3px 10px;border-radius:10px;">&#x23F3; Pending</span>';
+
+  const canEdit = r.status !== 'approved';
+  const actStyle = 'background:var(--surface2);border:1px solid var(--border2);color:var(--text2);font-size:11px;font-weight:600;font-family:var(--fh);padding:4px 12px;border-radius:6px;cursor:pointer;';
+  const appStyle = 'background:var(--green-bg);border:1px solid rgba(45,206,137,.3);color:var(--green);font-size:11px;font-weight:600;font-family:var(--fh);padding:4px 12px;border-radius:6px;cursor:pointer;margin-left:4px;';
+
+  if(_bsmEditUid === r.uid){
+    return `<tr style="background:rgba(94,156,245,.06);">
+      <td style="${tdL}">${r.name||'—'}</td>
+      <td style="${tdS}"><input id="be_wdm_${r.uid}" type="number" min="18" max="23" value="${r.workingDaysMonth||22}" onchange="bsmRecalcRow('${r.uid}')" style="background:var(--surface2);border:1px solid var(--accent);border-radius:6px;padding:4px 8px;font-size:13px;font-family:var(--fm);color:var(--text);width:70px;text-align:right;outline:none;"></td>
+      <td style="${tdS}"><input id="be_yd_${r.uid}"  type="number" min="1"  max="23" value="${r.yourDays||r.workingDaysMonth||22}" onchange="bsmRecalcRow('${r.uid}')" style="background:var(--surface2);border:1px solid var(--accent);border-radius:6px;padding:4px 8px;font-size:13px;font-family:var(--fm);color:var(--text);width:70px;text-align:right;outline:none;"></td>
+      <td style="${tdS}"><input id="be_rev_${r.uid}" type="number" min="0"  step="100" value="${r.revenue||0}" oninput="bsmRecalcRow('${r.uid}')" style="background:var(--surface2);border:1px solid var(--accent);border-radius:6px;padding:4px 8px;font-size:13px;font-family:var(--fm);color:var(--text);width:90px;text-align:right;outline:none;"></td>
+      <td id="be_rpd_${r.uid}"  style="${tdS}color:var(--blue);">${fmt(r.rpd)}</td>
+      <td id="be_full_${r.uid}" style="${tdS}color:var(--amber);">${fmt(r.fullBonus)}</td>
+      <td id="be_pr_${r.uid}"   style="${tdS}color:var(--green);font-weight:700;">${fmt(r.proRataBonus)}</td>
+      <td style="${tdS}">${statusHtml}</td>
+      <td style="${tdS.replace('text-align:right','text-align:center')}white-space:nowrap;">
+        <button onclick="bsmSaveEdit('${r.uid}')" style="background:var(--accent);border:none;color:#fff;font-size:11px;font-weight:700;font-family:var(--fh);padding:4px 12px;border-radius:6px;cursor:pointer;">Save</button>
+        <button onclick="bsmCancelEdit()"         style="background:var(--surface3);border:none;color:var(--text2);font-size:11px;font-weight:600;font-family:var(--fh);padding:4px 10px;border-radius:6px;cursor:pointer;margin-left:2px;">Cancel</button>
+      </td>
+    </tr>`;
+  }
+
+  return `<tr style="border-bottom:0;">
+    <td style="${tdL}">${r.name||'—'}</td>
+    <td style="${tdS}">${r.workingDaysMonth||'—'}</td>
+    <td style="${tdS}">${r.yourDays||'—'}</td>
+    <td style="${tdS}">${fmt(r.revenue)}</td>
+    <td style="${tdS}color:var(--blue);">${fmt(r.rpd)}</td>
+    <td style="${tdS}color:var(--amber);">${fmt(r.fullBonus)}</td>
+    <td style="${tdS}color:var(--green);font-weight:700;">${fmt(r.proRataBonus)}</td>
+    <td style="${tdS}">${statusHtml}</td>
+    <td style="${tdS.replace('text-align:right','text-align:center')}white-space:nowrap;">
+      ${canEdit
+        ? `<button onclick="bsmStartEdit('${r.uid}')" style="${actStyle}">&#x270F;&#xFE0F; Edit</button>
+           <button onclick="bsmApprove('${r.uid}')"   style="${appStyle}">&#x2705; Approve</button>`
+        : `<span style="font-size:11px;color:var(--text3);">Signed off</span>`}
+    </td>
+  </tr>`;
+}
+
+function bsmStartEdit(uid){ _bsmEditUid = uid; _bsmRender(); }
+function bsmCancelEdit(){   _bsmEditUid = null; _bsmRender(); }
+
+function bsmRecalcRow(uid){
+  const wdm = parseInt(document.getElementById('be_wdm_'+uid)?.value) || 22;
+  const yd  = parseInt(document.getElementById('be_yd_'+uid)?.value)  || wdm;
+  const rev = parseFloat(document.getElementById('be_rev_'+uid)?.value) || 0;
+  const rpd = yd > 0 ? rev / yd : 0;
+  const type = _bsmData[uid]?.type || 'nonsenior';
+  const { bonus: full } = bcBonusForRPD(rpd, type);
+  const pr = full * (yd / wdm);
+  const fmt = v => '&#163;' + Number(v||0).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const rEl = document.getElementById('be_rpd_'+uid);
+  const fEl = document.getElementById('be_full_'+uid);
+  const pEl = document.getElementById('be_pr_'+uid);
+  if(rEl) rEl.innerHTML = fmt(Math.round(rpd));
+  if(fEl) fEl.innerHTML = fmt(Math.round(full*100)/100);
+  if(pEl) pEl.innerHTML = fmt(Math.round(pr*100)/100);
+}
+
+function bsmSaveEdit(uid){
+  const wdm = parseInt(document.getElementById('be_wdm_'+uid)?.value) || 22;
+  const yd  = parseInt(document.getElementById('be_yd_'+uid)?.value)  || wdm;
+  const rev = parseFloat(document.getElementById('be_rev_'+uid)?.value) || 0;
+  const rpd = yd > 0 ? rev / yd : 0;
+  const type = _bsmData[uid]?.type || 'nonsenior';
+  const { bonus: full } = bcBonusForRPD(rpd, type);
+  const pr = full * (yd / wdm);
+  const ref = _bsRef(_bsmMonth);
+  if(!ref) return;
+  ref.child(uid).update({
+    workingDaysMonth: wdm, yourDays: yd, revenue: rev,
+    rpd:         Math.round(rpd),
+    fullBonus:   Math.round(full*100)/100,
+    proRataBonus:Math.round(pr*100)/100,
+    status:      'revised',
+    revisedBy:   _currentUser?.name || 'Manager',
+    revisedAt:   Date.now()
+  }).then(() => { _bsmEditUid = null; })
+    .catch(e => alert('Save failed: ' + e.message));
+}
+
+function bsmApprove(uid){
+  const ref = _bsRef(_bsmMonth);
+  if(!ref) return;
+  ref.child(uid).update({
+    status:     'approved',
+    approvedBy: _currentUser?.name || 'Manager',
+    approvedAt: Date.now()
+  }).catch(e => alert('Approve failed: ' + e.message));
+}
+</script>
 
 </body>
 </html>
