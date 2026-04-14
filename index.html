@@ -1572,6 +1572,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     <button class="nav-tab" onclick="showPage('compliance')" id="complianceTab" style="color:#fff;background:#1a3060;border-radius:6px 6px 0 0;font-weight:700;">🛡 Compliance</button>
     <button class="nav-tab" onclick="showPage('calloutcomes')" id="callOutcomesTab" style="color:#fff;background:#3d1a60;border-radius:6px 6px 0 0;font-weight:700;">📊 Call Outcomes</button>
     <button class="nav-tab" onclick="showPage('consultantdaily')" id="consultantDailyTab" style="color:#fff;background:#1a4a1a;border-radius:6px 6px 0 0;font-weight:700;">📅 Consultant Daily</button>
+    <button class="nav-tab" onclick="showPage('bonuscalc')" id="bonusCalcTab" style="color:#fff;background:#2a1a4a;border-radius:6px 6px 0 0;font-weight:700;">💰 Bonus Calculator</button>
     <button class="nav-tab" onclick="showPage('remedialmanager')" id="remedialManagerTab" style="color:#fff;background:#7a3a00;border-radius:6px 6px 0 0;font-weight:700;">⚠️ Remedial Queue <span id="remMgrBadge" style="display:none;background:#f5365c;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;margin-left:4px;font-family:var(--fm)"></span></button>
   </div>
 </nav>
@@ -2579,6 +2580,367 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
   <div id="cdContent"></div>
 </div>
 
+<!-- BONUS CALCULATOR PAGE -->
+<div class="page" id="page-bonuscalc">
+<style>
+/* ─── BONUS CALC STYLES ─────────────────────────────────────── */
+.bc-wrap{max-width:900px;margin:0 auto;}
+.bc-hero{background:linear-gradient(135deg,rgba(94,156,245,.12),rgba(167,139,250,.08));border:1px solid rgba(94,156,245,.25);border-radius:16px;padding:28px 32px;margin-bottom:28px;position:relative;overflow:hidden;}
+.bc-hero::before{content:'';position:absolute;top:-60px;right:-60px;width:220px;height:220px;background:radial-gradient(circle,rgba(94,156,245,.15),transparent 70%);pointer-events:none;}
+.bc-hero-title{font-size:24px;font-weight:700;letter-spacing:-.02em;margin-bottom:6px;}
+.bc-hero-sub{font-size:13px;color:var(--text2);font-family:var(--fm);}
+.bc-type-toggle{display:flex;gap:0;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:4px;margin-top:20px;width:fit-content;}
+.bc-type-btn{background:none;border:none;color:var(--text3);font-family:var(--fh);font-size:13px;font-weight:600;padding:8px 22px;border-radius:7px;cursor:pointer;transition:all .2s;letter-spacing:.01em;}
+.bc-type-btn.active{background:var(--accent);color:#fff;box-shadow:0 2px 12px rgba(94,156,245,.4);}
+
+.bc-inputs-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:28px;}
+@media(max-width:700px){.bc-inputs-grid{grid-template-columns:1fr;}}
+.bc-field{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;transition:border-color .2s;}
+.bc-field:focus-within{border-color:var(--accent);}
+.bc-field-label{font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;}
+.bc-field select,.bc-field input{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;font-size:15px;font-family:var(--fm);color:var(--text);outline:none;transition:border-color .15s;}
+.bc-field select:focus,.bc-field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94,156,245,.08);}
+.bc-field-hint{font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:6px;}
+
+.bc-results{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px;}
+@media(max-width:600px){.bc-results{grid-template-columns:1fr;}}
+.bc-res-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;position:relative;overflow:hidden;transition:transform .2s,border-color .2s;}
+.bc-res-card:hover{transform:translateY(-2px);border-color:var(--border2);}
+.bc-res-card.highlight{border-color:var(--accent);background:linear-gradient(135deg,var(--surface),rgba(94,156,245,.05));}
+.bc-res-card.highlight::after{content:'';position:absolute;inset:0;border-radius:14px;border:1px solid rgba(94,156,245,.3);pointer-events:none;}
+.bc-res-label{font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;}
+.bc-res-val{font-size:32px;font-weight:700;font-family:var(--fm);line-height:1;letter-spacing:-.02em;}
+.bc-res-val.green{color:var(--green);text-shadow:0 0 20px rgba(45,206,137,.2);}
+.bc-res-val.amber{color:var(--amber);text-shadow:0 0 20px rgba(251,184,58,.2);}
+.bc-res-val.blue{color:var(--blue);text-shadow:0 0 20px rgba(94,156,245,.2);}
+.bc-res-val.red{color:var(--red);}
+.bc-res-sub{font-size:12px;color:var(--text2);font-family:var(--fm);margin-top:6px;}
+
+.bc-progress-wrap{margin-top:14px;}
+.bc-progress-track{height:8px;background:var(--surface3);border-radius:4px;overflow:hidden;}
+.bc-progress-bar{height:100%;border-radius:4px;transition:width .8s cubic-bezier(.4,0,.2,1);background:linear-gradient(90deg,var(--accent),var(--purple));}
+
+.bc-tier-section{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:28px;}
+.bc-tier-header{background:var(--surface2);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+.bc-tier-title{font-size:13px;font-weight:700;letter-spacing:.01em;}
+.bc-tier-sub{font-size:11px;color:var(--text3);font-family:var(--fm);}
+.bc-tier-table{width:100%;border-collapse:collapse;font-family:var(--fm);font-size:13px;}
+.bc-tier-th{background:var(--surface2);color:var(--text3);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:10px 16px;text-align:right;border-bottom:1px solid var(--border);}
+.bc-tier-th:first-child{text-align:left;}
+.bc-tier-td{padding:10px 16px;border-bottom:1px solid var(--border);color:var(--text2);text-align:right;}
+.bc-tier-td:first-child{text-align:left;color:var(--text);}
+.bc-tier-tr:last-child .bc-tier-td{border-bottom:none;}
+.bc-tier-tr.current-tier{background:rgba(94,156,245,.08);}
+.bc-tier-tr.current-tier .bc-tier-td{color:var(--text);}
+.bc-tier-tr.current-tier .bc-tier-td:first-child{color:var(--accent);font-weight:700;}
+.bc-you-badge{display:inline-block;background:var(--accent);color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;letter-spacing:.04em;margin-left:8px;vertical-align:middle;}
+.bc-capped-badge{display:inline-block;background:rgba(251,184,58,.15);color:var(--amber);font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;letter-spacing:.04em;}
+
+.bc-next-bracket{background:linear-gradient(135deg,rgba(45,206,137,.08),rgba(45,206,137,.03));border:1px solid rgba(45,206,137,.2);border-radius:14px;padding:22px 24px;margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.bc-next-label{font-size:11px;font-weight:700;color:var(--green);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px;}
+.bc-next-val{font-size:28px;font-weight:700;font-family:var(--fm);color:var(--text);}
+.bc-next-desc{font-size:12px;color:var(--text2);font-family:var(--fm);margin-top:4px;}
+.bc-next-icon{font-size:40px;opacity:.6;}
+.bc-achieved{background:linear-gradient(135deg,rgba(45,206,137,.12),rgba(45,206,137,.05));border:1px solid rgba(45,206,137,.3);}
+
+.bc-empty{text-align:center;padding:60px 20px;color:var(--text3);}
+.bc-empty-icon{font-size:48px;margin-bottom:12px;}
+.bc-empty-text{font-size:14px;font-family:var(--fm);}
+
+.bc-targets-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px;}
+@media(max-width:700px){.bc-targets-row{grid-template-columns:repeat(2,1fr);}}
+.bc-target-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;transition:all .2s;}
+.bc-target-card.reached{border-color:var(--green);background:rgba(45,206,137,.06);}
+.bc-target-card.active-target{border-color:var(--amber);background:rgba(251,184,58,.06);}
+.bc-target-pct{font-size:11px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px;}
+.bc-target-rev{font-size:18px;font-weight:700;font-family:var(--fm);color:var(--text);}
+.bc-target-bonus{font-size:11px;color:var(--text2);font-family:var(--fm);margin-top:4px;}
+.bc-target-status{font-size:10px;font-weight:700;margin-top:8px;padding:3px 0;border-radius:6px;letter-spacing:.04em;}
+.bc-target-card.reached .bc-target-status{color:var(--green);}
+.bc-target-card.active-target .bc-target-status{color:var(--amber);}
+</style>
+
+<div class="bc-wrap">
+  <div class="bc-hero">
+    <div class="bc-hero-title">💰 Bonus Calculator</div>
+    <div class="bc-hero-sub">Estimate your monthly incentive based on your current performance</div>
+    <div class="bc-type-toggle">
+      <button class="bc-type-btn active" id="bcTypeNonSenior" onclick="bcSetType('nonsenior')">Non-Senior</button>
+      <button class="bc-type-btn" id="bcTypeSenior" onclick="bcSetType('senior')">Senior</button>
+    </div>
+  </div>
+
+  <div class="bc-inputs-grid">
+    <div class="bc-field">
+      <div class="bc-field-label">Working Days in Month</div>
+      <select id="bcWorkingDaysMonth" onchange="bcRecalc()"></select>
+      <div class="bc-field-hint">Total available working days this month</div>
+    </div>
+    <div class="bc-field">
+      <div class="bc-field-label">Your Working Days</div>
+      <select id="bcYourDays" onchange="bcRecalc()"></select>
+      <div class="bc-field-hint">Days you have worked / will work</div>
+    </div>
+    <div class="bc-field">
+      <div class="bc-field-label">Current Revenue (£)</div>
+      <input type="number" id="bcRevenue" placeholder="e.g. 7500" oninput="bcRecalc()" min="0" step="100">
+      <div class="bc-field-hint">Your revenue so far this month</div>
+    </div>
+  </div>
+
+  <div id="bcResultsArea">
+    <div class="bc-empty">
+      <div class="bc-empty-icon">📊</div>
+      <div class="bc-empty-text">Enter your revenue above to see your bonus estimate</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+// ─── BONUS CALCULATOR LOGIC ────────────────────────────────────────
+let _bcType = 'nonsenior';
+
+function bcInit(){
+  // Working days in month: 18–23
+  const wdm = document.getElementById('bcWorkingDaysMonth');
+  wdm.innerHTML = '';
+  for(let d=18;d<=23;d++){
+    const o = document.createElement('option');
+    o.value = d; o.textContent = d + ' days';
+    if(d===22) o.selected = true;
+    wdm.appendChild(o);
+  }
+  bcUpdateYourDays();
+}
+
+function bcUpdateYourDays(){
+  const wdm = parseInt(document.getElementById('bcWorkingDaysMonth').value) || 22;
+  const yd  = document.getElementById('bcYourDays');
+  const cur = parseInt(yd.value) || 0;
+  yd.innerHTML = '';
+  for(let d=1;d<=wdm;d++){
+    const o = document.createElement('option');
+    o.value = d; o.textContent = d + (d===1?' day':' days');
+    if(d===cur || (cur===0 && d===wdm)) o.selected = true;
+    yd.appendChild(o);
+  }
+}
+
+document.getElementById('bcWorkingDaysMonth').addEventListener('change', ()=>{ bcUpdateYourDays(); bcRecalc(); });
+
+function bcSetType(t){
+  _bcType = t;
+  document.getElementById('bcTypeNonSenior').classList.toggle('active', t==='nonsenior');
+  document.getElementById('bcTypeSenior').classList.toggle('active', t==='senior');
+  bcRecalc();
+}
+
+function bcBonusForRPD(rpd, type){
+  // Clamp to valid range
+  if(rpd < 1000) return { bonus: 0, label: '< Min' };
+  const bracket = Math.floor(rpd / 100) * 100;
+  const base   = type === 'senior' ? 517 : 1100;
+  const bonus  = base + (bracket / 100 - 10) * 400;
+  return { bonus: Math.max(0, bonus), bracket };
+}
+
+function bcMonthlyTargets(type){
+  if(type === 'senior')    return [{ pct:25,rev:4200,cap:1600 },{ pct:50,rev:8400,cap:1400 },{ pct:75,rev:12600,cap:1300 },{ pct:100,rev:16800,cap:null }];
+  return [{ pct:25,rev:600,cap:1700 },{ pct:50,rev:1200,cap:1500 },{ pct:75,rev:1800,cap:1400 },{ pct:100,rev:null,cap:null }];
+}
+
+function bcPartialBonus(rpd, type, targetPct){
+  // For partial targets, bonus tables (from spreadsheet)
+  if(rpd < 1200) return null; // below minimum for partial targets
+  const bracket = Math.floor(rpd / 100) * 100;
+  
+  if(type === 'nonsenior'){
+    if(targetPct === 25){
+      if(rpd >= 1700) return { capped: true };
+      return { bonus: 475 + (bracket/100 - 12) * 100 };
+    }
+    if(targetPct === 50){
+      if(rpd >= 1500) return { capped: true };
+      return { bonus: 950 + (bracket/100 - 12) * 200 };
+    }
+    if(targetPct === 75){
+      if(rpd >= 1400) return { capped: true };
+      return { bonus: 1425 + (bracket/100 - 12) * 300 };
+    }
+  } else {
+    if(targetPct === 25){
+      if(rpd >= 1600) return { capped: true };
+      return { bonus: 329.25 + (bracket/100 - 12) * 100 };
+    }
+    if(targetPct === 50){
+      if(rpd >= 1400) return { capped: true };
+      return { bonus: 658.5 + (bracket/100 - 12) * 200 };
+    }
+    if(targetPct === 75){
+      if(rpd >= 1300) return { capped: true };
+      return { bonus: 987.75 + (bracket/100 - 12) * 300 };
+    }
+  }
+  return null;
+}
+
+function fmt(n){ return '£' + Math.round(n).toLocaleString('en-GB'); }
+function fmtDec(n){ return '£' + n.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+function bcRecalc(){
+  const wdm     = parseInt(document.getElementById('bcWorkingDaysMonth').value) || 22;
+  const yourDays= parseInt(document.getElementById('bcYourDays').value) || wdm;
+  const revenue = parseFloat(document.getElementById('bcRevenue').value) || 0;
+  const type    = _bcType;
+  const area    = document.getElementById('bcResultsArea');
+
+  if(!revenue || revenue <= 0){
+    area.innerHTML = `<div class="bc-empty"><div class="bc-empty-icon">📊</div><div class="bc-empty-text">Enter your revenue above to see your bonus estimate</div></div>`;
+    return;
+  }
+
+  const rpd = revenue / yourDays;
+  const { bonus: bonusTotal, bracket } = bcBonusForRPD(rpd, type);
+  const proRataBonus = bonusTotal * (yourDays / wdm);
+  
+  // Target bracket info
+  const nextBracket = (Math.floor(rpd / 100) + 1) * 100;
+  const neededForNext = (nextBracket * yourDays) - revenue;
+  const alreadyAtNext = neededForNext <= 0;
+  
+  // Current percentage of full rate
+  const fullRateRpd = nextBracket; 
+  
+  // Target cards
+  const targets = bcMonthlyTargets(type);
+  
+  // Tier table — show surrounding brackets
+  const currentBracket = Math.floor(rpd/100)*100;
+  const tierRows = [];
+  const startRpd = Math.max(1000, currentBracket - 500);
+  const endRpd   = currentBracket + 500;
+  for(let r = startRpd; r <= endRpd; r += 100){
+    const { bonus: b } = bcBonusForRPD(r, type);
+    const isYou = r === currentBracket;
+    tierRows.push({ rpd: r, bonus: b, isYou });
+  }
+
+  // Monthly target status  
+  const monthlyRev = rpd * wdm; // projected monthly at current RPD
+
+  area.innerHTML = `
+    <!-- Key results -->
+    <div class="bc-results">
+      <div class="bc-res-card highlight">
+        <div class="bc-res-label">Risk Per Day</div>
+        <div class="bc-res-val blue">${fmt(rpd)}</div>
+        <div class="bc-res-sub">Based on £${revenue.toLocaleString('en-GB')} over ${yourDays} day${yourDays===1?'':'s'}</div>
+        <div class="bc-progress-wrap">
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);font-family:var(--fm);margin-bottom:5px;">
+            <span>£${(currentBracket).toLocaleString()} bracket</span>
+            <span>£${nextBracket.toLocaleString()} bracket</span>
+          </div>
+          <div class="bc-progress-track">
+            <div class="bc-progress-bar" style="width:${Math.min(100,(rpd-currentBracket)/100*100).toFixed(1)}%"></div>
+          </div>
+        </div>
+      </div>
+      <div class="bc-res-card">
+        <div class="bc-res-label">Full Month Bonus</div>
+        <div class="bc-res-val amber">${fmt(bonusTotal)}</div>
+        <div class="bc-res-sub">At current RPD of £${fmt(rpd).replace('£','')} (${bracket.toLocaleString()} bracket)</div>
+      </div>
+      <div class="bc-res-card highlight">
+        <div class="bc-res-label">Pro-Rata Bonus</div>
+        <div class="bc-res-val green">${fmtDec(proRataBonus)}</div>
+        <div class="bc-res-sub">${yourDays} of ${wdm} working days (${(yourDays/wdm*100).toFixed(0)}%)</div>
+      </div>
+      <div class="bc-res-card">
+        <div class="bc-res-label">Projected Monthly Rev</div>
+        <div class="bc-res-val ${monthlyRev >= (type==='senior'?16800:13300) ? 'green' : 'amber'}">${fmt(monthlyRev)}</div>
+        <div class="bc-res-sub">If RPD holds for all ${wdm} days</div>
+      </div>
+    </div>
+
+    <!-- Next bracket -->
+    <div class="bc-next-bracket${alreadyAtNext?' bc-achieved':''}">
+      <div>
+        <div class="bc-next-label">${alreadyAtNext ? '✅ Target Achieved' : '🎯 Next Bracket: £' + nextBracket.toLocaleString() + ' RPD'}</div>
+        ${alreadyAtNext
+          ? `<div class="bc-next-val" style="color:var(--green)">Already there!</div>
+             <div class="bc-next-desc">You're in the £${nextBracket.toLocaleString()} bracket or above</div>`
+          : `<div class="bc-next-val">${fmt(neededForNext)} more needed</div>
+             <div class="bc-next-desc">Earn ${fmt(neededForNext)} more to unlock ${fmt(bcBonusForRPD(nextBracket, type).bonus)} bonus (currently ${fmt(bonusTotal)})</div>`
+        }
+      </div>
+      <div class="bc-next-icon">${alreadyAtNext ? '🏆' : '📈'}</div>
+    </div>
+
+    <!-- Target milestone cards -->
+    <div style="font-size:13px;font-weight:700;margin-bottom:12px;letter-spacing:-.01em;">📍 Monthly Target Milestones</div>
+    <div class="bc-targets-row">
+      ${targets.map(t => {
+        const tRev = t.rev;
+        const reached = tRev ? revenue >= tRev : false;
+        const isActive = tRev ? (revenue < tRev && (targets.find(prev => prev.pct < t.pct && targets.indexOf(prev) >= 0)?.rev || 0) <= revenue) : false;
+        return `<div class="bc-target-card${reached?' reached':''}" >
+          <div class="bc-target-pct">${t.pct}% Target</div>
+          ${tRev ? `<div class="bc-target-rev">${fmt(tRev)}</div>` : `<div class="bc-target-rev" style="font-size:14px;color:var(--text3)">See table</div>`}
+          <div class="bc-target-bonus">Monthly target</div>
+          <div class="bc-target-status">${reached ? '✅ Reached' : tRev ? fmt(tRev - revenue) + ' to go' : '—'}</div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <!-- Tier table -->
+    <div class="bc-tier-section">
+      <div class="bc-tier-header">
+        <div>
+          <div class="bc-tier-title">📊 Bonus Tier Table</div>
+          <div class="bc-tier-sub">${type === 'senior' ? 'Senior' : 'Non-Senior'} scale · showing ±5 brackets from your current position</div>
+        </div>
+        <div style="font-size:11px;color:var(--text2);font-family:var(--fm)">100% Target</div>
+      </div>
+      <table class="bc-tier-table">
+        <thead>
+          <tr>
+            <th class="bc-tier-th">Risk Per Day</th>
+            <th class="bc-tier-th">Bonus</th>
+            <th class="bc-tier-th">Uplift vs Current</th>
+            <th class="bc-tier-th">Revenue Needed (${yourDays}d)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tierRows.map(row => {
+            const uplift = row.bonus - bonusTotal;
+            const revNeeded = row.rpd * yourDays;
+            const revDiff   = revNeeded - revenue;
+            return `<tr class="bc-tier-tr${row.isYou ? ' current-tier' : ''}">
+              <td class="bc-tier-td">£${row.rpd.toLocaleString()}${row.isYou ? '<span class="bc-you-badge">YOU</span>' : ''}</td>
+              <td class="bc-tier-td" style="color:var(--amber);font-weight:${row.isYou?'700':'400'}">${fmt(row.bonus)}</td>
+              <td class="bc-tier-td" style="color:${uplift>0?'var(--green)':uplift<0?'var(--red)':'var(--text3)'}">
+                ${uplift > 0 ? '+' : ''}${uplift !== 0 ? fmt(uplift) : '—'}
+              </td>
+              <td class="bc-tier-td" style="color:${revDiff>0?'var(--text2)':'var(--green)'}">
+                ${revDiff > 0 ? '+'+fmt(revDiff)+' needed' : revDiff < 0 ? fmt(Math.abs(revDiff))+' surplus' : '—'}
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// Initialise when DOM ready
+(function bcAutoInit(){
+  if(document.getElementById('bcWorkingDaysMonth')) bcInit();
+  else document.addEventListener('DOMContentLoaded', bcInit);
+})();
+</script>
+<!-- END BONUS CALCULATOR PAGE -->
+
 <!-- MANAGER OVERVIEW -->
 <div class="page" id="page-manageroverview">
   <div class="section-head">
@@ -2788,9 +3150,9 @@ async function _sha256(str){
 const ROLE_ACCESS = {
   master:     null, // all tabs
   manager:    ['dashboard','biz','teams','summary','entry','monthlysummary','leaderboard',
-               'history','daybyday','holiday','settings','manageroverview','staffperf','calloutcomes','consultantdaily','remedialmanager'],
+               'history','daybyday','holiday','settings','manageroverview','staffperf','calloutcomes','consultantdaily','remedialmanager','bonuscalc'],
   compliance: ['compliance','calloutcomes','remedialmanager'],
-  consultant: ['consultantdaily','teams','calloutcomes','holiday']
+  consultant: ['consultantdaily','teams','calloutcomes','holiday','bonuscalc']
 };
 const ROLE_LABELS = { master:'Master', manager:'Manager', compliance:'Compliance', consultant:'Consultant' };
 const ROLE_COLORS = { master:'#e879f9', manager:'#5e9cf5', compliance:'#2dce89', consultant:'#fbb83a' };
@@ -5699,6 +6061,7 @@ function showPage(id){
   if(id==='calloutcomes')  { loadCallOutcomes(); startRemedialListener(); }
   if(id==='remedialmanager'){ loadRemedials(); renderMgrRemPage(); }
   if(id==='consultantdaily'){ populateAllSelects(); renderConsultantDaily(); }
+  if(id==='bonuscalc'){ if(typeof bcInit==='function') bcInit(); }
 }
 
 // ═══════════════════════════════════════════════════════════════════
