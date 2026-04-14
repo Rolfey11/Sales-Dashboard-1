@@ -2670,21 +2670,26 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     </div>
   </div>
 
-  <div class="bc-inputs-grid">
+  <div class="bc-inputs-grid" style="grid-template-columns:1fr 1fr 1fr 1fr;">
+    <div class="bc-field">
+      <div class="bc-field-label">Month</div>
+      <select id="bcMonth" onchange="bcOnMonthChange()"></select>
+      <div class="bc-field-hint">Revenue auto-pulls for this month</div>
+    </div>
     <div class="bc-field">
       <div class="bc-field-label">Working Days in Month</div>
       <select id="bcWorkingDaysMonth" onchange="bcRecalc()"></select>
-      <div class="bc-field-hint">Total available working days this month</div>
+      <div class="bc-field-hint">Total available working days</div>
     </div>
     <div class="bc-field">
       <div class="bc-field-label">Your Working Days</div>
       <select id="bcYourDays" onchange="bcRecalc()"></select>
-      <div class="bc-field-hint">Days you have worked / will work</div>
+      <div class="bc-field-hint">Days worked / to work</div>
     </div>
     <div class="bc-field">
-      <div class="bc-field-label">Current Revenue (£)</div>
-      <input type="number" id="bcRevenue" placeholder="e.g. 7500" oninput="bcRecalc()" min="0" step="100">
-      <div class="bc-field-hint">Your revenue so far this month</div>
+      <div class="bc-field-label">Current Revenue (£) <span id="bcAutoTag" style="display:none;font-size:9px;font-weight:700;background:rgba(45,206,137,.15);color:var(--green);padding:2px 7px;border-radius:10px;letter-spacing:.04em;margin-left:4px;">AUTO</span></div>
+      <input type="number" id="bcRevenue" placeholder="e.g. 7500" oninput="bcOnRevenueEdit()" min="0" step="100">
+      <div class="bc-field-hint" id="bcRevenueHint">Enter your revenue this month</div>
     </div>
   </div>
 
@@ -2700,18 +2705,103 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 <script>
 // ─── BONUS CALCULATOR LOGIC ────────────────────────────────────────
 let _bcType = 'nonsenior';
+let _bcRevenueManual = false;
 
 function bcInit(){
-  // Working days in month: 18–23
-  const wdm = document.getElementById('bcWorkingDaysMonth');
-  wdm.innerHTML = '';
-  for(let d=18;d<=23;d++){
+  populateAllSelects();
+  const bcMonthEl = document.getElementById('bcMonth');
+  if(bcMonthEl && !bcMonthEl.value) bcMonthEl.value = APP.activeMonth;
+  bcOnMonthChange();
+}
+
+function bcOnMonthChange(){
+  _bcRevenueManual = false;
+  bcAutoPopulate();
+}
+
+function bcOnRevenueEdit(){
+  _bcRevenueManual = true;
+  document.getElementById('bcAutoTag').style.display = 'none';
+  document.getElementById('bcRevenueHint').textContent = 'Manually entered — change month to re-sync';
+  bcRecalc();
+}
+
+function bcAutoPopulate(){
+  const mk     = document.getElementById('bcMonth')?.value || APP.activeMonth;
+  const myName = _currentUser?.name || '';
+  const p      = APP.people.find(x => x.name === myName);
+  const ep     = p ? getPersonForMonth(p, mk) : null;
+  const configDaysT = ep?.daysT || 0;
+  const totalDays   = configDaysT > 0 ? configDaysT : bcCountMonthWorkDays(mk);
+  const elapsed     = p ? calWorkDays(mk, myName) : bcCountElapsedWorkDays(mk);
+  bcSetWorkingDaysMonth(totalDays);
+  bcSetYourDays(totalDays, elapsed);
+  if(!_bcRevenueManual){
+    const entries = getEntries(mk);
+    const mine    = entries.filter(e => e.name === myName);
+    const revMTD  = mine.reduce((s,e) => s + (e.revenue || 0), 0);
+    const revInput = document.getElementById('bcRevenue');
+    const autoTag  = document.getElementById('bcAutoTag');
+    const hint     = document.getElementById('bcRevenueHint');
+    if(revMTD > 0){
+      revInput.value = revMTD;
+      autoTag.style.display = '';
+      hint.textContent = 'Auto-pulled from ' + monthLabel(mk) + ' entries · edit to override';
+    } else {
+      revInput.value = '';
+      autoTag.style.display = 'none';
+      hint.textContent = 'No entries found for ' + monthLabel(mk) + ' · enter manually';
+    }
+  }
+  bcRecalc();
+}
+
+function bcCountMonthWorkDays(mk){
+  const [y, m] = mk.split('-').map(Number);
+  const lastDay = new Date(y, m, 0).getDate();
+  let count = 0;
+  for(let d = 1; d <= lastDay; d++){
+    const dow = new Date(y, m-1, d).getDay();
+    if(dow !== 0 && dow !== 6) count++;
+  }
+  return count;
+}
+
+function bcCountElapsedWorkDays(mk){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const [y, m] = mk.split('-').map(Number);
+  const isActive = (y === today.getFullYear() && m === (today.getMonth()+1));
+  const cutoff = isActive ? today : new Date(y, m, 0);
+  let count = 0;
+  const cursor = new Date(y, m-1, 1);
+  while(cursor <= cutoff){ const dow = cursor.getDay(); if(dow !== 0 && dow !== 6) count++; cursor.setDate(cursor.getDate()+1); }
+  return count;
+}
+
+function bcSetWorkingDaysMonth(selectedVal){
+  const el = document.getElementById('bcWorkingDaysMonth');
+  if(!el) return;
+  el.innerHTML = '';
+  const min = Math.min(18, selectedVal), max = Math.max(23, selectedVal);
+  for(let d = min; d <= max; d++){
     const o = document.createElement('option');
     o.value = d; o.textContent = d + ' days';
-    if(d===22) o.selected = true;
-    wdm.appendChild(o);
+    if(d === selectedVal) o.selected = true;
+    el.appendChild(o);
   }
-  bcUpdateYourDays();
+}
+
+function bcSetYourDays(maxDays, selectedVal){
+  const el = document.getElementById('bcYourDays');
+  if(!el) return;
+  const useVal = selectedVal > 0 ? selectedVal : maxDays;
+  el.innerHTML = '';
+  for(let d = 1; d <= maxDays; d++){
+    const o = document.createElement('option');
+    o.value = d; o.textContent = d + (d === 1 ? ' day' : ' days');
+    if(d === useVal) o.selected = true;
+    el.appendChild(o);
+  }
 }
 
 function bcUpdateYourDays(){
@@ -2728,6 +2818,7 @@ function bcUpdateYourDays(){
 }
 
 document.getElementById('bcWorkingDaysMonth').addEventListener('change', ()=>{ bcUpdateYourDays(); bcRecalc(); });
+document.getElementById('bcYourDays').addEventListener('change', ()=>{ bcRecalc(); });
 
 function bcSetType(t){
   _bcType = t;
@@ -2935,8 +3026,8 @@ function bcRecalc(){
 
 // Initialise when DOM ready
 (function bcAutoInit(){
-  if(document.getElementById('bcWorkingDaysMonth')) bcInit();
-  else document.addEventListener('DOMContentLoaded', bcInit);
+  if(document.getElementById('bcMonth')) { if(typeof APP !== 'undefined' && APP.people) bcInit(); }
+  // bcInit is also called from showPage('bonuscalc')
 })();
 </script>
 <!-- END BONUS CALCULATOR PAGE -->
@@ -6002,7 +6093,7 @@ function clearAllData(){
 function populateAllSelects(){
   const months = allMonthKeys();
 
-  ['entryMonth','lbMonth','histMonth','activeMonthSel','bizMonth','teamsMonth','dbdMonth','mcsMonth','moMonth','dsMonth','cdMonth'].forEach(id=>{
+  ['entryMonth','lbMonth','histMonth','activeMonthSel','bizMonth','teamsMonth','dbdMonth','mcsMonth','moMonth','dsMonth','cdMonth','bcMonth'].forEach(id=>{
     const el = document.getElementById(id);
     if(!el) return;
     const cur = el.value || APP.activeMonth;
