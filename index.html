@@ -2711,7 +2711,31 @@ function bcInit(){
   populateAllSelects();
   const bcMonthEl = document.getElementById('bcMonth');
   if(bcMonthEl && !bcMonthEl.value) bcMonthEl.value = APP.activeMonth;
+  // Init static working-day dropdowns (manual selection only)
+  bcInitDayDropdowns();
   bcOnMonthChange();
+}
+
+function bcInitDayDropdowns(){
+  const wdmEl = document.getElementById('bcWorkingDaysMonth');
+  if(wdmEl && !wdmEl.options.length){
+    for(let d = 18; d <= 23; d++){
+      const o = document.createElement('option');
+      o.value = d; o.textContent = d + ' days';
+      if(d === 22) o.selected = true;
+      wdmEl.appendChild(o);
+    }
+  }
+  const ydEl = document.getElementById('bcYourDays');
+  if(ydEl && !ydEl.options.length){
+    const wdm = parseInt(wdmEl?.value) || 22;
+    for(let d = 1; d <= wdm; d++){
+      const o = document.createElement('option');
+      o.value = d; o.textContent = d + (d === 1 ? ' day' : ' days');
+      if(d === wdm) o.selected = true;
+      ydEl.appendChild(o);
+    }
+  }
 }
 
 function bcOnMonthChange(){
@@ -2729,24 +2753,18 @@ function bcOnRevenueEdit(){
 function bcAutoPopulate(){
   const mk     = document.getElementById('bcMonth')?.value || APP.activeMonth;
   const myName = _currentUser?.name || '';
-  const p      = APP.people.find(x => x.name === myName);
-  const ep     = p ? getPersonForMonth(p, mk) : null;
-  const configDaysT = ep?.daysT || 0;
-  const totalDays   = configDaysT > 0 ? configDaysT : bcCountMonthWorkDays(mk);
-  const elapsed     = p ? calWorkDays(mk, myName) : bcCountElapsedWorkDays(mk);
-  bcSetWorkingDaysMonth(totalDays);
-  bcSetYourDays(totalDays, elapsed);
+  // Only auto-pull revenue — days are set manually by the consultant
   if(!_bcRevenueManual){
     const entries = getEntries(mk);
     const mine    = entries.filter(e => e.name === myName);
-    const revMTD  = mine.reduce((s,e) => s + (e.revenue || 0), 0);
+    const revMTD  = Math.round(mine.reduce((s,e) => s + (e.revenue || 0), 0));
     const revInput = document.getElementById('bcRevenue');
     const autoTag  = document.getElementById('bcAutoTag');
     const hint     = document.getElementById('bcRevenueHint');
     if(revMTD > 0){
       revInput.value = revMTD;
       autoTag.style.display = '';
-      hint.textContent = 'Auto-pulled from ' + monthLabel(mk) + ' entries · edit to override';
+      hint.textContent = 'Auto-pulled from ' + monthLabel(mk) + ' · edit to override';
     } else {
       revInput.value = '';
       autoTag.style.display = 'none';
@@ -8388,16 +8406,18 @@ function renderConsultantDaily(){
   const [y,m] = mk.split('-').map(Number);
   const daysInMonth = new Date(y,m,0).getDate();
   const today = _localDateStr(new Date());
+  const myHols = getHols(mk, myName); // consultant's holiday dates for this month
   let tableRows = '';
   for(let d=1;d<=daysInMonth;d++){
     const ds  = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const dow = new Date(y,m-1,d).getDay();
     const isWE = dow===0||dow===6;
     const isBH = isBankHoliday(ds);
+    const isHol = !isWE && !isBH && myHols.includes(ds);
     const ent  = mine.find(e=>e.date===ds);
     const pend = myPending.find(e=>e.date===ds);
     const isFuture = ds > today;
-    const rowBg = isWE||isBH ? 'var(--surface3)' : ds===today ? 'rgba(94,156,245,0.07)' : '';
+    const rowBg = isWE||isBH ? 'var(--surface3)' : isHol ? 'rgba(251,184,58,0.07)' : ds===today ? 'rgba(94,156,245,0.07)' : '';
     const statusBadge = pend ? (pend.status==='pending'?'<span style="font-size:9px;font-weight:700;background:rgba(251,184,58,.2);color:var(--amber);padding:2px 7px;border-radius:10px;margin-left:6px">⏳ Pending</span>':
       pend.status==='approved'||pend.status==='amended'?'<span style="font-size:9px;font-weight:700;background:rgba(45,206,137,.2);color:var(--green);padding:2px 7px;border-radius:10px;margin-left:6px">✓ Approved</span>':
       '<span style="font-size:9px;font-weight:700;background:rgba(245,54,92,.2);color:var(--red);padding:2px 7px;border-radius:10px;margin-left:6px">✕ Declined</span>') : '';
@@ -8419,7 +8439,7 @@ function renderConsultantDaily(){
            <span style="color:var(--green);font-weight:700;font-family:var(--fm);">£${parseFloat(ent.revenue).toLocaleString()}</span>
            <button id="${dealRowId}_btn" onclick="cdToggleDeals('${dealRowId}',this)" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:13px;font-weight:700;cursor:pointer;line-height:1;padding:0;transition:all .15s;" title="Show individual deals">+</button>
          </span>`
-      : (isWE||isBH||isFuture?'—':'');
+      : (isWE||isBH||isHol||isFuture?'—':'');
 
     // Expandable deal breakdown row (hidden by default)
     const dealsRow = hasDeals ? `<tr id="${dealRowId}" style="display:none;background:var(--surface2);">
@@ -8446,14 +8466,14 @@ function renderConsultantDaily(){
     </tr>` : '';
 
     tableRows += `<tr style="border-bottom:${hasDeals?'none':'1px solid var(--border)'};background:${rowBg};">
-      <td style="padding:8px 12px;font-size:12px;font-family:var(--fm);white-space:nowrap;color:${isFuture?'var(--text3)':ds===today?'var(--accent)':'var(--text2)'};font-weight:${ds===today?'700':'400'}">${dayLabel}${isWE?' <span style="font-size:9px;color:var(--text3)">WE</span>':isBH?' <span style="font-size:9px;color:var(--red)">BH</span>':''}</td>
+      <td style="padding:8px 12px;font-size:12px;font-family:var(--fm);white-space:nowrap;color:${isFuture?'var(--text3)':ds===today?'var(--accent)':isHol?'var(--amber)':'var(--text2)'};font-weight:${ds===today||isHol?'700':'400'}">${dayLabel}${isWE?' <span style="font-size:9px;color:var(--text3)">WE</span>':isBH?' <span style="font-size:9px;color:var(--red)">BH</span>':isHol?' <span style="font-size:9px;font-weight:700;background:rgba(251,184,58,.18);color:var(--amber);padding:1px 6px;border-radius:8px;margin-left:4px">🏖 HOL</span>':''}</td>
       <td style="padding:8px 12px;text-align:right;font-family:var(--fm);font-size:12px;">${revDisplay}</td>
       <td style="padding:8px 12px;text-align:right;font-family:var(--fm);font-size:12px;color:${ent?.nm?'var(--text)':'var(--text3)'}">${ent?.nm||(!isWE&&!isBH&&!isFuture?'':' ')}</td>
       <td style="padding:8px 12px;font-size:12px;font-family:var(--fm);color:var(--text3)">${statusBadge}</td>
       <td style="padding:8px 12px;text-align:right">
-        ${!isWE&&!isBH&&!isFuture&&role==='consultant'?`<button class="btn btn-s" onclick="openDailySubmit('${ds}')" style="font-size:11px;padding:3px 10px;">+ Submit</button>`:''}
-        ${!isWE&&!isBH&&!isFuture&&isManagerRole&&pend?.status==='pending'?`<button class="btn btn-p" onclick="openReviewModal('${pend.id}')" style="font-size:11px;padding:3px 10px;">Review</button>`:''}
-        ${!isWE&&!isBH&&!isFuture&&isManagerRole?`<button class="btn btn-s" onclick="openManagerDirectEntry('${ds}','${myName.replace(/'/g,"\\'")}',0,0)" style="font-size:11px;padding:3px 10px;color:var(--accent);border-color:var(--accent)">+ Add</button>`:''}
+        ${!isWE&&!isBH&&!isHol&&!isFuture&&role==='consultant'?`<button class="btn btn-s" onclick="openDailySubmit('${ds}')" style="font-size:11px;padding:3px 10px;">+ Submit</button>`:''}
+        ${!isWE&&!isBH&&!isHol&&!isFuture&&isManagerRole&&pend?.status==='pending'?`<button class="btn btn-p" onclick="openReviewModal('${pend.id}')" style="font-size:11px;padding:3px 10px;">Review</button>`:''}
+        ${!isWE&&!isBH&&!isHol&&!isFuture&&isManagerRole?`<button class="btn btn-s" onclick="openManagerDirectEntry('${ds}','${myName.replace(/'/g,"\\'")}',0,0)" style="font-size:11px;padding:3px 10px;color:var(--accent);border-color:var(--accent)">+ Add</button>`:''}
       </td>
     </tr>${dealsRow}`;
   }
@@ -9445,6 +9465,7 @@ function renderTeamDashboard(container, teamKey){
 
   // render team charts after DOM update
   if(typeof _animateBars==='function') setTimeout(_animateBars, 60);
+  if(typeof _animateGauges==='function') setTimeout(_animateGauges, 60);
   if(typeof _updatePresenceDots==='function') setTimeout(_updatePresenceDots, 60);
   setTimeout(()=>{
     destroyChart('team_'+teamKey+'_rev'); destroyChart('team_'+teamKey+'_nm');
