@@ -2785,8 +2785,8 @@ function bcPartialBonus(rpd, type, targetPct){
   return null;
 }
 
-function fmt(n){ return '£' + Math.round(n).toLocaleString('en-GB'); }
-function fmtDec(n){ return '£' + n.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function bcFmt(n){ return '£' + Math.round(n).toLocaleString('en-GB'); }
+function bcFmtDec(n){ return '£' + n.toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
 function bcRecalc(){
   const wdm     = parseInt(document.getElementById('bcWorkingDaysMonth').value) || 22;
@@ -2834,7 +2834,7 @@ function bcRecalc(){
     <div class="bc-results">
       <div class="bc-res-card highlight">
         <div class="bc-res-label">Risk Per Day</div>
-        <div class="bc-res-val blue">${fmt(rpd)}</div>
+        <div class="bc-res-val blue">${bcFmt(rpd)}</div>
         <div class="bc-res-sub">Based on £${revenue.toLocaleString('en-GB')} over ${yourDays} day${yourDays===1?'':'s'}</div>
         <div class="bc-progress-wrap">
           <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);font-family:var(--fm);margin-bottom:5px;">
@@ -2848,17 +2848,17 @@ function bcRecalc(){
       </div>
       <div class="bc-res-card">
         <div class="bc-res-label">Full Month Bonus</div>
-        <div class="bc-res-val amber">${fmt(bonusTotal)}</div>
-        <div class="bc-res-sub">At current RPD of £${fmt(rpd).replace('£','')} (${bracket.toLocaleString()} bracket)</div>
+        <div class="bc-res-val amber">${bcFmt(bonusTotal)}</div>
+        <div class="bc-res-sub">At current RPD of £${bcFmt(rpd).replace('£','')} (${bracket.toLocaleString()} bracket)</div>
       </div>
       <div class="bc-res-card highlight">
         <div class="bc-res-label">Pro-Rata Bonus</div>
-        <div class="bc-res-val green">${fmtDec(proRataBonus)}</div>
+        <div class="bc-res-val green">${bcFmtDec(proRataBonus)}</div>
         <div class="bc-res-sub">${yourDays} of ${wdm} working days (${(yourDays/wdm*100).toFixed(0)}%)</div>
       </div>
       <div class="bc-res-card">
         <div class="bc-res-label">Projected Monthly Rev</div>
-        <div class="bc-res-val ${monthlyRev >= (type==='senior'?16800:13300) ? 'green' : 'amber'}">${fmt(monthlyRev)}</div>
+        <div class="bc-res-val ${monthlyRev >= (type==='senior'?16800:13300) ? 'green' : 'amber'}">${bcFmt(monthlyRev)}</div>
         <div class="bc-res-sub">If RPD holds for all ${wdm} days</div>
       </div>
     </div>
@@ -2870,8 +2870,8 @@ function bcRecalc(){
         ${alreadyAtNext
           ? `<div class="bc-next-val" style="color:var(--green)">Already there!</div>
              <div class="bc-next-desc">You're in the £${nextBracket.toLocaleString()} bracket or above</div>`
-          : `<div class="bc-next-val">${fmt(neededForNext)} more needed</div>
-             <div class="bc-next-desc">Earn ${fmt(neededForNext)} more to unlock ${fmt(bcBonusForRPD(nextBracket, type).bonus)} bonus (currently ${fmt(bonusTotal)})</div>`
+          : `<div class="bc-next-val">${bcFmt(neededForNext)} more needed</div>
+             <div class="bc-next-desc">Earn ${bcFmt(neededForNext)} more to unlock ${bcFmt(bcBonusForRPD(nextBracket, type).bonus)} bonus (currently ${bcFmt(bonusTotal)})</div>`
         }
       </div>
       <div class="bc-next-icon">${alreadyAtNext ? '🏆' : '📈'}</div>
@@ -2886,9 +2886,9 @@ function bcRecalc(){
         const isActive = tRev ? (revenue < tRev && (targets.find(prev => prev.pct < t.pct && targets.indexOf(prev) >= 0)?.rev || 0) <= revenue) : false;
         return `<div class="bc-target-card${reached?' reached':''}" >
           <div class="bc-target-pct">${t.pct}% Target</div>
-          ${tRev ? `<div class="bc-target-rev">${fmt(tRev)}</div>` : `<div class="bc-target-rev" style="font-size:14px;color:var(--text3)">See table</div>`}
+          ${tRev ? `<div class="bc-target-rev">${bcFmt(tRev)}</div>` : `<div class="bc-target-rev" style="font-size:14px;color:var(--text3)">See table</div>`}
           <div class="bc-target-bonus">Monthly target</div>
-          <div class="bc-target-status">${reached ? '✅ Reached' : tRev ? fmt(tRev - revenue) + ' to go' : '—'}</div>
+          <div class="bc-target-status">${reached ? '✅ Reached' : tRev ? bcFmt(tRev - revenue) + ' to go' : '—'}</div>
         </div>`;
       }).join('')}
     </div>
@@ -2918,12 +2918,12 @@ function bcRecalc(){
             const revDiff   = revNeeded - revenue;
             return `<tr class="bc-tier-tr${row.isYou ? ' current-tier' : ''}">
               <td class="bc-tier-td">£${row.rpd.toLocaleString()}${row.isYou ? '<span class="bc-you-badge">YOU</span>' : ''}</td>
-              <td class="bc-tier-td" style="color:var(--amber);font-weight:${row.isYou?'700':'400'}">${fmt(row.bonus)}</td>
+              <td class="bc-tier-td" style="color:var(--amber);font-weight:${row.isYou?'700':'400'}">${bcFmt(row.bonus)}</td>
               <td class="bc-tier-td" style="color:${uplift>0?'var(--green)':uplift<0?'var(--red)':'var(--text3)'}">
-                ${uplift > 0 ? '+' : ''}${uplift !== 0 ? fmt(uplift) : '—'}
+                ${uplift > 0 ? '+' : ''}${uplift !== 0 ? bcFmt(uplift) : '—'}
               </td>
               <td class="bc-tier-td" style="color:${revDiff>0?'var(--text2)':'var(--green)'}">
-                ${revDiff > 0 ? '+'+fmt(revDiff)+' needed' : revDiff < 0 ? fmt(Math.abs(revDiff))+' surplus' : '—'}
+                ${revDiff > 0 ? '+'+bcFmt(revDiff)+' needed' : revDiff < 0 ? bcFmt(Math.abs(revDiff))+' surplus' : '—'}
               </td>
             </tr>`;
           }).join('')}
