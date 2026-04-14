@@ -15505,7 +15505,10 @@ if(sessionStorage.getItem('pd_auth')==='1'){
     <!-- Body -->
     <div id="bsmBody" style="flex:1;overflow-y:auto;padding:20px 24px;"></div>
     <!-- Footer -->
-    <div style="padding:14px 24px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:flex-end;flex-shrink:0;">
+    <div style="padding:14px 24px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <button id="bsmExportBtn" onclick="bsmExportPayroll()" style="display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,#4DA492,#3a8070);color:#fff;border:none;font-family:var(--fh);font-size:13px;font-weight:700;padding:9px 20px;border-radius:8px;cursor:pointer;box-shadow:0 2px 10px rgba(77,164,146,.3);transition:all .15s;" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 16px rgba(77,164,146,.4)'" onmouseout="this.style.transform='';this.style.boxShadow='0 2px 10px rgba(77,164,146,.3)'">
+        &#x1F4E5; Export to Payroll
+      </button>
       <button onclick="closeBonusSubmissions()" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text2);font-family:var(--fh);font-size:13px;font-weight:600;padding:8px 20px;border-radius:8px;cursor:pointer;">Close</button>
     </div>
   </div>
@@ -15885,6 +15888,258 @@ function bsmApprove(uid){
     approvedBy: _currentUser?.name || 'Manager',
     approvedAt: Date.now()
   }).catch(e => alert('Approve failed: ' + e.message));
+}
+</script>
+
+<!-- ExcelJS for payroll export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// PAYROLL EXPORT — generates an .xlsx identical to the Payroll Doc
+// tab in Incentive_Submission_Document.xlsm
+// ═══════════════════════════════════════════════════════════════════
+
+async function bsmExportPayroll(){
+  const btn = document.getElementById('bsmExportBtn');
+
+  // ── 1. Gather data ─────────────────────────────────────────────
+  const rows = Object.entries(_bsmData)
+    .map(([uid, d]) => Object.assign({ uid }, d));
+
+  if(!rows.length){
+    showToast('No submissions to export for this month.', 'err');
+    return;
+  }
+
+  // ── 2. Group by division in Payroll Doc section order ──────────
+  const DIV_ORDER = [
+    { key:'core',     label:'Core Team'           },
+    { key:'branch',   label:'Branch Team'         },
+    { key:'d2c',      label:'D2C Team'            },
+    { key:'advice',   label:'Single Tie Advice'   },
+    { key:'guidance', label:'Specialist Guidance' },
+    { key:'retail',   label:'Retail / Digital'    },
+  ];
+
+  // Column E team label per divKey (matches the source Payroll Doc)
+  const DIV_TEAM_LABEL = {
+    core:     'Core',
+    branch:   'Branch',
+    d2c:      'D2C Team',
+    advice:   'ST Advice',
+    guidance: 'Specialist Guidance',
+    retail:   'Retail / Digital',
+  };
+
+  function levelLabel(type){ return type === 'senior' ? 'Senior Consultant' : 'Consultant'; }
+
+  const knownKeys = new Set(DIV_ORDER.map(d => d.key));
+  const groups = DIV_ORDER
+    .map(div => ({
+      ...div,
+      members: rows
+        .filter(r => (r.divKey || '') === div.key)
+        .sort((a, b) => (a.name||'').localeCompare(b.name||''))
+    }))
+    .filter(g => g.members.length > 0);
+
+  // Catch-all for any unknown divKeys
+  const unknown = rows.filter(r => !knownKeys.has(r.divKey || ''));
+  if(unknown.length){
+    groups.push({
+      key:'other', label:'Other',
+      members: unknown.sort((a,b) => (a.name||'').localeCompare(b.name||''))
+    });
+  }
+
+  // ── 3. Validate ExcelJS loaded ─────────────────────────────────
+  if(typeof ExcelJS === 'undefined'){
+    showToast('Export library not loaded yet — please wait and try again.', 'err');
+    return;
+  }
+
+  btn.innerHTML = '⏳ Generating…'; btn.disabled = true;
+
+  try {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Payroll Doc');
+
+    // ── Column widths (exact from source file) ───────────────────
+    ws.getColumn('A').width = 8;
+    ws.getColumn('B').width = 9.44;
+    ws.getColumn('C').width = 19.0;
+    ws.getColumn('D').width = 18.66;
+    ws.getColumn('E').width = 20.66;
+    ws.getColumn('F').width = 15.0;
+    ws.getColumn('G').width = 12.44;
+    ws.getColumn('H').width = 16.0;
+    ws.getColumn('I').width = 39.11;
+
+    // ── Shared style constants ───────────────────────────────────
+    const HEADER_FILL = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF4DA492' } };
+    const FONT_BASE   = { name:'Aptos Narrow', size:11 };
+    const FONT_BOLD   = { name:'Aptos Narrow', size:11, bold:true };
+    const ALIGN_C     = { horizontal:'center', vertical:'middle' };
+    const bMed        = { style:'medium' };
+    const bThin       = { style:'thin' };
+    const bThick      = { style:'thick' };
+
+    // Border helpers for data rows
+    function bData(isFirst, isLast, left, right){
+      return {
+        top:    isFirst ? bMed : bThin,
+        bottom: isLast  ? bMed : bThin,
+        left:   left  || undefined,
+        right:  right || undefined
+      };
+    }
+
+    // ── Write sections ────────────────────────────────────────────
+    let currentRow = 2;
+
+    for(const group of groups){
+      const hr = currentRow; // header row index
+
+      // Merge B:E for section label
+      ws.mergeCells(hr, 2, hr, 5);
+
+      // B2:E2 — section label (merged)
+      const hLabel = ws.getCell(hr, 2);
+      hLabel.value     = group.label;
+      hLabel.font      = FONT_BOLD;
+      hLabel.fill      = HEADER_FILL;
+      hLabel.alignment = ALIGN_C;
+      hLabel.border    = { top:bMed, bottom:bMed, left:bMed, right:bMed };
+
+      // Fill + border on merged cells C–E individually
+      for(let c = 3; c <= 5; c++){
+        const mc = ws.getCell(hr, c);
+        mc.fill   = HEADER_FILL;
+        mc.border = { top:bMed, bottom:bMed, right: c===5 ? bMed : undefined };
+      }
+
+      // F — "Full bonus"
+      const hF = ws.getCell(hr, 6);
+      hF.value = 'Full bonus'; hF.font = FONT_BOLD; hF.fill = HEADER_FILL;
+      hF.alignment = ALIGN_C; hF.border = { top:bMed, bottom:bMed, left:bMed, right:bMed };
+
+      // G — "Deductions?"
+      const hG = ws.getCell(hr, 7);
+      hG.value = 'Deductions?'; hG.font = FONT_BOLD; hG.fill = HEADER_FILL;
+      hG.alignment = ALIGN_C; hG.border = { top:bMed, bottom:bMed, left:bMed, right:bMed };
+
+      // H — "Bonus to be paid"
+      const hH = ws.getCell(hr, 8);
+      hH.value = 'Bonus to be paid'; hH.font = FONT_BOLD; hH.fill = HEADER_FILL;
+      hH.alignment = ALIGN_C; hH.border = { top:bMed, bottom:bMed, left:bMed, right:bMed };
+
+      // I — "Anything else to notify?"
+      const hI = ws.getCell(hr, 9);
+      hI.value = 'Anything else to notify?'; hI.font = FONT_BOLD; hI.fill = HEADER_FILL;
+      hI.alignment = ALIGN_C; hI.border = { top:bMed, bottom:bMed, left:bMed, right:bMed };
+
+      ws.getRow(hr).height = 15;
+      currentRow++;
+
+      // ── Member rows ─────────────────────────────────────────────
+      const members = group.members;
+      for(let i = 0; i < members.length; i++){
+        const r       = members[i];
+        const dr      = currentRow;
+        const isFirst = (i === 0);
+        const isLast  = (i === members.length - 1);
+
+        // B — payroll number (blank — manager fills in)
+        const bCell = ws.getCell(dr, 2);
+        bCell.font      = FONT_BASE;
+        bCell.alignment = ALIGN_C;
+        bCell.border    = { top:isFirst?bMed:bThin, bottom:isLast?bMed:bThin, left:bMed, right:bMed };
+
+        // C — Name (right border medium, no left)
+        const cCell = ws.getCell(dr, 3);
+        cCell.value     = r.name || '';
+        cCell.font      = FONT_BASE;
+        cCell.alignment = ALIGN_C;
+        cCell.border    = { top:isFirst?bMed:bThin, bottom:isLast?bMed:bThin, right:bMed };
+
+        // D — Level (left border medium, no right)
+        const dCell = ws.getCell(dr, 4);
+        dCell.value     = levelLabel(r.type);
+        dCell.font      = FONT_BASE;
+        dCell.alignment = ALIGN_C;
+        dCell.border    = { top:isFirst?bMed:bThin, bottom:isLast?bMed:bThin, left:bMed };
+
+        // E — Team (left + right medium)
+        const eCell = ws.getCell(dr, 5);
+        eCell.value     = DIV_TEAM_LABEL[r.divKey] || r.divKey || group.label;
+        eCell.font      = FONT_BASE;
+        eCell.alignment = ALIGN_C;
+        eCell.border    = { top:isFirst?bMed:bThin, bottom:isLast?bMed:bThin, left:bMed, right:bMed };
+
+        // F — Full bonus (pro-rata value; £ format)
+        const fCell = ws.getCell(dr, 6);
+        fCell.value     = r.proRataBonus || r.fullBonus || 0;
+        fCell.font      = FONT_BASE;
+        fCell.alignment = ALIGN_C;
+        fCell.numFmt    = '_-"£"* #,##0.00_-;\\-"£"* #,##0.00_-;_-"£"* "-"??_-;_-@_-';
+        fCell.border    = { top:isFirst?bMed:bThin, bottom:isLast?bMed:bThin };
+
+        // G — Deductions % (blank, manager fills; thick left border)
+        const gCell = ws.getCell(dr, 7);
+        gCell.font      = FONT_BASE;
+        gCell.alignment = ALIGN_C;
+        gCell.numFmt    = '0%';
+        gCell.border    = { top:isFirst?bMed:bThin, bottom:isLast?bMed:bThin, left:bThick };
+
+        // H — Bonus to be paid (bold, formula, £ format)
+        const hCell = ws.getCell(dr, 8);
+        hCell.value     = { formula: `ROUND(F${dr}*(1-G${dr}),2)` };
+        hCell.font      = FONT_BOLD;
+        hCell.alignment = ALIGN_C;
+        hCell.numFmt    = '"£"#,##0.00';
+        hCell.border    = { top:isFirst?bMed:bThin, bottom:isLast?bMed:bThin, left:bMed, right:bMed };
+
+        // I — Notes (blank, right border medium)
+        const iCell = ws.getCell(dr, 9);
+        iCell.font      = FONT_BASE;
+        iCell.alignment = ALIGN_C;
+        iCell.border    = { top:isFirst?bMed:bThin, bottom:isLast?bMed:bThin, right:bMed };
+
+        if(isFirst || isLast) ws.getRow(dr).height = 15;
+        currentRow++;
+      }
+
+      currentRow++; // blank spacer row between sections
+    }
+
+    // ── 4. Download ───────────────────────────────────────────────
+    const monthName = _bsmMonth
+      ? (()=>{
+          const [y,m] = _bsmMonth.split('-');
+          return new Date(y, m-1, 1).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+        })()
+      : 'Payroll';
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob   = new Blob([buffer], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url    = URL.createObjectURL(blob);
+    const a      = document.createElement('a');
+    a.href       = url;
+    a.download   = `Payroll_Bonus_${monthName.replace(/\s+/g,'_')}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast('✓ Payroll export downloaded — ' + monthName);
+
+  } catch(err){
+    console.error('Export error:', err);
+    showToast('Export failed: ' + err.message, 'err');
+  } finally {
+    btn.innerHTML = '&#x1F4E5; Export to Payroll';
+    btn.disabled  = false;
+  }
 }
 </script>
 
