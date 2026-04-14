@@ -2658,6 +2658,25 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 .bc-target-status{font-size:10px;font-weight:700;margin-top:8px;padding:3px 0;border-radius:6px;letter-spacing:.04em;}
 .bc-target-card.reached .bc-target-status{color:var(--green);}
 .bc-target-card.active-target .bc-target-status{color:var(--amber);}
+
+/* Hit-target banner */
+.bc-hit-banner{
+  display:none;border-radius:14px;padding:18px 24px;margin-bottom:24px;
+  background:linear-gradient(135deg,rgba(45,206,137,.18),rgba(45,206,137,.08));
+  border:1.5px solid rgba(45,206,137,.45);
+  display:flex;align-items:center;gap:16px;
+  animation:bcBannerIn .5s cubic-bezier(.34,1.56,.64,1) both;
+}
+.bc-hit-banner.hidden{display:none!important;}
+@keyframes bcBannerIn{from{opacity:0;transform:translateY(-10px) scale(.97);}to{opacity:1;transform:none;}}
+@keyframes bcPulseGlow{
+  0%,100%{box-shadow:0 0 0 0 rgba(45,206,137,.4),0 4px 24px rgba(45,206,137,.15);}
+  50%{box-shadow:0 0 0 8px rgba(45,206,137,0),0 4px 32px rgba(45,206,137,.35);}
+}
+.bc-hit-banner{animation:bcBannerIn .5s cubic-bezier(.34,1.56,.64,1) both,bcPulseGlow 2.2s ease-in-out 0.5s infinite;}
+.bc-hit-icon{font-size:36px;line-height:1;flex-shrink:0;}
+.bc-hit-title{font-size:17px;font-weight:700;color:var(--green);letter-spacing:-.01em;}
+.bc-hit-sub{font-size:12px;color:var(--text2);font-family:var(--fm);margin-top:3px;}
 </style>
 
 <div class="bc-wrap">
@@ -2706,6 +2725,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 // ─── BONUS CALCULATOR LOGIC ────────────────────────────────────────
 let _bcType = 'nonsenior';
 let _bcRevenueManual = false;
+let _bcMonthlyTarget = 0; // person's full monthly target (riskPerDay × daysT)
 
 function bcInit(){
   populateAllSelects();
@@ -2753,6 +2773,10 @@ function bcOnRevenueEdit(){
 function bcAutoPopulate(){
   const mk     = document.getElementById('bcMonth')?.value || APP.activeMonth;
   const myName = _currentUser?.name || '';
+  // Pull person's configured monthly target (riskPerDay × daysT)
+  const p  = APP.people.find(x => x.name === myName);
+  const ep = p ? getPersonForMonth(p, mk) : null;
+  _bcMonthlyTarget = ep ? Math.round((ep.riskPerDay||0) * (ep.daysT||0)) : 0;
   // Only auto-pull revenue — days are set manually by the consultant
   if(!_bcRevenueManual){
     const entries = getEntries(mk);
@@ -2855,8 +2879,17 @@ function bcBonusForRPD(rpd, type){
 }
 
 function bcMonthlyTargets(type){
-  if(type === 'senior')    return [{ pct:25,rev:4200,cap:1600 },{ pct:50,rev:8400,cap:1400 },{ pct:75,rev:12600,cap:1300 },{ pct:100,rev:16800,cap:null }];
-  return [{ pct:25,rev:600,cap:1700 },{ pct:50,rev:1200,cap:1500 },{ pct:75,rev:1800,cap:1400 },{ pct:100,rev:null,cap:null }];
+  // Use the person's actual monthly target if available, otherwise fall back to spreadsheet defaults
+  const fullTarget = _bcMonthlyTarget > 0 ? _bcMonthlyTarget : (type === 'senior' ? 16800 : null);
+  if(type === 'senior'){
+    const ft = fullTarget || 16800;
+    return [{pct:25,rev:Math.round(ft*.25)},{pct:50,rev:Math.round(ft*.5)},{pct:75,rev:Math.round(ft*.75)},{pct:100,rev:ft}];
+  }
+  if(fullTarget){
+    return [{pct:25,rev:Math.round(fullTarget*.25)},{pct:50,rev:Math.round(fullTarget*.5)},{pct:75,rev:Math.round(fullTarget*.75)},{pct:100,rev:fullTarget}];
+  }
+  // Non-senior fallback if no target configured
+  return [{pct:25,rev:600},{pct:50,rev:1200},{pct:75,rev:1800},{pct:100,rev:null}];
 }
 
 function bcPartialBonus(rpd, type, targetPct){
@@ -2912,34 +2945,35 @@ function bcRecalc(){
   const rpd = revenue / yourDays;
   const { bonus: bonusTotal, bracket } = bcBonusForRPD(rpd, type);
   const proRataBonus = bonusTotal * (yourDays / wdm);
-  
-  // Target bracket info
-  const nextBracket = (Math.floor(rpd / 100) + 1) * 100;
-  const neededForNext = (nextBracket * yourDays) - revenue;
-  const alreadyAtNext = neededForNext <= 0;
-  
-  // Current percentage of full rate
-  const fullRateRpd = nextBracket; 
-  
-  // Target cards
-  const targets = bcMonthlyTargets(type);
-  
-  // Tier table — show surrounding brackets
+
+  const nextBracket    = (Math.floor(rpd / 100) + 1) * 100;
+  const neededForNext  = (nextBracket * yourDays) - revenue;
+  const alreadyAtNext  = neededForNext <= 0;
+
+  const targets    = bcMonthlyTargets(type);
+  const fullTarget = targets.find(t => t.pct === 100)?.rev || 0;
+  const hitFullTarget = fullTarget > 0 && revenue >= fullTarget;
+
   const currentBracket = Math.floor(rpd/100)*100;
   const tierRows = [];
   const startRpd = Math.max(1000, currentBracket - 500);
   const endRpd   = currentBracket + 500;
   for(let r = startRpd; r <= endRpd; r += 100){
     const { bonus: b } = bcBonusForRPD(r, type);
-    const isYou = r === currentBracket;
-    tierRows.push({ rpd: r, bonus: b, isYou });
+    tierRows.push({ rpd: r, bonus: b, isYou: r === currentBracket });
   }
 
-  // Monthly target status  
-  const monthlyRev = rpd * wdm; // projected monthly at current RPD
+  const monthlyRev = rpd * wdm;
 
   area.innerHTML = `
-    <!-- Key results -->
+    <div class="bc-hit-banner${hitFullTarget ? '' : ' hidden'}">
+      <div class="bc-hit-icon">🎉</div>
+      <div>
+        <div class="bc-hit-title">Great work, you've hit your monthly target!</div>
+        <div class="bc-hit-sub">Fantastic effort — you've reached ${bcFmt(fullTarget)} this month. Keep pushing!</div>
+      </div>
+    </div>
+
     <div class="bc-results">
       <div class="bc-res-card highlight">
         <div class="bc-res-label">Risk Per Day</div>
@@ -2947,7 +2981,7 @@ function bcRecalc(){
         <div class="bc-res-sub">Based on £${revenue.toLocaleString('en-GB')} over ${yourDays} day${yourDays===1?'':'s'}</div>
         <div class="bc-progress-wrap">
           <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);font-family:var(--fm);margin-bottom:5px;">
-            <span>£${(currentBracket).toLocaleString()} bracket</span>
+            <span>£${currentBracket.toLocaleString()} bracket</span>
             <span>£${nextBracket.toLocaleString()} bracket</span>
           </div>
           <div class="bc-progress-track">
@@ -2958,7 +2992,7 @@ function bcRecalc(){
       <div class="bc-res-card">
         <div class="bc-res-label">Full Month Bonus</div>
         <div class="bc-res-val amber">${bcFmt(bonusTotal)}</div>
-        <div class="bc-res-sub">At current RPD of £${bcFmt(rpd).replace('£','')} (${bracket.toLocaleString()} bracket)</div>
+        <div class="bc-res-sub">At current RPD of ${bcFmt(rpd)} (${bracket.toLocaleString()} bracket)</div>
       </div>
       <div class="bc-res-card highlight">
         <div class="bc-res-label">Pro-Rata Bonus</div>
@@ -2967,12 +3001,11 @@ function bcRecalc(){
       </div>
       <div class="bc-res-card">
         <div class="bc-res-label">Projected Monthly Rev</div>
-        <div class="bc-res-val ${monthlyRev >= (type==='senior'?16800:13300) ? 'green' : 'amber'}">${bcFmt(monthlyRev)}</div>
+        <div class="bc-res-val ${fullTarget>0?(monthlyRev>=fullTarget?'green':'amber'):'amber'}">${bcFmt(monthlyRev)}</div>
         <div class="bc-res-sub">If RPD holds for all ${wdm} days</div>
       </div>
     </div>
 
-    <!-- Next bracket -->
     <div class="bc-next-bracket${alreadyAtNext?' bc-achieved':''}">
       <div>
         <div class="bc-next-label">${alreadyAtNext ? '✅ Target Achieved' : '🎯 Next Bracket: £' + nextBracket.toLocaleString() + ' RPD'}</div>
@@ -2980,34 +3013,31 @@ function bcRecalc(){
           ? `<div class="bc-next-val" style="color:var(--green)">Already there!</div>
              <div class="bc-next-desc">You're in the £${nextBracket.toLocaleString()} bracket or above</div>`
           : `<div class="bc-next-val">${bcFmt(neededForNext)} more needed</div>
-             <div class="bc-next-desc">Earn ${bcFmt(neededForNext)} more to unlock ${bcFmt(bcBonusForRPD(nextBracket, type).bonus)} bonus (currently ${bcFmt(bonusTotal)})</div>`
+             <div class="bc-next-desc">Earn ${bcFmt(neededForNext)} more to unlock ${bcFmt(bcBonusForRPD(nextBracket,type).bonus)} bonus (currently ${bcFmt(bonusTotal)})</div>`
         }
       </div>
       <div class="bc-next-icon">${alreadyAtNext ? '🏆' : '📈'}</div>
     </div>
 
-    <!-- Target milestone cards -->
     <div style="font-size:13px;font-weight:700;margin-bottom:12px;letter-spacing:-.01em;">📍 Monthly Target Milestones</div>
     <div class="bc-targets-row">
       ${targets.map(t => {
-        const tRev = t.rev;
-        const reached = tRev ? revenue >= tRev : false;
-        const isActive = tRev ? (revenue < tRev && (targets.find(prev => prev.pct < t.pct && targets.indexOf(prev) >= 0)?.rev || 0) <= revenue) : false;
-        return `<div class="bc-target-card${reached?' reached':''}" >
+        const tRev    = t.rev;
+        const reached = tRev != null && revenue >= tRev;
+        return `<div class="bc-target-card${reached ? ' reached' : ''}">
           <div class="bc-target-pct">${t.pct}% Target</div>
-          ${tRev ? `<div class="bc-target-rev">${bcFmt(tRev)}</div>` : `<div class="bc-target-rev" style="font-size:14px;color:var(--text3)">See table</div>`}
-          <div class="bc-target-bonus">Monthly target</div>
-          <div class="bc-target-status">${reached ? '✅ Reached' : tRev ? bcFmt(tRev - revenue) + ' to go' : '—'}</div>
+          <div class="bc-target-rev">${tRev != null ? bcFmt(tRev) : '—'}</div>
+          <div class="bc-target-bonus">of monthly target</div>
+          <div class="bc-target-status">${reached ? '✅ Reached' : tRev != null ? bcFmt(tRev - revenue) + ' to go' : '—'}</div>
         </div>`;
       }).join('')}
     </div>
 
-    <!-- Tier table -->
     <div class="bc-tier-section">
       <div class="bc-tier-header">
         <div>
           <div class="bc-tier-title">📊 Bonus Tier Table</div>
-          <div class="bc-tier-sub">${type === 'senior' ? 'Senior' : 'Non-Senior'} scale · showing ±5 brackets from your current position</div>
+          <div class="bc-tier-sub">${type === 'senior' ? 'Senior' : 'Non-Senior'} scale · ±5 brackets from your position</div>
         </div>
         <div style="font-size:11px;color:var(--text2);font-family:var(--fm)">100% Target</div>
       </div>
@@ -3022,9 +3052,8 @@ function bcRecalc(){
         </thead>
         <tbody>
           ${tierRows.map(row => {
-            const uplift = row.bonus - bonusTotal;
-            const revNeeded = row.rpd * yourDays;
-            const revDiff   = revNeeded - revenue;
+            const uplift    = row.bonus - bonusTotal;
+            const revDiff   = (row.rpd * yourDays) - revenue;
             return `<tr class="bc-tier-tr${row.isYou ? ' current-tier' : ''}">
               <td class="bc-tier-td">£${row.rpd.toLocaleString()}${row.isYou ? '<span class="bc-you-badge">YOU</span>' : ''}</td>
               <td class="bc-tier-td" style="color:var(--amber);font-weight:${row.isYou?'700':'400'}">${bcFmt(row.bonus)}</td>
