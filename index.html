@@ -9235,15 +9235,19 @@ function renderConsultantDaily(){
     const dealRowId = `dr_${ds.replace(/-/g,'')}`;
 
     // Revenue cell — always show + button when there is revenue
-    const revDisplay = ent?.revenue
-      ? `<span style="display:inline-flex;align-items:center;gap:6px;">
-           <span style="color:var(--green);font-weight:700;font-family:var(--fm);">£${parseFloat(ent.revenue).toLocaleString()}</span>
-           <button id="${dealRowId}_btn" onclick="cdToggleDeals('${dealRowId}',this)" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:13px;font-weight:700;cursor:pointer;line-height:1;padding:0;transition:all .15s;" title="Show individual deals">+</button>
+    const _ePlps   = (ent?.plps && Array.isArray(ent.plps)) ? ent.plps : [];
+    const plpTotal = _ePlps.reduce((s,p)=>s+(p.rev||0),0);
+    const revDisplay = ent?.revenue != null
+      ? `<span style="display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;">
+           <span style="color:var(--green);font-weight:700;font-family:var(--fm);">£${parseFloat(ent.revenue||0).toLocaleString()}</span>
+           ${_ePlps.length>0 ? `<span style="font-size:9px;font-weight:700;background:rgba(245,54,92,.15);color:var(--red);padding:2px 6px;border-radius:8px;white-space:nowrap" title="PLP: -£${plpTotal.toLocaleString()}">🔴 PLP</span>` : ''}
+           <button id="${dealRowId}_btn" onclick="cdToggleDeals('${dealRowId}',this)" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:13px;font-weight:700;cursor:pointer;line-height:1;padding:0;transition:all .15s;" title="Show deals & PLPs">+</button>
          </span>`
       : (isWE||isBH||isHol||isSick||isFuture?'—':'');
 
     // Expandable deal breakdown row (hidden by default)
-    const dealsRow = hasDeals ? `<tr id="${dealRowId}" style="display:none;background:var(--surface2);">
+    const hasDealsOrPlp = hasDeals || _ePlps.length > 0;
+    const dealsRow = hasDealsOrPlp ? `<tr id="${dealRowId}" style="display:none;background:var(--surface2);">
       <td colspan="5" style="padding:4px 12px 12px 28px;">
         <div style="border-left:3px solid var(--accent);padding-left:12px;margin-top:4px;">
           <div style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px;display:flex;gap:24px;">
@@ -9262,6 +9266,17 @@ function renderConsultantDaily(){
             <span style="color:var(--text3);font-size:10px">${d.time?new Date(d.time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):''}</span>
             ${d.authBy?`<span style="font-size:10px;font-weight:700;background:rgba(45,206,137,.12);color:var(--green);padding:2px 8px;border-radius:8px;white-space:nowrap">✓ ${d.authBy}</span>`:'<span style="font-size:10px;color:var(--text3);padding:2px 8px">—</span>'}
           </div>`).join('')}
+          ${_ePlps.length>0 ? `<div style="margin-top:8px;padding-top:8px;border-top:2px dashed rgba(245,54,92,.3)">
+            <div style="font-size:10px;font-weight:700;color:var(--red);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px">🔴 PLP Deductions</div>
+            ${_ePlps.map((p,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid rgba(245,54,92,.1);font-size:12px;font-family:var(--fm);">
+              <span style="color:var(--red);min-width:16px;font-size:10px">${i+1}.</span>
+              <span style="color:var(--red);font-weight:700;min-width:80px">-£${parseFloat(p.rev||0).toLocaleString()}</span>
+              <span style="color:var(--red);min-width:55px">-${p.nm||0} NM</span>
+              <span style="color:var(--text3);font-size:11px;flex:1">${p.reason||'PLP'}</span>
+              <span style="color:var(--text3);font-size:10px">${p.time?new Date(p.time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):''}</span>
+              <span style="font-size:10px;font-weight:700;background:rgba(245,54,92,.12);color:var(--red);padding:2px 8px;border-radius:8px;white-space:nowrap">by ${p.enteredBy||'—'}</span>
+            </div>`).join('')}
+          </div>` : ''}
         </div>
       </td>
     </tr>` : '';
@@ -9292,6 +9307,7 @@ function renderConsultantDaily(){
         ${role==='consultant' ? `
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
           <div style="font-size:13px;font-weight:700;">Submit Today's Figures</div>
+          <button class="btn btn-s" onclick="openPlpModal('${myName}','${mk}')" style="font-size:12px;padding:8px 16px;background:rgba(245,54,92,.1);color:var(--red);border-color:rgba(245,54,92,.3);">🔴 PLP</button>
           <button class="btn btn-p" onclick="openDailySubmit('${today}')" style="font-size:12px;padding:8px 20px;">+ Add Today's Sale</button>
           <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-left:auto">Submitted figures go to your team leader for approval</div>
         </div>` : ''}
@@ -9301,7 +9317,10 @@ function renderConsultantDaily(){
             <div style="font-size:13px;font-weight:700;color:var(--accent)">Manager View — ${myName}</div>
             <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:2px">Click ✎ Edit on any row to add or update figures directly. No approval required.</div>
           </div>
-          <button class="btn btn-p" onclick="openManagerDirectEntry('${today}','${myName.replace(/'/g,"\\'")}',0,0)" style="font-size:12px;padding:8px 18px;margin-left:auto">+ Add Today's Entry</button>
+          <div style="display:flex;gap:8px;align-items:center;margin-left:auto">
+            <button class="btn btn-s" onclick="openPlpModal('${myName}','${mk}')" style="font-size:12px;padding:8px 14px;background:rgba(245,54,92,.1);color:var(--red);border-color:rgba(245,54,92,.3);">🔴 PLP</button>
+            <button class="btn btn-p" onclick="openManagerDirectEntry('${today}','${myName.replace(/'/g,"\\'")}',0,0)" style="font-size:12px;padding:8px 18px;">+ Add Today's Entry</button>
+          </div>
         </div>` : ''}
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
           <div style="padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:13px;font-weight:700;">
@@ -9498,6 +9517,135 @@ function openManagerDirectEntry(date, consultantName, existingRev, existingNm){
   modal.classList.add('open');
   setTimeout(()=>document.getElementById('mgr_rev')?.focus(),100);
 }
+
+
+// ═══════════════════════════════════════════════════════════════════
+// PLP — POTENTIAL LAPSED POLICY
+// Deducts revenue & NM from a consultant's entry on a specific date
+// ═══════════════════════════════════════════════════════════════════
+function openPlpModal(consultantName, mk){
+  const modal = document.getElementById('reviewModal');
+  const today = _localDateStr(new Date());
+
+  // Build list of dates in the month that have revenue entries for this consultant
+  const entries   = getEntries(mk);
+  const mine      = entries.filter(e=>e.name===consultantName && (e.revenue||0)>0);
+  const entryDates = mine.map(e=>e.date).sort().reverse();
+
+  const dateOpts = entryDates.length
+    ? entryDates.map(ds=>{
+        const ent = mine.find(e=>e.date===ds);
+        return `<option value="${ds}">${new Date(ds+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})} — £${parseFloat(ent.revenue||0).toLocaleString()} / ${ent.nm||0} NM</option>`;
+      }).join('')
+    : `<option value="${today}">${today}</option>`;
+
+  document.getElementById('reviewModalTitle').innerHTML =
+    `<span style="color:var(--red)">🔴 PLP — Potential Lapsed Policy</span>`;
+
+  document.getElementById('reviewModalBody').innerHTML = `
+    <div style="margin-bottom:14px;padding:10px 14px;background:rgba(245,54,92,0.08);border-left:3px solid var(--red);border-radius:6px;font-size:12px;color:var(--red);font-family:var(--fm);line-height:1.6">
+      A PLP removes revenue and NM from the selected date. The client has cancelled,
+      so the deal is deducted from <strong>${consultantName}</strong>'s figures.
+    </div>
+    <div style="margin-bottom:14px">
+      <div class="field-lbl">Date of Original Sale</div>
+      ${entryDates.length
+        ? `<select id="plp_date" style="width:100%">${dateOpts}</select>`
+        : `<input type="date" id="plp_date" value="${today}" style="width:100%">`
+      }
+      <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:5px">Only dates with existing revenue are shown</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div>
+        <div class="field-lbl">Revenue to Remove (£)</div>
+        <input type="number" id="plp_rev" placeholder="0.00" step="0.01" min="0" style="width:100%;border-color:rgba(245,54,92,.4)">
+      </div>
+      <div>
+        <div class="field-lbl">NM to Remove</div>
+        <input type="number" id="plp_nm" placeholder="0" step="1" min="0" style="width:100%">
+      </div>
+    </div>
+    <div style="margin-bottom:4px">
+      <div class="field-lbl">Reason / Notes (optional)</div>
+      <input type="text" id="plp_reason" placeholder="e.g. Client cancelled within cooling off period" style="width:100%">
+    </div>
+    <input type="hidden" id="plp_consultant" value="${consultantName}">
+    <input type="hidden" id="plp_mk" value="${mk}">
+  `;
+
+  document.getElementById('reviewModalBtns').innerHTML = `
+    <button class="btn btn-s" onclick="document.getElementById('reviewModal').classList.remove('open')">Cancel</button>
+    <button class="btn btn-d" onclick="savePlp()" style="background:var(--red);color:#fff;border:none">🔴 Apply PLP Deduction</button>
+  `;
+
+  modal.classList.add('open');
+  setTimeout(()=>document.getElementById('plp_rev')?.focus(), 100);
+}
+
+function savePlp(){
+  const date       = document.getElementById('plp_date')?.value;
+  const plpRev     = parseFloat(document.getElementById('plp_rev')?.value) || 0;
+  const plpNm      = parseInt(document.getElementById('plp_nm')?.value)    || 0;
+  const reason     = document.getElementById('plp_reason')?.value?.trim()  || 'PLP — Lapsed Policy';
+  const name       = document.getElementById('plp_consultant')?.value      || '';
+  const mk         = document.getElementById('plp_mk')?.value              || '';
+
+  if(!date)             { showToast('Please select a date','err'); return; }
+  if(plpRev<=0 && plpNm<=0){ showToast('Enter a revenue or NM amount to deduct','err'); return; }
+  if(!name)             { showToast('No consultant selected','err'); return; }
+
+  const divDbKey     = (DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey;
+  const entriesPath  = `${divDbKey}/months/${mk}/entries`;
+  const enteredBy    = _currentUser?.name || 'Unknown';
+  const plpTime      = new Date().toISOString();
+
+  const _normArr = d => !d ? [] : Array.isArray(d) ? d : Object.values(d).filter(Boolean);
+
+  _db.ref(entriesPath).once('value').then(snap=>{
+    const existingArr = _normArr(snap.val());
+    const existing    = existingArr.find(e=>e.date===date && e.name===name);
+
+    if(!existing){
+      showToast(`No entry found for ${name} on ${date}`, 'err');
+      return;
+    }
+
+    // Compute new totals — floor at 0
+    const newRev = Math.max(0, parseFloat(((existing.revenue||0) - plpRev).toFixed(2)));
+    const newNm  = Math.max(0, (existing.nm||0) - plpNm);
+
+    // Append PLP record
+    const existingPlps = _normArr(existing.plps);
+    const newPlp = { rev: plpRev, nm: plpNm, reason, time: plpTime, enteredBy };
+
+    const updatedEntry = {
+      ...existing,
+      revenue: newRev,
+      nm:      newNm,
+      plps:    [...existingPlps, newPlp]
+    };
+
+    const newEntries = existingArr.map(e=>
+      (e.date===date && e.name===name) ? updatedEntry : e
+    );
+
+    // Update local APP
+    if(!APP.months[mk]) APP.months[mk] = {entries:[]};
+    APP.months[mk].entries = newEntries;
+    _ignoreNextSnapshot = true;
+
+    return _db.ref(entriesPath).set(newEntries);
+
+  }).then(()=>{
+    document.getElementById('reviewModal').classList.remove('open');
+    showToast(`PLP applied — £${plpRev.toLocaleString()} / ${plpNm} NM removed from ${date} ✓`);
+    renderConsultantDaily();
+    if(document.getElementById('page-dashboard').classList.contains('active'))  renderDashboard();
+    if(document.getElementById('page-entry').classList.contains('active'))      buildEntryRows();
+    if(document.getElementById('page-history').classList.contains('active'))    renderHistory();
+  }).catch(()=>showToast('Failed to apply PLP — check connection','err'));
+}
+
 
 function saveManagerDirectEntry(){
   const date   = document.getElementById('mgr_date')?.value;
