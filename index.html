@@ -2369,11 +2369,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     <div style="display:flex;gap:8px;align-items:center">
       <button class="btn btn-s" onclick="showComplianceView('form');clearComplianceForm(false);" id="compFormBtn" style="font-size:12px">📋 New Assessment</button>
       <button class="btn btn-s" onclick="showComplianceView('archive')" id="compArchiveBtn" style="font-size:12px">📂 Archive</button>
-      <button onclick="openCompMtdSummary()" style="display:flex;align-items:center;gap:7px;background:linear-gradient(135deg,rgba(45,206,137,.18),rgba(45,206,137,.08));border:1px solid rgba(45,206,137,.4);color:var(--green);border-radius:9px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--fh);letter-spacing:.04em;transition:all .18s;white-space:nowrap;"
-        onmouseover="this.style.background='linear-gradient(135deg,rgba(45,206,137,.28),rgba(45,206,137,.14))';this.style.transform='translateY(-1px)'"
-        onmouseout="this.style.background='linear-gradient(135deg,rgba(45,206,137,.18),rgba(45,206,137,.08))';this.style.transform=''">
-        <span style="font-size:14px">📊</span> MTD Summary
-      </button>
+      <button class="btn btn-s" onclick="showComplianceView('mtd')" id="compMtdBtn" style="font-size:12px">📊 MTD Summary</button>
     </div>
   </div>
 
@@ -2498,6 +2494,22 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     </div>
     <div id="arcStats" style="margin-bottom:12px;font-size:12px;color:var(--text3);font-family:var(--fm);"></div>
     <div id="arcContent"></div>
+  </div>
+
+  <!-- MTD SUMMARY VIEW -->
+  <div id="compMtdView" style="display:none;">
+    <!-- Controls bar -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 20px;margin-bottom:20px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase;">Assessor</span>
+        <select id="mtd_assessor" onchange="_refreshMtdSummary()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none;"></select>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase;">Month</span>
+        <select id="mtd_month" onchange="_refreshMtdSummary()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none;"></select>
+      </div>
+    </div>
+    <div id="mtdSummaryBody"></div>
   </div>
 </div>
 
@@ -7760,9 +7772,12 @@ function highlightCompRow(num){
 function showComplianceView(view){
   document.getElementById('compFormView').style.display    = view==='form'    ? '' : 'none';
   document.getElementById('compArchiveView').style.display = view==='archive' ? '' : 'none';
+  document.getElementById('compMtdView').style.display     = view==='mtd'     ? '' : 'none';
   document.getElementById('compFormBtn').classList.toggle('active', view==='form');
   document.getElementById('compArchiveBtn').classList.toggle('active', view==='archive');
+  document.getElementById('compMtdBtn').classList.toggle('active', view==='mtd');
   if(view==='archive') loadAndRenderArchive();
+  if(view==='mtd')     loadAndRenderMtdSummary();
 }
 
 function _getCompFormData(){
@@ -8153,79 +8168,45 @@ function clearArchiveFilters(){
 
 
 // ═══════════════════════════════════════════════════════════════════
-// COMPLIANCE MTD SUMMARY MODAL
+// COMPLIANCE MTD SUMMARY — IN-PAGE VIEW
 // ═══════════════════════════════════════════════════════════════════
 let _mtdCharts = {};
+let _mtdAllData = [];
 
 function _destroyMtdCharts(){
   Object.values(_mtdCharts).forEach(c=>{ try{ c.destroy(); }catch(e){} });
   _mtdCharts = {};
 }
 
-function openCompMtdSummary(){
+function loadAndRenderMtdSummary(){
   const ref = _dbRef ? _db.ref((DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey+'/compliance') : null;
-  if(!ref){ showToast('Not connected to database','err'); return; }
+  const body = document.getElementById('mtdSummaryBody');
+  if(!ref){ if(body) body.innerHTML='<div class="empty"><div>Not connected.</div></div>'; return; }
+  if(body) body.innerHTML='<div class="empty"><div style="font-size:20px;margin-bottom:8px">⏳</div><div>Loading data…</div></div>';
   ref.once('value').then(snap=>{
-    const all = Object.values(snap.val()||{});
-    _renderMtdModal(all);
-  }).catch(()=>showToast('Failed to load compliance data','err'));
+    _mtdAllData = Object.values(snap.val()||{});
+    _populateMtdSelects(_mtdAllData);
+    _refreshMtdSummary();
+  }).catch(()=>{ if(body) body.innerHTML='<div class="empty"><div>Failed to load data.</div></div>'; });
 }
 
-function _renderMtdModal(all){
-  // Build assessor list and month list from data
+function _populateMtdSelects(all){
+  const role    = _currentUser?.role||'';
+  const myName  = _currentUser?.name||'';
   const assessors = [...new Set(all.map(d=>d.assessor).filter(Boolean))].sort();
   const months    = [...new Set(all.map(d=>(d.dateObs||d.submittedAt||'').slice(0,7)).filter(Boolean))].sort().reverse();
-
-  // Default: current user if compliance role, else first assessor; current month
-  const role       = _currentUser?.role||'';
-  const myName     = _currentUser?.name||'';
   const defAssessor = (role==='compliance' && assessors.includes(myName)) ? myName : (assessors[0]||'');
-  const defMonth   = months[0] || APP.activeMonth || '';
+  const defMonth    = months[0] || APP.activeMonth || '';
 
-  let modal = document.getElementById('compMtdModal');
-  if(!modal){
-    modal = document.createElement('div');
-    modal.id = 'compMtdModal';
-    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.78);display:flex;align-items:flex-start;justify-content:center;padding:20px;backdrop-filter:blur(6px);overflow-y:auto;';
-    document.body.appendChild(modal);
-    modal.addEventListener('click', e=>{ if(e.target===modal){ _destroyMtdCharts(); modal.style.display='none'; } });
+  const aSel = document.getElementById('mtd_assessor');
+  const mSel = document.getElementById('mtd_month');
+  if(aSel){
+    aSel.innerHTML = '<option value="">— All Assessors —</option>' +
+      assessors.map(a=>`<option value="${a}"${a===defAssessor?' selected':''}>${a}</option>`).join('');
   }
-
-  const assessorOpts = ['<option value="">— All Assessors —</option>',
-    ...assessors.map(a=>`<option value="${a}"${a===defAssessor?' selected':''}>${a}</option>`)
-  ].join('');
-  const monthOpts = months.map(m=>`<option value="${m}"${m===defMonth?' selected':''}>${_mtdMonthLabel(m)}</option>`).join('');
-
-  modal.innerHTML = `
-    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:100%;max-width:1020px;box-shadow:0 32px 80px rgba(0,0,0,.65);overflow:hidden;margin:auto;">
-      <!-- Header -->
-      <div style="padding:16px 22px;background:linear-gradient(135deg,rgba(45,206,137,.15),rgba(45,206,137,.04));border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;">
-        <span style="font-size:20px">📊</span>
-        <div style="flex:1">
-          <div style="font-size:15px;font-weight:700;color:var(--text)">Compliance MTD Summary</div>
-          <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:2px">Assessor performance & call outcome breakdown</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);text-transform:uppercase;letter-spacing:.07em">Assessor</span>
-            <select id="mtd_assessor" onchange="_refreshMtdSummary()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:5px 10px;font-size:12px;font-family:var(--fm);color:var(--text);outline:none;">${assessorOpts}</select>
-          </div>
-          <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);text-transform:uppercase;letter-spacing:.07em">Month</span>
-            <select id="mtd_month" onchange="_refreshMtdSummary()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:5px 10px;font-size:12px;font-family:var(--fm);color:var(--text);outline:none;">${monthOpts}</select>
-          </div>
-          <button onclick="_destroyMtdCharts();document.getElementById('compMtdModal').style.display='none'" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text2);border-radius:8px;padding:7px 12px;font-size:14px;cursor:pointer;transition:all .15s;font-family:var(--fh);line-height:1"
-            onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">✕</button>
-        </div>
-      </div>
-      <!-- Body -->
-      <div id="mtdSummaryBody" style="padding:22px;max-height:calc(90vh - 80px);overflow-y:auto;"></div>
-    </div>`;
-
-  // Store data reference on modal for refreshes
-  modal._allData = all;
-  modal.style.display = 'flex';
-  _refreshMtdSummary();
+  if(mSel){
+    mSel.innerHTML = months.map(m=>`<option value="${m}"${m===defMonth?' selected':''}>${_mtdMonthLabel(m)}</option>`).join('');
+  }
 }
 
 function _mtdMonthLabel(mk){
@@ -8235,13 +8216,12 @@ function _mtdMonthLabel(mk){
 }
 
 function _refreshMtdSummary(){
-  const modal = document.getElementById('compMtdModal');
-  if(!modal || !modal._allData) return;
-  const all      = modal._allData;
+  const all      = _mtdAllData;
   const assessor = document.getElementById('mtd_assessor')?.value||'';
   const mk       = document.getElementById('mtd_month')?.value||'';
+  const body     = document.getElementById('mtdSummaryBody');
+  if(!body) return;
 
-  // Filter records to selected month and assessor
   const records = all.filter(d=>{
     const recMk = (d.dateObs||d.submittedAt||'').slice(0,7);
     if(mk && recMk !== mk) return false;
@@ -8249,60 +8229,55 @@ function _refreshMtdSummary(){
     return true;
   });
 
-  // ── Outcome counts ────────────────────────────────────────────────
-  const total  = records.length;
-  const fair   = records.filter(d=>d.initialOutcome==='Pass').length;
-  const fwl    = records.filter(d=>d.initialOutcome==='Pass with Development').length;
+  // ── Outcome counts ───────────────────────────────────────────────
+  const total    = records.length;
+  const fair     = records.filter(d=>d.initialOutcome==='Pass').length;
+  const fwl      = records.filter(d=>d.initialOutcome==='Pass with Development').length;
   const unfairPD = records.filter(d=>d.initialOutcome==='Fail' && d.regCompliant!=='No').length;
   const unfairAD = records.filter(d=>d.initialOutcome==='Fail' && d.regCompliant==='No').length;
-  const regFail  = records.filter(d=>d.regCompliant==='No').length;
 
-  // ── Working days for selected assessor/month ──────────────────────
-  const wdAll = mk ? workingDatesInMonth(mk) : [];
-  const aName = assessor || '';
-  // Use holiday/sickness data if the assessor name matches a person in APP
-  const wdWorked = wdAll.filter(ds=>{
-    const hols = aName ? (APP.holidays[mk]?.[aName]||[]) : [];
-    const sick = aName ? (APP.sickness[mk]?.[aName]||[]) : [];
-    return !hols.includes(ds) && !sick.includes(ds);
-  }).length;
+  // ── Working days elapsed for assessor ────────────────────────────
+  // Count Mon–Fri days in selected month up to TODAY, minus bank holidays,
+  // holidays and sickness for this specific assessor
+  const today    = _localDateStr(new Date());
+  const wdAll    = mk ? workingDatesInMonth(mk) : [];
+  // Only count days up to today (handles current month elapsed vs past month full)
+  const wdElapsed = wdAll.filter(ds => ds <= today);
+  const aName    = assessor;
+  const aHols    = aName && mk ? (APP.holidays[mk]?.[aName] || []) : [];
+  const aSick    = aName && mk ? (APP.sickness[mk]?.[aName]  || []) : [];
+  const wdWorked = wdElapsed.filter(ds => !aHols.includes(ds) && !aSick.includes(ds)).length;
   const callsPerDay = wdWorked > 0 ? (total / wdWorked).toFixed(2) : '—';
 
   // ── Section pass rates ────────────────────────────────────────────
   const sectionStats = COMP_SECTIONS.map(sec=>{
-    let pass=0, fail=0, na=0, total_items=0;
+    let pass=0, fail=0, na=0;
     sec.items.forEach(item=>{
       records.forEach(d=>{
-        const v = (d.items||{})[item.num];
+        const v=(d.items||{})[item.num];
         if(v==='Pass') pass++;
         else if(v==='Fail') fail++;
         else if(v==='N/A') na++;
-        if(v) total_items++;
       });
     });
-    const rated = pass+fail;
-    const pct   = rated>0 ? Math.round(pass/rated*100) : null;
-    return { label:sec.title.replace('Section \\d+ — ','').replace(/Section \\d+ — /,''), key:sec.key, pass, fail, na, pct };
+    const pct = (pass+fail)>0 ? Math.round(pass/(pass+fail)*100) : null;
+    return { label:sec.title.replace(/Section \d+ — /,''), key:sec.key, pass, fail, na, pct };
   });
 
-  // Per-item pass rates for heatmap
   const itemStats = COMP_SECTIONS.flatMap(sec=>sec.items.map(item=>{
     let pass=0,fail=0,na=0;
     records.forEach(d=>{
       const v=(d.items||{})[item.num];
-      if(v==='Pass') pass++;
-      else if(v==='Fail') fail++;
-      else if(v==='N/A') na++;
+      if(v==='Pass') pass++; else if(v==='Fail') fail++; else if(v==='N/A') na++;
     });
-    const rated=pass+fail;
-    const pct=rated>0?Math.round(pass/rated*100):null;
-    return { num:item.num, text:item.text, secKey:sec.key, pass,fail,na,pct };
+    const pct=(pass+fail)>0?Math.round(pass/(pass+fail)*100):null;
+    return { num:item.num, text:item.text, pass, fail, na, pct };
   }));
 
-  // ── Daily trend ───────────────────────────────────────────────────
-  const byDate = {};
+  // ── Daily & weekly trend ──────────────────────────────────────────
+  const byDate={};
   records.forEach(d=>{
-    const dt = d.dateObs||d.submittedAt?.slice(0,10)||'';
+    const dt=d.dateObs||d.submittedAt?.slice(0,10)||'';
     if(!dt) return;
     if(!byDate[dt]) byDate[dt]={total:0,fair:0,fwl:0,unfair:0};
     byDate[dt].total++;
@@ -8310,31 +8285,26 @@ function _refreshMtdSummary(){
     else if(d.initialOutcome==='Pass with Development') byDate[dt].fwl++;
     else if(d.initialOutcome==='Fail') byDate[dt].unfair++;
   });
-  const trendDates = wdAll.filter(ds=>ds<=_localDateStr(new Date()));
+  const trendDates  = wdElapsed;
   const trendLabels = trendDates.map(ds=>ds.slice(8)+'/'+ds.slice(5,7));
-  const trendTotals = trendDates.map(ds=>(byDate[ds]||{}).total||0);
   const trendFair   = trendDates.map(ds=>(byDate[ds]||{}).fair||0);
   const trendFwl    = trendDates.map(ds=>(byDate[ds]||{}).fwl||0);
   const trendUnfair = trendDates.map(ds=>(byDate[ds]||{}).unfair||0);
 
-  // ── Weekly summary ────────────────────────────────────────────────
-  const weekMap = {};
-  trendDates.forEach((ds,i)=>{
-    const d = new Date(ds+'T12:00:00');
-    // ISO week start (Mon)
-    const day = d.getDay()||7;
-    const mon = new Date(d); mon.setDate(d.getDate()-day+1);
-    const wk  = _localDateStr(mon);
+  const weekMap={};
+  trendDates.forEach(ds=>{
+    const d=new Date(ds+'T12:00:00'), day=d.getDay()||7;
+    const mon=new Date(d); mon.setDate(d.getDate()-day+1);
+    const wk=_localDateStr(mon);
     if(!weekMap[wk]) weekMap[wk]={label:'W/C '+mon.toLocaleDateString('en-GB',{day:'numeric',month:'short'}),total:0,fair:0,fwl:0,unfair:0};
-    const b = byDate[ds]||{total:0,fair:0,fwl:0,unfair:0};
+    const b=byDate[ds]||{total:0,fair:0,fwl:0,unfair:0};
     weekMap[wk].total+=b.total; weekMap[wk].fair+=b.fair; weekMap[wk].fwl+=b.fwl; weekMap[wk].unfair+=b.unfair;
   });
-  const weeks = Object.values(weekMap);
+  const weeks=Object.values(weekMap);
 
-  // ── Colleague breakdown ───────────────────────────────────────────
-  const byColleague = {};
+  const byColleague={};
   records.forEach(d=>{
-    const n = d.colleague||'Unknown';
+    const n=d.colleague||'Unknown';
     if(!byColleague[n]) byColleague[n]={name:n,total:0,fair:0,fwl:0,unfair:0,regFail:0};
     byColleague[n].total++;
     if(d.initialOutcome==='Pass') byColleague[n].fair++;
@@ -8342,22 +8312,23 @@ function _refreshMtdSummary(){
     else if(d.initialOutcome==='Fail') byColleague[n].unfair++;
     if(d.regCompliant==='No') byColleague[n].regFail++;
   });
-  const colleagues = Object.values(byColleague).sort((a,b)=>b.total-a.total);
+  const colleagues=Object.values(byColleague).sort((a,b)=>b.total-a.total);
 
-  // ── Render ────────────────────────────────────────────────────────
+  // ── Helpers ───────────────────────────────────────────────────────
   _destroyMtdCharts();
 
-  const pctBar = (v,col) => v===null?'<span style="color:var(--text3);font-size:11px">No data</span>':`
-    <div style="display:flex;align-items:center;gap:8px">
-      <div style="flex:1;height:6px;background:var(--surface3);border-radius:3px;overflow:hidden">
-        <div style="height:100%;width:${Math.min(v,100)}%;background:${col};border-radius:3px;transition:width .5s"></div>
-      </div>
-      <span style="font-size:12px;font-weight:700;color:${col};font-family:var(--fm);min-width:32px;text-align:right">${v}%</span>
-    </div>`;
+  const pctBar=(v,col)=>v===null
+    ? '<span style="color:var(--text3);font-size:11px;font-family:var(--fm)">No data</span>'
+    : `<div style="display:flex;align-items:center;gap:8px">
+        <div style="flex:1;height:6px;background:var(--surface3);border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${Math.min(v,100)}%;background:${col};border-radius:3px"></div>
+        </div>
+        <span style="font-size:12px;font-weight:700;color:${col};font-family:var(--fm);min-width:34px;text-align:right">${v}%</span>
+      </div>`;
 
-  const kpiCard = (icon,label,val,col,sub='') => `
+  const kpiCard=(icon,label,val,col,sub='')=>`
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;position:relative;overflow:hidden;">
-      <div style="position:absolute;top:12px;right:14px;font-size:22px;opacity:.15">${icon}</div>
+      <div style="position:absolute;top:10px;right:14px;font-size:22px;opacity:.12">${icon}</div>
       <div style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px">${label}</div>
       <div style="font-size:26px;font-weight:700;color:${col};letter-spacing:-.02em">${val}</div>
       ${sub?`<div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:4px">${sub}</div>`:''}
@@ -8366,190 +8337,151 @@ function _refreshMtdSummary(){
   const fairPct   = total>0?Math.round(fair/total*100):0;
   const fwlPct    = total>0?Math.round(fwl/total*100):0;
   const unfairPct = total>0?Math.round((unfairPD+unfairAD)/total*100):0;
+  const daysNote  = wdWorked>0 ? `${wdWorked} day${wdWorked!==1?'s':''} worked` : '';
 
-  const body = document.getElementById('mtdSummaryBody');
   body.innerHTML = `
     <!-- KPI row -->
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:22px">
-      ${kpiCard('📋','Total Assessed',total,'var(--text)',wdWorked?`Over ${wdWorked} working days`:'')}
+      ${kpiCard('📋','Total Assessed',total,'var(--text)', daysNote)}
       ${kpiCard('✅','Fair',fair,'#2dce89',total?`${fairPct}% of assessments`:'')}
       ${kpiCard('📘','Fair with Learnings',fwl,'#fbb83a',total?`${fwlPct}% of assessments`:'')}
       ${kpiCard('⚠️','Unfair',unfairPD+unfairAD,'#f5365c',unfairAD?`incl. ${unfairAD} actual detriment`:total?`${unfairPct}% of assessments`:'')}
-      ${kpiCard('⚡','Calls / Day',callsPerDay,'var(--blue)',wdWorked?`${wdWorked} days worked`:'')}
+      ${kpiCard('⚡','Calls / Day',callsPerDay,'var(--blue)', daysNote)}
     </div>
 
     <!-- Charts row -->
-    <div style="display:grid;grid-template-columns:1fr 2fr;gap:16px;margin-bottom:22px">
-      <!-- Donut -->
+    <div style="display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:22px">
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px">
-        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Outcome Split</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px">Outcome Split</div>
         <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:14px">${_mtdMonthLabel(mk)||'All months'}</div>
-        <div style="position:relative;height:180px"><canvas id="mtdDonut"></canvas></div>
-        <div style="display:flex;flex-direction:column;gap:5px;margin-top:14px">
+        <div style="position:relative;height:170px"><canvas id="mtdDonut"></canvas></div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:14px">
           ${[['✅ Fair',fair,'#2dce89'],['📘 Fair with Learnings',fwl,'#fbb83a'],['⚠️ Unfair — Pot. Detriment',unfairPD,'#f5365c'],['🔴 Unfair — Act. Detriment',unfairAD,'#c0183c']].map(([l,v,c])=>`
           <div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;font-family:var(--fm)">
-            <span style="display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${c}"></span><span style="color:var(--text2)">${l}</span></span>
+            <span style="display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c}"></span><span style="color:var(--text2)">${l}</span></span>
             <span style="font-weight:700;color:${c}">${v}</span>
           </div>`).join('')}
         </div>
       </div>
-      <!-- Daily bar -->
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px">
-        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Assessments Per Day</div>
-        <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:14px">Stacked by outcome · working days</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px">Assessments Per Working Day</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:14px">Stacked by outcome · elapsed days this month</div>
         <div style="position:relative;height:200px"><canvas id="mtdDailyBar"></canvas></div>
       </div>
     </div>
 
     <!-- Section pass rates -->
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:22px">
-      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px">Section Pass Rates</div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px">Section Pass Rates</div>
       <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:16px">Pass % across all rated items (excluding N/A)</div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:18px">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:20px">
         ${sectionStats.map(s=>{
-          const col = s.pct===null?'var(--text3)':s.pct>=90?'#2dce89':s.pct>=75?'#fbb83a':'#f5365c';
+          const col=s.pct===null?'var(--text3)':s.pct>=90?'#2dce89':s.pct>=75?'#fbb83a':'#f5365c';
           return `<div>
             <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px">${s.label}</div>
             ${pctBar(s.pct,col)}
-            <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:5px">${s.pass} pass · ${s.fail} fail · ${s.na} N/A</div>
+            <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:5px">${s.pass}✓ &nbsp;${s.fail}✗ &nbsp;${s.na} N/A</div>
           </div>`;
         }).join('')}
       </div>
-      <!-- Item heatmap -->
       <div style="border-top:1px solid var(--border);padding-top:16px">
-        <div style="font-size:11px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;margin-bottom:12px">Item Detail</div>
-        <div style="display:grid;gap:5px">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px">Item Breakdown</div>
+        <div style="display:grid;gap:4px">
           ${itemStats.map(it=>{
-            const col = it.pct===null?'var(--surface3)':it.pct>=90?'rgba(45,206,137,.25)':it.pct>=75?'rgba(251,184,58,.25)':'rgba(245,54,92,.25)';
-            const txtCol = it.pct===null?'var(--text3)':it.pct>=90?'#2dce89':it.pct>=75?'#fbb83a':'#f5365c';
-            return `<div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:${col};border-radius:6px">
-              <span style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);min-width:20px">${it.num}</span>
-              <span style="flex:1;font-size:11px;color:var(--text2)">${it.text.length>80?it.text.slice(0,80)+'…':it.text}</span>
-              <span style="font-size:12px;font-weight:700;color:${txtCol};font-family:var(--fm);min-width:38px;text-align:right">${it.pct!==null?it.pct+'%':'—'}</span>
-              <span style="font-size:10px;color:var(--text3);font-family:var(--fm);min-width:80px;text-align:right">${it.pass}✓ ${it.fail}✗ ${it.na} N/A</span>
+            const bg=it.pct===null?'transparent':it.pct>=90?'rgba(45,206,137,.08)':it.pct>=75?'rgba(251,184,58,.08)':'rgba(245,54,92,.08)';
+            const col=it.pct===null?'var(--text3)':it.pct>=90?'#2dce89':it.pct>=75?'#fbb83a':'#f5365c';
+            return `<div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:${bg};border-radius:7px;border:1px solid ${it.pct===null?'transparent':it.pct>=90?'rgba(45,206,137,.15)':it.pct>=75?'rgba(251,184,58,.15)':'rgba(245,54,92,.15)'}">
+              <span style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);min-width:18px">${it.num}</span>
+              <span style="flex:1;font-size:12px;color:var(--text2);line-height:1.4">${it.text.length>90?it.text.slice(0,90)+'…':it.text}</span>
+              <span style="font-size:13px;font-weight:700;color:${col};font-family:var(--fm);min-width:36px;text-align:right">${it.pct!==null?it.pct+'%':'—'}</span>
+              <span style="font-size:10px;color:var(--text3);font-family:var(--fm);min-width:90px;text-align:right">${it.pass}✓ ${it.fail}✗ ${it.na} N/A</span>
             </div>`;
           }).join('')}
         </div>
       </div>
     </div>
 
-    <!-- Weekly breakdown -->
-    ${weeks.length?`
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:22px">
-      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px">Weekly Breakdown</div>
-      <table style="width:100%;border-collapse:collapse">
-        <thead>
-          <tr style="background:var(--surface2);border-bottom:1px solid var(--border2)">
-            ${['Week','Total','Fair','Fair w/ Learnings','Unfair','Pass Rate'].map(h=>`<th style="padding:8px 12px;text-align:${h==='Week'?'left':'right'};font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase">${h}</th>`).join('')}
-          </tr>
-        </thead>
-        <tbody>
-          ${weeks.map(w=>{
-            const wr = w.total>0?Math.round((w.fair+w.fwl)/w.total*100):null;
-            return `<tr style="border-bottom:1px solid var(--border)">
-              <td style="padding:10px 12px;font-size:12px;font-weight:600;color:var(--text)">${w.label}</td>
-              <td style="padding:10px 12px;text-align:right;font-size:12px;font-weight:700;color:var(--text);font-family:var(--fm)">${w.total}</td>
-              <td style="padding:10px 12px;text-align:right;font-size:12px;font-weight:700;color:#2dce89;font-family:var(--fm)">${w.fair}</td>
-              <td style="padding:10px 12px;text-align:right;font-size:12px;font-weight:700;color:#fbb83a;font-family:var(--fm)">${w.fwl}</td>
-              <td style="padding:10px 12px;text-align:right;font-size:12px;font-weight:700;color:#f5365c;font-family:var(--fm)">${w.fair+w.fwl+w.unfair>0?w.unfair:0}</td>
-              <td style="padding:10px 12px;text-align:right;font-size:12px;font-weight:700;color:${wr===null?'var(--text3)':wr>=90?'#2dce89':wr>=75?'#fbb83a':'#f5365c'};font-family:var(--fm)">${wr!==null?wr+'%':'—'}</td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>`:''}
+    <!-- Weekly + Colleague grid -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:22px">
+      ${weeks.length ? `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px">Weekly Breakdown</div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="border-bottom:1px solid var(--border2)">
+            ${['Week','Total','Fair','FwL','Unfair','Rate'].map(h=>`<th style="padding:7px 10px;text-align:${h==='Week'?'left':'right'};font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase">${h}</th>`).join('')}
+          </tr></thead>
+          <tbody>
+            ${weeks.map(w=>{
+              const wr=w.total>0?Math.round((w.fair+w.fwl)/w.total*100):null;
+              return `<tr style="border-bottom:1px solid var(--border)">
+                <td style="padding:9px 10px;font-size:12px;font-weight:600;color:var(--text)">${w.label}</td>
+                <td style="padding:9px 10px;text-align:right;font-size:12px;font-weight:700;font-family:var(--fm);color:var(--text)">${w.total}</td>
+                <td style="padding:9px 10px;text-align:right;font-size:12px;font-weight:700;font-family:var(--fm);color:#2dce89">${w.fair}</td>
+                <td style="padding:9px 10px;text-align:right;font-size:12px;font-weight:700;font-family:var(--fm);color:#fbb83a">${w.fwl}</td>
+                <td style="padding:9px 10px;text-align:right;font-size:12px;font-weight:700;font-family:var(--fm);color:${w.unfair>0?'#f5365c':'var(--text3)'}">${w.unfair}</td>
+                <td style="padding:9px 10px;text-align:right;font-size:12px;font-weight:700;font-family:var(--fm);color:${wr===null?'var(--text3)':wr>=90?'#2dce89':wr>=75?'#fbb83a':'#f5365c'}">${wr!==null?wr+'%':'—'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>` : '<div></div>'}
 
-    <!-- Colleague breakdown -->
-    ${colleagues.length?`
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:22px">
-      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px">Colleague Breakdown</div>
-      <table style="width:100%;border-collapse:collapse">
-        <thead>
-          <tr style="background:var(--surface2);border-bottom:1px solid var(--border2)">
-            ${['Colleague','Assessments','Fair','Fair w/ Learnings','Unfair','Reg Non-Compliant','Pass Rate'].map(h=>`<th style="padding:8px 12px;text-align:${h==='Colleague'?'left':'right'};font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase">${h}</th>`).join('')}
-          </tr>
-        </thead>
-        <tbody>
-          ${colleagues.map((c,i)=>{
-            const pr = c.total>0?Math.round((c.fair+c.fwl)/c.total*100):null;
-            const bg = i%2===0?'':'var(--surface2)';
-            return `<tr style="border-bottom:1px solid var(--border);background:${bg}">
-              <td style="padding:10px 12px;font-size:13px;font-weight:600;color:var(--text)">${c.name}</td>
-              <td style="padding:10px 12px;text-align:right;font-size:12px;font-weight:700;color:var(--text);font-family:var(--fm)">${c.total}</td>
-              <td style="padding:10px 12px;text-align:right;font-size:12px;font-weight:700;color:#2dce89;font-family:var(--fm)">${c.fair}</td>
-              <td style="padding:10px 12px;text-align:right;font-size:12px;font-weight:700;color:#fbb83a;font-family:var(--fm)">${c.fwl}</td>
-              <td style="padding:10px 12px;text-align:right;font-size:12px;font-weight:700;color:${c.unfair>0?'#f5365c':'var(--text3)'};font-family:var(--fm)">${c.unfair}</td>
-              <td style="padding:10px 12px;text-align:right;font-size:12px;font-weight:700;color:${c.regFail>0?'#f5365c':'var(--text3)'};font-family:var(--fm)">${c.regFail||'—'}</td>
-              <td style="padding:10px 12px;text-align:right;font-size:12px;font-weight:700;color:${pr===null?'var(--text3)':pr>=90?'#2dce89':pr>=75?'#fbb83a':'#f5365c'};font-family:var(--fm)">${pr!==null?pr+'%':'—'}</td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>`:''}
+      ${colleagues.length ? `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px">Colleague Breakdown</div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="border-bottom:1px solid var(--border2)">
+            ${['Colleague','Total','Fair','FwL','Unfair','Reg ✗','Rate'].map(h=>`<th style="padding:7px 10px;text-align:${h==='Colleague'?'left':'right'};font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase">${h}</th>`).join('')}
+          </tr></thead>
+          <tbody>
+            ${colleagues.map(c=>{
+              const pr=c.total>0?Math.round((c.fair+c.fwl)/c.total*100):null;
+              return `<tr style="border-bottom:1px solid var(--border)">
+                <td style="padding:9px 10px;font-size:13px;font-weight:600;color:var(--text)">${c.name}</td>
+                <td style="padding:9px 10px;text-align:right;font-size:12px;font-weight:700;font-family:var(--fm);color:var(--text)">${c.total}</td>
+                <td style="padding:9px 10px;text-align:right;font-size:12px;font-weight:700;font-family:var(--fm);color:#2dce89">${c.fair}</td>
+                <td style="padding:9px 10px;text-align:right;font-size:12px;font-weight:700;font-family:var(--fm);color:#fbb83a">${c.fwl}</td>
+                <td style="padding:9px 10px;text-align:right;font-size:12px;font-weight:700;font-family:var(--fm);color:${c.unfair>0?'#f5365c':'var(--text3)'}">${c.unfair}</td>
+                <td style="padding:9px 10px;text-align:right;font-size:12px;font-weight:700;font-family:var(--fm);color:${c.regFail>0?'#f5365c':'var(--text3)'}">${c.regFail||'—'}</td>
+                <td style="padding:9px 10px;text-align:right;font-size:12px;font-weight:700;font-family:var(--fm);color:${pr===null?'var(--text3)':pr>=90?'#2dce89':pr>=75?'#fbb83a':'#f5365c'}">${pr!==null?pr+'%':'—'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>` : ''}
+    </div>
 
-    <!-- No data state -->
-    ${total===0?`<div style="text-align:center;padding:40px;color:var(--text3);font-family:var(--fm);font-size:13px">No assessments found for this selection.</div>`:''}
+    ${total===0?`<div class="empty"><div class="empty-icon">📋</div><div>No assessments found for this selection.</div></div>`:''}
   `;
 
-  // ── Draw charts ────────────────────────────────────────────────────
-  if(total > 0){
-    // Donut
+  // ── Charts ────────────────────────────────────────────────────────
+  if(total>0){
     const donutCtx = document.getElementById('mtdDonut')?.getContext('2d');
     if(donutCtx){
-      _mtdCharts.donut = new Chart(donutCtx, {
+      _mtdCharts.donut = new Chart(donutCtx,{
         type:'doughnut',
         data:{
           labels:['Fair','Fair with Learnings','Unfair — Pot. Detriment','Unfair — Act. Detriment'],
-          datasets:[{
-            data:[fair,fwl,unfairPD,unfairAD],
-            backgroundColor:['#2dce89','#fbb83a','#f5365c','#c0183c'],
-            borderColor:'transparent',
-            borderWidth:0,
-            hoverOffset:6
-          }]
+          datasets:[{data:[fair,fwl,unfairPD,unfairAD],backgroundColor:['#2dce89','#fbb83a','#f5365c','#c0183c'],borderColor:'transparent',hoverOffset:5}]
         },
-        options:{
-          responsive:true, maintainAspectRatio:false,
-          plugins:{
-            legend:{display:false},
-            tooltip:{
-              callbacks:{
-                label:ctx=>{
-                  const v = ctx.parsed;
-                  const pct = total>0?Math.round(v/total*100):0;
-                  return ` ${v} (${pct}%)`;
-                }
-              }
-            }
-          },
-          cutout:'68%',
-          animation:{duration:600}
-        }
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>{const v=ctx.parsed;return ` ${v} (${total>0?Math.round(v/total*100):0}%)`;}}}} ,cutout:'65%',animation:{duration:500}}
       });
     }
-
-    // Daily stacked bar
     const barCtx = document.getElementById('mtdDailyBar')?.getContext('2d');
     if(barCtx && trendLabels.length){
-      _mtdCharts.daily = new Chart(barCtx, {
+      _mtdCharts.daily = new Chart(barCtx,{
         type:'bar',
-        data:{
-          labels:trendLabels,
-          datasets:[
-            {label:'Fair',data:trendFair,backgroundColor:'#2dce89',borderRadius:2,stack:'s'},
-            {label:'Fair w/ Learnings',data:trendFwl,backgroundColor:'#fbb83a',borderRadius:2,stack:'s'},
-            {label:'Unfair',data:trendUnfair,backgroundColor:'#f5365c',borderRadius:2,stack:'s'}
-          ]
-        },
-        options:{
-          responsive:true, maintainAspectRatio:false,
+        data:{labels:trendLabels,datasets:[
+          {label:'Fair',data:trendFair,backgroundColor:'#2dce89',borderRadius:2,stack:'s'},
+          {label:'Fair w/ Learnings',data:trendFwl,backgroundColor:'#fbb83a',borderRadius:2,stack:'s'},
+          {label:'Unfair',data:trendUnfair,backgroundColor:'#f5365c',borderRadius:2,stack:'s'}
+        ]},
+        options:{responsive:true,maintainAspectRatio:false,
           plugins:{legend:{display:false},tooltip:{mode:'index',intersect:false}},
           scales:{
-            x:{ticks:{font:{family:'DM Mono, monospace',size:9},color:'rgba(255,255,255,.4)'},grid:{color:'rgba(255,255,255,.04)'}},
-            y:{beginAtZero:true,ticks:{font:{family:'DM Mono, monospace',size:9},color:'rgba(255,255,255,.4)',stepSize:1},grid:{color:'rgba(255,255,255,.04)'}}
-          },
-          animation:{duration:500}
-        }
+            x:{ticks:{font:{family:'DM Mono,monospace',size:9},color:'rgba(138,143,158,.6)'},grid:{color:'rgba(255,255,255,.04)'}},
+            y:{beginAtZero:true,ticks:{font:{family:'DM Mono,monospace',size:9},color:'rgba(138,143,158,.6)',stepSize:1},grid:{color:'rgba(255,255,255,.04)'}}
+          },animation:{duration:500}}
       });
     }
   }
