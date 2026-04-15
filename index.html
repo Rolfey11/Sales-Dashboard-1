@@ -415,7 +415,6 @@ nav{position:sticky;top:0;z-index:100;background:var(--nav-bg);backdrop-filter:b
 .nav-row1{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:40px;flex-wrap:nowrap;}
 .nav-row2{display:flex;align-items:center;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:0;}
 .nav-row2::-webkit-scrollbar{display:none;}
-.nav-row3{display:flex;align-items:center;gap:4px;padding:3px 0 0;border-top:1px solid var(--border);}
 .nav-brand{font-size:15px;font-weight:700;letter-spacing:.06em;white-space:nowrap;}
 .nav-brand span{color:var(--accent);}
 .nav-tabs{display:flex;gap:2px;flex-shrink:0;}
@@ -676,7 +675,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
   #divisionLabel{display:none;}
   .globalMonthLabel{display:none;}
   .nav-tab{font-size:10px;padding:5px 8px;}
-  .nav-row3{gap:2px;flex-wrap:wrap;padding:2px 0 0;}
+
   #globalMonthSel{min-width:90px !important;font-size:11px;}
 
   /* Pages */
@@ -1414,6 +1413,39 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 }
 .bell-hol-pending{ animation:bellAmber 2.5s ease-in-out infinite; border-radius:50%; }
 
+/* ── SIDEBAR MENU ──────────────────────────────────────────────── */
+.sidebar-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:400;opacity:0;pointer-events:none;transition:opacity .25s;}
+.sidebar-overlay.open{opacity:1;pointer-events:all;}
+.sidebar{position:fixed;top:0;left:0;height:100%;width:252px;background:var(--surface);border-right:1px solid var(--border2);z-index:401;transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;box-shadow:6px 0 32px rgba(0,0,0,.35);}
+.sidebar.open{transform:translateX(0);}
+.sidebar-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);min-height:50px;background:var(--surface2);}
+.sidebar-hdr-title{font-size:13px;font-weight:700;color:var(--text);font-family:var(--fh);}
+.sidebar-close-btn{background:none;border:1px solid var(--border2);border-radius:6px;cursor:pointer;color:var(--text2);font-size:14px;padding:3px 7px;line-height:1.4;transition:all .15s;}
+.sidebar-close-btn:hover{border-color:var(--accent);color:var(--accent);}
+.sidebar-body{flex:1;overflow-y:auto;padding:6px 0 16px;}
+.sidebar-section-btn{display:flex;align-items:center;justify-content:space-between;width:100%;padding:11px 16px;background:none;border:none;cursor:pointer;font-size:11px;font-weight:700;color:var(--text2);letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);transition:background .15s,color .15s;user-select:none;border-bottom:1px solid var(--border);}
+.sidebar-section-btn:hover{background:var(--surface2);color:var(--text);}
+.sidebar-section-btn.sb-open{color:var(--accent);background:rgba(94,156,245,.05);}
+.sb-chevron{font-size:9px;transition:transform .2s;flex-shrink:0;}
+.sb-open .sb-chevron{transform:rotate(90deg);}
+.sidebar-items{overflow:hidden;max-height:0;transition:max-height .25s ease;}
+.sidebar-items.sb-open{max-height:300px;}
+.sidebar-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 16px 10px 28px;background:none;border:none;cursor:pointer;font-size:13px;font-family:var(--fh);color:var(--text2);transition:background .12s,color .12s;border-left:3px solid transparent;}
+.sidebar-item:hover{background:var(--surface2);color:var(--text);}
+.sidebar-item.sb-active{color:var(--accent);background:rgba(94,156,245,.08);border-left-color:var(--accent);font-weight:700;}
+.sidebar-item-icon{font-size:14px;flex-shrink:0;}
+/* Hamburger */
+.ham-btn{display:none;align-items:center;gap:7px;background:none;border:none;cursor:pointer;padding:5px 8px;border-radius:6px;transition:background .15s;flex-shrink:0;color:var(--text);}
+.ham-btn:hover{background:rgba(255,255,255,.08);}
+.ham-lines{display:flex;flex-direction:column;gap:4px;width:16px;}
+.ham-line{height:2px;background:currentColor;border-radius:1px;}
+.ham-label{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;font-family:var(--fm);}
+/* White text on coloured nav themes */
+[data-theme="cavendish"] .ham-btn,[data-theme="lloyds"] .ham-btn{color:rgba(255,255,255,.9);}
+[data-theme="cavendish"] .ham-btn:hover,[data-theme="lloyds"] .ham-btn:hover{background:rgba(255,255,255,.12);}
+/* Arctic light theme fix */
+[data-theme="arctic"] .ham-btn{color:var(--text);}
+
 </style>
 <body class="pre-auth">
 
@@ -1514,10 +1546,82 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
   </div>
 </div>
 
+<!-- SIDEBAR OVERLAY -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- SIDEBAR PANEL -->
+<div class="sidebar" id="sidebarPanel">
+  <div class="sidebar-hdr">
+    <div class="sidebar-hdr-title">Navigation</div>
+    <button class="sidebar-close-btn" onclick="closeSidebar()" title="Close">✕</button>
+  </div>
+  <div class="sidebar-body">
+
+    <!-- COMPLIANCE -->
+    <button class="sidebar-section-btn" id="sbSec-compliance" onclick="toggleSidebarSection('compliance')">
+      <span>🛡 Compliance</span>
+      <span class="sb-chevron">▶</span>
+    </button>
+    <div class="sidebar-items" id="sbItems-compliance">
+      <button class="sidebar-item" id="sbItem-compliance" onclick="sidebarNav('compliance')">
+        <span class="sidebar-item-icon">🛡</span>Compliance
+      </button>
+      <button class="sidebar-item" id="sbItem-calloutcomes" onclick="sidebarNav('calloutcomes')">
+        <span class="sidebar-item-icon">📊</span>Call Outcomes
+      </button>
+      <button class="sidebar-item" id="sbItem-remedialmanager" onclick="sidebarNav('remedialmanager')">
+        <span class="sidebar-item-icon">⚠️</span>Remedial Queue
+        <span id="sbRemBadge" style="display:none;margin-left:auto;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;font-family:var(--fm)"></span>
+      </button>
+    </div>
+
+    <!-- MANAGER -->
+    <button class="sidebar-section-btn" id="sbSec-manager" onclick="toggleSidebarSection('manager')">
+      <span>⭐ Manager</span>
+      <span class="sb-chevron">▶</span>
+    </button>
+    <div class="sidebar-items" id="sbItems-manager">
+      <button class="sidebar-item" id="sbItem-manageroverview" onclick="sidebarNav('manageroverview')">
+        <span class="sidebar-item-icon">⭐</span>Manager Overview
+      </button>
+      <button class="sidebar-item" id="sbItem-dailysend" onclick="sidebarNav('dailysend')">
+        <span class="sidebar-item-icon">📤</span>Daily Send
+      </button>
+      <button class="sidebar-item" id="sbItem-staffperf" onclick="sidebarNav('staffperf')">
+        <span class="sidebar-item-icon">📋</span>Staff Performance
+      </button>
+      <button class="sidebar-item" id="sbItem-consultantdaily" onclick="sidebarNav('consultantdaily')">
+        <span class="sidebar-item-icon">📅</span>Consultant Daily
+      </button>
+      <button class="sidebar-item" id="sbItem-bonuscalc" onclick="sidebarNav('bonuscalc')">
+        <span class="sidebar-item-icon">💰</span>Bonus Calculator
+      </button>
+    </div>
+
+    <!-- HOLIDAY -->
+    <button class="sidebar-section-btn" id="sbSec-holiday" onclick="toggleSidebarSection('holiday')">
+      <span>🏖 Holiday</span>
+      <span class="sb-chevron">▶</span>
+    </button>
+    <div class="sidebar-items" id="sbItems-holiday">
+      <button class="sidebar-item" id="sbItem-holiday" onclick="sidebarNav('holiday')">
+        <span class="sidebar-item-icon">🏖</span>Holiday
+      </button>
+    </div>
+
+  </div>
+</div>
+
 <nav>
   <!-- Row 1: Brand + right-side controls -->
   <div class="nav-row1">
-    <div class="nav-brand">JG <span style="color:var(--accent)">MI</span></div>
+    <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+      <button class="ham-btn" id="hamBtn" onclick="openSidebar()" title="Menu">
+        <div class="ham-lines"><div class="ham-line"></div><div class="ham-line"></div><div class="ham-line"></div></div>
+        <span class="ham-label">Menu</span>
+      </button>
+      <div class="nav-brand">JG <span style="color:var(--accent)">MI</span></div>
+    </div>
     <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;flex-wrap:nowrap;">
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
         <span style="font-size:10px;font-weight:600;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">Month</span>
@@ -1559,21 +1663,10 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <button class="nav-tab" onclick="showPage('monthlysummary')">Monthly Summary</button>
       <button class="nav-tab" onclick="showPage('leaderboard')">Leaderboard</button>
       <button class="nav-tab" onclick="showPage('history')">History</button>
-      <button class="nav-tab" onclick="showPage('daybyday')">Day by Day</button>
-      <button class="nav-tab" onclick="showPage('holiday')">Holiday</button>
+      <button class="nav-tab consultant-only-tab" onclick="showPage('daybyday')">Day by Day</button>
+      <button class="nav-tab consultant-only-tab" id="holidayNavTab" onclick="showPage('holiday')">Holiday</button>
       <button class="nav-tab" onclick="showPage('settings')">Settings</button>
     </div>
-  </div>
-  <!-- Row 3: Manager / reporting tabs -->
-  <div class="nav-row3">
-    <button class="nav-tab" onclick="showPage('manageroverview')" id="managerOverviewTab" style="color:var(--amber);">⭐ Manager Overview</button>
-    <button class="nav-tab" onclick="showPage('dailysend')" id="dailySendTab" style="color:#fff;background:#6b0d2d;border-radius:6px 6px 0 0;font-weight:700;">📤 Daily Send</button>
-    <button class="nav-tab" onclick="showPage('staffperf')" id="staffPerfTab" style="color:#fff;background:#1a4040;border-radius:6px 6px 0 0;font-weight:700;">📋 Staff Performance</button>
-    <button class="nav-tab" onclick="showPage('compliance')" id="complianceTab" style="color:#fff;background:#1a3060;border-radius:6px 6px 0 0;font-weight:700;">🛡 Compliance</button>
-    <button class="nav-tab" onclick="showPage('calloutcomes')" id="callOutcomesTab" style="color:#fff;background:#1a3848;border-radius:6px 6px 0 0;font-weight:700;">📊 Call Outcomes</button>
-    <button class="nav-tab" onclick="showPage('consultantdaily')" id="consultantDailyTab" style="color:#fff;background:#1e2545;border-radius:6px 6px 0 0;font-weight:700;">📅 Consultant Daily</button>
-    <button class="nav-tab" onclick="showPage('bonuscalc')" id="bonusCalcTab" style="color:#fff;background:#252a18;border-radius:6px 6px 0 0;font-weight:700;">💰 Bonus Calculator</button>
-    <button class="nav-tab" onclick="showPage('remedialmanager')" id="remedialManagerTab" style="color:#fff;background:#3a1212;border-radius:6px 6px 0 0;font-weight:700;">⚠️ Remedial Queue <span id="remMgrBadge" style="display:none;background:#f5365c;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;margin-left:4px;font-family:var(--fm)"></span></button>
   </div>
 </nav>
 
@@ -3479,7 +3572,8 @@ async function _sha256(str){
 const ROLE_ACCESS = {
   master:     null, // all tabs
   manager:    ['dashboard','biz','teams','summary','entry','monthlysummary','leaderboard',
-               'history','daybyday','holiday','settings','manageroverview','staffperf','calloutcomes','consultantdaily','remedialmanager','bonuscalc'],
+               'history','daybyday','holiday','settings','manageroverview','staffperf','calloutcomes',
+               'consultantdaily','remedialmanager','bonuscalc','dailysend','compliance'],
   compliance: ['compliance','calloutcomes','remedialmanager'],
   consultant: ['consultantdaily','teams','calloutcomes','holiday','bonuscalc']
 };
@@ -3497,14 +3591,52 @@ function applyRoleVisibility(){
   const role    = _currentUser.role || 'consultant';
   const allowed = ROLE_ACCESS[role]; // null = all
 
-  // Show/hide nav tabs
+  // Show/hide main nav tabs (nav-row2 only now)
   document.querySelectorAll('.nav-tab').forEach(tab=>{
     const m = tab.getAttribute('onclick')?.match(/showPage\('([^']+)'\)/);
     if(!m){ tab.style.display=''; return; }
     tab.style.display = (!allowed || allowed.includes(m[1])) ? '' : 'none';
   });
 
-  // Division badge: consultants see label only — no click/switch
+  // Show hamburger only for manager, master, compliance
+  const hamBtn = document.getElementById('hamBtn');
+  if(hamBtn){
+    const showHam = (role==='manager'||role==='master'||role==='compliance');
+    hamBtn.style.display = showHam ? 'flex' : 'none';
+  }
+
+  // Sidebar item visibility — hide items the role can't access
+  const sidebarPageMap = {
+    'sbItem-compliance':      'compliance',
+    'sbItem-calloutcomes':    'calloutcomes',
+    'sbItem-remedialmanager': 'remedialmanager',
+    'sbItem-manageroverview': 'manageroverview',
+    'sbItem-dailysend':       'dailysend',
+    'sbItem-staffperf':       'staffperf',
+    'sbItem-consultantdaily': 'consultantdaily',
+    'sbItem-bonuscalc':       'bonuscalc',
+    'sbItem-holiday':         'holiday',
+  };
+  Object.entries(sidebarPageMap).forEach(([elId, page])=>{
+    const el = document.getElementById(elId);
+    if(el) el.style.display = (!allowed || allowed.includes(page)) ? '' : 'none';
+  });
+
+  // Hide entire sidebar section if all its items are hidden
+  ['compliance','manager','holiday'].forEach(sec=>{
+    const items = document.getElementById('sbItems-'+sec);
+    const btn   = document.getElementById('sbSec-'+sec);
+    if(!items||!btn) return;
+    const anyVisible = [...items.querySelectorAll('.sidebar-item')].some(el=>el.style.display!=='none');
+    btn.style.display  = anyVisible ? '' : 'none';
+  });
+
+  // For roles that use the sidebar, hide the holiday & daybyday nav tab
+  // (those pages are accessed via the sidebar instead)
+  const usesSidebar = (role==='manager'||role==='master'||role==='compliance');
+  document.querySelectorAll('.consultant-only-tab').forEach(el=>{
+    if(usesSidebar) el.style.display='none';
+  });
   const divBadge = document.getElementById('divisionBadge');
   const divArrow  = divBadge?.querySelector('span:last-child');
   if(divBadge){
@@ -6369,6 +6501,10 @@ function showPage(id){
   document.getElementById('page-'+id).classList.add('active');
   const tabEl = document.querySelector(`.nav-tab[onclick="showPage('${id}')"]`);
   if(tabEl) tabEl.classList.add('active');
+  // Mark active sidebar item
+  document.querySelectorAll('.sidebar-item').forEach(el=>el.classList.remove('sb-active'));
+  const sbItem = document.getElementById('sbItem-'+id);
+  if(sbItem) sbItem.classList.add('sb-active');
   if(id==='dashboard')       renderDashboard();
   if(id==='biz')            { populateAllSelects(); renderBizTarget(); }
   if(id==='teams')          { populateAllSelects(); renderTeams(); }
@@ -6394,6 +6530,52 @@ function showPage(id){
   if(id==='consultantdaily'){ populateAllSelects(); renderConsultantDaily(); }
   if(id==='bonuscalc'){ if(typeof bcInit==='function') bcInit(); }
 }
+
+// ── SIDEBAR ────────────────────────────────────────────────────────
+function openSidebar(){
+  document.getElementById('sidebarPanel').classList.add('open');
+  document.getElementById('sidebarOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeSidebar(){
+  document.getElementById('sidebarPanel').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function toggleSidebarSection(name){
+  const btn   = document.getElementById('sbSec-'+name);
+  const items = document.getElementById('sbItems-'+name);
+  if(!btn||!items) return;
+  const isOpen = items.classList.contains('sb-open');
+  // Close all sections first
+  document.querySelectorAll('.sidebar-items').forEach(el=>el.classList.remove('sb-open'));
+  document.querySelectorAll('.sidebar-section-btn').forEach(el=>el.classList.remove('sb-open'));
+  // Toggle the clicked one
+  if(!isOpen){
+    items.classList.add('sb-open');
+    btn.classList.add('sb-open');
+  }
+}
+function sidebarNav(pageId){
+  closeSidebar();
+  showPage(pageId);
+}
+// Sync the sidebar remedial badge with the existing remMgrBadge
+function _syncSidebarBadges(){
+  const src  = document.getElementById('remMgrBadge');
+  const dest = document.getElementById('sbRemBadge');
+  if(!src||!dest) return;
+  dest.textContent = src.textContent;
+  dest.style.display = src.style.display;
+}
+// Patch badge updates to also sync sidebar
+(function(){
+  const _orig = Object.getOwnPropertyDescriptor(HTMLElement.prototype,'textContent');
+  // Just poll every 3s as a lightweight approach
+  setInterval(_syncSidebarBadges, 3000);
+})();
+
+
 
 // ═══════════════════════════════════════════════════════════════════
 // MONTHLY CONSULTANT SUMMARY
