@@ -2847,51 +2847,83 @@ function bcCountElapsedWorkDays(mk){
 }
 
 // Count the working days in the month for the logged-in user:
-// = total working weekdays (excl. bank holidays) minus their absences (all types)
-// Half-day absences count as 0.5; quarter-day as 0.25; full days as 1.
+// = total working weekdays (excl. bank holidays) minus their absences (all types).
+// Reads from BOTH the legacy APP.holidays/APP.sickness arrays AND the new APP.absences
+// object, so it works regardless of which system the data was entered through.
+// Half-day absences (H1/H2) count as 0.5; quarter-day (Q) as 0.25; full days as 1.
 function bcCountYourWorkDays(mk){
-  const myName = _currentUser?.name || '';
+  const myName  = _currentUser?.name || '';
   const totalWD = bcCountMonthWorkDays(mk);
-  if(!myName || typeof getAbsences !== 'function') return totalWD;
-  const abs = getAbsences(mk, myName);
+  if(!myName) return totalWD;
+
   const [y, m] = mk.split('-').map(Number);
+
+  // Legacy arrays (date strings)
+  const legHols = (typeof getHols === 'function') ? getHols(mk, myName) : [];
+  const legSick = (typeof getSick === 'function') ? getSick(mk, myName) : [];
+  const legAll  = new Set([...legHols, ...legSick]);
+
+  // New absences object
+  const abs = (typeof getAbsences === 'function') ? getAbsences(mk, myName) : {};
+
+  // Union of all off-dates from both systems
+  const allDates = new Set([...legAll, ...Object.keys(abs)]);
+
   let deducted = 0;
-  for(const ds of Object.keys(abs)){
-    // Only count dates within this month
+  for(const ds of allDates){
     const parts = ds.split('-').map(Number);
     if(parts[0] !== y || parts[1] !== m) continue;
     const dow = new Date(ds).getDay();
-    if(dow === 0 || dow === 6) continue; // weekend
-    if(isBankHoliday(ds)) continue;      // already excluded from total
-    const entry = abs[ds];
-    const absType = (typeof ABS_TYPES !== 'undefined' && ABS_TYPES[entry.type]) || { defaultHrs: 7.5 };
-    const hrs = entry.hours || absType.defaultHrs || 7.5;
-    deducted += hrs / 7.5; // 7.5 = full day
+    if(dow === 0 || dow === 6) continue;  // weekend
+    if(isBankHoliday(ds)) continue;       // already excluded from total
+
+    if(abs[ds]){
+      // New system: use hours for partial-day accuracy
+      const entry   = abs[ds];
+      const absType = (typeof ABS_TYPES !== 'undefined' && ABS_TYPES[entry.type]) || { defaultHrs:7.5 };
+      const hrs     = entry.hours || absType.defaultHrs || 7.5;
+      deducted += hrs / 7.5;
+    } else {
+      // Legacy system only: full day
+      deducted += 1;
+    }
   }
-  return Math.max(0, Math.round((totalWD - deducted) * 2) / 2); // nearest 0.5
+  return Math.max(0, Math.round((totalWD - deducted) * 2) / 2); // round to nearest 0.5
 }
 
 // Build a short breakdown label for the Your Working Days hint
 function bcYourDaysHint(mk, totalWD, yourDays){
   const myName = _currentUser?.name || '';
-  if(!myName || typeof getAbsences !== 'function') return 'Working days minus your absences';
-  const abs = getAbsences(mk, myName);
+  if(!myName) return 'Working days minus your absences';
+
   const [y, m] = mk.split('-').map(Number);
-  const counts = {};
-  for(const ds of Object.keys(abs)){
+  const legHols = (typeof getHols === 'function') ? getHols(mk, myName) : [];
+  const legSick = (typeof getSick === 'function') ? getSick(mk, myName) : [];
+  const abs     = (typeof getAbsences === 'function') ? getAbsences(mk, myName) : {};
+  const allDates = new Set([...legHols, ...legSick, ...Object.keys(abs)]);
+
+  let holCount = 0, sickCount = 0, otherCount = 0;
+  for(const ds of allDates){
     const parts = ds.split('-').map(Number);
     if(parts[0] !== y || parts[1] !== m) continue;
     const dow = new Date(ds).getDay();
     if(dow === 0 || dow === 6) continue;
     if(isBankHoliday(ds)) continue;
-    const entry = abs[ds];
-    const absType = (typeof ABS_TYPES !== 'undefined' && ABS_TYPES[entry.type]) || { label: entry.type || 'Absence' };
-    const label = absType.label || entry.type || 'Absence';
-    counts[label] = (counts[label] || 0) + 1;
+    if(abs[ds]){
+      const t = abs[ds].type || '';
+      if(['H','H1','H2','Q','E'].includes(t))      holCount++;
+      else if(['S','M','L'].includes(t))            sickCount++;
+      else                                          otherCount++;
+    } else if(legHols.includes(ds)) holCount++;
+    else if(legSick.includes(ds))   sickCount++;
   }
-  const parts = Object.entries(counts).map(([lbl,n]) => n + ' ' + lbl.toLowerCase());
+
+  const parts = [];
+  if(holCount)   parts.push(holCount  + ' holiday day' + (holCount  > 1 ? 's' : ''));
+  if(sickCount)  parts.push(sickCount + ' sickness day' + (sickCount > 1 ? 's' : ''));
+  if(otherCount) parts.push(otherCount + ' other');
   if(!parts.length) return 'No absences recorded · ' + yourDays + ' of ' + totalWD + ' days';
-  return parts.join(', ') + ' deducted';
+  return parts.join(', ') + ' deducted · ' + yourDays + ' of ' + totalWD + ' days';
 }
 
 
@@ -2978,6 +3010,38 @@ function bcRecalc(){
   }
 
   const rpd = revenue / yourDays;
+
+  // ── Below minimum: show motivational message instead of full calculations ──
+  if(rpd < 1000){
+    const needed1k   = Math.ceil((1000 * yourDays) - revenue);
+    const needed1200 = Math.ceil((1200 * yourDays) - revenue);
+    const pct        = Math.min(99, Math.round((rpd / 1000) * 100));
+    area.innerHTML = `
+      <div style="background:linear-gradient(135deg,rgba(251,184,58,.1),rgba(251,184,58,.04));border:1.5px solid rgba(251,184,58,.3);border-radius:16px;padding:28px 32px;text-align:center;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:-40px;right:-40px;width:160px;height:160px;background:radial-gradient(circle,rgba(251,184,58,.12),transparent 70%);pointer-events:none;"></div>
+        <div style="font-size:40px;margin-bottom:12px;">💪</div>
+        <div style="font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:6px;">Keep pushing!</div>
+        <div style="font-size:13px;color:var(--text2);font-family:var(--fm);margin-bottom:24px;">You're at ${bcFmt(rpd)}/day — just below the £1,000 bonus threshold</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:480px;margin:0 auto 24px;">
+          <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:18px 16px;">
+            <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;">To hit £1,000/day</div>
+            <div style="font-size:26px;font-weight:700;font-family:var(--fm);color:var(--amber);">${bcFmt(needed1k)}</div>
+            <div style="font-size:11px;color:var(--text2);font-family:var(--fm);margin-top:4px;">more revenue needed</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:18px 16px;">
+            <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;">To hit £1,200/day</div>
+            <div style="font-size:26px;font-weight:700;font-family:var(--fm);color:var(--blue);">${bcFmt(needed1200)}</div>
+            <div style="font-size:11px;color:var(--text2);font-family:var(--fm);margin-top:4px;">more revenue needed</div>
+          </div>
+        </div>
+        <div style="background:var(--surface2);border-radius:10px;height:10px;overflow:hidden;max-width:480px;margin:0 auto 8px;">
+          <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--amber),rgba(251,184,58,.5));border-radius:10px;transition:width .8s cubic-bezier(.4,0,.2,1);"></div>
+        </div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm);">${pct}% of the way to £1,000/day · Current RPD: ${bcFmt(rpd)}</div>
+      </div>
+    `;
+    return;
+  }
   const { bonus: bonusTotal, bracket } = bcBonusForRPD(rpd, type);
   const proRataBonus = bonusTotal * (yourDays / wdm);
 
