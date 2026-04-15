@@ -9068,8 +9068,15 @@ function renderManagerOverview(){
           cumA   += dayLookup[ds]||0;
           cumNmA += nmLookup[ds]||0;
         });
+        // Today's actuals + run rate
+        const revToday   = mine.filter(e=>e.date===today).reduce((s,e)=>s+(e.revenue||0),0);
+        const nmToday    = mine.filter(e=>e.date===today).reduce((s,e)=>s+(e.nm||0),0);
+        const workToday  = !hols.includes(today)&&!sick.includes(today)&&!isBankHoliday(today);
+        const revRRToday = workToday ? rpd  : 0;
+        const nmRRToday  = workToday ? 1.75 : 0;
         return { name:p.name, target, revMTD, nmMTD, revPct, nmTgt,
-                 copRev:cumA-cumRR, copNm:cumNmA-cumNmRR };
+                 copRev:cumA-cumRR, copNm:cumNmA-cumNmRR,
+                 revToday, nmToday, revRRToday, nmRRToday };
       }).filter(Boolean);
     }
 
@@ -9083,10 +9090,15 @@ function renderManagerOverview(){
       const totNmTgt= stats.reduce((s,p)=>s+p.nmTgt,0);
       const copRev  = stats.reduce((s,p)=>s+p.copRev,0);
       const copNm   = stats.reduce((s,p)=>s+p.copNm,0);
+      const totRevToday = stats.reduce((s,p)=>s+(p.revToday||0),0);
+      const totNmToday  = stats.reduce((s,p)=>s+(p.nmToday||0),0);
+      const revRRToday  = stats.reduce((s,p)=>s+(p.revRRToday||0),0);
+      const nmRRToday   = stats.reduce((s,p)=>s+(p.nmRRToday||0),0);
       const revPct  = totTgt>0?Math.round(totRev/totTgt*100):0;
       const hit     = stats.filter(p=>p.revMTD>=p.target).length;
       const isActive= key===_currentDivKey;
-      return { key, div, stats, totRev, totTgt, totNm, totNmTgt, copRev, copNm, revPct, hit, isActive };
+      return { key, div, stats, totRev, totTgt, totNm, totNmTgt, copRev, copNm, revPct, hit, isActive,
+               totRevToday, totNmToday, revRRToday, nmRRToday };
     });
 
     // Grand totals across all divisions
@@ -9138,6 +9150,25 @@ function renderManagerOverview(){
           <span style="color:var(--text3)">On target</span>
           <span style="color:${d.hit===d.stats.length&&d.stats.length>0?'var(--green)':'var(--text2)'};font-weight:600">${d.hit} / ${d.stats.length}</span>
         </div>
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+          <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.09em;text-transform:uppercase;margin-bottom:7px;">Today</div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;font-family:var(--fm);margin-bottom:3px">
+            <span style="color:var(--text3)">Rev Run Rate</span>
+            <span style="color:var(--text2);font-weight:600">£${Math.round(d.revRRToday).toLocaleString()}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;font-family:var(--fm);margin-bottom:7px">
+            <span style="color:var(--text3)">NM Run Rate</span>
+            <span style="color:var(--text2);font-weight:600">${d.nmRRToday.toFixed(1)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;font-family:var(--fm);font-weight:700;margin-bottom:3px">
+            <span style="color:var(--text3)">Rev Today</span>
+            <span style="color:${d.totRevToday>0&&d.totRevToday>=d.revRRToday?'var(--green)':d.totRevToday>0?'var(--amber)':'var(--text3)'}">£${Math.round(d.totRevToday).toLocaleString()}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;font-family:var(--fm);font-weight:700">
+            <span style="color:var(--text3)">NM Today</span>
+            <span style="color:${d.totNmToday>0&&d.totNmToday>=d.nmRRToday?'var(--green)':d.totNmToday>0?'var(--amber)':'var(--text3)'}">${d.totNmToday}</span>
+          </div>
+        </div>
       </div>`;
     }).join('');
 
@@ -9145,6 +9176,32 @@ function renderManagerOverview(){
     const allPeople = divSummaries.flatMap(d=>
       d.stats.map(p=>({...p, divKey:d.key, divLabel:d.div.label, divIcon:d.div.icon }))
     ).sort((a,b)=>b.revMTD-a.revMTD);
+
+    // Today's activity across all divisions (aggregated per person)
+    const todayMap = {};
+    divSummaries.forEach(d=>{
+      d.stats.forEach(p=>{
+        if((p.revToday||0)>0||(p.nmToday||0)>0){
+          if(!todayMap[p.name]) todayMap[p.name]={name:p.name,rev:0,nm:0,divs:[]};
+          todayMap[p.name].rev += p.revToday||0;
+          todayMap[p.name].nm  += p.nmToday||0;
+          todayMap[p.name].divs.push(d.div.icon+' '+d.div.label);
+        }
+      });
+    });
+    const todayPeople = Object.values(todayMap).sort((a,b)=>b.rev-a.rev);
+    const todayDateLabel = new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+
+    const todayRows = todayPeople.length ? todayPeople.map((p,i)=>{
+      const rankCol = i===0?'#fbb83a':i===1?'#9aa5b4':i===2?'#c97d44':'var(--text3)';
+      return `<tr style="border-bottom:1px solid var(--border);">
+        <td ${tdL} style="font-size:11px;font-weight:700;color:${rankCol};padding:9px 14px;width:28px">${i+1}</td>
+        <td ${tdL} style="font-size:13px;font-weight:700;padding:9px 14px">${p.name}</td>
+        <td ${tdL} style="padding:9px 14px;font-family:var(--fm);font-size:11px;color:var(--text3)">${p.divs.join(', ')}</td>
+        <td ${tdR} style="font-size:15px;font-weight:700;color:${p.rev>0?'var(--green)':'var(--text3)'};padding:9px 14px">£${Math.round(p.rev).toLocaleString()}</td>
+        <td ${tdR} style="font-size:15px;font-weight:700;color:${p.nm>0?'var(--blue)':'var(--text3)'};padding:9px 14px">${p.nm}</td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--text3);font-family:var(--fm);font-size:12px">No deals logged today yet — check back later.</td></tr>`;
 
     const consultantRows = allPeople.length ? allPeople.map((p,i)=>{
       const hitTarget = p.revMTD>=p.target;
@@ -9194,6 +9251,32 @@ function renderManagerOverview(){
       <!-- Per-division cards -->
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px">
         ${divCards}
+      </div>
+
+      <!-- Today's activity table -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px">
+        <div style="padding:14px 18px;background:linear-gradient(135deg,rgba(45,206,137,.08),rgba(45,206,137,.03));border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+          <div style="font-size:13px;font-weight:700">🟢 Today's Activity</div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">${todayDateLabel} · across all divisions · resets daily</div>
+          <div style="margin-left:auto;font-size:11px;font-family:var(--fm);color:var(--text3)">${todayPeople.length} consultant${todayPeople.length!==1?'s':''} active today</div>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;min-width:500px">
+            <thead><tr>
+              <th ${thSL} style="width:28px">#</th>
+              <th ${thSL}>Name</th>
+              <th ${thSL}>Division</th>
+              <th ${thS}>Revenue Today</th>
+              <th ${thS}>NM Today</th>
+            </tr></thead>
+            <tbody>${todayRows}</tbody>
+            ${todayPeople.length>0?`<tr style="background:var(--surface2);border-top:2px solid var(--border2)">
+              <td colspan="3" style="padding:9px 14px;font-size:11px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase">Total Today</td>
+              <td ${tdR} style="font-size:14px;font-weight:700;color:var(--green);padding:9px 14px">£${Math.round(todayPeople.reduce((s,p)=>s+p.rev,0)).toLocaleString()}</td>
+              <td ${tdR} style="font-size:14px;font-weight:700;color:var(--blue);padding:9px 14px">${todayPeople.reduce((s,p)=>s+p.nm,0)}</td>
+            </tr>`:''}
+          </table>
+        </div>
       </div>
 
       <!-- All consultants table -->
