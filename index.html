@@ -479,7 +479,7 @@ nav{position:sticky;top:0;z-index:100;background:var(--nav-bg);backdrop-filter:b
 
 /* ENTRY */
 .entry-layout{display:grid;grid-template-columns:260px 1fr;gap:20px;align-items:start;}
-.sidebar{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;position:sticky;top:76px;}
+.entry-sidebar{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;position:sticky;top:76px;}
 .sidebar-title{font-size:13px;font-weight:700;margin-bottom:16px;}
 .field-lbl{font-size:10px;color:var(--text3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;}
 input[type=date],input[type=number],input[type=text],select{
@@ -705,7 +705,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 
   /* Entry layout */
   .entry-layout{grid-template-columns:1fr !important;}
-  .sidebar{position:static !important;top:auto !important;}
+  .entry-sidebar{position:static !important;top:auto !important;}
 
   /* Settings */
   .settings-grid{grid-template-columns:1fr !important;}
@@ -1777,7 +1777,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     <div><div class="section-title">Daily Entry</div><div class="section-sub">Log each consultant's revenue and needs met</div></div>
   </div>
   <div class="entry-layout">
-    <div class="sidebar">
+    <div class="entry-sidebar">
       <div class="sidebar-title">Date & month</div>
       <div style="margin-bottom:12px">
         <div class="field-lbl">Working date</div>
