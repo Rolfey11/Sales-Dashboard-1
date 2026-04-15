@@ -9564,369 +9564,261 @@ function getPrevWorkingDay(mk) {
 }
 
 function generateMOCommentary() {
-  if (!_moLastData) {
-    showToast('Open Manager Overview first to load division data');
-    return;
-  }
+  if (!_moLastData) { showToast('Open Manager Overview first to load division data'); return; }
 
   const btn = document.getElementById('moCommentaryBtn');
-  if (btn) { btn.textContent = '⏳ Generating…'; btn.disabled = true; }
+  if (btn) { btn.textContent = '⏳ Loading…'; btn.disabled = true; }
 
   const { divSummaries, results, mk } = _moLastData;
   const prevDay = getPrevWorkingDay(mk);
 
-  // Build per-division previous-day stats, augmenting the already-computed divSummaries
   const augmented = divSummaries
     .filter(d => d.stats.length > 0)
     .map(d => {
       const rawData = (results.find(r => r.key === d.key) || {}).data || {};
       const entries = ((rawData.months || {})[mk] || { entries: [] }).entries;
 
-      // Previous day actuals
-      const prevRev = prevDay
-        ? entries.filter(e => e.date === prevDay).reduce((s, e) => s + (e.revenue || 0), 0)
-        : 0;
-      const prevNm = prevDay
-        ? entries.filter(e => e.date === prevDay).reduce((s, e) => s + (e.nm || 0), 0)
-        : 0;
+      const prevRev = prevDay ? entries.filter(e => e.date === prevDay).reduce((s,e) => s+(e.revenue||0), 0) : 0;
+      const prevNm  = prevDay ? entries.filter(e => e.date === prevDay).reduce((s,e) => s+(e.nm||0), 0) : 0;
 
-      // Previous day run rate — sum each consultant's RPD if they were working
-      let prevRR = 0;
-      let prevNmRR = 0;
+      let prevRR = 0, prevNmRR = 0;
       if (prevDay) {
         (rawData.people || []).forEach(p => {
-          const ovr  = ((rawData.monthOverrides || {})[mk] || {})[p.name] || {};
-          const rpd  = ovr.riskPerDay !== undefined ? ovr.riskPerDay : (p.riskPerDay || 0);
+          const ovr = ((rawData.monthOverrides || {})[mk] || {})[p.name] || {};
+          const rpd = ovr.riskPerDay !== undefined ? ovr.riskPerDay : (p.riskPerDay || 0);
           const hols = ((rawData.holidays || {})[mk] || {})[p.name] || [];
           const sick = ((rawData.sickness  || {})[mk] || {})[p.name] || [];
           if (!hols.includes(prevDay) && !sick.includes(prevDay) && !isBankHoliday(prevDay)) {
-            prevRR   += rpd;
-            prevNmRR += 1.75;
+            prevRR += rpd; prevNmRR += 1.75;
           }
         });
       }
 
       const prevRevPct = prevRR > 0 ? Math.round(prevRev / prevRR * 100) : null;
       const prevNmPct  = prevNmRR > 0 ? Math.round(prevNm / prevNmRR * 100) : null;
-
       return { ...d, prevRev, prevNm, prevRR, prevNmRR, prevRevPct, prevNmPct };
     })
-    .sort((a, b) => b.revPct - a.revPct); // Sort by % to monthly target, highest first
+    .sort((a, b) => b.revPct - a.revPct);
 
-  // Grand totals for previous day
-  const grandPrevRev    = augmented.reduce((s, d) => s + d.prevRev, 0);
-  const grandPrevNm     = augmented.reduce((s, d) => s + d.prevNm, 0);
-  const grandPrevRR     = augmented.reduce((s, d) => s + d.prevRR, 0);
-  const grandPrevRevPct = grandPrevRR > 0 ? Math.round(grandPrevRev / grandPrevRR * 100) : 0;
+  // Grand totals
+  const grandPrevRev   = augmented.reduce((s,d) => s+d.prevRev, 0);
+  const grandPrevNm    = augmented.reduce((s,d) => s+d.prevNm, 0);
+  const grandPrevRR    = augmented.reduce((s,d) => s+d.prevRR, 0);
+  const grandPrevRevPct= grandPrevRR > 0 ? Math.round(grandPrevRev/grandPrevRR*100) : 0;
+  const grandMtdRev    = divSummaries.reduce((s,d) => s+d.totRev, 0);
+  const grandMtdTgt    = divSummaries.reduce((s,d) => s+d.totTgt, 0);
+  const grandMtdNm     = divSummaries.reduce((s,d) => s+d.totNm, 0);
+  const grandMtdPct    = grandMtdTgt > 0 ? Math.round(grandMtdRev/grandMtdTgt*100) : 0;
+  const grandCopRev    = divSummaries.reduce((s,d) => s+d.copRev, 0);
+  const grandHit       = divSummaries.reduce((s,d) => s+d.hit, 0);
+  const grandTotal     = divSummaries.reduce((s,d) => s+d.stats.length, 0);
 
-  // Grand MTD totals
-  const grandMtdRev  = divSummaries.reduce((s, d) => s + d.totRev, 0);
-  const grandMtdTgt  = divSummaries.reduce((s, d) => s + d.totTgt, 0);
-  const grandMtdNm   = divSummaries.reduce((s, d) => s + d.totNm, 0);
-  const grandMtdPct  = grandMtdTgt > 0 ? Math.round(grandMtdRev / grandMtdTgt * 100) : 0;
-  const grandCopRev  = divSummaries.reduce((s, d) => s + d.copRev, 0);
-  const grandHit     = divSummaries.reduce((s, d) => s + d.hit, 0);
-  const grandTotal   = divSummaries.reduce((s, d) => s + d.stats.length, 0);
-
-  // Date strings
   const prevDayLabel = prevDay
-    ? new Date(prevDay + 'T12:00:00').toLocaleDateString('en-GB', {
-        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-      })
-    : 'the previous working day';
-  const todayLabel = new Date().toLocaleDateString('en-GB', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
-  });
+    ? new Date(prevDay+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+    : 'Previous working day';
   const mthLabel = monthLabel(mk);
 
-  // ── Helper: status emoji ──────────────────────────────────────────
-  const emo  = pct => pct >= 100 ? '🟢' : pct >= 75 ? '🟡' : '🔴';
-  const frev = n   => '£' + Math.round(n).toLocaleString('en-GB');
-  const fpm  = n   => (n >= 0 ? '+' : '') + frev(n);
-  const fpct = n   => (n >= 0 ? '+' : '') + n + '%';
-
-  // ── Build commentary text ─────────────────────────────────────────
-  const divider = '─'.repeat(62);
-
-  let t = '';
-  t += `DAILY PERFORMANCE COMMENTARY — ${mthLabel.toUpperCase()}\n`;
-  t += `Trading update for ${prevDayLabel}\n`;
-  t += `Generated: ${todayLabel}\n`;
-  t += `${divider}\n\n`;
-
-  // Business headline
-  t += `BUSINESS HEADLINE\n\n`;
-
-  const prevStatus = grandPrevRevPct >= 100
-    ? `a strong day, beating the combined daily run rate by ${frev(grandPrevRev - grandPrevRR)}`
-    : grandPrevRevPct >= 75
-    ? `a reasonable day, reaching ${grandPrevRevPct}% of the combined daily run rate`
-    : `a challenging day at ${grandPrevRevPct}% of the combined daily run rate`;
-
-  t += `Yesterday was ${prevStatus}. Across all active divisions, the business generated `;
-  t += `${frev(grandPrevRev)} in revenue against a combined run rate of ${frev(grandPrevRR)} `;
-  t += `and logged ${grandPrevNm} NM${grandPrevNm !== 1 ? 's' : ''}.\n\n`;
-
-  const mtdStatus = grandMtdPct >= 100
-    ? `ahead of target for ${mthLabel} — excellent position heading into the final stretch`
-    : grandMtdPct >= 75
-    ? `within range of the ${mthLabel} target — a consistent push over the remaining days will close it out`
-    : `behind target for ${mthLabel} — a significant uplift in activity will be required to finish the month strongly`;
-
-  t += `Month-to-date, the business stands at ${grandMtdPct}% of its overall revenue target `;
-  t += `(${frev(grandMtdRev)} of ${frev(grandMtdTgt)}), which is ${mtdStatus}. `;
-  t += `${grandHit} of ${grandTotal} consultants are currently on track to hit their individual targets.\n`;
-
-  if (grandCopRev >= 0) {
-    t += `The overall COP position is ${frev(grandCopRev)} ahead of checkpoint — a positive sign for the close.\n`;
-  } else {
-    t += `The overall COP position is ${frev(Math.abs(grandCopRev))} behind checkpoint — teams need to accelerate activity to recover.\n`;
-  }
-
-  t += `\n${divider}\n\n`;
-  t += `DIVISION BREAKDOWN — ranked by % to monthly target\n\n`;
-
-  augmented.forEach((d, i) => {
-    const rank       = i + 1;
-    const rankSuffix = rank === 1 ? 'st' : rank === 2 ? 'nd' : rank === 3 ? 'rd' : 'th';
-    const mthEmo     = emo(d.revPct);
-    const dayEmo     = d.prevRevPct !== null ? emo(d.prevRevPct) : '—';
-
-    t += `${rank}${rankSuffix} — ${d.div.icon}  ${d.div.label.toUpperCase()}   ${mthEmo} ${d.revPct}% to monthly target\n`;
-    t += `${divider.slice(0, 40)}\n`;
-
-    // Yesterday
-    if (prevDay && d.prevRR > 0) {
-      t += `  Yesterday (${prevDayLabel.split(',')[0]}):\n`;
-      t += `    Revenue:    ${frev(d.prevRev)}`;
-      t += ` vs run rate of ${frev(d.prevRR)} (${d.prevRevPct}%) ${dayEmo}\n`;
-      t += `    NM:         ${d.prevNm}`;
-      if (d.prevNmRR > 0) t += ` vs run rate of ${d.prevNmRR.toFixed(1)} (${d.prevNmPct !== null ? d.prevNmPct + '%' : '—'})`;
-      t += '\n';
-      if (d.prevRev > d.prevRR) {
-        t += `    ↑ Beat daily run rate by ${frev(d.prevRev - d.prevRR)}\n`;
-      } else if (d.prevRev > 0) {
-        t += `    ↓ Fell ${frev(d.prevRR - d.prevRev)} short of daily run rate\n`;
-      } else {
-        t += `    ⚠ No revenue logged for this date\n`;
-      }
-    } else {
-      t += `  Yesterday: No data available for this period\n`;
-    }
-
-    t += '\n';
-
-    // Month to date
-    t += `  Month-to-date (${mthLabel}):\n`;
-    t += `    Revenue:    ${frev(d.totRev)} of ${frev(d.totTgt)} — ${d.revPct}% ${mthEmo}\n`;
-    t += `    NM:         ${d.totNm} of ${d.totNmTgt.toFixed(1)} target\n`;
-    t += `    COP Rev:    ${fpm(d.copRev)} vs checkpoint  |  COP NM: ${(d.copNm >= 0 ? '+' : '') + d.copNm.toFixed(1)}\n`;
-    t += `    Consultants on target: ${d.hit} / ${d.stats.length}\n`;
-
-    t += '\n';
-
-    // Narrative commentary
-    t += `  Commentary:\n`;
-    let commentary = '';
-    const ahead   = d.revPct >= 100;
-    const close   = d.revPct >= 75;
-    const dayGood = d.prevRevPct !== null && d.prevRevPct >= 100;
-    const dayFair = d.prevRevPct !== null && d.prevRevPct >= 75;
-
-    if (ahead && dayGood) {
-      commentary =
-        `${d.div.label} is in an excellent position — ${d.revPct}% to monthly target with a strong ` +
-        `day yesterday at ${d.prevRevPct}% of run rate. The team should maintain current activity ` +
-        `levels through to month end. With ${d.hit} of ${d.stats.length} consultants on target, ` +
-        `momentum is clearly there.`;
-    } else if (ahead && !dayGood) {
-      commentary =
-        `${d.div.label} has a healthy monthly position at ${d.revPct}% but yesterday's output ` +
-        `(${d.prevRevPct !== null ? d.prevRevPct + '% of run rate' : 'figures pending'}) was below ` +
-        `the required daily rate. One quieter day is not a concern at this stage, but managers should ` +
-        `ensure focus does not drop as the team approaches target.`;
-    } else if (close && dayGood) {
-      commentary =
-        `${d.div.label} is tracking well at ${d.revPct}% to target and backed it up with a solid ` +
-        `${d.prevRevPct}% run-rate day yesterday. If the team maintains this level of output, ` +
-        `hitting the monthly target is well within reach.`;
-    } else if (close && dayFair) {
-      commentary =
-        `${d.div.label} sits at ${d.revPct}% to target — in range, but not yet comfortable. ` +
-        `Yesterday's performance at ${d.prevRevPct}% of run rate is acceptable, though managers ` +
-        `should look to drive above-run-rate days consistently across the remaining working days ` +
-        `to secure the target.`;
-    } else if (close && !dayFair) {
-      commentary =
-        `${d.div.label} is at ${d.revPct}% to target for the month — within striking distance — ` +
-        `but yesterday (${d.prevRevPct !== null ? d.prevRevPct + '% of run rate' : 'below target'}) ` +
-        `was below the required daily pace. Managers should re-energise the team; there is enough ` +
-        `of the month remaining to recover, but every day now counts.`;
-    } else {
-      commentary =
-        `${d.div.label} is at ${d.revPct}% to target and requires urgent attention. With the ` +
-        `COP revenue position sitting at ${frev(Math.abs(d.copRev))} ` +
-        `${d.copRev >= 0 ? 'ahead' : 'behind'}, ` +
-        `managers need to identify the blockers and drive a significant step-change in activity. ` +
-        `Only ${d.hit} of ${d.stats.length} consultants are currently on track — a targeted review ` +
-        `of individual pipelines and daily disciplines is recommended.`;
-    }
-
-    // Word-wrap commentary at ~72 chars
-    const words = commentary.split(' ');
-    let line = '    ';
-    words.forEach(w => {
-      if (line.length + w.length + 1 > 74) { t += line + '\n'; line = '    ' + w + ' '; }
-      else line += w + ' ';
-    });
-    if (line.trim()) t += line.trimEnd() + '\n';
-
-    t += '\n';
-  });
-
-  t += `${divider}\n\n`;
-  t += `SUMMARY SCORECARD\n\n`;
-  t += `  Metric                        Yesterday          MTD\n`;
-  t += `  ${'─'.repeat(55)}\n`;
-  t += `  Revenue                       ${frev(grandPrevRev).padEnd(18)} ${frev(grandMtdRev)}\n`;
-  t += `  Run Rate / Target             ${frev(grandPrevRR).padEnd(18)} ${frev(grandMtdTgt)}\n`;
-  t += `  % Achieved                    ${String(grandPrevRevPct + '%').padEnd(18)} ${grandMtdPct}%\n`;
-  t += `  NM Logged                     ${String(grandPrevNm).padEnd(18)} ${grandMtdNm}\n`;
-  t += `  Consultants on target (MTD)   ${'—'.padEnd(18)} ${grandHit} / ${grandTotal}\n`;
-  t += `  COP Revenue position (MTD)    ${'—'.padEnd(18)} ${fpm(grandCopRev)}\n`;
-  t += '\n';
-  t += `  Divisions ranked by % to monthly target:\n`;
-  augmented.forEach((d, i) => {
-    t += `    ${i + 1}. ${d.div.label.padEnd(22)} ${String(d.revPct + '%').padEnd(6)} `;
-    t += `${emo(d.revPct)}  (${frev(d.totRev)} / ${frev(d.totTgt)})\n`;
-  });
-
-  t += `\n${divider}\n`;
-  t += `This commentary is auto-generated from JG MI Dashboard live data.\n`;
-  t += `Do not forward externally. For internal team leader circulation only.\n`;
-
   if (btn) { btn.innerHTML = '<span style="font-size:14px">📋</span> Generate Commentary'; btn.disabled = false; }
-  showCommentaryModal(t, prevDayLabel, mthLabel);
+  showCommentaryModal({ augmented, grandPrevRev, grandPrevNm, grandPrevRR, grandPrevRevPct,
+    grandMtdRev, grandMtdTgt, grandMtdNm, grandMtdPct, grandCopRev, grandHit, grandTotal,
+    prevDayLabel, mthLabel });
 }
 
-function showCommentaryModal(text, dayLabel, mthLabel) {
+function showCommentaryModal(d) {
+  const frev = n => '£' + Math.round(n).toLocaleString('en-GB');
+  const fpm  = n => (n >= 0 ? '+' : '') + frev(n);
+  const fpct = n => (n >= 0 ? '+' : '') + n + '%';
+
+  // COP-based traffic light: green=ahead, amber=≤1 day behind, red=>1 day behind
+  function copLight(copRev, dailyRR) {
+    if (copRev >= 0) return { dot:'#2dce89', label:'Ahead', bg:'rgba(45,206,137,.12)' };
+    if (dailyRR > 0 && Math.abs(copRev) <= dailyRR) return { dot:'#fbb83a', label:'1 day behind', bg:'rgba(251,184,58,.12)' };
+    return { dot:'#f5365c', label:'>1 day behind', bg:'rgba(245,54,92,.12)' };
+  }
+
+  // Overall COP light
+  const overallLight = copLight(d.grandCopRev, d.augmented.reduce((s,x)=>s+x.prevRR,0)/Math.max(d.augmented.length,1));
+
+  const divRows = d.augmented.map(div => {
+    const tl = copLight(div.copRev, div.prevRR);
+    const prevPctDisplay = div.prevRevPct !== null ? div.prevRevPct + '%' : '—';
+    const prevColour = div.prevRevPct === null ? 'var(--text3)'
+      : div.prevRevPct >= 100 ? '#2dce89'
+      : div.prevRevPct >= 75  ? '#fbb83a' : '#f5365c';
+    return `
+    <tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:13px 14px;white-space:nowrap">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${tl.dot};
+            box-shadow:0 0 7px ${tl.dot};flex-shrink:0"></span>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--text)">${div.div.icon} ${div.div.label}</div>
+            <div style="font-size:10px;font-family:var(--fm);color:var(--text3);margin-top:2px">${div.stats.length} consultant${div.stats.length!==1?'s':''}</div>
+          </div>
+        </div>
+      </td>
+      <td style="padding:13px 14px;text-align:right">
+        <div style="font-size:13px;font-weight:700;color:${prevColour};font-family:var(--fm)">${frev(div.prevRev)}</div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--fm)">vs ${frev(div.prevRR)} RR &nbsp;<span style="color:${prevColour}">${prevPctDisplay}</span></div>
+      </td>
+      <td style="padding:13px 14px;text-align:right">
+        <div style="font-size:13px;font-weight:700;color:${div.revPct>=100?'#2dce89':div.revPct>=75?'#fbb83a':'#f5365c'};font-family:var(--fm)">${div.revPct}%</div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--fm)">${frev(div.totRev)} / ${frev(div.totTgt)}</div>
+      </td>
+      <td style="padding:13px 14px;text-align:right">
+        <div style="font-size:13px;font-weight:700;color:${div.copRev>=0?'#2dce89':'#f5365c'};font-family:var(--fm)">${fpm(div.copRev)}</div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--fm);display:flex;align-items:center;gap:5px;justify-content:flex-end">
+          <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${tl.dot}"></span>
+          ${tl.label}
+        </div>
+      </td>
+      <td style="padding:13px 14px;text-align:right">
+        <div style="font-size:13px;font-weight:700;color:${div.copNm>=0?'#2dce89':'#f5365c'};font-family:var(--fm)">${(div.copNm>=0?'+':'')+div.copNm.toFixed(1)}</div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--fm)">${div.totNm} / ${div.totNmTgt.toFixed(1)} NM</div>
+      </td>
+      <td style="padding:13px 14px;text-align:center">
+        <div style="font-size:13px;font-weight:700;color:var(--text);font-family:var(--fm)">${div.hit} / ${div.stats.length}</div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--fm)">on target</div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const html = `
+    <!-- Summary bar -->
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div style="text-align:center">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px">Yesterday Rev</div>
+        <div style="font-size:15px;font-weight:700;color:${d.grandPrevRevPct>=100?'#2dce89':d.grandPrevRevPct>=75?'#fbb83a':'#f5365c'};font-family:var(--fm)">${frev(d.grandPrevRev)}</div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--fm)">${d.grandPrevRevPct}% of RR</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px">Yesterday NM</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--fm)">${d.grandPrevNm}</div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--fm)">vs ${d.augmented.reduce((s,x)=>s+x.prevNmRR,0).toFixed(1)} NM RR</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px">MTD Revenue</div>
+        <div style="font-size:15px;font-weight:700;color:${d.grandMtdPct>=100?'#2dce89':d.grandMtdPct>=75?'#fbb83a':'#f5365c'};font-family:var(--fm)">${d.grandMtdPct}%</div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--fm)">${frev(d.grandMtdRev)} / ${frev(d.grandMtdTgt)}</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px">COP Rev</div>
+        <div style="font-size:15px;font-weight:700;color:${d.grandCopRev>=0?'#2dce89':'#f5365c'};font-family:var(--fm)">${fpm(d.grandCopRev)}</div>
+        <div style="font-size:10px;font-family:var(--fm);display:inline-flex;align-items:center;gap:4px;color:var(--text3)">
+          <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${overallLight.dot}"></span>${overallLight.label}
+        </div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px">On Target</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text);font-family:var(--fm)">${d.grandHit} / ${d.grandTotal}</div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--fm)">consultants</div>
+      </div>
+    </div>
+    <!-- Hint bar -->
+    <div style="padding:7px 20px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:10px;color:var(--text3);font-family:var(--fm);display:flex;gap:18px;flex-shrink:0;align-items:center">
+      <span style="display:inline-flex;align-items:center;gap:5px"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#2dce89"></span>Ahead of COP</span>
+      <span style="display:inline-flex;align-items:center;gap:5px"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#fbb83a"></span>≤ 1 day behind</span>
+      <span style="display:inline-flex;align-items:center;gap:5px"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#f5365c"></span>&gt; 1 day behind</span>
+      <span style="margin-left:auto">Sorted by % to monthly target</span>
+    </div>
+    <!-- Division table -->
+    <div style="flex:1;overflow-y:auto">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr style="background:var(--surface2);border-bottom:1px solid var(--border2)">
+            <th style="padding:9px 14px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase">Division</th>
+            <th style="padding:9px 14px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase">Yesterday</th>
+            <th style="padding:9px 14px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase">MTD %</th>
+            <th style="padding:9px 14px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase">COP Rev</th>
+            <th style="padding:9px 14px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase">COP NM</th>
+            <th style="padding:9px 14px;text-align:center;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase">On Target</th>
+          </tr>
+        </thead>
+        <tbody>${divRows}</tbody>
+      </table>
+    </div>`;
+
   let modal = document.getElementById('commentaryModal');
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'commentaryModal';
-    modal.style.cssText = [
-      'position:fixed;inset:0;z-index:9999;',
-      'background:rgba(0,0,0,0.78);',
-      'display:flex;align-items:center;justify-content:center;',
-      'padding:20px;backdrop-filter:blur(6px);'
-    ].join('');
+    modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.78);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px);';
     document.body.appendChild(modal);
     modal.addEventListener('click', e => { if (e.target === modal) modal.style.display = 'none'; });
   }
 
+  // Store data reference for copy
+  modal._statsData = d;
+
   modal.innerHTML = `
-    <div style="
-      background:var(--surface);border:1px solid var(--border2);
-      border-radius:14px;width:100%;max-width:780px;
-      max-height:90vh;display:flex;flex-direction:column;
-      box-shadow:0 32px 80px rgba(0,0,0,0.65);
-      overflow:hidden;
-    ">
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;width:100%;max-width:900px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,0.65);overflow:hidden;">
       <!-- Header -->
-      <div style="
-        padding:16px 20px;
-        background:linear-gradient(135deg,rgba(94,156,245,.12),rgba(94,156,245,.04));
-        border-bottom:1px solid var(--border);
-        display:flex;align-items:center;gap:10px;flex-shrink:0;
-      ">
-        <span style="font-size:18px">📋</span>
+      <div style="padding:14px 20px;background:linear-gradient(135deg,rgba(94,156,245,.12),rgba(94,156,245,.04));border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0">
+        <span style="font-size:18px">📊</span>
         <div style="flex:1">
-          <div style="font-size:14px;font-weight:700;color:var(--text)">Daily Performance Commentary</div>
-          <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:2px">
-            ${dayLabel ? dayLabel + ' · ' : ''}${mthLabel || ''} · ready to copy &amp; share
-          </div>
+          <div style="font-size:14px;font-weight:700;color:var(--text)">Division Performance Stats</div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:2px">${d.prevDayLabel} &nbsp;·&nbsp; ${d.mthLabel}</div>
         </div>
-        <button id="commentaryCopyBtn" onclick="copyCommentary()" style="
-          display:flex;align-items:center;gap:6px;
-          background:var(--accent);color:#fff;border:none;border-radius:8px;
-          padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;
-          font-family:var(--fh);letter-spacing:.04em;transition:all .15s;white-space:nowrap;
-        "
-        onmouseover="this.style.opacity='.82';this.style.transform='translateY(-1px)'"
-        onmouseout="this.style.opacity='1';this.style.transform=''">
-          <span>📋</span> Copy to Clipboard
+        <button id="commentaryCopyBtn" onclick="copyCommentary()" style="display:flex;align-items:center;gap:6px;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--fh);letter-spacing:.04em;transition:all .15s;white-space:nowrap"
+          onmouseover="this.style.opacity='.82'" onmouseout="this.style.opacity='1'">
+          <span>📋</span> Copy Stats
         </button>
-        <button onclick="document.getElementById('commentaryModal').style.display='none'" style="
-          background:var(--surface2);border:1px solid var(--border2);color:var(--text2);
-          border-radius:8px;padding:8px 13px;font-size:14px;cursor:pointer;
-          transition:all .15s;font-family:var(--fh);line-height:1;
-        "
-        onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'"
-        onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">
-          ✕
-        </button>
+        <button onclick="document.getElementById('commentaryModal').style.display='none'" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text2);border-radius:8px;padding:8px 13px;font-size:14px;cursor:pointer;transition:all .15s;font-family:var(--fh);line-height:1"
+          onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">✕</button>
       </div>
-      <!-- Hint bar -->
-      <div style="
-        padding:8px 20px;background:var(--surface2);border-bottom:1px solid var(--border);
-        font-size:10px;color:var(--text3);font-family:var(--fm);display:flex;gap:16px;flex-shrink:0;
-      ">
-        <span>🟢 ≥ 100% of target</span>
-        <span>🟡 75–99%</span>
-        <span>🔴 &lt; 75%</span>
-        <span style="margin-left:auto">Plain text — paste directly into email, Teams or Slack</span>
-      </div>
-      <!-- Commentary area -->
-      <textarea id="commentaryText" readonly style="
-        flex:1;padding:20px 22px;
-        background:var(--bg);color:var(--text);
-        font-family:var(--fm);font-size:11.5px;line-height:1.75;
-        border:none;outline:none;resize:none;overflow-y:auto;
-        tab-size:2;
-      ">${text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
-      <!-- Footer -->
-      <div style="
-        padding:10px 20px;border-top:1px solid var(--border);
-        background:var(--surface);flex-shrink:0;
-        display:flex;align-items:center;justify-content:space-between;
-        font-size:10px;color:var(--text3);font-family:var(--fm);
-      ">
-        <span>⚡ Auto-generated from live Firebase data · JG MI Dashboard</span>
-        <span>Internal use only — do not forward externally</span>
-      </div>
+      ${html}
     </div>`;
 
   modal.style.display = 'flex';
-  // Set actual value (not innerHTML-encoded) after render
-  const ta = document.getElementById('commentaryText');
-  if (ta) ta.value = text;
 }
 
 function copyCommentary() {
-  const ta  = document.getElementById('commentaryText');
-  const btn = document.getElementById('commentaryCopyBtn');
-  if (!ta) return;
+  const modal = document.getElementById('commentaryModal');
+  const btn   = document.getElementById('commentaryCopyBtn');
+  const d     = modal && modal._statsData;
+  if (!d) return;
+
+  const frev = n => '£' + Math.round(n).toLocaleString('en-GB');
+  const fpm  = n => (n >= 0 ? '+' : '') + frev(n);
+  const light = (copRev, rr) => copRev >= 0 ? 'AHEAD' : (rr > 0 && Math.abs(copRev) <= rr) ? '~1 DAY BEHIND' : '>1 DAY BEHIND';
+
+  let t = `DIVISION PERFORMANCE STATS — ${d.mthLabel.toUpperCase()}\n`;
+  t += `${d.prevDayLabel}\n`;
+  t += '─'.repeat(58) + '\n\n';
+  t += `OVERALL\n`;
+  t += `  Yesterday Rev:  ${frev(d.grandPrevRev)} (${d.grandPrevRevPct}% of run rate)\n`;
+  t += `  Yesterday NM:   ${d.grandPrevNm}\n`;
+  t += `  MTD Revenue:    ${frev(d.grandMtdRev)} / ${frev(d.grandMtdTgt)} (${d.grandMtdPct}%)\n`;
+  t += `  COP Rev:        ${fpm(d.grandCopRev)}\n`;
+  t += `  On Target:      ${d.grandHit} / ${d.grandTotal} consultants\n\n`;
+  t += '─'.repeat(58) + '\n\n';
+
+  d.augmented.forEach(div => {
+    const status = light(div.copRev, div.prevRR);
+    t += `${div.div.icon} ${div.div.label}  [${status}]\n`;
+    t += `  Yesterday:   ${frev(div.prevRev)} vs ${frev(div.prevRR)} RR (${div.prevRevPct !== null ? div.prevRevPct + '%' : '—'})\n`;
+    t += `  MTD Rev:     ${frev(div.totRev)} / ${frev(div.totTgt)} — ${div.revPct}%\n`;
+    t += `  MTD NM:      ${div.totNm} / ${div.totNmTgt.toFixed(1)}\n`;
+    t += `  COP Rev:     ${fpm(div.copRev)}   COP NM: ${(div.copNm>=0?'+':'')+div.copNm.toFixed(1)}\n`;
+    t += `  On Target:   ${div.hit} / ${div.stats.length}\n\n`;
+  });
+
   const originalHtml = btn ? btn.innerHTML : '';
   const copied = () => {
     if (btn) {
       btn.innerHTML = '<span>✓</span> Copied!';
       btn.style.background = 'var(--green)';
-      setTimeout(() => {
-        btn.innerHTML = originalHtml;
-        btn.style.background = 'var(--accent)';
-      }, 2500);
+      setTimeout(() => { btn.innerHTML = originalHtml; btn.style.background = 'var(--accent)'; }, 2500);
     }
-    showToast('Commentary copied to clipboard');
+    showToast('Stats copied to clipboard');
   };
   if (navigator.clipboard && window.isSecureContext) {
-    navigator.clipboard.writeText(ta.value).then(copied).catch(() => {
-      ta.select(); document.execCommand('copy'); copied();
-    });
+    navigator.clipboard.writeText(t).then(copied).catch(() => { copied(); });
   } else {
-    ta.select(); document.execCommand('copy'); copied();
+    copied();
   }
 }
+
 function setElapsedDays(val){
   const n2 = parseInt(val);
   APP.manualElapsed = isNaN(n2) ? null : n2;
