@@ -2295,6 +2295,11 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <div class="section-sub" id="ds-sub">Morning performance report — all divisions</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
+      <button onclick="generateMOCommentary()" id="moCommentaryBtn" style="display:flex;align-items:center;gap:7px;background:linear-gradient(135deg,rgba(94,156,245,.18),rgba(94,156,245,.08));border:1px solid rgba(94,156,245,.4);color:var(--accent);border-radius:9px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--fh);letter-spacing:.04em;transition:all .18s;white-space:nowrap;"
+        onmouseover="this.style.background='linear-gradient(135deg,rgba(94,156,245,.28),rgba(94,156,245,.14))';this.style.borderColor='rgba(94,156,245,.7)';this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 16px rgba(94,156,245,.2)'"
+        onmouseout="this.style.background='linear-gradient(135deg,rgba(94,156,245,.18),rgba(94,156,245,.08))';this.style.borderColor='rgba(94,156,245,.4)';this.style.transform='';this.style.boxShadow=''">
+        <span style="font-size:14px">📊</span> Generate Stats
+      </button>
       <button class="btn btn-s" onclick="window.print()">🖨 Print / Save PDF</button>
       <select id="dsMonth" onchange="renderDailySend()" style="width:180px"></select>
     </div>
@@ -3373,18 +3378,6 @@ function bcRecalc(){
     </div>
     <div style="display:flex;gap:8px;align-items:center">
       <select id="moMonth" onchange="renderManagerOverview()" style="width:180px"></select>
-      <button onclick="generateMOCommentary()" id="moCommentaryBtn" style="
-        display:flex;align-items:center;gap:7px;
-        background:linear-gradient(135deg,rgba(94,156,245,.18),rgba(94,156,245,.08));
-        border:1px solid rgba(94,156,245,.4);color:var(--accent);
-        border-radius:9px;padding:8px 16px;font-size:12px;font-weight:700;
-        cursor:pointer;font-family:var(--fh);letter-spacing:.04em;
-        transition:all .18s;white-space:nowrap;
-      "
-      onmouseover="this.style.background='linear-gradient(135deg,rgba(94,156,245,.28),rgba(94,156,245,.14))';this.style.borderColor='rgba(94,156,245,.7)';this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 16px rgba(94,156,245,.2)'"
-      onmouseout="this.style.background='linear-gradient(135deg,rgba(94,156,245,.18),rgba(94,156,245,.08))';this.style.borderColor='rgba(94,156,245,.4)';this.style.transform='';this.style.boxShadow=''">
-        <span style="font-size:14px">📋</span> Generate Commentary
-      </button>
     </div>
   </div>
   <div id="moContent"><div class="empty"><div class="empty-icon">📊</div><div>Loading division data…</div></div></div>
@@ -4099,12 +4092,12 @@ function nmRate(){ return (APP.nmRate != null ? APP.nmRate : 1.75); }
 // Global p.riskPerDay / p.daysT are legacy fields, not used for display.
 // If no override exists for this month, returns 0/0 (unset).
 function getPersonForMonth(p, mk){
-  if(!mk) return {...p, riskPerDay:0, daysT:0};
+  if(!mk) return {...p};
   const ovr = (APP.monthOverrides && APP.monthOverrides[mk] && APP.monthOverrides[mk][p.name]) || {};
   return {
     ...p,
-    riskPerDay: ovr.riskPerDay !== undefined ? ovr.riskPerDay : 0,
-    daysT:      ovr.daysT      !== undefined ? ovr.daysT      : 0
+    riskPerDay: ovr.riskPerDay !== undefined ? ovr.riskPerDay : (p.riskPerDay || 0),
+    daysT:      ovr.daysT      !== undefined ? ovr.daysT      : (p.daysT || 0)
   };
 }
 
@@ -4252,7 +4245,7 @@ function calcStats(monthKey){
 
     // ── percentages ──────────────────────────────────────────────
     const revPct = target>0   ? Math.round(revMTD  / target   * 100) : 0;
-    const nmTargetFixed = effectiveDays * nmRate();
+    const nmTargetFixed = effectiveDays * nmRateFor(p.name||'');
     const nmPct  = nmTargetFixed>0 ? Math.round(nmMTD / nmTargetFixed * 100) : 0;
 
     const riskAhead = copRev <= 0;
@@ -6511,6 +6504,25 @@ function showToast(msg, type){
   setTimeout(()=>t.classList.remove('show'), 2600);
 }
 
+// Silently re-renders the current page without re-triggering CSS animations.
+// Used by Firebase real-time listener to avoid the blink/flash on remote updates.
+function _refreshCurrentPage(id){
+  if(id==='dashboard')       renderDashboard();
+  else if(id==='biz')        { populateAllSelects(); renderBizTarget(); }
+  else if(id==='teams')      { populateAllSelects(); renderTeams(); }
+  else if(id==='summary')      renderConsultantSummary();
+  else if(id==='entry')        renderEntryPage();
+  else if(id==='monthlysummary'){ populateAllSelects(); renderMonthlySummary(); }
+  else if(id==='leaderboard')  { populateAllSelects(); renderLeaderboard(); }
+  else if(id==='history')      { populateAllSelects(); renderHistory(); }
+  else if(id==='daybyday')     { populateAllSelects(); renderDayByDay(); }
+  else if(id==='settings')       renderSettings();
+  else if(id==='manageroverview'){ populateAllSelects(); renderManagerOverview(); }
+  else if(id==='dailysend')      { populateAllSelects(); renderDailySend(); }
+  else if(id==='consultantdaily'){ populateAllSelects(); renderConsultantDaily(); }
+  // pages that don't need silent re-render (compliance, bonuscalc etc) are skipped
+}
+
 function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
@@ -7148,6 +7160,22 @@ function renderDailySend(){
         }
       };
     }
+
+    // Populate _moLastData so Generate Stats works from Daily Send
+    const divSummariesDs = results.map(({key,data})=>{
+      const stats    = _divStats(data, mk);
+      const div      = DIVISIONS[key];
+      const totRev   = stats.reduce((s,p)=>s+p.revMTD,0);
+      const totTgt   = stats.reduce((s,p)=>s+p.target,0);
+      const totNm    = stats.reduce((s,p)=>s+p.nmMTD,0);
+      const totNmTgt = stats.reduce((s,p)=>s+p.nmTgt,0);
+      const copRev   = stats.reduce((s,p)=>s+p.copRev,0);
+      const copNm    = stats.reduce((s,p)=>s+p.copNm,0);
+      const revPct   = totTgt>0?Math.round(totRev/totTgt*100):0;
+      const hit      = stats.filter(p=>p.copRev>=0).length;
+      return { key, div, stats, totRev, totTgt, totNm, totNmTgt, copRev, copNm, revPct, hit };
+    });
+    _moLastData = { divSummaries: divSummariesDs, results, mk };
 
     setTimeout(()=>{
       ['cDsBauRev','cDsBauNm','cDsStRev','cDsStNm'].forEach(id=>destroyChart(id));
@@ -9224,6 +9252,52 @@ function _getEntryMeta(mk, personName, date, cb){
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// GLOBAL divStats helper — used by Manager Overview AND Daily Send
+// ═══════════════════════════════════════════════════════════════════
+function _divStats(data, mk){
+  const entries = ((data.months||{})[mk]||{entries:[]}).entries;
+  const today   = _localDateStr(new Date());
+  const wdAll   = workingDatesInMonth(mk);
+  const wdPast  = wdAll.filter(ds=>ds<=today);
+
+  return (data.people||[]).map(p=>{
+    const ovr    = ((data.monthOverrides||{})[mk]||{})[p.name]||{};
+    const rpd    = ovr.riskPerDay!==undefined ? ovr.riskPerDay : (p.riskPerDay||0);
+    const daysT  = ovr.daysT!==undefined      ? ovr.daysT      : (p.daysT||0);
+    const target = Math.round(rpd*daysT);
+    const nmTgt  = parseFloat((daysT * nmRateFor(p.name||'')).toFixed(2));
+    if(!target) return null;
+
+    const mine   = entries.filter(e=>e.name===p.name);
+    const revMTD = mine.reduce((s,e)=>s+(e.revenue||0),0);
+    const nmMTD  = mine.reduce((s,e)=>s+(e.nm||0),0);
+    const revPct = target>0?Math.round(revMTD/target*100):0;
+
+    const hols = ((data.holidays||{})[mk]||{})[p.name]||[];
+    const sick = ((data.sickness||{})[mk]||{})[p.name]||[];
+    const dayLookup = {}; mine.forEach(e=>{ dayLookup[e.date]=(e.revenue||0); });
+    const nmLookup  = {}; mine.forEach(e=>{ nmLookup[e.date]=(e.nm||0); });
+    let cumA=0,cumRR=0,cumNmA=0,cumNmRR=0;
+    const pNmRate = nmRateFor(p.name||'');
+    wdPast.forEach(ds=>{
+      const isBH  = isBankHoliday(ds);
+      const isOff = hols.includes(ds)||sick.includes(ds)||isBH;
+      if(!isOff){ cumRR+=rpd; cumNmRR+=pNmRate; }
+      cumA   += dayLookup[ds]||0;
+      cumNmA += nmLookup[ds]||0;
+    });
+    const revToday   = mine.filter(e=>e.date===today).reduce((s,e)=>s+(e.revenue||0),0);
+    const nmToday    = mine.filter(e=>e.date===today).reduce((s,e)=>s+(e.nm||0),0);
+    const workToday  = !hols.includes(today)&&!sick.includes(today)&&!isBankHoliday(today);
+    const revRRToday = workToday ? rpd       : 0;
+    const nmRRToday  = workToday ? pNmRate   : 0;
+    return { name:p.name, target, revMTD, nmMTD, revPct, nmTgt,
+             copRev:cumA-cumRR, copNm:cumNmA-cumNmRR,
+             revToday, nmToday, revRRToday, nmRRToday };
+  }).filter(Boolean);
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // MANAGER OVERVIEW — cross-division performance
 // ═══════════════════════════════════════════════════════════════════
 function renderManagerOverview(){
@@ -9250,52 +9324,8 @@ function renderManagerOverview(){
   });
 
   Promise.all(promises).then(results=>{
-    // Helper: compute stats for a division dataset
-    function divStats(data){
-      const entries = ((data.months||{})[mk]||{entries:[]}).entries;
-      const today   = _localDateStr(new Date());
-      const wdAll   = workingDatesInMonth(mk);
-      const wdPast  = wdAll.filter(ds=>ds<=today);
-
-      return (data.people||[]).map(p=>{
-        const ovr    = ((data.monthOverrides||{})[mk]||{})[p.name]||{};
-        const rpd    = ovr.riskPerDay!==undefined ? ovr.riskPerDay : (p.riskPerDay||0);
-        const daysT  = ovr.daysT!==undefined      ? ovr.daysT      : (p.daysT||0);
-        const target = Math.round(rpd*daysT);
-        const nmTgt  = parseFloat((daysT*nmRate()).toFixed(2));
-        if(!target) return null;
-
-        const mine   = entries.filter(e=>e.name===p.name);
-        const revMTD = mine.reduce((s,e)=>s+(e.revenue||0),0);
-        const nmMTD  = mine.reduce((s,e)=>s+(e.nm||0),0);
-        const revPct = target>0?Math.round(revMTD/target*100):0;
-
-        // COP — day loop same as Teams tab
-        const hols   = ((data.holidays||{})[mk]||{})[p.name]||[];
-        const sick   = ((data.sickness||{})[mk]||{})[p.name]||[];
-        const dayLookup = {};
-        mine.forEach(e=>{ dayLookup[e.date]=(e.revenue||0); });
-        const nmLookup = {};
-        mine.forEach(e=>{ nmLookup[e.date]=(e.nm||0); });
-        let cumA=0,cumRR=0,cumNmA=0,cumNmRR=0;
-        wdPast.forEach(ds=>{
-          const isBH  = isBankHoliday(ds);
-          const isOff = hols.includes(ds)||isBH;
-          if(!isOff){ cumRR+=rpd; cumNmRR+=1.75; }
-          cumA   += dayLookup[ds]||0;
-          cumNmA += nmLookup[ds]||0;
-        });
-        // Today's actuals + run rate
-        const revToday   = mine.filter(e=>e.date===today).reduce((s,e)=>s+(e.revenue||0),0);
-        const nmToday    = mine.filter(e=>e.date===today).reduce((s,e)=>s+(e.nm||0),0);
-        const workToday  = !hols.includes(today)&&!sick.includes(today)&&!isBankHoliday(today);
-        const revRRToday = workToday ? rpd  : 0;
-        const nmRRToday  = workToday ? 1.75 : 0;
-        return { name:p.name, target, revMTD, nmMTD, revPct, nmTgt,
-                 copRev:cumA-cumRR, copNm:cumNmA-cumNmRR,
-                 revToday, nmToday, revRRToday, nmRRToday };
-      }).filter(Boolean);
-    }
+    // Helper: delegates to global _divStats
+    function divStats(data){ return _divStats(data, mk); }
 
     // Build per-division summaries
     const divSummaries = results.map(({key,data})=>{
@@ -9312,7 +9342,7 @@ function renderManagerOverview(){
       const revRRToday  = stats.reduce((s,p)=>s+(p.revRRToday||0),0);
       const nmRRToday   = stats.reduce((s,p)=>s+(p.nmRRToday||0),0);
       const revPct  = totTgt>0?Math.round(totRev/totTgt*100):0;
-      const hit     = stats.filter(p=>p.revMTD>=p.target).length;
+      const hit     = stats.filter(p=>p.copRev>=0).length;
       const isActive= key===_currentDivKey;
       return { key, div, stats, totRev, totTgt, totNm, totNmTgt, copRev, copNm, revPct, hit, isActive,
                totRevToday, totNmToday, revRRToday, nmRRToday };
@@ -9555,8 +9585,20 @@ function getPrevWorkingDay(mk) {
   const today  = _localDateStr(new Date());
   const wdAll  = workingDatesInMonth(mk);
   const idx    = wdAll.indexOf(today);
+  // today found and not first day of month → previous working day in same month
   if (idx > 0) return wdAll[idx - 1];
-  // If today is the first working day of the month, look at the previous month
+  // today is first working day of the month → return last of previous month
+  if (idx === 0) {
+    const [y, m] = mk.split('-').map(Number);
+    const prevMk = m === 1 ? `${y-1}-12` : `${y}-${String(m-1).padStart(2,'0')}`;
+    const prevWd = workingDatesInMonth(prevMk);
+    return prevWd.length > 0 ? prevWd[prevWd.length - 1] : null;
+  }
+  // idx === -1: today is not in this month (e.g. viewing a past month, or it's a weekend)
+  // Return the last working day of the requested month that is <= today
+  const past = wdAll.filter(ds => ds <= today);
+  if (past.length > 0) return past[past.length - 1];
+  // month is entirely in the future — return last day of previous month
   const [y, m] = mk.split('-').map(Number);
   const prevMk = m === 1 ? `${y-1}-12` : `${y}-${String(m-1).padStart(2,'0')}`;
   const prevWd = workingDatesInMonth(prevMk);
@@ -9564,7 +9606,7 @@ function getPrevWorkingDay(mk) {
 }
 
 function generateMOCommentary() {
-  if (!_moLastData) { showToast('Open Manager Overview first to load division data'); return; }
+  if (!_moLastData) { showToast('Daily Send data not loaded yet — please wait for the page to finish loading.'); return; }
 
   const btn = document.getElementById('moCommentaryBtn');
   if (btn) { btn.textContent = '⏳ Loading…'; btn.disabled = true; }
@@ -9618,7 +9660,7 @@ function generateMOCommentary() {
     : 'Previous working day';
   const mthLabel = monthLabel(mk);
 
-  if (btn) { btn.innerHTML = '<span style="font-size:14px">📋</span> Generate Commentary'; btn.disabled = false; }
+  if (btn) { btn.innerHTML = '<span style="font-size:14px">📊</span> Generate Stats'; btn.disabled = false; }
   showCommentaryModal({ augmented, grandPrevRev, grandPrevNm, grandPrevRR, grandPrevRevPct,
     grandMtdRev, grandMtdTgt, grandMtdNm, grandMtdPct, grandCopRev, grandHit, grandTotal,
     prevDayLabel, mthLabel });
@@ -12242,10 +12284,7 @@ _dbRef.once('value').then(snap=>{
     setSyncStatus('live');
     if(document.activeElement && ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
     const pg = document.querySelector('.page.active');
-    if(pg){
-      const id = pg.id.replace('page-','');
-      showPage(id);
-    }
+    if(pg) _refreshCurrentPage(pg.id.replace('page-',''));
   });
 }).catch(e=>{
   console.error('Firebase load failed:', e);
