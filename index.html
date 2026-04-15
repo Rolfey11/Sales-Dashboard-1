@@ -2708,7 +2708,14 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <input type="hidden" id="bcWorkingDaysMonth" value="22">
       <div class="bc-auto-val" id="bcWDMDisplay">
         <span id="bcWDMText">— days</span>
-        <span class="bc-auto-badge">AUTO</span>
+        <span style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+          <span class="bc-auto-badge" id="bcWDMBadge">AUTO</span>
+          <button onclick="bcEditWDM()" title="Override this value" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:2px 8px;font-size:10px;font-weight:700;color:var(--text2);cursor:pointer;font-family:var(--fm);letter-spacing:.05em;line-height:1.6;transition:border-color .15s,color .15s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">✏ EDIT</button>
+        </span>
+      </div>
+      <div id="bcWDMEditRow" style="display:none;align-items:center;gap:8px;">
+        <input type="number" id="bcWDMEditInput" min="1" max="31" oninput="bcOnWDMEdit()" style="flex:1;background:var(--surface2);border:1px solid var(--accent);border-radius:8px;padding:10px 14px;font-size:15px;font-family:var(--fm);color:var(--text);outline:none;box-shadow:0 0 0 3px rgba(94,156,245,.08);">
+        <button onclick="bcResetWDM()" title="Reset to auto-calculated value" style="background:none;border:1px solid var(--border2);border-radius:8px;padding:9px 11px;font-size:10px;font-weight:700;color:var(--text2);cursor:pointer;font-family:var(--fm);white-space:nowrap;letter-spacing:.05em;transition:border-color .15s,color .15s;" onmouseover="this.style.borderColor='var(--blue)';this.style.color='var(--blue)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">↺ AUTO</button>
       </div>
       <div class="bc-field-hint" id="bcWDMHint">Weekdays minus bank holidays</div>
     </div>
@@ -2717,7 +2724,14 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <input type="hidden" id="bcYourDays" value="22">
       <div class="bc-auto-val" id="bcYDDisplay">
         <span id="bcYDText">— days</span>
-        <span class="bc-auto-badge">AUTO</span>
+        <span style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+          <span class="bc-auto-badge" id="bcYDBadge">AUTO</span>
+          <button onclick="bcEditYD()" title="Override this value" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:2px 8px;font-size:10px;font-weight:700;color:var(--text2);cursor:pointer;font-family:var(--fm);letter-spacing:.05em;line-height:1.6;transition:border-color .15s,color .15s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">✏ EDIT</button>
+        </span>
+      </div>
+      <div id="bcYDEditRow" style="display:none;align-items:center;gap:8px;">
+        <input type="number" id="bcYDEditInput" min="1" max="31" oninput="bcOnYDEdit()" style="flex:1;background:var(--surface2);border:1px solid var(--accent);border-radius:8px;padding:10px 14px;font-size:15px;font-family:var(--fm);color:var(--text);outline:none;box-shadow:0 0 0 3px rgba(94,156,245,.08);">
+        <button onclick="bcResetYD()" title="Reset to auto-calculated value" style="background:none;border:1px solid var(--border2);border-radius:8px;padding:9px 11px;font-size:10px;font-weight:700;color:var(--text2);cursor:pointer;font-family:var(--fm);white-space:nowrap;letter-spacing:.05em;transition:border-color .15s,color .15s;" onmouseover="this.style.borderColor='var(--blue)';this.style.color='var(--blue)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">↺ AUTO</button>
       </div>
       <div class="bc-field-hint" id="bcYDHint">Working days minus your absences</div>
     </div>
@@ -2755,6 +2769,8 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 // ─── BONUS CALCULATOR LOGIC ────────────────────────────────────────
 let _bcType = 'nonsenior';
 let _bcRevenueManual = false;
+let _bcWDMManual = false;
+let _bcYDManual  = false;
 let _bcMonthlyTarget = 0; // person's full monthly target (riskPerDay × daysT)
 
 function bcInit(){
@@ -2766,6 +2782,20 @@ function bcInit(){
 
 function bcOnMonthChange(){
   _bcRevenueManual = false;
+  _bcWDMManual = false;
+  _bcYDManual  = false;
+  // Reset WDM display back to auto mode if in edit mode
+  const wdmEdit = document.getElementById('bcWDMEditRow');
+  const wdmDisp = document.getElementById('bcWDMDisplay');
+  if(wdmEdit && wdmDisp){ wdmEdit.style.display='none'; wdmDisp.style.display='flex'; }
+  const wdmBadge = document.getElementById('bcWDMBadge');
+  if(wdmBadge) wdmBadge.textContent = 'AUTO';
+  // Reset YD display back to auto mode if in edit mode
+  const ydEdit = document.getElementById('bcYDEditRow');
+  const ydDisp = document.getElementById('bcYDDisplay');
+  if(ydEdit && ydDisp){ ydEdit.style.display='none'; ydDisp.style.display='flex'; }
+  const ydBadge = document.getElementById('bcYDBadge');
+  if(ydBadge) ydBadge.textContent = 'AUTO';
   bcAutoPopulate();
 }
 
@@ -2773,6 +2803,62 @@ function bcOnRevenueEdit(){
   _bcRevenueManual = true;
   document.getElementById('bcAutoTag').style.display = 'none';
   document.getElementById('bcRevenueHint').textContent = 'Manually entered — change month to re-sync';
+  bcRecalc();
+}
+
+// ── Working Days in Month — edit / reset ──────────────────────────
+function bcEditWDM(){
+  _bcWDMManual = true;
+  const cur = document.getElementById('bcWorkingDaysMonth').value || '22';
+  const editInput = document.getElementById('bcWDMEditInput');
+  if(editInput) editInput.value = cur;
+  document.getElementById('bcWDMDisplay').style.display = 'none';
+  document.getElementById('bcWDMEditRow').style.display = 'flex';
+  const badge = document.getElementById('bcWDMBadge');
+  if(badge){ badge.textContent='MANUAL'; badge.style.background='rgba(251,184,58,.15)'; badge.style.color='var(--amber)'; }
+  if(editInput){ editInput.focus(); editInput.select(); }
+}
+function bcResetWDM(){
+  _bcWDMManual = false;
+  document.getElementById('bcWDMEditRow').style.display = 'none';
+  document.getElementById('bcWDMDisplay').style.display = 'flex';
+  const badge = document.getElementById('bcWDMBadge');
+  if(badge){ badge.textContent='AUTO'; badge.style.background=''; badge.style.color=''; }
+  bcAutoPopulate();
+}
+function bcOnWDMEdit(){
+  const val = parseInt(document.getElementById('bcWDMEditInput').value);
+  if(isNaN(val) || val < 1) return;
+  document.getElementById('bcWorkingDaysMonth').value = val;
+  document.getElementById('bcWDMText').textContent = val + ' day' + (val === 1 ? '' : 's');
+  bcRecalc();
+}
+
+// ── Your Working Days — edit / reset ─────────────────────────────
+function bcEditYD(){
+  _bcYDManual = true;
+  const cur = document.getElementById('bcYourDays').value || '22';
+  const editInput = document.getElementById('bcYDEditInput');
+  if(editInput) editInput.value = cur;
+  document.getElementById('bcYDDisplay').style.display = 'none';
+  document.getElementById('bcYDEditRow').style.display = 'flex';
+  const badge = document.getElementById('bcYDBadge');
+  if(badge){ badge.textContent='MANUAL'; badge.style.background='rgba(251,184,58,.15)'; badge.style.color='var(--amber)'; }
+  if(editInput){ editInput.focus(); editInput.select(); }
+}
+function bcResetYD(){
+  _bcYDManual = false;
+  document.getElementById('bcYDEditRow').style.display = 'none';
+  document.getElementById('bcYDDisplay').style.display = 'flex';
+  const badge = document.getElementById('bcYDBadge');
+  if(badge){ badge.textContent='AUTO'; badge.style.background=''; badge.style.color=''; }
+  bcAutoPopulate();
+}
+function bcOnYDEdit(){
+  const val = parseInt(document.getElementById('bcYDEditInput').value);
+  if(isNaN(val) || val < 1) return;
+  document.getElementById('bcYourDays').value = val;
+  document.getElementById('bcYDText').textContent = val + ' day' + (val === 1 ? '' : 's');
   bcRecalc();
 }
 
@@ -2786,19 +2872,23 @@ function bcAutoPopulate(){
 
   // ── Auto-calculate Working Days in Month (weekdays - bank holidays) ──
   const wdm = bcCountMonthWorkDays(mk);
-  const wdmInput = document.getElementById('bcWorkingDaysMonth');
-  const wdmText  = document.getElementById('bcWDMText');
-  if(wdmInput) wdmInput.value = wdm;
-  if(wdmText)  wdmText.textContent = wdm + ' day' + (wdm === 1 ? '' : 's');
+  if(!_bcWDMManual){
+    const wdmInput = document.getElementById('bcWorkingDaysMonth');
+    const wdmText  = document.getElementById('bcWDMText');
+    if(wdmInput) wdmInput.value = wdm;
+    if(wdmText)  wdmText.textContent = wdm + ' day' + (wdm === 1 ? '' : 's');
+  }
 
   // ── Auto-calculate Your Working Days (wdm - absences) ──
   const yourDays  = bcCountYourWorkDays(mk);
-  const ydInput   = document.getElementById('bcYourDays');
-  const ydText    = document.getElementById('bcYDText');
-  const ydHint    = document.getElementById('bcYDHint');
-  if(ydInput) ydInput.value = yourDays;
-  if(ydText)  ydText.textContent = yourDays + ' day' + (yourDays === 1 ? '' : 's');
-  if(ydHint)  ydHint.textContent = bcYourDaysHint(mk, wdm, yourDays);
+  if(!_bcYDManual){
+    const ydInput   = document.getElementById('bcYourDays');
+    const ydText    = document.getElementById('bcYDText');
+    const ydHint    = document.getElementById('bcYDHint');
+    if(ydInput) ydInput.value = yourDays;
+    if(ydText)  ydText.textContent = yourDays + ' day' + (yourDays === 1 ? '' : 's');
+    if(ydHint)  ydHint.textContent = bcYourDaysHint(mk, wdm, yourDays);
+  }
 
   // ── Auto-pull revenue ──
   if(!_bcRevenueManual){
