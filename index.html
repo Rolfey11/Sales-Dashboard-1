@@ -493,11 +493,13 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 .btn-d{background:var(--red-bg);color:var(--red);border:1px solid rgba(245,54,92,.2);}.btn-d:hover{background:rgba(245,54,92,.2);}
 .btn-w{width:100%;}
 .entry-table{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
-.entry-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-.et-head{display:grid;grid-template-columns:150px 120px 80px 160px 90px 140px;gap:0;padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);min-width:750px;}
+.et-head{display:grid;grid-template-columns:130px 1fr 80px 1.5fr 100px 140px;gap:0;padding:12px 16px;background:var(--surface2);border-bottom:1px solid var(--border);}
 .th{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);}
-.et-row{display:grid;grid-template-columns:150px 120px 80px 160px 90px 140px;gap:8px;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;min-width:750px;}
+.et-row{display:grid;grid-template-columns:130px 1fr 80px 1.5fr 100px 140px;gap:8px;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;}
 .et-row:last-child{border-bottom:none;}
+@media(max-width:768px){
+  .et-head,.et-row{grid-template-columns:80px 1fr 55px 1fr 75px 100px;gap:4px;padding:8px 10px;}
+}
 .et-name{font-size:13px;font-weight:600;}
 .inp-wrap{position:relative;}
 .inp-pre{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text3);font-family:var(--fm);pointer-events:none;}
@@ -1663,6 +1665,9 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <button class="nav-tab" onclick="showPage('history')">History</button>
       <button class="nav-tab consultant-only-tab" onclick="showPage('daybyday')">Day by Day</button>
       <button class="nav-tab consultant-only-tab" id="holidayNavTab" onclick="showPage('holiday')">Holiday</button>
+      <button class="nav-tab consultant-only-tab" onclick="showPage('consultantdaily')">📅 My Daily</button>
+      <button class="nav-tab consultant-only-tab" onclick="showPage('calloutcomes')">📊 Call Outcomes</button>
+      <button class="nav-tab consultant-only-tab" onclick="showPage('bonuscalc')">💰 Bonus Calc</button>
       <button class="nav-tab" onclick="showPage('settings')">Settings</button>
     </div>
   </div>
@@ -1790,17 +1795,15 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       </div>
     </div>
     <div class="entry-table">
-      <div class="entry-table-scroll">
-        <div class="et-head">
-          <div class="th">Consultant</div>
-          <div class="th">Today's Revenue</div>
-          <div class="th">Today's NM</div>
-          <div class="th" style="color:var(--accent)">+ Add Rev</div>
-          <div class="th" style="color:var(--accent)">+ Add NM</div>
-          <div class="th" style="color:var(--accent)">SWIFT Ref</div>
-        </div>
-        <div id="entryRows"></div>
+      <div class="et-head" style="grid-template-columns:130px 1fr 80px 1.5fr 100px 140px">
+        <div class="th">Consultant</div>
+        <div class="th">Today's Revenue</div>
+        <div class="th">Today's NM</div>
+        <div class="th" style="color:var(--accent)">+ Add Rev</div>
+        <div class="th" style="color:var(--accent)">+ Add NM</div>
+        <div class="th" style="color:var(--accent)">SWIFT Ref</div>
       </div>
+      <div id="entryRows"></div>
     </div>
   </div>
 </div>
@@ -2291,19 +2294,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <div class="section-title">Daily Send</div>
       <div class="section-sub" id="ds-sub">Morning performance report — all divisions</div>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <button onclick="generateMOCommentary()" id="moCommentaryBtn" style="
-        display:flex;align-items:center;gap:7px;
-        background:linear-gradient(135deg,rgba(94,156,245,.18),rgba(94,156,245,.08));
-        border:1px solid rgba(94,156,245,.4);color:var(--accent);
-        border-radius:9px;padding:8px 16px;font-size:12px;font-weight:700;
-        cursor:pointer;font-family:var(--fh);letter-spacing:.04em;
-        transition:all .18s;white-space:nowrap;
-      "
-      onmouseover="this.style.background='linear-gradient(135deg,rgba(94,156,245,.28),rgba(94,156,245,.14))';this.style.borderColor='rgba(94,156,245,.7)';this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 16px rgba(94,156,245,.2)'"
-      onmouseout="this.style.background='linear-gradient(135deg,rgba(94,156,245,.18),rgba(94,156,245,.08))';this.style.borderColor='rgba(94,156,245,.4)';this.style.transform='';this.style.boxShadow=''">
-        <span style="font-size:14px">📊</span> Generate Stats
-      </button>
+    <div style="display:flex;gap:8px;align-items:center">
       <button class="btn btn-s" onclick="window.print()">🖨 Print / Save PDF</button>
       <select id="dsMonth" onchange="renderDailySend()" style="width:180px"></select>
     </div>
@@ -3382,6 +3373,18 @@ function bcRecalc(){
     </div>
     <div style="display:flex;gap:8px;align-items:center">
       <select id="moMonth" onchange="renderManagerOverview()" style="width:180px"></select>
+      <button onclick="generateMOCommentary()" id="moCommentaryBtn" style="
+        display:flex;align-items:center;gap:7px;
+        background:linear-gradient(135deg,rgba(94,156,245,.18),rgba(94,156,245,.08));
+        border:1px solid rgba(94,156,245,.4);color:var(--accent);
+        border-radius:9px;padding:8px 16px;font-size:12px;font-weight:700;
+        cursor:pointer;font-family:var(--fh);letter-spacing:.04em;
+        transition:all .18s;white-space:nowrap;
+      "
+      onmouseover="this.style.background='linear-gradient(135deg,rgba(94,156,245,.28),rgba(94,156,245,.14))';this.style.borderColor='rgba(94,156,245,.7)';this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 16px rgba(94,156,245,.2)'"
+      onmouseout="this.style.background='linear-gradient(135deg,rgba(94,156,245,.18),rgba(94,156,245,.08))';this.style.borderColor='rgba(94,156,245,.4)';this.style.transform='';this.style.boxShadow=''">
+        <span style="font-size:14px">📋</span> Generate Commentary
+      </button>
     </div>
   </div>
   <div id="moContent"><div class="empty"><div class="empty-icon">📊</div><div>Loading division data…</div></div></div>
@@ -8823,18 +8826,29 @@ function renderConsultantDaily(){
   const [y,m] = mk.split('-').map(Number);
   const daysInMonth = new Date(y,m,0).getDate();
   const today = _localDateStr(new Date());
-  const myHols = getHols(mk, myName); // consultant's holiday dates for this month
+  const myHols     = getHols(mk, myName);                                         // legacy holiday dates
+  const mySick     = getSick(mk, myName);                                         // legacy sickness dates
+  const myAbsences = (typeof getAbsences==='function') ? getAbsences(mk, myName) : {}; // new absence objects
   let tableRows = '';
   for(let d=1;d<=daysInMonth;d++){
     const ds  = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const dow = new Date(y,m-1,d).getDay();
     const isWE = dow===0||dow===6;
     const isBH = isBankHoliday(ds);
-    const isHol = !isWE && !isBH && myHols.includes(ds);
+    const isHol    = !isWE && !isBH && myHols.includes(ds);
+    // Sickness: check both legacy APP.sickness array and new APP.absences objects
+    const absEntry = myAbsences[ds];
+    const absType  = absEntry ? (absEntry.type || 'S') : null;
+    const isSick   = !isWE && !isBH && (
+      mySick.includes(ds) ||
+      (absType && ABS_NON_DEDUCTIBLE.includes(absType) && absType !== 'B')
+    );
+    // Half/quarter day holidays
+    const isHalfDay = !isWE && !isBH && absType && ['H1','H2','Q'].includes(absType);
     const ent  = mine.find(e=>e.date===ds);
     const pend = myPending.find(e=>e.date===ds);
     const isFuture = ds > today;
-    const rowBg = isWE||isBH ? 'var(--surface3)' : isHol ? 'rgba(251,184,58,0.07)' : ds===today ? 'rgba(94,156,245,0.07)' : '';
+    const rowBg = isWE||isBH ? 'var(--surface3)' : isSick ? 'rgba(245,54,92,0.06)' : isHol ? 'rgba(251,184,58,0.07)' : ds===today ? 'rgba(94,156,245,0.07)' : '';
     const statusBadge = pend ? (pend.status==='pending'?'<span style="font-size:9px;font-weight:700;background:rgba(251,184,58,.2);color:var(--amber);padding:2px 7px;border-radius:10px;margin-left:6px">⏳ Pending</span>':
       pend.status==='approved'||pend.status==='amended'?'<span style="font-size:9px;font-weight:700;background:rgba(45,206,137,.2);color:var(--green);padding:2px 7px;border-radius:10px;margin-left:6px">✓ Approved</span>':
       '<span style="font-size:9px;font-weight:700;background:rgba(245,54,92,.2);color:var(--red);padding:2px 7px;border-radius:10px;margin-left:6px">✕ Declined</span>') : '';
@@ -8856,7 +8870,7 @@ function renderConsultantDaily(){
            <span style="color:var(--green);font-weight:700;font-family:var(--fm);">£${parseFloat(ent.revenue).toLocaleString()}</span>
            <button id="${dealRowId}_btn" onclick="cdToggleDeals('${dealRowId}',this)" style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-size:13px;font-weight:700;cursor:pointer;line-height:1;padding:0;transition:all .15s;" title="Show individual deals">+</button>
          </span>`
-      : (isWE||isBH||isHol||isFuture?'—':'');
+      : (isWE||isBH||isHol||isSick||isFuture?'—':'');
 
     // Expandable deal breakdown row (hidden by default)
     const dealsRow = hasDeals ? `<tr id="${dealRowId}" style="display:none;background:var(--surface2);">
@@ -8883,14 +8897,20 @@ function renderConsultantDaily(){
     </tr>` : '';
 
     tableRows += `<tr style="border-bottom:${hasDeals?'none':'1px solid var(--border)'};background:${rowBg};">
-      <td style="padding:8px 12px;font-size:12px;font-family:var(--fm);white-space:nowrap;color:${isFuture?'var(--text3)':ds===today?'var(--accent)':isHol?'var(--amber)':'var(--text2)'};font-weight:${ds===today||isHol?'700':'400'}">${dayLabel}${isWE?' <span style="font-size:9px;color:var(--text3)">WE</span>':isBH?' <span style="font-size:9px;color:var(--red)">BH</span>':isHol?' <span style="font-size:9px;font-weight:700;background:rgba(251,184,58,.18);color:var(--amber);padding:1px 6px;border-radius:8px;margin-left:4px">🏖 HOL</span>':''}</td>
+      <td style="padding:8px 12px;font-size:12px;font-family:var(--fm);white-space:nowrap;color:${isFuture?'var(--text3)':ds===today?'var(--accent)':isSick?'var(--red)':isHol?'var(--amber)':'var(--text2)'};font-weight:${ds===today||isHol||isSick?'700':'400'}">${dayLabel}${
+        isWE     ? ' <span style="font-size:9px;color:var(--text3)">WE</span>'
+      : isBH     ? ' <span style="font-size:9px;color:var(--red)">BH</span>'
+      : isSick   ? `<span style="font-size:9px;font-weight:700;background:rgba(245,54,92,.15);color:var(--red);padding:1px 6px;border-radius:8px;margin-left:4px">${{S:'🤒 Sick',M:'👶 Mat/Pat',L:'🔄 TOIL',W:'🏠 WFH',C:'💛 Compassionate'}[absType]||'🤒 Sick'}</span>`
+      : isHol    ? ' <span style="font-size:9px;font-weight:700;background:rgba(251,184,58,.18);color:var(--amber);padding:1px 6px;border-radius:8px;margin-left:4px">🏖 HOL</span>'
+      : isHalfDay? `<span style="font-size:9px;font-weight:700;background:rgba(251,184,58,.18);color:var(--amber);padding:1px 6px;border-radius:8px;margin-left:4px">${absType==='H1'?'🌅 AM Hol':absType==='H2'?'🌇 PM Hol':'⏱ Qtr Hol'}</span>`
+      : ''}</td>
       <td style="padding:8px 12px;text-align:right;font-family:var(--fm);font-size:12px;">${revDisplay}</td>
       <td style="padding:8px 12px;text-align:right;font-family:var(--fm);font-size:12px;color:${ent?.nm?'var(--text)':'var(--text3)'}">${ent?.nm||(!isWE&&!isBH&&!isFuture?'':' ')}</td>
       <td style="padding:8px 12px;font-size:12px;font-family:var(--fm);color:var(--text3)">${statusBadge}</td>
       <td style="padding:8px 12px;text-align:right">
-        ${!isWE&&!isBH&&!isHol&&!isFuture&&role==='consultant'?`<button class="btn btn-s" onclick="openDailySubmit('${ds}')" style="font-size:11px;padding:3px 10px;">+ Submit</button>`:''}
-        ${!isWE&&!isBH&&!isHol&&!isFuture&&isManagerRole&&pend?.status==='pending'?`<button class="btn btn-p" onclick="openReviewModal('${pend.id}')" style="font-size:11px;padding:3px 10px;">Review</button>`:''}
-        ${!isWE&&!isBH&&!isHol&&!isFuture&&isManagerRole?`<button class="btn btn-s" onclick="openManagerDirectEntry('${ds}','${myName.replace(/'/g,"\\'")}',0,0)" style="font-size:11px;padding:3px 10px;color:var(--accent);border-color:var(--accent)">+ Add</button>`:''}
+        ${!isWE&&!isBH&&!isHol&&!isSick&&!isFuture&&role==='consultant'?`<button class="btn btn-s" onclick="openDailySubmit('${ds}')" style="font-size:11px;padding:3px 10px;">+ Submit</button>`:''}
+        ${!isWE&&!isBH&&!isHol&&!isSick&&!isFuture&&isManagerRole&&pend?.status==='pending'?`<button class="btn btn-p" onclick="openReviewModal('${pend.id}')" style="font-size:11px;padding:3px 10px;">Review</button>`:''}
+        ${!isWE&&!isBH&&!isHol&&!isSick&&!isFuture&&isManagerRole?`<button class="btn btn-s" onclick="openManagerDirectEntry('${ds}','${myName.replace(/'/g,"\\'")}',0,0)" style="font-size:11px;padding:3px 10px;color:var(--accent);border-color:var(--accent)">+ Add</button>`:''}
       </td>
     </tr>${dealsRow}`;
   }
@@ -8943,7 +8963,9 @@ function renderConsultantDaily(){
           <div style="padding:10px 14px;background:linear-gradient(135deg,#1a4a1a,#0d2b0d);color:#fff;font-size:13px;font-weight:700;">Monthly Summary</div>
           ${[
             ['Monthly Target', target>0?'£'+target.toLocaleString():'Not set', null],
-            ['Targeted Days', effectiveDaysT||'—', sickDaysCount>0?`(${sickDaysCount} sick day${sickDaysCount>1?'s':''} deducted)`:null],
+            ['Targeted Days', effectiveDaysT||'—', sickDaysCount>0?`(${sickDaysCount} sick/absence day${sickDaysCount>1?'s':''} deducted)`:null],
+            ['Holidays This Month', myHols.length > 0 ? myHols.length + ' day' + (myHols.length>1?'s':'') : '—', null],
+            ['Sick / Absence Days', (()=>{ const n = new Set([...mySick, ...Object.keys(myAbsences).filter(ds=>{ const t=(myAbsences[ds]||{}).type; return t&&ABS_NON_DEDUCTIBLE.includes(t)&&t!=='B'; })]).size; return n>0?n+' day'+(n>1?'s':''):'—'; })(), null],
             ['Days Worked', daysWorked, null],
             ['For Target', target>0?'£'+Math.round(forTarget).toLocaleString():'—', null],
             null,
@@ -9633,14 +9655,34 @@ function generateMOCommentary() {
   t += `Generated: ${todayLabel}\n`;
   t += `${divider}\n\n`;
 
-  // Business headline — stats only
+  // Business headline
   t += `BUSINESS HEADLINE\n\n`;
-  t += `  Yesterday Revenue:     ${frev(grandPrevRev)} vs run rate ${frev(grandPrevRR)} (${grandPrevRevPct}%) ${emo(grandPrevRevPct)}\n`;
-  t += `  Yesterday NM:          ${grandPrevNm}\n`;
-  t += `  MTD Revenue:           ${frev(grandMtdRev)} of ${frev(grandMtdTgt)} — ${grandMtdPct}% ${emo(grandMtdPct)}\n`;
-  t += `  MTD NM:                ${grandMtdNm}\n`;
-  t += `  COP Revenue (MTD):     ${fpm(grandCopRev)}\n`;
-  t += `  Consultants on track:  ${grandHit} / ${grandTotal}\n`;
+
+  const prevStatus = grandPrevRevPct >= 100
+    ? `a strong day, beating the combined daily run rate by ${frev(grandPrevRev - grandPrevRR)}`
+    : grandPrevRevPct >= 75
+    ? `a reasonable day, reaching ${grandPrevRevPct}% of the combined daily run rate`
+    : `a challenging day at ${grandPrevRevPct}% of the combined daily run rate`;
+
+  t += `Yesterday was ${prevStatus}. Across all active divisions, the business generated `;
+  t += `${frev(grandPrevRev)} in revenue against a combined run rate of ${frev(grandPrevRR)} `;
+  t += `and logged ${grandPrevNm} NM${grandPrevNm !== 1 ? 's' : ''}.\n\n`;
+
+  const mtdStatus = grandMtdPct >= 100
+    ? `ahead of target for ${mthLabel} — excellent position heading into the final stretch`
+    : grandMtdPct >= 75
+    ? `within range of the ${mthLabel} target — a consistent push over the remaining days will close it out`
+    : `behind target for ${mthLabel} — a significant uplift in activity will be required to finish the month strongly`;
+
+  t += `Month-to-date, the business stands at ${grandMtdPct}% of its overall revenue target `;
+  t += `(${frev(grandMtdRev)} of ${frev(grandMtdTgt)}), which is ${mtdStatus}. `;
+  t += `${grandHit} of ${grandTotal} consultants are currently on track to hit their individual targets.\n`;
+
+  if (grandCopRev >= 0) {
+    t += `The overall COP position is ${frev(grandCopRev)} ahead of checkpoint — a positive sign for the close.\n`;
+  } else {
+    t += `The overall COP position is ${frev(Math.abs(grandCopRev))} behind checkpoint — teams need to accelerate activity to recover.\n`;
+  }
 
   t += `\n${divider}\n\n`;
   t += `DIVISION BREAKDOWN — ranked by % to monthly target\n\n`;
@@ -9683,6 +9725,64 @@ function generateMOCommentary() {
     t += `    Consultants on target: ${d.hit} / ${d.stats.length}\n`;
 
     t += '\n';
+
+    // Narrative commentary
+    t += `  Commentary:\n`;
+    let commentary = '';
+    const ahead   = d.revPct >= 100;
+    const close   = d.revPct >= 75;
+    const dayGood = d.prevRevPct !== null && d.prevRevPct >= 100;
+    const dayFair = d.prevRevPct !== null && d.prevRevPct >= 75;
+
+    if (ahead && dayGood) {
+      commentary =
+        `${d.div.label} is in an excellent position — ${d.revPct}% to monthly target with a strong ` +
+        `day yesterday at ${d.prevRevPct}% of run rate. The team should maintain current activity ` +
+        `levels through to month end. With ${d.hit} of ${d.stats.length} consultants on target, ` +
+        `momentum is clearly there.`;
+    } else if (ahead && !dayGood) {
+      commentary =
+        `${d.div.label} has a healthy monthly position at ${d.revPct}% but yesterday's output ` +
+        `(${d.prevRevPct !== null ? d.prevRevPct + '% of run rate' : 'figures pending'}) was below ` +
+        `the required daily rate. One quieter day is not a concern at this stage, but managers should ` +
+        `ensure focus does not drop as the team approaches target.`;
+    } else if (close && dayGood) {
+      commentary =
+        `${d.div.label} is tracking well at ${d.revPct}% to target and backed it up with a solid ` +
+        `${d.prevRevPct}% run-rate day yesterday. If the team maintains this level of output, ` +
+        `hitting the monthly target is well within reach.`;
+    } else if (close && dayFair) {
+      commentary =
+        `${d.div.label} sits at ${d.revPct}% to target — in range, but not yet comfortable. ` +
+        `Yesterday's performance at ${d.prevRevPct}% of run rate is acceptable, though managers ` +
+        `should look to drive above-run-rate days consistently across the remaining working days ` +
+        `to secure the target.`;
+    } else if (close && !dayFair) {
+      commentary =
+        `${d.div.label} is at ${d.revPct}% to target for the month — within striking distance — ` +
+        `but yesterday (${d.prevRevPct !== null ? d.prevRevPct + '% of run rate' : 'below target'}) ` +
+        `was below the required daily pace. Managers should re-energise the team; there is enough ` +
+        `of the month remaining to recover, but every day now counts.`;
+    } else {
+      commentary =
+        `${d.div.label} is at ${d.revPct}% to target and requires urgent attention. With the ` +
+        `COP revenue position sitting at ${frev(Math.abs(d.copRev))} ` +
+        `${d.copRev >= 0 ? 'ahead' : 'behind'}, ` +
+        `managers need to identify the blockers and drive a significant step-change in activity. ` +
+        `Only ${d.hit} of ${d.stats.length} consultants are currently on track — a targeted review ` +
+        `of individual pipelines and daily disciplines is recommended.`;
+    }
+
+    // Word-wrap commentary at ~72 chars
+    const words = commentary.split(' ');
+    let line = '    ';
+    words.forEach(w => {
+      if (line.length + w.length + 1 > 74) { t += line + '\n'; line = '    ' + w + ' '; }
+      else line += w + ' ';
+    });
+    if (line.trim()) t += line.trimEnd() + '\n';
+
+    t += '\n';
   });
 
   t += `${divider}\n\n`;
@@ -9703,7 +9803,8 @@ function generateMOCommentary() {
   });
 
   t += `\n${divider}\n`;
-  t += `Auto-generated from JG MI Dashboard live data.\n`;
+  t += `This commentary is auto-generated from JG MI Dashboard live data.\n`;
+  t += `Do not forward externally. For internal team leader circulation only.\n`;
 
   if (btn) { btn.innerHTML = '<span style="font-size:14px">📋</span> Generate Commentary'; btn.disabled = false; }
   showCommentaryModal(t, prevDayLabel, mthLabel);
@@ -9727,8 +9828,8 @@ function showCommentaryModal(text, dayLabel, mthLabel) {
   modal.innerHTML = `
     <div style="
       background:var(--surface);border:1px solid var(--border2);
-      border-radius:14px;width:100%;max-width:1200px;
-      height:90vh;display:flex;flex-direction:column;
+      border-radius:14px;width:100%;max-width:780px;
+      max-height:90vh;display:flex;flex-direction:column;
       box-shadow:0 32px 80px rgba(0,0,0,0.65);
       overflow:hidden;
     ">
@@ -9741,7 +9842,7 @@ function showCommentaryModal(text, dayLabel, mthLabel) {
       ">
         <span style="font-size:18px">📋</span>
         <div style="flex:1">
-          <div style="font-size:14px;font-weight:700;color:var(--text)">Daily Performance Stats</div>
+          <div style="font-size:14px;font-weight:700;color:var(--text)">Daily Performance Commentary</div>
           <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:2px">
             ${dayLabel ? dayLabel + ' · ' : ''}${mthLabel || ''} · ready to copy &amp; share
           </div>
@@ -9754,7 +9855,7 @@ function showCommentaryModal(text, dayLabel, mthLabel) {
         "
         onmouseover="this.style.opacity='.82';this.style.transform='translateY(-1px)'"
         onmouseout="this.style.opacity='1';this.style.transform=''">
-          <span>📋</span> Copy Stats
+          <span>📋</span> Copy to Clipboard
         </button>
         <button onclick="document.getElementById('commentaryModal').style.display='none'" style="
           background:var(--surface2);border:1px solid var(--border2);color:var(--text2);
@@ -9778,9 +9879,9 @@ function showCommentaryModal(text, dayLabel, mthLabel) {
       </div>
       <!-- Commentary area -->
       <textarea id="commentaryText" readonly style="
-        flex:1;padding:24px 28px;
+        flex:1;padding:20px 22px;
         background:var(--bg);color:var(--text);
-        font-family:var(--fm);font-size:13px;line-height:1.8;
+        font-family:var(--fm);font-size:11.5px;line-height:1.75;
         border:none;outline:none;resize:none;overflow-y:auto;
         tab-size:2;
       ">${text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
