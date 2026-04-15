@@ -3370,6 +3370,18 @@ function bcRecalc(){
     </div>
     <div style="display:flex;gap:8px;align-items:center">
       <select id="moMonth" onchange="renderManagerOverview()" style="width:180px"></select>
+      <button onclick="generateMOCommentary()" id="moCommentaryBtn" style="
+        display:flex;align-items:center;gap:7px;
+        background:linear-gradient(135deg,rgba(94,156,245,.18),rgba(94,156,245,.08));
+        border:1px solid rgba(94,156,245,.4);color:var(--accent);
+        border-radius:9px;padding:8px 16px;font-size:12px;font-weight:700;
+        cursor:pointer;font-family:var(--fh);letter-spacing:.04em;
+        transition:all .18s;white-space:nowrap;
+      "
+      onmouseover="this.style.background='linear-gradient(135deg,rgba(94,156,245,.28),rgba(94,156,245,.14))';this.style.borderColor='rgba(94,156,245,.7)';this.style.transform='translateY(-1px)';this.style.boxShadow='0 4px 16px rgba(94,156,245,.2)'"
+      onmouseout="this.style.background='linear-gradient(135deg,rgba(94,156,245,.18),rgba(94,156,245,.08))';this.style.borderColor='rgba(94,156,245,.4)';this.style.transform='';this.style.boxShadow=''">
+        <span style="font-size:14px">📋</span> Generate Commentary
+      </button>
     </div>
   </div>
   <div id="moContent"><div class="empty"><div class="empty-icon">📊</div><div>Loading division data…</div></div></div>
@@ -3582,6 +3594,7 @@ const ROLE_COLORS = { master:'#e879f9', manager:'#5e9cf5', compliance:'#2dce89',
 
 let _currentUser = null; // { id, name, role, divKey }
 let _allUsers    = {};   // loaded from Firebase
+let _moLastData  = null; // cached data for Manager Overview commentary
 
 // Store users under the branch division path — guaranteed accessible since that path is always initialised
 const _usersDbRef = () => (_db ? _db.ref('perfDash2/cavendishUsers') : null);
@@ -9407,6 +9420,9 @@ function renderManagerOverview(){
       </tr>`;
     }).join('') : `<tr><td colspan="12" style="padding:32px;text-align:center;color:var(--text3);font-family:var(--fm)">No consultant data found across any division for this month.</td></tr>`;
 
+    // Cache data for commentary generation
+    _moLastData = { divSummaries, results, mk };
+
     content.innerHTML = `
       <!-- Grand total KPIs -->
       <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px">
@@ -9509,10 +9525,386 @@ function renderManagerOverview(){
   });
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// MANAGER OVERVIEW — COMMENTARY GENERATION
+// ═══════════════════════════════════════════════════════════════════
 
-// ═══════════════════════════════════════════════════════════════════
-// ELAPSED DAYS
-// ═══════════════════════════════════════════════════════════════════
+function getPrevWorkingDay(mk) {
+  const today  = _localDateStr(new Date());
+  const wdAll  = workingDatesInMonth(mk);
+  const idx    = wdAll.indexOf(today);
+  if (idx > 0) return wdAll[idx - 1];
+  // If today is the first working day of the month, look at the previous month
+  const [y, m] = mk.split('-').map(Number);
+  const prevMk = m === 1 ? `${y-1}-12` : `${y}-${String(m-1).padStart(2,'0')}`;
+  const prevWd = workingDatesInMonth(prevMk);
+  return prevWd.length > 0 ? prevWd[prevWd.length - 1] : null;
+}
+
+function generateMOCommentary() {
+  if (!_moLastData) {
+    showToast('Open Manager Overview first to load division data');
+    return;
+  }
+
+  const btn = document.getElementById('moCommentaryBtn');
+  if (btn) { btn.textContent = '⏳ Generating…'; btn.disabled = true; }
+
+  const { divSummaries, results, mk } = _moLastData;
+  const prevDay = getPrevWorkingDay(mk);
+
+  // Build per-division previous-day stats, augmenting the already-computed divSummaries
+  const augmented = divSummaries
+    .filter(d => d.stats.length > 0)
+    .map(d => {
+      const rawData = (results.find(r => r.key === d.key) || {}).data || {};
+      const entries = ((rawData.months || {})[mk] || { entries: [] }).entries;
+
+      // Previous day actuals
+      const prevRev = prevDay
+        ? entries.filter(e => e.date === prevDay).reduce((s, e) => s + (e.revenue || 0), 0)
+        : 0;
+      const prevNm = prevDay
+        ? entries.filter(e => e.date === prevDay).reduce((s, e) => s + (e.nm || 0), 0)
+        : 0;
+
+      // Previous day run rate — sum each consultant's RPD if they were working
+      let prevRR = 0;
+      let prevNmRR = 0;
+      if (prevDay) {
+        (rawData.people || []).forEach(p => {
+          const ovr  = ((rawData.monthOverrides || {})[mk] || {})[p.name] || {};
+          const rpd  = ovr.riskPerDay !== undefined ? ovr.riskPerDay : (p.riskPerDay || 0);
+          const hols = ((rawData.holidays || {})[mk] || {})[p.name] || [];
+          const sick = ((rawData.sickness  || {})[mk] || {})[p.name] || [];
+          if (!hols.includes(prevDay) && !sick.includes(prevDay) && !isBankHoliday(prevDay)) {
+            prevRR   += rpd;
+            prevNmRR += 1.75;
+          }
+        });
+      }
+
+      const prevRevPct = prevRR > 0 ? Math.round(prevRev / prevRR * 100) : null;
+      const prevNmPct  = prevNmRR > 0 ? Math.round(prevNm / prevNmRR * 100) : null;
+
+      return { ...d, prevRev, prevNm, prevRR, prevNmRR, prevRevPct, prevNmPct };
+    })
+    .sort((a, b) => b.revPct - a.revPct); // Sort by % to monthly target, highest first
+
+  // Grand totals for previous day
+  const grandPrevRev    = augmented.reduce((s, d) => s + d.prevRev, 0);
+  const grandPrevNm     = augmented.reduce((s, d) => s + d.prevNm, 0);
+  const grandPrevRR     = augmented.reduce((s, d) => s + d.prevRR, 0);
+  const grandPrevRevPct = grandPrevRR > 0 ? Math.round(grandPrevRev / grandPrevRR * 100) : 0;
+
+  // Grand MTD totals
+  const grandMtdRev  = divSummaries.reduce((s, d) => s + d.totRev, 0);
+  const grandMtdTgt  = divSummaries.reduce((s, d) => s + d.totTgt, 0);
+  const grandMtdNm   = divSummaries.reduce((s, d) => s + d.totNm, 0);
+  const grandMtdPct  = grandMtdTgt > 0 ? Math.round(grandMtdRev / grandMtdTgt * 100) : 0;
+  const grandCopRev  = divSummaries.reduce((s, d) => s + d.copRev, 0);
+  const grandHit     = divSummaries.reduce((s, d) => s + d.hit, 0);
+  const grandTotal   = divSummaries.reduce((s, d) => s + d.stats.length, 0);
+
+  // Date strings
+  const prevDayLabel = prevDay
+    ? new Date(prevDay + 'T12:00:00').toLocaleDateString('en-GB', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+      })
+    : 'the previous working day';
+  const todayLabel = new Date().toLocaleDateString('en-GB', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+  const mthLabel = monthLabel(mk);
+
+  // ── Helper: status emoji ──────────────────────────────────────────
+  const emo  = pct => pct >= 100 ? '🟢' : pct >= 75 ? '🟡' : '🔴';
+  const frev = n   => '£' + Math.round(n).toLocaleString('en-GB');
+  const fpm  = n   => (n >= 0 ? '+' : '') + frev(n);
+  const fpct = n   => (n >= 0 ? '+' : '') + n + '%';
+
+  // ── Build commentary text ─────────────────────────────────────────
+  const divider = '─'.repeat(62);
+
+  let t = '';
+  t += `DAILY PERFORMANCE COMMENTARY — ${mthLabel.toUpperCase()}\n`;
+  t += `Trading update for ${prevDayLabel}\n`;
+  t += `Generated: ${todayLabel}\n`;
+  t += `${divider}\n\n`;
+
+  // Business headline
+  t += `BUSINESS HEADLINE\n\n`;
+
+  const prevStatus = grandPrevRevPct >= 100
+    ? `a strong day, beating the combined daily run rate by ${frev(grandPrevRev - grandPrevRR)}`
+    : grandPrevRevPct >= 75
+    ? `a reasonable day, reaching ${grandPrevRevPct}% of the combined daily run rate`
+    : `a challenging day at ${grandPrevRevPct}% of the combined daily run rate`;
+
+  t += `Yesterday was ${prevStatus}. Across all active divisions, the business generated `;
+  t += `${frev(grandPrevRev)} in revenue against a combined run rate of ${frev(grandPrevRR)} `;
+  t += `and logged ${grandPrevNm} NM${grandPrevNm !== 1 ? 's' : ''}.\n\n`;
+
+  const mtdStatus = grandMtdPct >= 100
+    ? `ahead of target for ${mthLabel} — excellent position heading into the final stretch`
+    : grandMtdPct >= 75
+    ? `within range of the ${mthLabel} target — a consistent push over the remaining days will close it out`
+    : `behind target for ${mthLabel} — a significant uplift in activity will be required to finish the month strongly`;
+
+  t += `Month-to-date, the business stands at ${grandMtdPct}% of its overall revenue target `;
+  t += `(${frev(grandMtdRev)} of ${frev(grandMtdTgt)}), which is ${mtdStatus}. `;
+  t += `${grandHit} of ${grandTotal} consultants are currently on track to hit their individual targets.\n`;
+
+  if (grandCopRev >= 0) {
+    t += `The overall COP position is ${frev(grandCopRev)} ahead of checkpoint — a positive sign for the close.\n`;
+  } else {
+    t += `The overall COP position is ${frev(Math.abs(grandCopRev))} behind checkpoint — teams need to accelerate activity to recover.\n`;
+  }
+
+  t += `\n${divider}\n\n`;
+  t += `DIVISION BREAKDOWN — ranked by % to monthly target\n\n`;
+
+  augmented.forEach((d, i) => {
+    const rank       = i + 1;
+    const rankSuffix = rank === 1 ? 'st' : rank === 2 ? 'nd' : rank === 3 ? 'rd' : 'th';
+    const mthEmo     = emo(d.revPct);
+    const dayEmo     = d.prevRevPct !== null ? emo(d.prevRevPct) : '—';
+
+    t += `${rank}${rankSuffix} — ${d.div.icon}  ${d.div.label.toUpperCase()}   ${mthEmo} ${d.revPct}% to monthly target\n`;
+    t += `${divider.slice(0, 40)}\n`;
+
+    // Yesterday
+    if (prevDay && d.prevRR > 0) {
+      t += `  Yesterday (${prevDayLabel.split(',')[0]}):\n`;
+      t += `    Revenue:    ${frev(d.prevRev)}`;
+      t += ` vs run rate of ${frev(d.prevRR)} (${d.prevRevPct}%) ${dayEmo}\n`;
+      t += `    NM:         ${d.prevNm}`;
+      if (d.prevNmRR > 0) t += ` vs run rate of ${d.prevNmRR.toFixed(1)} (${d.prevNmPct !== null ? d.prevNmPct + '%' : '—'})`;
+      t += '\n';
+      if (d.prevRev > d.prevRR) {
+        t += `    ↑ Beat daily run rate by ${frev(d.prevRev - d.prevRR)}\n`;
+      } else if (d.prevRev > 0) {
+        t += `    ↓ Fell ${frev(d.prevRR - d.prevRev)} short of daily run rate\n`;
+      } else {
+        t += `    ⚠ No revenue logged for this date\n`;
+      }
+    } else {
+      t += `  Yesterday: No data available for this period\n`;
+    }
+
+    t += '\n';
+
+    // Month to date
+    t += `  Month-to-date (${mthLabel}):\n`;
+    t += `    Revenue:    ${frev(d.totRev)} of ${frev(d.totTgt)} — ${d.revPct}% ${mthEmo}\n`;
+    t += `    NM:         ${d.totNm} of ${d.totNmTgt.toFixed(1)} target\n`;
+    t += `    COP Rev:    ${fpm(d.copRev)} vs checkpoint  |  COP NM: ${(d.copNm >= 0 ? '+' : '') + d.copNm.toFixed(1)}\n`;
+    t += `    Consultants on target: ${d.hit} / ${d.stats.length}\n`;
+
+    t += '\n';
+
+    // Narrative commentary
+    t += `  Commentary:\n`;
+    let commentary = '';
+    const ahead   = d.revPct >= 100;
+    const close   = d.revPct >= 75;
+    const dayGood = d.prevRevPct !== null && d.prevRevPct >= 100;
+    const dayFair = d.prevRevPct !== null && d.prevRevPct >= 75;
+
+    if (ahead && dayGood) {
+      commentary =
+        `${d.div.label} is in an excellent position — ${d.revPct}% to monthly target with a strong ` +
+        `day yesterday at ${d.prevRevPct}% of run rate. The team should maintain current activity ` +
+        `levels through to month end. With ${d.hit} of ${d.stats.length} consultants on target, ` +
+        `momentum is clearly there.`;
+    } else if (ahead && !dayGood) {
+      commentary =
+        `${d.div.label} has a healthy monthly position at ${d.revPct}% but yesterday's output ` +
+        `(${d.prevRevPct !== null ? d.prevRevPct + '% of run rate' : 'figures pending'}) was below ` +
+        `the required daily rate. One quieter day is not a concern at this stage, but managers should ` +
+        `ensure focus does not drop as the team approaches target.`;
+    } else if (close && dayGood) {
+      commentary =
+        `${d.div.label} is tracking well at ${d.revPct}% to target and backed it up with a solid ` +
+        `${d.prevRevPct}% run-rate day yesterday. If the team maintains this level of output, ` +
+        `hitting the monthly target is well within reach.`;
+    } else if (close && dayFair) {
+      commentary =
+        `${d.div.label} sits at ${d.revPct}% to target — in range, but not yet comfortable. ` +
+        `Yesterday's performance at ${d.prevRevPct}% of run rate is acceptable, though managers ` +
+        `should look to drive above-run-rate days consistently across the remaining working days ` +
+        `to secure the target.`;
+    } else if (close && !dayFair) {
+      commentary =
+        `${d.div.label} is at ${d.revPct}% to target for the month — within striking distance — ` +
+        `but yesterday (${d.prevRevPct !== null ? d.prevRevPct + '% of run rate' : 'below target'}) ` +
+        `was below the required daily pace. Managers should re-energise the team; there is enough ` +
+        `of the month remaining to recover, but every day now counts.`;
+    } else {
+      commentary =
+        `${d.div.label} is at ${d.revPct}% to target and requires urgent attention. With the ` +
+        `COP revenue position sitting at ${frev(Math.abs(d.copRev))} ` +
+        `${d.copRev >= 0 ? 'ahead' : 'behind'}, ` +
+        `managers need to identify the blockers and drive a significant step-change in activity. ` +
+        `Only ${d.hit} of ${d.stats.length} consultants are currently on track — a targeted review ` +
+        `of individual pipelines and daily disciplines is recommended.`;
+    }
+
+    // Word-wrap commentary at ~72 chars
+    const words = commentary.split(' ');
+    let line = '    ';
+    words.forEach(w => {
+      if (line.length + w.length + 1 > 74) { t += line + '\n'; line = '    ' + w + ' '; }
+      else line += w + ' ';
+    });
+    if (line.trim()) t += line.trimEnd() + '\n';
+
+    t += '\n';
+  });
+
+  t += `${divider}\n\n`;
+  t += `SUMMARY SCORECARD\n\n`;
+  t += `  Metric                        Yesterday          MTD\n`;
+  t += `  ${'─'.repeat(55)}\n`;
+  t += `  Revenue                       ${frev(grandPrevRev).padEnd(18)} ${frev(grandMtdRev)}\n`;
+  t += `  Run Rate / Target             ${frev(grandPrevRR).padEnd(18)} ${frev(grandMtdTgt)}\n`;
+  t += `  % Achieved                    ${String(grandPrevRevPct + '%').padEnd(18)} ${grandMtdPct}%\n`;
+  t += `  NM Logged                     ${String(grandPrevNm).padEnd(18)} ${grandMtdNm}\n`;
+  t += `  Consultants on target (MTD)   ${'—'.padEnd(18)} ${grandHit} / ${grandTotal}\n`;
+  t += `  COP Revenue position (MTD)    ${'—'.padEnd(18)} ${fpm(grandCopRev)}\n`;
+  t += '\n';
+  t += `  Divisions ranked by % to monthly target:\n`;
+  augmented.forEach((d, i) => {
+    t += `    ${i + 1}. ${d.div.label.padEnd(22)} ${String(d.revPct + '%').padEnd(6)} `;
+    t += `${emo(d.revPct)}  (${frev(d.totRev)} / ${frev(d.totTgt)})\n`;
+  });
+
+  t += `\n${divider}\n`;
+  t += `This commentary is auto-generated from JG MI Dashboard live data.\n`;
+  t += `Do not forward externally. For internal team leader circulation only.\n`;
+
+  if (btn) { btn.innerHTML = '<span style="font-size:14px">📋</span> Generate Commentary'; btn.disabled = false; }
+  showCommentaryModal(t, prevDayLabel, mthLabel);
+}
+
+function showCommentaryModal(text, dayLabel, mthLabel) {
+  let modal = document.getElementById('commentaryModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'commentaryModal';
+    modal.style.cssText = [
+      'position:fixed;inset:0;z-index:9999;',
+      'background:rgba(0,0,0,0.78);',
+      'display:flex;align-items:center;justify-content:center;',
+      'padding:20px;backdrop-filter:blur(6px);'
+    ].join('');
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.style.display = 'none'; });
+  }
+
+  modal.innerHTML = `
+    <div style="
+      background:var(--surface);border:1px solid var(--border2);
+      border-radius:14px;width:100%;max-width:780px;
+      max-height:90vh;display:flex;flex-direction:column;
+      box-shadow:0 32px 80px rgba(0,0,0,0.65);
+      overflow:hidden;
+    ">
+      <!-- Header -->
+      <div style="
+        padding:16px 20px;
+        background:linear-gradient(135deg,rgba(94,156,245,.12),rgba(94,156,245,.04));
+        border-bottom:1px solid var(--border);
+        display:flex;align-items:center;gap:10px;flex-shrink:0;
+      ">
+        <span style="font-size:18px">📋</span>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:700;color:var(--text)">Daily Performance Commentary</div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:2px">
+            ${dayLabel ? dayLabel + ' · ' : ''}${mthLabel || ''} · ready to copy &amp; share
+          </div>
+        </div>
+        <button id="commentaryCopyBtn" onclick="copyCommentary()" style="
+          display:flex;align-items:center;gap:6px;
+          background:var(--accent);color:#fff;border:none;border-radius:8px;
+          padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;
+          font-family:var(--fh);letter-spacing:.04em;transition:all .15s;white-space:nowrap;
+        "
+        onmouseover="this.style.opacity='.82';this.style.transform='translateY(-1px)'"
+        onmouseout="this.style.opacity='1';this.style.transform=''">
+          <span>📋</span> Copy to Clipboard
+        </button>
+        <button onclick="document.getElementById('commentaryModal').style.display='none'" style="
+          background:var(--surface2);border:1px solid var(--border2);color:var(--text2);
+          border-radius:8px;padding:8px 13px;font-size:14px;cursor:pointer;
+          transition:all .15s;font-family:var(--fh);line-height:1;
+        "
+        onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'"
+        onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">
+          ✕
+        </button>
+      </div>
+      <!-- Hint bar -->
+      <div style="
+        padding:8px 20px;background:var(--surface2);border-bottom:1px solid var(--border);
+        font-size:10px;color:var(--text3);font-family:var(--fm);display:flex;gap:16px;flex-shrink:0;
+      ">
+        <span>🟢 ≥ 100% of target</span>
+        <span>🟡 75–99%</span>
+        <span>🔴 &lt; 75%</span>
+        <span style="margin-left:auto">Plain text — paste directly into email, Teams or Slack</span>
+      </div>
+      <!-- Commentary area -->
+      <textarea id="commentaryText" readonly style="
+        flex:1;padding:20px 22px;
+        background:var(--bg);color:var(--text);
+        font-family:var(--fm);font-size:11.5px;line-height:1.75;
+        border:none;outline:none;resize:none;overflow-y:auto;
+        tab-size:2;
+      ">${text.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+      <!-- Footer -->
+      <div style="
+        padding:10px 20px;border-top:1px solid var(--border);
+        background:var(--surface);flex-shrink:0;
+        display:flex;align-items:center;justify-content:space-between;
+        font-size:10px;color:var(--text3);font-family:var(--fm);
+      ">
+        <span>⚡ Auto-generated from live Firebase data · JG MI Dashboard</span>
+        <span>Internal use only — do not forward externally</span>
+      </div>
+    </div>`;
+
+  modal.style.display = 'flex';
+  // Set actual value (not innerHTML-encoded) after render
+  const ta = document.getElementById('commentaryText');
+  if (ta) ta.value = text;
+}
+
+function copyCommentary() {
+  const ta  = document.getElementById('commentaryText');
+  const btn = document.getElementById('commentaryCopyBtn');
+  if (!ta) return;
+  const originalHtml = btn ? btn.innerHTML : '';
+  const copied = () => {
+    if (btn) {
+      btn.innerHTML = '<span>✓</span> Copied!';
+      btn.style.background = 'var(--green)';
+      setTimeout(() => {
+        btn.innerHTML = originalHtml;
+        btn.style.background = 'var(--accent)';
+      }, 2500);
+    }
+    showToast('Commentary copied to clipboard');
+  };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(ta.value).then(copied).catch(() => {
+      ta.select(); document.execCommand('copy'); copied();
+    });
+  } else {
+    ta.select(); document.execCommand('copy'); copied();
+  }
+}
 function setElapsedDays(val){
   const n2 = parseInt(val);
   APP.manualElapsed = isNaN(n2) ? null : n2;
