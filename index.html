@@ -2601,6 +2601,8 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 .bc-field select,.bc-field input{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;font-size:15px;font-family:var(--fm);color:var(--text);outline:none;transition:border-color .15s;}
 .bc-field select:focus,.bc-field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94,156,245,.08);}
 .bc-field-hint{font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:6px;}
+.bc-auto-val{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;font-size:15px;font-family:var(--fm);color:var(--text);display:flex;align-items:center;justify-content:space-between;min-height:41px;}
+.bc-auto-badge{font-size:9px;font-weight:700;background:rgba(94,156,245,.15);color:var(--blue);padding:2px 7px;border-radius:10px;letter-spacing:.04em;white-space:nowrap;flex-shrink:0;}
 
 .bc-results{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px;}
 @media(max-width:600px){.bc-results{grid-template-columns:1fr;}}
@@ -2703,13 +2705,21 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     </div>
     <div class="bc-field">
       <div class="bc-field-label">Working Days in Month</div>
-      <select id="bcWorkingDaysMonth" onchange="bcRecalc()"></select>
-      <div class="bc-field-hint">Total available working days</div>
+      <input type="hidden" id="bcWorkingDaysMonth" value="22">
+      <div class="bc-auto-val" id="bcWDMDisplay">
+        <span id="bcWDMText">— days</span>
+        <span class="bc-auto-badge">AUTO</span>
+      </div>
+      <div class="bc-field-hint" id="bcWDMHint">Weekdays minus bank holidays</div>
     </div>
     <div class="bc-field">
       <div class="bc-field-label">Your Working Days</div>
-      <select id="bcYourDays" onchange="bcRecalc()"></select>
-      <div class="bc-field-hint">Days worked / to work</div>
+      <input type="hidden" id="bcYourDays" value="22">
+      <div class="bc-auto-val" id="bcYDDisplay">
+        <span id="bcYDText">— days</span>
+        <span class="bc-auto-badge">AUTO</span>
+      </div>
+      <div class="bc-field-hint" id="bcYDHint">Working days minus your absences</div>
     </div>
     <div class="bc-field">
       <div class="bc-field-label">Current Revenue (£) <span id="bcAutoTag" style="display:none;font-size:9px;font-weight:700;background:rgba(45,206,137,.15);color:var(--green);padding:2px 7px;border-radius:10px;letter-spacing:.04em;margin-left:4px;">AUTO</span></div>
@@ -2751,31 +2761,7 @@ function bcInit(){
   populateAllSelects();
   const bcMonthEl = document.getElementById('bcMonth');
   if(bcMonthEl && !bcMonthEl.value) bcMonthEl.value = APP.activeMonth;
-  // Init static working-day dropdowns (manual selection only)
-  bcInitDayDropdowns();
   bcOnMonthChange();
-}
-
-function bcInitDayDropdowns(){
-  const wdmEl = document.getElementById('bcWorkingDaysMonth');
-  if(wdmEl && !wdmEl.options.length){
-    for(let d = 18; d <= 23; d++){
-      const o = document.createElement('option');
-      o.value = d; o.textContent = d + ' days';
-      if(d === 22) o.selected = true;
-      wdmEl.appendChild(o);
-    }
-  }
-  const ydEl = document.getElementById('bcYourDays');
-  if(ydEl && !ydEl.options.length){
-    const wdm = parseInt(wdmEl?.value) || 22;
-    for(let d = 1; d <= wdm; d++){
-      const o = document.createElement('option');
-      o.value = d; o.textContent = d + (d === 1 ? ' day' : ' days');
-      if(d === wdm) o.selected = true;
-      ydEl.appendChild(o);
-    }
-  }
 }
 
 function bcOnMonthChange(){
@@ -2797,7 +2783,24 @@ function bcAutoPopulate(){
   const p  = APP.people.find(x => x.name === myName);
   const ep = p ? getPersonForMonth(p, mk) : null;
   _bcMonthlyTarget = ep ? Math.round((ep.riskPerDay||0) * (ep.daysT||0)) : 0;
-  // Only auto-pull revenue — days are set manually by the consultant
+
+  // ── Auto-calculate Working Days in Month (weekdays - bank holidays) ──
+  const wdm = bcCountMonthWorkDays(mk);
+  const wdmInput = document.getElementById('bcWorkingDaysMonth');
+  const wdmText  = document.getElementById('bcWDMText');
+  if(wdmInput) wdmInput.value = wdm;
+  if(wdmText)  wdmText.textContent = wdm + ' day' + (wdm === 1 ? '' : 's');
+
+  // ── Auto-calculate Your Working Days (wdm - absences) ──
+  const yourDays  = bcCountYourWorkDays(mk);
+  const ydInput   = document.getElementById('bcYourDays');
+  const ydText    = document.getElementById('bcYDText');
+  const ydHint    = document.getElementById('bcYDHint');
+  if(ydInput) ydInput.value = yourDays;
+  if(ydText)  ydText.textContent = yourDays + ' day' + (yourDays === 1 ? '' : 's');
+  if(ydHint)  ydHint.textContent = bcYourDaysHint(mk, wdm, yourDays);
+
+  // ── Auto-pull revenue ──
   if(!_bcRevenueManual){
     const entries = getEntries(mk);
     const mine    = entries.filter(e => e.name === myName);
@@ -2824,7 +2827,10 @@ function bcCountMonthWorkDays(mk){
   let count = 0;
   for(let d = 1; d <= lastDay; d++){
     const dow = new Date(y, m-1, d).getDay();
-    if(dow !== 0 && dow !== 6) count++;
+    if(dow !== 0 && dow !== 6){
+      const ds = y + '-' + String(m).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+      if(!isBankHoliday(ds)) count++;
+    }
   }
   return count;
 }
@@ -2840,47 +2846,56 @@ function bcCountElapsedWorkDays(mk){
   return count;
 }
 
-function bcSetWorkingDaysMonth(selectedVal){
-  const el = document.getElementById('bcWorkingDaysMonth');
-  if(!el) return;
-  el.innerHTML = '';
-  const min = Math.min(18, selectedVal), max = Math.max(23, selectedVal);
-  for(let d = min; d <= max; d++){
-    const o = document.createElement('option');
-    o.value = d; o.textContent = d + ' days';
-    if(d === selectedVal) o.selected = true;
-    el.appendChild(o);
+// Count the working days in the month for the logged-in user:
+// = total working weekdays (excl. bank holidays) minus their absences (all types)
+// Half-day absences count as 0.5; quarter-day as 0.25; full days as 1.
+function bcCountYourWorkDays(mk){
+  const myName = _currentUser?.name || '';
+  const totalWD = bcCountMonthWorkDays(mk);
+  if(!myName || typeof getAbsences !== 'function') return totalWD;
+  const abs = getAbsences(mk, myName);
+  const [y, m] = mk.split('-').map(Number);
+  let deducted = 0;
+  for(const ds of Object.keys(abs)){
+    // Only count dates within this month
+    const parts = ds.split('-').map(Number);
+    if(parts[0] !== y || parts[1] !== m) continue;
+    const dow = new Date(ds).getDay();
+    if(dow === 0 || dow === 6) continue; // weekend
+    if(isBankHoliday(ds)) continue;      // already excluded from total
+    const entry = abs[ds];
+    const absType = (typeof ABS_TYPES !== 'undefined' && ABS_TYPES[entry.type]) || { defaultHrs: 7.5 };
+    const hrs = entry.hours || absType.defaultHrs || 7.5;
+    deducted += hrs / 7.5; // 7.5 = full day
   }
+  return Math.max(0, Math.round((totalWD - deducted) * 2) / 2); // nearest 0.5
 }
 
-function bcSetYourDays(maxDays, selectedVal){
-  const el = document.getElementById('bcYourDays');
-  if(!el) return;
-  const useVal = selectedVal > 0 ? selectedVal : maxDays;
-  el.innerHTML = '';
-  for(let d = 1; d <= maxDays; d++){
-    const o = document.createElement('option');
-    o.value = d; o.textContent = d + (d === 1 ? ' day' : ' days');
-    if(d === useVal) o.selected = true;
-    el.appendChild(o);
+// Build a short breakdown label for the Your Working Days hint
+function bcYourDaysHint(mk, totalWD, yourDays){
+  const myName = _currentUser?.name || '';
+  if(!myName || typeof getAbsences !== 'function') return 'Working days minus your absences';
+  const abs = getAbsences(mk, myName);
+  const [y, m] = mk.split('-').map(Number);
+  const counts = {};
+  for(const ds of Object.keys(abs)){
+    const parts = ds.split('-').map(Number);
+    if(parts[0] !== y || parts[1] !== m) continue;
+    const dow = new Date(ds).getDay();
+    if(dow === 0 || dow === 6) continue;
+    if(isBankHoliday(ds)) continue;
+    const entry = abs[ds];
+    const absType = (typeof ABS_TYPES !== 'undefined' && ABS_TYPES[entry.type]) || { label: entry.type || 'Absence' };
+    const label = absType.label || entry.type || 'Absence';
+    counts[label] = (counts[label] || 0) + 1;
   }
+  const parts = Object.entries(counts).map(([lbl,n]) => n + ' ' + lbl.toLowerCase());
+  if(!parts.length) return 'No absences recorded · ' + yourDays + ' of ' + totalWD + ' days';
+  return parts.join(', ') + ' deducted';
 }
 
-function bcUpdateYourDays(){
-  const wdm = parseInt(document.getElementById('bcWorkingDaysMonth').value) || 22;
-  const yd  = document.getElementById('bcYourDays');
-  const cur = parseInt(yd.value) || 0;
-  yd.innerHTML = '';
-  for(let d=1;d<=wdm;d++){
-    const o = document.createElement('option');
-    o.value = d; o.textContent = d + (d===1?' day':' days');
-    if(d===cur || (cur===0 && d===wdm)) o.selected = true;
-    yd.appendChild(o);
-  }
-}
 
-document.getElementById('bcWorkingDaysMonth').addEventListener('change', ()=>{ bcUpdateYourDays(); bcRecalc(); });
-document.getElementById('bcYourDays').addEventListener('change', ()=>{ bcRecalc(); });
+
 
 function bcSetType(t){
   _bcType = t;
