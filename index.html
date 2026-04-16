@@ -7560,7 +7560,238 @@ function renderSpTable(){
       <td ${cellS('#e0e4ec',false)}></td>
     </tr>`;
 
-    document.getElementById('spContent').innerHTML = `
+
+    // ══════════════════════════════════════════════════════════════════
+    // INSIGHTS PANEL — day-of-week stats, quarterly cards, highlights
+    // ══════════════════════════════════════════════════════════════════
+
+    // 1. Entry lookup: name → date → revenue
+    const _iEntries = {}; // name -> {date: revenue}
+    people.forEach(p => {
+      _iEntries[p.name] = {};
+      _spMonths().forEach(mk => {
+        ((data.months||{})[mk]||{entries:[]}).entries
+          .filter(e => e.name === p.name && e.date)
+          .forEach(e => { _iEntries[p.name][e.date] = e.revenue||0; });
+      });
+    });
+
+    // 2. Off-days per person (holidays + sick + absences)
+    const _iOff = {};
+    people.forEach(p => {
+      _iOff[p.name] = new Set();
+      _spMonths().forEach(mk => {
+        (((data.holidays||{})[mk])||{})[p.name]||[]).forEach(d => _iOff[p.name].add(d));
+        (((data.sickness||{})[mk])||{})[p.name]||[]).forEach(d => _iOff[p.name].add(d));
+        const absObj = (((data.absences||{})[mk])||{})[p.name] || {};
+        Object.entries(absObj).forEach(([ds,ab]) => {
+          const t = (ab||{}).type;
+          if(t && typeof ABS_NON_DEDUCTIBLE !== 'undefined' && ABS_NON_DEDUCTIBLE.includes(t) && t !== 'B')
+            _iOff[p.name].add(ds);
+        });
+      });
+    });
+
+    // 3. Accumulate DOW stats (Mon=1…Fri=5) — past days only, exclude off-days/BH
+    const todaySp = (new Date()).toISOString().slice(0,10);
+    const _dow = {};
+    [1,2,3,4,5].forEach(d => _dow[d] = {name:['','Mon','Tue','Wed','Thu','Fri'][d], rev:0, days:0, hits:0});
+
+    for(let mo=1; mo<=12; mo++){
+      const mk = String(yr)+'-'+String(mo).padStart(2,'0');
+      const dim = new Date(yr, mo, 0).getDate();
+      for(let d=1; d<=dim; d++){
+        const ds = mk+'-'+String(d).padStart(2,'0');
+        if(ds > todaySp) continue;
+        const dow = new Date(yr, mo-1, d).getDay();
+        if(dow===0||dow===6) continue;
+        if(typeof isBankHoliday==='function' && isBankHoliday(ds)) continue;
+        people.forEach(p => {
+          if(_iOff[p.name].has(ds)) return;
+          const rev = (_iEntries[p.name]||{})[ds] !== undefined ? (_iEntries[p.name]||{})[ds] : 0;
+          _dow[dow].days++;
+          _dow[dow].rev += rev;
+          if(rev > 0) _dow[dow].hits++;
+        });
+      }
+    }
+
+    // 4. Annual highlights
+    const _mWithData = allMonthlyData.filter(r => r.hasData && r.actual > 0);
+    const _bestMo  = _mWithData.reduce((b,r) => (!b||r.actual>b.actual)?r:b, null);
+    const _worstMo = _mWithData.filter(r=>r.pct!==null).reduce((b,r)=>(!b||r.pct<b.pct)?r:b, null);
+
+    let _bestDay = {ds:null, rev:0, name:''};
+    people.forEach(p => {
+      Object.entries(_iEntries[p.name]||{}).forEach(([ds,rev]) => {
+        if(rev > _bestDay.rev) _bestDay = {ds, rev, name: people.length>1?p.name:''};
+      });
+    });
+
+    const _totalWorked = Object.values(_dow).reduce((s,v)=>s+v.days,0);
+    const _totalHits   = Object.values(_dow).reduce((s,v)=>s+v.hits,0);
+    const _consistPct  = _totalWorked>0 ? Math.round(_totalHits/_totalWorked*100) : null;
+    const _aboveTgt    = allMonthlyData.filter(r=>r.pct!==null&&r.pct>=100).length;
+    const _belowTgt    = allMonthlyData.filter(r=>r.pct!==null&&r.pct<100).length;
+
+    // Annual RPD earned
+    const _annRPD = tot.actual>0&&_totalWorked>0 ? Math.round(tot.actual/_totalWorked) : null;
+    const _annRPDtgt = tot.target>0&&_totalWorked>0 ? Math.round(tot.target/_totalWorked) : null;
+
+    // 5. Quarterly cards helper (reuse existing qTotals)
+    const _qCards = [0,1,2,3].map(qi => {
+      const q = qTotals(qi);
+      const label = ['Q1 (Jan–Mar)','Q2 (Apr–Jun)','Q3 (Jul–Sep)','Q4 (Oct–Dec)'][qi];
+      return {...q, label, qi};
+    });
+
+    // ── Build insights HTML ──────────────────────────────────────────
+
+    // Helper colours
+    const _pctCol = p => p===null?'#999':p>=100?'#0e6e44':p>=75?'#92540a':'#9b1d35';
+    const _pctBg  = p => p===null?'#f0f0f0':p>=100?'#c8f2d8':p>=75?'#fef3c0':'#fde0e6';
+    const _fmtK   = v => v>=1000?'£'+(v/1000).toFixed(1)+'k':'£'+v.toLocaleString();
+
+    // ── Quarterly insight cards ──────────────────────────────────────
+    const _qCardsHtml = _qCards.map(q => {
+      const rPct = q.pct;
+      const nPct = q.nmPct;
+      const hasQ = q.actual > 0 || q.target > 0;
+      const arrow = !hasQ ? '' : rPct===null ? '' : rPct>=100
+        ? '<span style="color:#0e6e44;font-size:13px">▲</span>'
+        : '<span style="color:#c0183c;font-size:13px">▼</span>';
+      return `
+        <div style="flex:1;min-width:160px;background:#fff;border:1px solid #dde3ee;border-radius:8px;overflow:hidden;">
+          <div style="background:#1a4040;color:#fff;padding:7px 12px;font-size:11px;font-weight:700;letter-spacing:.04em">${q.label}</div>
+          ${!hasQ ? `<div style="padding:14px 12px;font-size:12px;color:#bbb;text-align:center">No data</div>` : `
+          <div style="padding:10px 12px;display:flex;flex-direction:column;gap:6px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:10px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Revenue</span>
+              <span style="font-size:11px;font-weight:700;color:#111">${fmtGBP(q.actual)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:10px;color:#666">vs Target</span>
+              <span style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:700;background:${_pctBg(rPct)};color:${_pctCol(rPct)};padding:2px 8px;border-radius:20px;">${arrow}${rPct===null?'—':rPct+'%'}</span>
+            </div>
+            <div style="height:1px;background:#eee;margin:2px 0"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:10px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.04em">NM</span>
+              <span style="font-size:11px;font-weight:700;color:#111">${fmtNm(q.nmActual)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:10px;color:#666">vs Target</span>
+              <span style="font-size:12px;font-weight:700;background:${_pctBg(nPct)};color:${_pctCol(nPct)};padding:2px 8px;border-radius:20px;">${nPct===null?'—':nPct+'%'}</span>
+            </div>
+            ${q.outPct!==null?`<div style="height:1px;background:#eee;margin:2px 0"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:10px;color:#666;font-weight:600;text-transform:uppercase;letter-spacing:.04em">Outcomes</span>
+              <span style="font-size:12px;font-weight:700;background:${_pctBg(q.outPct)};color:${_pctCol(q.outPct)};padding:2px 8px;border-radius:20px;">${q.outPct}%</span>
+            </div>`:''}
+          </div>`}
+        </div>`;
+    }).join('');
+
+    // ── Day-of-week grid ─────────────────────────────────────────────
+    const _dowCols = [1,2,3,4,5].map(d => {
+      const s = _dow[d];
+      const avg = s.days>0 ? Math.round(s.rev/s.days) : null;
+      const hit = s.days>0 ? Math.round(s.hits/s.days*100) : null;
+      const hitBg  = hit===null?'#f0f0f0':hit>=60?'#c8f2d8':hit>=40?'#fef3c0':'#fde0e6';
+      const hitCol = hit===null?'#bbb':hit>=60?'#0e6e44':hit>=40?'#92540a':'#9b1d35';
+      const maxAvg = Math.max(...[1,2,3,4,5].map(x=>_dow[x].days>0?Math.round(_dow[x].rev/_dow[x].days):0));
+      const barW   = avg!==null&&maxAvg>0 ? Math.round(avg/maxAvg*100) : 0;
+      return {s, avg, hit, hitBg, hitCol, barW};
+    });
+
+    const _dowHtml = `
+      <table style="border-collapse:collapse;width:100%;font-family:Calibri,Arial,sans-serif;">
+        <thead>
+          <tr>
+            <th style="padding:8px 12px;background:#1a4040;color:#fff;border:1px solid #222;text-align:left;font-size:11px;font-weight:700;min-width:120px;">Metric</th>
+            ${[1,2,3,4,5].map(d=>`<th style="padding:8px 12px;background:#1a4040;color:#fff;border:1px solid #222;text-align:center;font-size:11px;font-weight:700;">${_dow[d].name}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:6px 12px;background:#f5f7fb;border:1px solid #dde;font-size:11px;font-weight:700;color:#444;">Avg Revenue / Day</td>
+            ${_dowCols.map(c=>`<td style="padding:6px 10px;border:1px solid #dde;text-align:center;background:#fff;">
+              <div style="font-size:13px;font-weight:700;color:#111;font-family:Calibri">${c.avg!==null?'£'+c.avg.toLocaleString():'—'}</div>
+              ${c.avg!==null?`<div style="margin-top:4px;height:4px;background:#e8ecf5;border-radius:2px;overflow:hidden;"><div style="height:100%;width:${c.barW}%;background:#1a8c6c;border-radius:2px;"></div></div>`:''}
+            </td>`).join('')}
+          </tr>
+          <tr>
+            <td style="padding:6px 12px;background:#f5f7fb;border:1px solid #dde;font-size:11px;font-weight:700;color:#444;">Hit Rate</td>
+            ${_dowCols.map(c=>`<td style="padding:6px 10px;border:1px solid #dde;text-align:center;background:${c.hitBg};">
+              <span style="font-size:12px;font-weight:700;color:${c.hitCol};">${c.hit!==null?c.hit+'%':'—'}</span>
+              ${c.hit!==null?`<div style="font-size:10px;color:${c.hitCol};opacity:.75;margin-top:1px">${c.s.hits}/${c.s.days} days</div>`:''}
+            </td>`).join('')}
+          </tr>
+          <tr>
+            <td style="padding:6px 12px;background:#f5f7fb;border:1px solid #dde;font-size:11px;font-weight:700;color:#444;">Days Worked</td>
+            ${_dowCols.map(c=>`<td style="padding:6px 10px;border:1px solid #dde;text-align:center;background:#fff;font-size:12px;font-weight:600;color:#333;">${c.s.days||'—'}</td>`).join('')}
+          </tr>
+          <tr>
+            <td style="padding:6px 12px;background:#f5f7fb;border:1px solid #dde;font-size:11px;font-weight:700;color:#444;">Total Revenue</td>
+            ${_dowCols.map(c=>`<td style="padding:6px 10px;border:1px solid #dde;text-align:center;background:#fff;font-size:12px;font-weight:700;color:#0e6e44;">${c.s.rev>0?'£'+Math.round(c.s.rev).toLocaleString():'—'}</td>`).join('')}
+          </tr>
+        </tbody>
+      </table>`;
+
+    // ── Annual highlights row ────────────────────────────────────────
+    const _hlCards = [
+      { icon:'🏆', label:'Best Month', val: _bestMo ? SP_MONTH_NAMES[_bestMo.idx] : '—',
+        sub: _bestMo ? '£'+Math.round(_bestMo.actual).toLocaleString()+(_bestMo.pct!==null?' · '+_bestMo.pct+'%':'') : '' },
+      { icon:'📉', label:'Lowest Month', val: _worstMo ? SP_MONTH_NAMES[_worstMo.idx] : '—',
+        sub: _worstMo ? '£'+Math.round(_worstMo.actual).toLocaleString()+(_worstMo.pct!==null?' · '+_worstMo.pct+'%':'') : '' },
+      { icon:'💰', label:'Best Single Day', val: _bestDay.ds ? '£'+Math.round(_bestDay.rev).toLocaleString() : '—',
+        sub: _bestDay.ds ? (new Date(_bestDay.ds)).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+(_bestDay.name?' · '+_bestDay.name:'') : '' },
+      { icon:'🎯', label:'Consistency', val: _consistPct!==null?_consistPct+'%':'—',
+        sub: _totalWorked>0?_totalHits+' sales days / '+_totalWorked+' worked':'' },
+      { icon:'📊', label:'Months Above Target', val: _aboveTgt+' / '+(allMonthlyData.filter(r=>r.pct!==null).length),
+        sub: _belowTgt > 0 ? _belowTgt+' below target' : 'All on track ✓' },
+      { icon:'⚡', label:'Avg RPD (Earned)', val: _annRPD!==null?'£'+_annRPD.toLocaleString():'—',
+        sub: _annRPDtgt!==null?'Target: £'+_annRPDtgt.toLocaleString()+' / day':'' },
+    ];
+
+    const _hlHtml = _hlCards.map(c=>`
+      <div style="flex:1;min-width:130px;background:#fff;border:1px solid #dde3ee;border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;">
+        <div style="font-size:16px;line-height:1">${c.icon}</div>
+        <div style="font-size:10px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.04em;margin-top:2px">${c.label}</div>
+        <div style="font-size:15px;font-weight:700;color:#111;line-height:1.2">${c.val}</div>
+        ${c.sub?`<div style="font-size:10px;color:#888;margin-top:1px">${c.sub}</div>`:''}
+      </div>`).join('');
+
+    const insightsHtml = `
+      <div style="margin-top:20px;background:#f8f9fc;border:1px solid #dde3ee;border-radius:10px;overflow:hidden;">
+
+        <!-- Quarterly Breakdown -->
+        <div style="background:#1a4040;color:#fff;padding:10px 16px;font-size:12px;font-weight:700;letter-spacing:.03em;display:flex;align-items:center;gap:8px;">
+          📊 Quarterly Breakdown
+        </div>
+        <div style="padding:14px 14px;display:flex;gap:12px;flex-wrap:wrap;">
+          ${_qCardsHtml}
+        </div>
+
+        <!-- Day-of-Week Performance -->
+        <div style="background:#1a4040;color:#fff;padding:10px 16px;font-size:12px;font-weight:700;letter-spacing:.03em;display:flex;align-items:center;gap:8px;">
+          📅 Day-of-Week Performance <span style="font-size:10px;font-weight:400;opacity:.75;margin-left:6px">Holidays, sick days & bank holidays excluded · Past working days only</span>
+        </div>
+        <div style="padding:14px;overflow-x:auto;">
+          ${_dowHtml}
+        </div>
+
+        <!-- Annual Highlights -->
+        <div style="background:#1a4040;color:#fff;padding:10px 16px;font-size:12px;font-weight:700;letter-spacing:.03em;">
+          🏅 Annual Highlights
+        </div>
+        <div style="padding:14px;display:flex;gap:10px;flex-wrap:wrap;">
+          ${_hlHtml}
+        </div>
+
+      </div>`;
+
+
+        document.getElementById('spContent').innerHTML = `
       <div style="background:${HDR};color:#fff;padding:11px 18px;border-radius:8px 8px 0 0;font-size:13px;font-weight:700;letter-spacing:.02em;">${headerTitle}</div>
       <div style="background:#fff;border-radius:0 0 8px 8px;overflow-x:auto;box-shadow:0 2px 16px rgba(0,0,0,.18);">
         <table style="border-collapse:collapse;width:100%;font-family:Calibri,Arial,sans-serif;min-width:920px;">
@@ -7590,7 +7821,8 @@ function renderSpTable(){
         <span><span style="color:#d4820a;font-weight:700">■</span> 75–89%</span>
         <span><span style="color:#f5365c;font-weight:700">■</span> Below target / &lt;75%</span>
         <span style="color:var(--text3)">Outcomes = Fair / total assessed · Reg Compliance = Reg Pass / total</span>
-      </div>`;
+      </div>
+      ${insightsHtml}`;
   }
 
   // ── Fetch compliance data then render ────────────────────────────
