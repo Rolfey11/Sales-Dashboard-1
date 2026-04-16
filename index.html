@@ -5504,7 +5504,11 @@ function renderDashboard(){
       const rpd = ep.riskPerDay||0;
       if(!rpd) return;
       const st = getDayStatus(mk, p.name, ds);
-      if(st!=='hol'&&st!=='bh'){ dayRR+=rpd; dayNmRR+=1.75; }
+      if(st!=='hol'&&st!=='bh'){
+        const personOvr = ((APP.personRROverrides||{})[p.name]||{})[mk]?.[ds];
+        dayRR += personOvr !== undefined ? personOvr : rpd;
+        dayNmRR += 1.75;
+      }
     });
     const dayActual = entries.filter(e=>e.date===ds).reduce((s,e)=>s+(e.revenue||0),0);
     const dayNm     = entries.filter(e=>e.date===ds).reduce((s,e)=>s+(e.nm||0),0);
@@ -5618,7 +5622,11 @@ function renderDashboard(){
     let dayRR=0, dayNmRR=0;
     memberRPDsDash.forEach(({name,rpd})=>{
       const st = getDayStatus(mk,name,ds);
-      if(st!=='hol'&&st!=='bh'){ dayRR+=rpd; dayNmRR+=1.75; }
+      if(st!=='hol'&&st!=='bh'){
+        const personOvr = ((APP.personRROverrides||{})[name]||{})[mk]?.[ds];
+        dayRR += personOvr !== undefined ? personOvr : rpd;
+        dayNmRR += 1.75;
+      }
     });
     const dayActual = (dayLookupDash[ds]||{}).rev||0;
     const dayNm     = (dayLookupDash[ds]||{}).nm||0;
@@ -5639,11 +5647,7 @@ function renderDashboard(){
     dashTableRows += `<tr style="border-bottom:1px solid var(--border);font-size:12px;font-family:var(--fm);">
       <td style="padding:8px 14px;color:var(--text2);white-space:nowrap">${dateLabel}</td>
       <td style="padding:8px 14px;text-align:right;color:${dayActual>0?'var(--text)':'var(--text3)'};font-weight:600">£${Math.round(dayActual).toLocaleString()}</td>
-      <td id="rrcell_${ds}" style="padding:6px 10px;text-align:right;white-space:nowrap">
-        <span style="font-family:var(--fm);font-size:12px;color:${isOvr?'var(--accent)':'var(--text3)'};font-weight:${isOvr?'700':'400'}">£${Math.round(dayRR).toLocaleString()}</span>
-        ${isOvr?`<button onclick="saveRROverride('${teamKey}','${mk}','${ds}','')" title="Reset to calculated £${Math.round(_calcDayRR).toLocaleString()}" style="margin-left:3px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:10px;padding:1px 3px;border-radius:3px;opacity:.7;line-height:1;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">↺</button>`:''}
-        <button onclick="editRRCell('${teamKey}','${mk}','${ds}',${Math.round(_calcDayRR)})" title="Edit run rate" style="margin-left:2px;background:none;border:1px solid var(--border);cursor:pointer;color:var(--text3);font-size:10px;padding:2px 5px;border-radius:3px;line-height:1;font-family:var(--fm);" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text3)'">✎</button>
-      </td>
+      <td style="padding:8px 14px;text-align:right;font-family:var(--fm);font-size:12px;color:var(--text3)">£${Math.round(dayRR).toLocaleString()}</td>
       <td style="padding:8px 14px;text-align:right;color:${diffCls};font-weight:600">${diff>=0?'+':''}£${Math.round(diff).toLocaleString()}</td>
       <td style="padding:8px 14px;text-align:right;color:${dayNm>0?'var(--text)':'var(--text3)'};">${dayNm}</td>
       <td style="padding:8px 14px;text-align:right;color:var(--text3)">${dayNmRR.toFixed(2)}</td>
@@ -10991,7 +10995,9 @@ function renderTeamDashboard(container, teamKey){
     // Calculate base run rate then apply any manual override for this day
     const _calcDayRR = memberRPDs.reduce((s,{name,rpd})=>{
       const st = getDayStatus(mk,name,ds);
-      return s + (st!=='hol'&&st!=='bh' ? rpd : 0);
+      if(st==='hol'||st==='bh') return s;
+      const personOvr = ((APP.personRROverrides||{})[name]||{})[mk]?.[ds];
+      return s + (personOvr !== undefined ? personOvr : rpd);
     }, 0);
     const _rrOvr = ((APP.rrOverrides||{})[teamKey]||{})[mk]?.[ds];
     const dayRR  = _rrOvr !== undefined ? _rrOvr : _calcDayRR;
