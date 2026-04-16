@@ -11989,27 +11989,40 @@ function _renderSumTrends(){
   const _mkEntries = {};
   allMks.forEach(mk => { _mkEntries[mk] = getEntries(mk); });
 
+  // Count CALENDAR DAYS not person-days — so 2 Mondays = 2, not 2 × num_consultants
   allMks.forEach(mk => {
     if(mk < dowStartMk) return;
+    // Only process months where at least one consultant has a target
+    const activePeople = people.filter(p => {
+      const pm = _getConsultantMonthStats(p.name, mk);
+      return pm && pm.target > 0;
+    });
+    if(!activePeople.length) return;
+
     const wdDates = workingDatesInMonth(mk).filter(ds => ds <= today);
     wdDates.forEach(ds => {
       const dow = new Date(ds).getDay();
       if(dow < 1 || dow > 5) return;
-      people.forEach(p => {
-        // Only count months where this person has a target set — this is the key guard
-        // that prevents counting pre-data months where targets weren't configured yet
-        const pMon = _getConsultantMonthStats(p.name, mk);
-        if(!pMon || pMon.target <= 0) return;
+
+      // Collect revenue across all active consultants who were actually in that day
+      let dayRev = 0, dayNm = 0, anyWorking = false, anyHit = false;
+      activePeople.forEach(p => {
         const status = getDayStatus(mk, p.name, ds);
-        if(status === 'hol' || status === 'sick' || status === 'bh') return;
+        if(status === 'hol' || status === 'sick' || status === 'bh') return; // skip off-days
+        anyWorking = true;
         const ent = _mkEntries[mk].find(e => e.name === p.name && e.date === ds);
         const rev = ent ? (ent.revenue||0) : 0;
         const nm  = ent ? (ent.nm||0) : 0;
-        dowBuckets[dow].days++;
-        dowBuckets[dow].rev += rev;
-        dowBuckets[dow].nms += nm;
-        if(rev > 0) dowBuckets[dow].hits++;
+        dayRev += rev;
+        dayNm  += nm;
+        if(rev > 0) anyHit = true;
       });
+
+      if(!anyWorking) return; // whole team was off — skip this calendar day entirely
+      dowBuckets[dow].days++;          // +1 calendar day
+      dowBuckets[dow].rev  += dayRev;  // total team revenue on this calendar day
+      dowBuckets[dow].nms  += dayNm;
+      if(anyHit) dowBuckets[dow].hits++; // did anyone make a sale this day?
     });
   });
 
@@ -12194,11 +12207,11 @@ function _renderSumTrends(){
             <td style="padding:8px 14px;font-size:11px;font-weight:700;color:var(--text3);background:var(--surface2)">Hit Rate</td>
             ${dowData.map(x=>`<td style="padding:8px 12px;text-align:center;background:var(--surface)">
               ${pctBadge(x.hitRate,'%')}
-              <div style="font-size:10px;color:var(--text3);margin-top:3px;font-family:var(--fm)">${x.hits}/${x.days} days</div>
+              <div style="font-size:10px;color:var(--text3);margin-top:3px;font-family:var(--fm)">${x.hits} of ${x.days} days</div>
             </td>`).join('')}
           </tr>
           <tr style="border-bottom:1px solid var(--border)">
-            <td style="padding:8px 14px;font-size:11px;font-weight:700;color:var(--text3);background:var(--surface2)">Days Worked</td>
+            <td style="padding:8px 14px;font-size:11px;font-weight:700;color:var(--text3);background:var(--surface2)">Calendar Days</td>
             ${dowData.map(x=>`<td style="padding:8px 12px;text-align:center;font-size:13px;font-weight:600;color:var(--text);background:var(--surface)">${x.days}</td>`).join('')}
           </tr>
           <tr>
