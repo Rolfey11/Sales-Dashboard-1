@@ -1236,6 +1236,133 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 @keyframes cinSlideUp{ from{opacity:0;transform:translateY(40px)} to{opacity:1;transform:translateY(0)} }
 
 /* ═══════════════════════════════════════════════════════════════════
+   MID-MONTH CINEMATIC SUMMARY
+   ═══════════════════════════════════════════════════════════════════ */
+#mmCinOverlay{
+  position:fixed;inset:0;z-index:99999;display:none;
+  background:#000;overflow:hidden;
+  flex-direction:column;align-items:center;justify-content:center;
+}
+#mmCinOverlay.show{display:flex;}
+#mmCinBg{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+#mmCinBgCanvas{position:absolute;inset:0;width:100%;height:100%;}
+.mmcin-gradient{
+  position:absolute;inset:0;
+  background:radial-gradient(ellipse 80% 60% at 50% 40%,rgba(20,40,80,.9) 0%,rgba(5,8,20,.97) 65%,#000 100%);
+}
+.mmcin-scene{
+  position:relative;z-index:5;width:100%;max-width:980px;
+  padding:32px 24px 24px;display:none;flex-direction:column;align-items:center;
+  text-align:center;
+}
+.mmcin-scene.active{display:flex;}
+
+/* scene nav dots */
+#mmCinDots{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:10;}
+.mmcin-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.22);cursor:pointer;transition:all .3s;}
+.mmcin-dot.active{background:#fff;width:22px;border-radius:3px;}
+
+/* close / skip */
+#mmCinClose{position:absolute;top:20px;right:24px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.7);font-family:var(--fh);font-size:13px;font-weight:600;padding:7px 18px;border-radius:40px;cursor:pointer;z-index:20;transition:all .2s;}
+#mmCinClose:hover{background:rgba(255,255,255,.2);color:#fff;}
+#mmCinPrev,#mmCinNext{position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.6);width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:20;font-size:18px;transition:all .2s;}
+#mmCinPrev{left:16px;}
+#mmCinNext{right:16px;}
+#mmCinPrev:hover,#mmCinNext:hover{background:rgba(255,255,255,.18);color:#fff;}
+
+/* shared text styles */
+.mmcin-eyebrow{font-family:var(--fm);font-size:10px;font-weight:700;letter-spacing:.3em;text-transform:uppercase;color:rgba(255,255,255,.38);margin-bottom:14px;}
+.mmcin-title{font-family:var(--fh);font-size:clamp(26px,4.5vw,58px);font-weight:800;color:#fff;letter-spacing:-.03em;line-height:1.06;margin-bottom:8px;}
+.mmcin-title .hi{background:linear-gradient(135deg,#2dce89,#5e9cf5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.mmcin-title .hi2{background:linear-gradient(135deg,#fbb83a,#f5365c);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.mmcin-title .hi3{background:linear-gradient(135deg,#a78bfa,#5e9cf5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.mmcin-sub{font-family:var(--fm);font-size:clamp(13px,1.8vw,18px);color:rgba(255,255,255,.45);margin-bottom:36px;}
+
+/* scene 1 — intro */
+.mmcin-big-num{font-family:var(--fh);font-size:clamp(48px,8vw,96px);font-weight:900;color:#fff;letter-spacing:-.04em;line-height:1;margin-bottom:6px;text-shadow:0 0 80px rgba(45,206,137,.5),0 0 160px rgba(45,206,137,.2);}
+.mmcin-big-num.amber{text-shadow:0 0 80px rgba(251,184,58,.5),0 0 160px rgba(251,184,58,.2);}
+.mmcin-big-num.red{text-shadow:0 0 80px rgba(245,54,92,.5),0 0 160px rgba(245,54,92,.2);}
+
+/* stat pills row */
+.mmcin-pills{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-bottom:32px;}
+.mmcin-pill{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);border-radius:12px;padding:16px 22px;min-width:130px;transition:transform .2s;}
+.mmcin-pill:hover{transform:translateY(-3px);}
+.mmcin-pill-val{font-family:var(--fm);font-size:1.6rem;font-weight:800;color:#fff;line-height:1;margin-bottom:4px;}
+.mmcin-pill-lbl{font-size:9px;font-weight:700;color:rgba(255,255,255,.38);letter-spacing:.1em;text-transform:uppercase;}
+
+/* progress bar */
+.mmcin-progress-wrap{width:100%;max-width:600px;margin:0 auto 36px;background:rgba(255,255,255,.07);border-radius:8px;height:10px;overflow:hidden;position:relative;}
+.mmcin-progress-bar{height:100%;border-radius:8px;width:0%;transition:width 1.6s cubic-bezier(.16,1,.3,1);position:relative;}
+.mmcin-progress-bar::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.3),transparent);animation:shimmer 1.8s infinite;}
+@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(200%)}}
+
+/* team cards */
+.mmcin-teams{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%;margin-bottom:28px;}
+@media(max-width:640px){.mmcin-teams{grid-template-columns:1fr;}}
+.mmcin-team-card{background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:20px 18px;text-align:left;position:relative;overflow:hidden;transition:transform .2s,border-color .2s;}
+.mmcin-team-card:hover{transform:translateY(-4px);}
+.mmcin-team-card::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity .3s;}
+.mmcin-team-card.tc-g::before{background:radial-gradient(ellipse at 100% 0%,rgba(45,206,137,.15),transparent 60%);}
+.mmcin-team-card.tc-j::before{background:radial-gradient(ellipse at 100% 0%,rgba(94,156,245,.15),transparent 60%);}
+.mmcin-team-card.tc-d::before{background:radial-gradient(ellipse at 100% 0%,rgba(167,139,250,.15),transparent 60%);}
+.mmcin-team-card:hover::before{opacity:1;}
+.mmcin-tc-label{font-size:11px;font-weight:700;color:rgba(255,255,255,.38);letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px;font-family:var(--fm);}
+.mmcin-tc-rev{font-family:var(--fh);font-size:1.7rem;font-weight:800;color:#fff;line-height:1;margin-bottom:4px;}
+.mmcin-tc-pct{font-size:12px;font-family:var(--fm);margin-bottom:10px;}
+.mmcin-tc-bar{height:5px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden;margin-bottom:10px;}
+.mmcin-tc-bar-fill{height:100%;border-radius:3px;width:0%;transition:width 1.4s cubic-bezier(.16,1,.3,1);}
+.mmcin-tc-meta{display:flex;gap:12px;flex-wrap:wrap;}
+.mmcin-tc-meta span{font-size:10px;font-family:var(--fm);color:rgba(255,255,255,.45);}
+.mmcin-tc-meta b{color:rgba(255,255,255,.85);}
+.mmcin-tc-rank{position:absolute;top:14px;right:14px;font-size:22px;}
+
+/* individual spotlights */
+.mmcin-podium{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;width:100%;margin-bottom:28px;}
+.mmcin-pod2{border-radius:16px;padding:18px 16px;text-align:center;min-width:140px;max-width:170px;flex:1;position:relative;overflow:hidden;transition:transform .2s;}
+.mmcin-pod2:hover{transform:translateY(-5px);}
+.mmcin-pod2.p-gold{background:linear-gradient(160deg,rgba(255,215,0,.18),rgba(255,140,0,.08));border:1px solid rgba(255,215,0,.4);}
+.mmcin-pod2.p-silver{background:linear-gradient(160deg,rgba(200,200,200,.15),rgba(150,150,150,.07));border:1px solid rgba(200,200,200,.3);}
+.mmcin-pod2.p-bronze{background:linear-gradient(160deg,rgba(205,127,50,.17),rgba(160,100,40,.08));border:1px solid rgba(205,127,50,.35);}
+.mmcin-pod2.p-blue{background:linear-gradient(160deg,rgba(94,156,245,.18),rgba(60,100,200,.08));border:1px solid rgba(94,156,245,.35);}
+.mmcin-pod2.p-purple{background:linear-gradient(160deg,rgba(167,139,250,.18),rgba(120,80,220,.08));border:1px solid rgba(167,139,250,.35);}
+.mmcin-pod2.p-green{background:linear-gradient(160deg,rgba(45,206,137,.18),rgba(20,160,90,.08));border:1px solid rgba(45,206,137,.35);}
+.mmcin-pod2-icon{font-size:28px;margin-bottom:6px;}
+.mmcin-pod2-name{font-size:12px;font-weight:700;color:#fff;margin-bottom:2px;}
+.mmcin-pod2-val{font-size:11px;font-family:var(--fm);color:rgba(255,255,255,.55);}
+.mmcin-pod2-award{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-top:6px;}
+
+/* highlights list */
+.mmcin-highlights{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;width:100%;margin-bottom:28px;}
+@media(max-width:580px){.mmcin-highlights{grid-template-columns:1fr;}}
+.mmcin-hl{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px;text-align:left;}
+.mmcin-hl-icon{font-size:22px;flex-shrink:0;}
+.mmcin-hl-label{font-size:9px;font-weight:700;color:rgba(255,255,255,.35);letter-spacing:.1em;text-transform:uppercase;margin-bottom:3px;font-family:var(--fm);}
+.mmcin-hl-val{font-size:14px;font-weight:700;color:#fff;}
+.mmcin-hl-sub{font-size:10px;font-family:var(--fm);color:rgba(255,255,255,.42);margin-top:1px;}
+
+/* closing scene */
+.mmcin-closing-ring{width:160px;height:160px;border-radius:50%;border:2px solid rgba(45,206,137,.3);display:flex;align-items:center;justify-content:center;position:relative;margin:0 auto 24px;animation:ringPulse 2.5s ease-in-out infinite;}
+@keyframes ringPulse{0%,100%{box-shadow:0 0 0 0 rgba(45,206,137,0),inset 0 0 0 0 rgba(45,206,137,0)}50%{box-shadow:0 0 30px 8px rgba(45,206,137,.12),inset 0 0 20px rgba(45,206,137,.06)}}
+.mmcin-closing-inner{width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(45,206,137,.2),rgba(45,206,137,.05));border:1px solid rgba(45,206,137,.25);display:flex;align-items:center;justify-content:center;font-size:44px;}
+
+/* scene fade/slide animations */
+@keyframes mmFadeUp{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
+@keyframes mmFadeIn{from{opacity:0}to{opacity:1}}
+@keyframes mmSlideLeft{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+.mmcin-scene.active .mmcin-eyebrow{animation:mmFadeIn .5s .1s both;}
+.mmcin-scene.active .mmcin-title{animation:mmFadeUp .7s .25s cubic-bezier(.16,1,.3,1) both;}
+.mmcin-scene.active .mmcin-sub{animation:mmFadeIn .5s .5s both;}
+.mmcin-scene.active .mmcin-pills{animation:mmFadeUp .6s .6s both;}
+.mmcin-scene.active .mmcin-progress-wrap{animation:mmFadeIn .5s .7s both;}
+.mmcin-scene.active .mmcin-teams{animation:mmFadeUp .7s .5s both;}
+.mmcin-scene.active .mmcin-podium{animation:mmFadeUp .7s .5s both;}
+.mmcin-scene.active .mmcin-highlights{animation:mmFadeUp .6s .55s both;}
+
+/* auto-advance timer bar */
+#mmCinTimer{position:absolute;bottom:0;left:0;height:2px;background:rgba(255,255,255,.2);width:100%;z-index:10;}
+#mmCinTimerBar{height:100%;background:linear-gradient(90deg,#2dce89,#5e9cf5);width:0%;transition:width linear;}
+
+/* ═══════════════════════════════════════════════════════════════════
    LIVE REVENUE PULSE
    ═══════════════════════════════════════════════════════════════════ */
 @keyframes revPulse{
@@ -1687,6 +1814,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       </div>
       <button class="btn btn-s" onclick="exportDashboardCSV()">↓ Export CSV</button>
       <button class="btn btn-s" onclick="generateMonthlyReport()" style="background:var(--purple-bg);color:var(--purple);border-color:var(--purple);">📄 PDF Report</button>
+      <button class="btn btn-s" id="mmCinBtn" onclick="showMidMonthCinematic(APP.activeMonth)" style="background:linear-gradient(135deg,rgba(45,206,137,.15),rgba(94,156,245,.15));color:#fff;border-color:rgba(94,156,245,.4);font-weight:700;letter-spacing:.02em;position:relative;overflow:hidden;" onmouseover="this.style.background='linear-gradient(135deg,rgba(45,206,137,.28),rgba(94,156,245,.28))'" onmouseout="this.style.background='linear-gradient(135deg,rgba(45,206,137,.15),rgba(94,156,245,.15))'">✨ Generate Summary</button>
       <button class="btn btn-s" onclick="showPage('entry')">+ Add today's numbers</button>
     </div>
   </div>
@@ -16812,6 +16940,371 @@ function _onEntrySaved(name, revenue, nm, mk){
 setInterval(function(){ if(typeof _renderTicker==='function') _renderTicker(); }, 30000);
 
 // ═══════════════════════════════════════════════════════════════════
+// MID-MONTH CINEMATIC SUMMARY
+// ═══════════════════════════════════════════════════════════════════
+let _mmCinScene      = 0;
+let _mmCinTotal      = 6;
+let _mmCinAutoTimer  = null;
+let _mmCinBgAnim     = null;
+const _MM_SCENE_DUR  = 6000; // ms per scene
+
+function showMidMonthCinematic(mk){
+  const stats   = calcStats(mk);
+  const active  = stats.filter(s=>s.target>0);
+  if(!active.length){ showToast('No data to display yet','err'); return; }
+
+  const mk2        = mk || APP.activeMonth;
+  const today2     = _localDateStr(new Date());
+  const allWD      = workingDatesInMonth(mk2);
+  const elapsed    = APP.manualElapsed != null ? APP.manualElapsed : calWorkDaysTeam(mk2);
+  const totalWD    = allWD.length;
+  const remaining  = Math.max(0, totalWD - elapsed);
+  const monthPct   = totalWD > 0 ? elapsed / totalWD : 0;
+
+  const totalRev   = active.reduce((s,p)=>s+p.revMTD,0);
+  const totalTgt   = active.reduce((s,p)=>s+p.target,0);
+  const totalNM    = active.reduce((s,p)=>s+p.nmMTD,0);
+  const pct        = totalTgt>0 ? Math.round(totalRev/totalTgt*100) : 0;
+  const hitTarget  = active.filter(p=>p.revPct>=100).length;
+  const aheadCOP   = active.filter(p=>p.riskAhead).length;
+  const sorted     = [...active].sort((a,b)=>b.revMTD-a.revMTD);
+  const sortedNM   = [...active].sort((a,b)=>b.nmMTD-a.nmMTD);
+  const mLabel     = monthLabel(mk2);
+
+  // Run-rate projection
+  const projRev    = monthPct>0 ? Math.round(totalRev/monthPct) : 0;
+  const projPct    = totalTgt>0 ? Math.round(projRev/totalTgt*100) : 0;
+  const revColor   = pct>=100?'#2dce89':pct>=75?'#fbb83a':'#f5365c';
+
+  // Best single day
+  const entries    = getEntries(mk2);
+  const dayRevMap  = {};
+  entries.forEach(e=>{ dayRevMap[e.date]=(dayRevMap[e.date]||0)+(e.revenue||0); });
+  const bestDay    = Object.entries(dayRevMap).sort((a,b)=>b[1]-a[1])[0];
+  const bestDayStr = bestDay ? new Date(bestDay[0]).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}) : '—';
+  const bestDayVal = bestDay ? bestDay[1] : 0;
+
+  // Average daily rev on active days
+  const activeDays = Object.keys(dayRevMap).filter(d=>dayRevMap[d]>0).length;
+  const avgDayRev  = activeDays>0 ? Math.round(totalRev/activeDays) : 0;
+
+  // NM data
+  const nmTarget   = active.reduce((s,p)=>s+(p.nmTarget||0),0);
+  const nmPct      = nmTarget>0 ? Math.round(totalNM/nmTarget*100) : 0;
+
+  // Team data
+  const teamDefs   = [
+    {key:'g',    label:'Team G',     cls:'tc-g', color:'#2dce89', accent:'rgba(45,206,137,.5)'},
+    {key:'james',label:'Team James', cls:'tc-j', color:'#5e9cf5', accent:'rgba(94,156,245,.5)'},
+    {key:'damo', label:'Team Damo',  cls:'tc-d', color:'#a78bfa', accent:'rgba(167,139,250,.5)'},
+  ];
+  const teamStats  = teamDefs.map(td=>{
+    const members  = (APP.teams&&APP.teams[td.key])||[];
+    const ts       = active.filter(s=>members.includes(s.name));
+    const tRev     = ts.reduce((s,p)=>s+p.revMTD,0);
+    const tTgt     = ts.reduce((s,p)=>s+p.target,0);
+    const tNM      = ts.reduce((s,p)=>s+p.nmMTD,0);
+    const tPct     = tTgt>0?Math.round(tRev/tTgt*100):0;
+    const cop      = calcTeamCOP(mk2,members,td.key);
+    return {...td, members, ts, tRev, tTgt, tNM, tPct, cop,
+      tAhead: ts.filter(p=>p.riskAhead).length };
+  }).filter(t=>t.ts.length>0);
+  const teamsSorted = [...teamStats].sort((a,b)=>b.tPct-a.tPct);
+
+  // Motivational closing message
+  const closingMsgs = pct>=100
+    ? ['Target Smashed!','The team has hit the target — outstanding work all round. Keep pushing!','🏆']
+    : pct>=80
+    ? ['Final Push!','So close to the line. One big push and it\'s done — believe in the team!','🔥']
+    : pct>=60
+    ? ['Building Momentum','Good progress on the board. Time to accelerate into the second half!','⚡']
+    : ['Every Number Counts','The target is on the horizon — let\'s lock in and bring it home!','💪'];
+
+  // ── Build Scene 0: Overall Revenue ──────────────────────────────
+  document.getElementById('mmEyebrow0').textContent = mLabel + ' · Snapshot as of ' + new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+  const bigNumEl = document.getElementById('mmBigNum0');
+  bigNumEl.className = 'mmcin-big-num' + (pct>=100?' ':pct>=75?' amber':' red');
+  bigNumEl.textContent = '£0';
+  document.getElementById('mmSub0').textContent = pct+'% of £'+Math.round(totalTgt).toLocaleString()+' target · '+elapsed+' of '+totalWD+' working days elapsed';
+  document.getElementById('mmProgressBar0').style.background = `linear-gradient(90deg,${revColor},${revColor}aa)`;
+  document.getElementById('mmProgressBar0').dataset.target = Math.min(pct,100);
+  document.getElementById('mmPills0').innerHTML = [
+    {val: pct+'%',                              lbl:'Target Progress', col: revColor},
+    {val: totalNM,                              lbl:'Needs Met MTD',   col:'#5e9cf5'},
+    {val: hitTarget+'/'+active.length,          lbl:'Hit 100% Target', col:'#a78bfa'},
+    {val: aheadCOP+'/'+active.length,           lbl:'Ahead of COP',   col:'#2dce89'},
+  ].map(s=>`<div class="mmcin-pill"><div class="mmcin-pill-val" style="color:${s.col}">${s.val}</div><div class="mmcin-pill-lbl">${s.lbl}</div></div>`).join('');
+
+  // ── Build Scene 1: Momentum ──────────────────────────────────────
+  const projColor = projPct>=100?'hi':projPct>=75?'hi2':'hi2';
+  document.getElementById('mmTitle1').innerHTML = projPct>=100
+    ? `On track for <span class="hi">£${Math.round(projRev).toLocaleString()}</span>`
+    : `Projected <span class="${projColor}">£${Math.round(projRev).toLocaleString()}</span>`;
+  document.getElementById('mmSub1').textContent = `At current pace · £${Math.round(totalTgt).toLocaleString()} target · ${remaining} working days remaining`;
+  document.getElementById('mmPills1').innerHTML = [
+    {val:'£'+Math.round(avgDayRev).toLocaleString(), lbl:'Avg Daily Rev (active days)', col:'#5e9cf5'},
+    {val: nmPct+'%',                                 lbl:'NM Target Progress',          col: nmPct>=100?'#2dce89':nmPct>=75?'#fbb83a':'#f5365c'},
+    {val:'£'+Math.round(projRev).toLocaleString(),   lbl:'Projected Month-End',         col: projPct>=100?'#2dce89':'#fbb83a'},
+    {val: remaining+' days',                         lbl:'Days Remaining',               col:'rgba(255,255,255,.7)'},
+  ].map(s=>`<div class="mmcin-pill"><div class="mmcin-pill-val" style="color:${s.col}">${s.val}</div><div class="mmcin-pill-lbl">${s.lbl}</div></div>`).join('');
+
+  // ── Build Scene 2: Teams ─────────────────────────────────────────
+  document.getElementById('mmSub2').textContent = teamsSorted.length+' active teams · '+active.length+' consultants';
+  const rankEmojis = ['🥇','🥈','🥉'];
+  document.getElementById('mmTeams2').innerHTML = teamsSorted.map((t,i)=>{
+    const copRevCls = t.cop.copRev>=0?'#2dce89':'#f5365c';
+    const copNmCls  = t.cop.copNm>=0?'#2dce89':'#f5365c';
+    return `<div class="mmcin-team-card ${t.cls}" style="border-color:${t.color}33">
+      <div class="mmcin-tc-rank">${rankEmojis[i]||''}</div>
+      <div class="mmcin-tc-label">${t.label}</div>
+      <div class="mmcin-tc-rev">£${Math.round(t.tRev).toLocaleString()}</div>
+      <div class="mmcin-tc-pct" style="color:${t.color}">${t.tPct}% of target</div>
+      <div class="mmcin-tc-bar"><div class="mmcin-tc-bar-fill" style="background:${t.color}" data-target="${Math.min(t.tPct,100)}"></div></div>
+      <div class="mmcin-tc-meta">
+        <span>NM <b>${t.tNM}</b></span>
+        <span>COP Rev <b style="color:${copRevCls}">${t.cop.copRev>=0?'+':''}£${Math.round(Math.abs(t.cop.copRev)).toLocaleString()}</b></span>
+        <span>COP NM <b style="color:${copNmCls}">${t.cop.copNm>=0?'+':''}${Math.abs(t.cop.copNm).toFixed(1)}</b></span>
+        <span><b>${t.tAhead}/${t.ts.length}</b> ahead</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  // ── Build Scene 3: Revenue Leaderboard ──────────────────────────
+  document.getElementById('mmSub3').textContent = 'Ranked by revenue MTD · '+mLabel;
+  const podStyles = ['p-gold','p-silver','p-bronze','p-blue','p-purple','p-green'];
+  const podIcons  = ['🥇','🥈','🥉','⭐','💫','✨'];
+  document.getElementById('mmPodium3').innerHTML = sorted.slice(0,6).map((p,i)=>`
+    <div class="mmcin-pod2 ${podStyles[i]||'p-blue'}" style="animation-delay:${.5+i*.1}s">
+      <div class="mmcin-pod2-icon">${podIcons[i]}</div>
+      <div class="mmcin-pod2-name">${p.name.split(' ')[0]}</div>
+      <div class="mmcin-pod2-val">£${Math.round(p.revMTD).toLocaleString()}</div>
+      <div class="mmcin-pod2-val" style="color:${p.revPct>=100?'#2dce89':p.revPct>=75?'#fbb83a':'#f5365c'}">${p.revPct}% of target</div>
+      <div class="mmcin-pod2-award">${i===0?'Top Biller':i===1?'Runner Up':i===2?'3rd Place':'#'+(i+1)}</div>
+    </div>`).join('');
+
+  // ── Build Scene 4: NM + Highlights ──────────────────────────────
+  const topNM     = sortedNM[0];
+  const mostDays  = [...active].sort((a,b)=>b.loggedDays-a.loggedDays)[0];
+  const biggestRev= sorted[0];
+  const nmLeader  = topNM ? `${topNM.name.split(' ')[0]} (${topNM.nmMTD} NM)` : '—';
+  document.getElementById('mmSub4').textContent = 'Needs met, consistency & standout moments this month';
+  document.getElementById('mmHighlights4').innerHTML = [
+    {icon:'🎯', lbl:'NM Leader',          val: nmLeader,                                  sub:`${nmPct}% of total NM target met`},
+    {icon:'📅', lbl:'Best Single Day',    val:'£'+Math.round(bestDayVal).toLocaleString(), sub: bestDayStr},
+    {icon:'🏃', lbl:'Most Consistent',    val: mostDays?mostDays.name.split(' ')[0]:'—',  sub:`${mostDays?.loggedDays||0} days with entries`},
+    {icon:'💰', lbl:'Highest Revenue',    val: biggestRev?biggestRev.name.split(' ')[0]:'—', sub:`£${Math.round(biggestRev?.revMTD||0).toLocaleString()} MTD`},
+    {icon:'📈', lbl:'Team Avg Rev/Person',val:'£'+Math.round(active.length?totalRev/active.length:0).toLocaleString(), sub:`across ${active.length} active consultants`},
+    {icon:'✅', lbl:'Total NM This Month', val: totalNM,                                  sub:`target: ${Math.round(nmTarget)}`},
+    {icon:'🔥', lbl:'Ahead of COP',       val:`${aheadCOP} consultant${aheadCOP!==1?'s':''}`, sub:`${active.length-aheadCOP} need${active.length-aheadCOP!==1?'s':''} to close gap`},
+    {icon:'⚡', lbl:'Days Remaining',     val:`${remaining} working day${remaining!==1?'s':''}`, sub:`${Math.round((remaining/Math.max(totalWD,1))*100)}% of month left`},
+  ].map(h=>`<div class="mmcin-hl"><div class="mmcin-hl-icon">${h.icon}</div><div><div class="mmcin-hl-label">${h.lbl}</div><div class="mmcin-hl-val">${h.val}</div><div class="mmcin-hl-sub">${h.sub}</div></div></div>`).join('');
+
+  // ── Build Scene 5: Closing ────────────────────────────────────────
+  document.getElementById('mmClosingIcon').textContent = closingMsgs[2];
+  document.getElementById('mmClosingEyebrow').textContent = mLabel + ' · Mid-Month Summary';
+  document.getElementById('mmClosingTitle').innerHTML = closingMsgs[0].includes('!')
+    ? `<span class="hi">${closingMsgs[0]}</span>`
+    : closingMsgs[0];
+  document.getElementById('mmClosingSub').textContent = closingMsgs[1];
+  document.getElementById('mmClosingPills').innerHTML = [
+    {val:'£'+Math.round(totalRev).toLocaleString(), lbl:'Revenue MTD',   col:'#2dce89'},
+    {val: totalNM,                                   lbl:'Needs Met MTD', col:'#5e9cf5'},
+    {val: pct+'%',                                   lbl:'vs Target',     col: revColor},
+  ].map(s=>`<div class="mmcin-pill"><div class="mmcin-pill-val" style="color:${s.col}">${s.val}</div><div class="mmcin-pill-lbl">${s.lbl}</div></div>`).join('');
+
+  // ── Render nav dots ───────────────────────────────────────────────
+  document.getElementById('mmCinDots').innerHTML = Array.from({length:_mmCinTotal},(_,i)=>
+    `<div class="mmcin-dot${i===0?' active':''}" onclick="mmCinGoTo(${i})"></div>`).join('');
+
+  // ── Show overlay and start ────────────────────────────────────────
+  _mmCinScene = 0;
+  const overlay = document.getElementById('mmCinOverlay');
+  overlay.classList.add('show');
+
+  // Show first scene
+  document.querySelectorAll('.mmcin-scene').forEach(s=>s.classList.remove('active'));
+  document.getElementById('mmScene0').classList.add('active');
+
+  // Start particle background
+  _mmCinStartBg();
+
+  // Animate scene 0 elements after brief delay
+  setTimeout(()=>{
+    _mmCinCountUp('mmBigNum0', 0, totalRev, 1800, v=>'£'+Math.round(v).toLocaleString());
+    const pb = document.getElementById('mmProgressBar0');
+    if(pb) setTimeout(()=>{ pb.style.width = Math.min(pct,100)+'%'; }, 300);
+  }, 400);
+
+  // Start auto-advance
+  _mmCinStartTimer();
+}
+
+function mmCinNav(dir){
+  _mmCinStopTimer();
+  mmCinGoTo(_mmCinScene + dir);
+}
+
+function mmCinGoTo(idx){
+  const newIdx = Math.max(0, Math.min(_mmCinTotal-1, idx));
+  if(newIdx === _mmCinScene) return;
+
+  // Hide current
+  const prev = document.getElementById('mmScene'+_mmCinScene);
+  if(prev){
+    prev.style.animation='mmFadeIn .3s reverse forwards';
+    setTimeout(()=>{ prev.classList.remove('active'); prev.style.animation=''; }, 280);
+  }
+  _mmCinScene = newIdx;
+
+  // Show new
+  setTimeout(()=>{
+    document.querySelectorAll('.mmcin-scene').forEach(s=>s.classList.remove('active'));
+    const next = document.getElementById('mmScene'+_mmCinScene);
+    if(next) next.classList.add('active');
+
+    // Trigger scene-specific animations
+    _mmCinSceneEnter(_mmCinScene);
+
+    // Update dots
+    document.querySelectorAll('.mmcin-dot').forEach((d,i)=>{
+      d.classList.toggle('active', i===_mmCinScene);
+    });
+
+    // Restart timer
+    _mmCinStartTimer();
+  }, 300);
+}
+
+function _mmCinSceneEnter(idx){
+  if(idx===2){
+    // Animate team bar fills
+    setTimeout(()=>{
+      document.querySelectorAll('.mmcin-tc-bar-fill').forEach(el=>{
+        el.style.width = (el.dataset.target||0)+'%';
+      });
+    }, 600);
+  }
+  if(idx===0){
+    const pb = document.getElementById('mmProgressBar0');
+    if(pb) setTimeout(()=>{ pb.style.width = (pb.dataset.target||0)+'%'; }, 400);
+  }
+}
+
+function _mmCinStartTimer(){
+  _mmCinStopTimer();
+  const bar = document.getElementById('mmCinTimerBar');
+  if(!bar) return;
+  bar.style.transition = 'none';
+  bar.style.width = '0%';
+  setTimeout(()=>{
+    bar.style.transition = `width ${_MM_SCENE_DUR}ms linear`;
+    bar.style.width = '100%';
+  }, 50);
+  _mmCinAutoTimer = setTimeout(()=>{
+    if(_mmCinScene < _mmCinTotal-1) mmCinGoTo(_mmCinScene+1);
+    // On last scene, stop
+  }, _MM_SCENE_DUR);
+}
+
+function _mmCinStopTimer(){
+  if(_mmCinAutoTimer){ clearTimeout(_mmCinAutoTimer); _mmCinAutoTimer=null; }
+  const bar = document.getElementById('mmCinTimerBar');
+  if(bar){ bar.style.transition='none'; bar.style.width='0%'; }
+}
+
+function closeMidMonthCinematic(){
+  _mmCinStopTimer();
+  const overlay = document.getElementById('mmCinOverlay');
+  overlay.style.transition = 'opacity .5s';
+  overlay.style.opacity = '0';
+  setTimeout(()=>{
+    overlay.classList.remove('show');
+    overlay.style.opacity = '';
+    overlay.style.transition = '';
+    _mmCinStopBg();
+  }, 500);
+}
+
+function _mmCinCountUp(elId, from, to, duration, fmt){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  const start = performance.now();
+  function step(now){
+    const p = Math.min((now-start)/duration, 1);
+    const ease = 1 - Math.pow(1-p, 3);
+    el.textContent = fmt(from + (to-from)*ease);
+    if(p<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// ── Particle / star background ───────────────────────────────────
+function _mmCinStartBg(){
+  const canvas = document.getElementById('mmCinBgCanvas');
+  if(!canvas) return;
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const ctx     = canvas.getContext('2d');
+
+  const stars = Array.from({length:180},()=>({
+    x: Math.random()*canvas.width,
+    y: Math.random()*canvas.height,
+    r: Math.random()*1.6+.2,
+    a: Math.random(),
+    va: (Math.random()-.5)*.012,
+    vx: (Math.random()-.5)*.15,
+    vy: (Math.random()-.5)*.15,
+  }));
+
+  // Floating orbs
+  const orbs = [
+    {x:canvas.width*.15, y:canvas.height*.3,  r:200, col:'rgba(45,206,137,',  a:.07, va:.003, phase:0},
+    {x:canvas.width*.8,  y:canvas.height*.6,  r:250, col:'rgba(94,156,245,',  a:.07, va:.002, phase:1},
+    {x:canvas.width*.5,  y:canvas.height*.85, r:180, col:'rgba(167,139,250,', a:.06, va:.004, phase:2},
+  ];
+
+  let frame = 0;
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    frame++;
+
+    // Draw orbs
+    orbs.forEach(o=>{
+      const pulse = o.a + Math.sin(frame*o.va+o.phase)*0.04;
+      const grad = ctx.createRadialGradient(o.x,o.y,0,o.x,o.y,o.r);
+      grad.addColorStop(0, o.col+(pulse)+')');
+      grad.addColorStop(1, o.col+'0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(o.x,o.y,o.r,0,Math.PI*2); ctx.fill();
+    });
+
+    // Draw stars
+    stars.forEach(s=>{
+      s.a += s.va;
+      if(s.a>1||s.a<0) s.va*=-1;
+      s.x += s.vx; s.y += s.vy;
+      if(s.x<0) s.x=canvas.width;
+      if(s.x>canvas.width) s.x=0;
+      if(s.y<0) s.y=canvas.height;
+      if(s.y>canvas.height) s.y=0;
+      ctx.beginPath();
+      ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle = `rgba(255,255,255,${Math.max(0,Math.min(1,s.a))})`;
+      ctx.fill();
+    });
+
+    _mmCinBgAnim = requestAnimationFrame(draw);
+  }
+  _mmCinBgAnim = requestAnimationFrame(draw);
+}
+
+function _mmCinStopBg(){
+  if(_mmCinBgAnim){ cancelAnimationFrame(_mmCinBgAnim); _mmCinBgAnim=null; }
+  const canvas = document.getElementById('mmCinBgCanvas');
+  if(canvas) canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // 1. MONTH-END CINEMATIC
 // ═══════════════════════════════════════════════════════════════════
 let _cinConfettiAnim = null;
@@ -17385,6 +17878,71 @@ if(sessionStorage.getItem('pd_auth')==='1'){
   <div class="ticker-label">⚡ Live</div>
   <div style="flex:1;overflow:hidden;position:relative">
     <div id="tickerTrack"></div>
+  </div>
+</div>
+
+<!-- MID-MONTH CINEMATIC SUMMARY OVERLAY -->
+<div id="mmCinOverlay">
+  <div id="mmCinBg">
+    <canvas id="mmCinBgCanvas"></canvas>
+    <div class="mmcin-gradient"></div>
+  </div>
+  <button id="mmCinClose" onclick="closeMidMonthCinematic()">✕ Close</button>
+  <button id="mmCinPrev" onclick="mmCinNav(-1)">‹</button>
+  <button id="mmCinNext" onclick="mmCinNav(1)">›</button>
+  <div id="mmCinDots"></div>
+  <div id="mmCinTimer"><div id="mmCinTimerBar"></div></div>
+
+  <!-- SCENE 0: Intro / Overall Revenue -->
+  <div class="mmcin-scene" id="mmScene0">
+    <div class="mmcin-eyebrow" id="mmEyebrow0"></div>
+    <div class="mmcin-big-num" id="mmBigNum0">£0</div>
+    <div class="mmcin-sub" id="mmSub0"></div>
+    <div class="mmcin-progress-wrap">
+      <div class="mmcin-progress-bar" id="mmProgressBar0"></div>
+    </div>
+    <div class="mmcin-pills" id="mmPills0"></div>
+  </div>
+
+  <!-- SCENE 1: Month Momentum -->
+  <div class="mmcin-scene" id="mmScene1">
+    <div class="mmcin-eyebrow">Month Momentum</div>
+    <div class="mmcin-title" id="mmTitle1"></div>
+    <div class="mmcin-sub" id="mmSub1"></div>
+    <div class="mmcin-pills" id="mmPills1"></div>
+  </div>
+
+  <!-- SCENE 2: Team Breakdown -->
+  <div class="mmcin-scene" id="mmScene2">
+    <div class="mmcin-eyebrow">Team Performance</div>
+    <div class="mmcin-title" style="margin-bottom:6px">The Teams</div>
+    <div class="mmcin-sub" id="mmSub2"></div>
+    <div class="mmcin-teams" id="mmTeams2"></div>
+  </div>
+
+  <!-- SCENE 3: Revenue Leaderboard -->
+  <div class="mmcin-scene" id="mmScene3">
+    <div class="mmcin-eyebrow">Revenue Leaders</div>
+    <div class="mmcin-title">Top <span class="hi">Performers</span></div>
+    <div class="mmcin-sub" id="mmSub3"></div>
+    <div class="mmcin-podium" id="mmPodium3"></div>
+  </div>
+
+  <!-- SCENE 4: NM & Highlights -->
+  <div class="mmcin-scene" id="mmScene4">
+    <div class="mmcin-eyebrow">Needs Met & Highlights</div>
+    <div class="mmcin-title"><span class="hi3">Key Stats</span> & Standouts</div>
+    <div class="mmcin-sub" id="mmSub4"></div>
+    <div class="mmcin-highlights" id="mmHighlights4"></div>
+  </div>
+
+  <!-- SCENE 5: Closing -->
+  <div class="mmcin-scene" id="mmScene5">
+    <div class="mmcin-closing-ring"><div class="mmcin-closing-inner" id="mmClosingIcon">🚀</div></div>
+    <div class="mmcin-eyebrow" id="mmClosingEyebrow"></div>
+    <div class="mmcin-title" id="mmClosingTitle"></div>
+    <div class="mmcin-sub" id="mmClosingSub"></div>
+    <div class="mmcin-pills" id="mmClosingPills"></div>
   </div>
 </div>
 
