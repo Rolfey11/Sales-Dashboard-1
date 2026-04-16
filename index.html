@@ -10839,6 +10839,9 @@ function switchTeamTab(tab){
 
 // ── Per-day run rate override ─────────────────────────────────────────
 function saveRROverride(teamKey, mk, ds, rawVal){
+  if(window._rrSaving) return;
+  window._rrSaving = true;
+  setTimeout(()=>{ window._rrSaving = false; }, 300);
   if(!APP.rrOverrides)              APP.rrOverrides = {};
   if(!APP.rrOverrides[teamKey])     APP.rrOverrides[teamKey] = {};
   if(!APP.rrOverrides[teamKey][mk]) APP.rrOverrides[teamKey][mk] = {};
@@ -11561,6 +11564,9 @@ function dbdOpenPerson(name){
 
 // ── Per-person per-day run rate override (individual tracker) ─────────
 function savePersonRROverride(name, mk, ds, rawVal){
+  if(window._prrSaving) return; // guard against double-fire from blur after Enter
+  window._prrSaving = true;
+  setTimeout(()=>{ window._prrSaving = false; }, 300);
   if(!APP.personRROverrides)             APP.personRROverrides = {};
   if(!APP.personRROverrides[name])       APP.personRROverrides[name] = {};
   if(!APP.personRROverrides[name][mk])   APP.personRROverrides[name][mk] = {};
@@ -11573,7 +11579,12 @@ function savePersonRROverride(name, mk, ds, rawVal){
     APP.personRROverrides[name][mk][ds] = Math.round(val);
   }
   saveApp();
-  renderPersonTracker(name);
+  // Re-render the correct view depending on which is currently visible
+  if(document.getElementById('page-person')?.classList.contains('active')){
+    renderPersonProfile(name);
+  } else {
+    renderPersonTracker(name); // Day by Day tab fallback
+  }
 }
 
 function editPersonRRCell(name, mk, ds, calcRR){
