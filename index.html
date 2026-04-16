@@ -590,8 +590,8 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 /* DAY BY DAY GRID */
 .dbd-wrap{width:100%;border-radius:var(--radius);border:1px solid var(--border);margin-bottom:24px;overflow-x:auto;}
 .dbd-table{border-collapse:collapse;font-family:var(--fm);table-layout:fixed;width:100%;white-space:nowrap;}
-.dbd-th{background:var(--surface2);color:var(--text3);font-weight:700;padding:clamp(4px,1vw,12px) clamp(4px,0.8vw,10px);border:1px solid var(--border);text-align:center;font-size:clamp(9px,1.1vw,11px);letter-spacing:.04em;text-transform:uppercase;}
-.dbd-th.name-col{text-align:left;width:clamp(70px,12vw,150px);position:sticky;left:0;z-index:2;background:var(--surface2);}
+.dbd-th{background:var(--surface2);color:var(--text3);font-weight:700;padding:clamp(4px,1vw,12px) clamp(4px,0.8vw,10px);border:1px solid var(--border);text-align:center;font-size:clamp(9px,1.1vw,11px);letter-spacing:.04em;text-transform:uppercase;position:sticky;top:var(--dbd-hdr-top,84px);z-index:3;}
+.dbd-th.name-col{text-align:left;width:clamp(70px,12vw,150px);position:sticky;left:0;top:var(--dbd-hdr-top,84px);z-index:4;background:var(--surface2);}
 .dbd-td{padding:clamp(4px,0.8vw,10px) clamp(3px,0.6vw,12px);border:1px solid var(--border);text-align:center;background:var(--surface);vertical-align:middle;}
 .dbd-td.name-col{text-align:left;font-weight:600;font-size:clamp(10px,1.2vw,13px);color:var(--text);background:var(--surface);padding:clamp(4px,0.8vw,10px) clamp(6px,1vw,16px);position:sticky;left:0;z-index:1;cursor:pointer;transition:background .15s;}
 .dbd-td.name-col:hover{background:var(--surface3);color:var(--accent);}
@@ -10883,6 +10883,9 @@ function renderDayByDay(){
 }
 
 function renderDbdContent(){
+  // Keep sticky header flush under the nav bar
+  const nav = document.querySelector('nav');
+  if(nav) document.documentElement.style.setProperty('--dbd-hdr-top', nav.offsetHeight + 'px');
   if(_dbdPerson){
     renderPersonTracker(_dbdPerson);
   } else if(_dbdTeam === 'overall'){
@@ -11103,7 +11106,7 @@ function renderDbdTeamGrid(teamKey){
   let html = '<div class="dbd-wrap"><table class="dbd-table"><thead><tr>';
 
   // Top-left corner: "Date" header, sticky
-  html += '<th class="dbd-th name-col" style="min-width:90px;top:0">Date</th>';
+  html += '<th class="dbd-th name-col" style="min-width:90px">Date</th>';
 
   // Name headers across the top — clickable
   people.forEach(p=>{
