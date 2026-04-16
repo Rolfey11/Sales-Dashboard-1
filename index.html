@@ -5578,32 +5578,119 @@ function renderDashboard(){
   ];
   const teamSummaryRow = document.getElementById('teamSummaryRow');
   if(teamSummaryRow){
-    teamSummaryRow.innerHTML = teamDefs.map(({key,label})=>{
+    const todayStr       = _localDateStr(new Date());
+    const todayEntries   = entries.filter(e=>e.date===todayStr);
+    const isWorkingDay   = workingDatesInMonth(mk).includes(todayStr);
+
+    let totalTodayRev=0, totalTodayNM=0, totalTodayRevRR=0, totalTodayNmRR=0;
+
+    const teamCards = teamDefs.map(({key,label})=>{
       const members = (APP.teams&&APP.teams[key])||[];
       const ts = stats.filter(s=>members.includes(s.name)&&s.target>0);
-      if(!ts.length) return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;display:flex;align-items:center;gap:8px">
-        <span style="font-size:12px;font-weight:700;color:var(--text3)">${label}</span>
-        <span style="font-size:11px;color:var(--text3);font-family:var(--fm)">No members assigned</span></div>`;
-      const tRev  = ts.reduce((s,p)=>s+p.revMTD,0);
-      const tTgt  = ts.reduce((s,p)=>s+p.target,0);
-      const tNm   = ts.reduce((s,p)=>s+p.nmMTD,0);
-      const revPct= tTgt>0?Math.round(tRev/tTgt*100):0;
 
-      // Use same daily-loop logic as the Teams tab
-      const cop = calcTeamCOP(mk, members, key);
-      const revCls = cop.copRev>=0?'var(--green)':'var(--red)';
-      const nmCls  = cop.copNm>=0?'var(--green)':'var(--red)';
+      // ── Today's performance ──────────────────────────────────────
+      const todayTeamEntries = todayEntries.filter(e=>members.includes(e.name));
+      const todayRev = todayTeamEntries.reduce((s,e)=>s+(e.revenue||0),0);
+      const todayNM  = todayTeamEntries.reduce((s,e)=>s+(e.nm||0),0);
+      let todayRevRR=0, todayNmRR=0;
+      if(isWorkingDay){
+        members.forEach(name=>{
+          const person = APP.people.find(p=>p.name===name);
+          if(!person||!personTargetForMonth(person,mk)) return;
+          const st = getDayStatus(mk,name,todayStr);
+          if(st!=='hol'&&st!=='bh'){
+            const ep  = getPersonForMonth(person,mk);
+            const rpd = ep.riskPerDay||0;
+            const personOvr = ((APP.personRROverrides||{})[name]||{})[mk]?.[todayStr];
+            todayRevRR += personOvr!==undefined ? personOvr : rpd;
+            todayNmRR  += nmRate();
+          }
+        });
+        const rrOvr = ((APP.rrOverrides||{})[key]||{})[mk]?.[todayStr];
+        if(rrOvr!==undefined) todayRevRR = rrOvr;
+      }
+      totalTodayRev   += todayRev;
+      totalTodayNM    += todayNM;
+      totalTodayRevRR += todayRevRR;
+      totalTodayNmRR  += todayNmRR;
+
+      if(!ts.length) return `<div style="display:flex;flex-direction:column;gap:6px">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;font-weight:700;color:var(--text3)">${label}</span>
+          <span style="font-size:11px;color:var(--text3);font-family:var(--fm)">No members assigned</span>
+        </div></div>`;
+
+      const tRev   = ts.reduce((s,p)=>s+p.revMTD,0);
+      const tTgt   = ts.reduce((s,p)=>s+p.target,0);
+      const tNm    = ts.reduce((s,p)=>s+p.nmMTD,0);
+      const revPct = tTgt>0?Math.round(tRev/tTgt*100):0;
+
+      const cop = calcTeamCOP(mk,members,key);
+      const revCls    = cop.copRev>=0?'var(--green)':'var(--red)';
+      const nmCls     = cop.copNm>=0?'var(--green)':'var(--red)';
       const copRevLbl = cop.copRev>=0?`+${fmt(Math.abs(cop.copRev))} ahead`:`${fmt(Math.abs(cop.copRev))} needed`;
       const copNmLbl  = cop.copNm>=0?`+${Math.abs(cop.copNm).toFixed(1)} ahead`:`${Math.abs(cop.copNm).toFixed(1)} needed`;
-      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-        <span style="font-size:12px;font-weight:700;min-width:80px">${label}</span>
-        <span style="font-size:11px;color:var(--text3);font-family:var(--fm)">${ts.length} members</span>
-        <span style="font-size:11px;font-family:var(--fm);color:var(--text2)">Rev MTD <span style="color:var(--text);font-weight:700">£${Math.round(tRev).toLocaleString()}</span> <span style="color:var(--text3)">(${revPct}%)</span></span>
-        <span style="font-size:11px;font-family:var(--fm);color:var(--text2)">NM MTD <span style="color:var(--text);font-weight:700">${tNm}</span></span>
-        <span style="font-size:11px;font-family:var(--fm)">COP Rev <span style="color:${revCls};font-weight:700">${copRevLbl}</span></span>
-        <span style="font-size:11px;font-family:var(--fm)">COP NM <span style="color:${nmCls};font-weight:700">${copNmLbl}</span></span>
+
+      const tRevCls = todayRev>=todayRevRR?'var(--green)':'var(--red)';
+      const tNmCls  = todayNM>=todayNmRR?'var(--green)':'var(--red)';
+
+      return `<div style="display:flex;flex-direction:column;gap:6px">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <span style="font-size:12px;font-weight:700;min-width:80px">${label}</span>
+          <span style="font-size:11px;color:var(--text3);font-family:var(--fm)">${ts.length} members</span>
+          <span style="font-size:11px;font-family:var(--fm);color:var(--text2)">Rev MTD <span style="color:var(--text);font-weight:700">£${Math.round(tRev).toLocaleString()}</span> <span style="color:var(--text3)">(${revPct}%)</span></span>
+          <span style="font-size:11px;font-family:var(--fm);color:var(--text2)">NM MTD <span style="color:var(--text);font-weight:700">${tNm}</span></span>
+          <span style="font-size:11px;font-family:var(--fm)">COP Rev <span style="color:${revCls};font-weight:700">${copRevLbl}</span></span>
+          <span style="font-size:11px;font-family:var(--fm)">COP NM <span style="color:${nmCls};font-weight:700">${copNmLbl}</span></span>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px">
+          <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;font-family:var(--fm)">Today's Performance</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 10px">
+            <div style="background:var(--surface2);border-radius:8px;padding:7px 10px">
+              <div style="font-size:9px;color:var(--text3);font-family:var(--fm);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Revenue</div>
+              <div style="font-size:15px;font-weight:700;font-family:var(--fm);color:${tRevCls}">£${Math.round(todayRev).toLocaleString()}</div>
+              <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:2px">RR: £${Math.round(todayRevRR).toLocaleString()}</div>
+            </div>
+            <div style="background:var(--surface2);border-radius:8px;padding:7px 10px">
+              <div style="font-size:9px;color:var(--text3);font-family:var(--fm);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Needs Met</div>
+              <div style="font-size:15px;font-weight:700;font-family:var(--fm);color:${tNmCls}">${todayNM}</div>
+              <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:2px">RR: ${todayNmRR.toFixed(2)}</div>
+            </div>
+          </div>
+        </div>
       </div>`;
-    }).join('');
+    });
+
+    // ── Total row spanning all 3 columns ─────────────────────────────
+    const totRevCls = totalTodayRev>=totalTodayRevRR?'var(--green)':'var(--red)';
+    const totNmCls  = totalTodayNM>=totalTodayNmRR?'var(--green)':'var(--red)';
+    const totalCard = `<div style="grid-column:1/-1;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:12px 16px">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;font-family:var(--fm)">Today's Performance — All Teams Combined</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:130px;background:var(--surface2);border-radius:8px;padding:9px 14px">
+          <div style="font-size:9px;color:var(--text3);font-family:var(--fm);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Total Revenue</div>
+          <div style="font-size:17px;font-weight:700;font-family:var(--fm);color:${totRevCls}">£${Math.round(totalTodayRev).toLocaleString()}</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:3px">RR: £${Math.round(totalTodayRevRR).toLocaleString()}</div>
+        </div>
+        <div style="flex:1;min-width:130px;background:var(--surface2);border-radius:8px;padding:9px 14px">
+          <div style="font-size:9px;color:var(--text3);font-family:var(--fm);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Total Needs Met</div>
+          <div style="font-size:17px;font-weight:700;font-family:var(--fm);color:${totNmCls}">${totalTodayNM}</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:3px">RR: ${totalTodayNmRR.toFixed(2)}</div>
+        </div>
+        <div style="flex:1;min-width:130px;background:var(--surface2);border-radius:8px;padding:9px 14px">
+          <div style="font-size:9px;color:var(--text3);font-family:var(--fm);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">Rev vs Run Rate</div>
+          <div style="font-size:17px;font-weight:700;font-family:var(--fm);color:${totRevCls}">${totalTodayRev>=totalTodayRevRR?'+':'-'}£${Math.round(Math.abs(totalTodayRev-totalTodayRevRR)).toLocaleString()}</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:3px">${totalTodayRev>=totalTodayRevRR?'ahead of':'behind'} run rate</div>
+        </div>
+        <div style="flex:1;min-width:130px;background:var(--surface2);border-radius:8px;padding:9px 14px">
+          <div style="font-size:9px;color:var(--text3);font-family:var(--fm);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">NM vs Run Rate</div>
+          <div style="font-size:17px;font-weight:700;font-family:var(--fm);color:${totNmCls}">${totalTodayNM>=totalTodayNmRR?'+':'-'}${Math.abs(totalTodayNM-totalTodayNmRR).toFixed(2)}</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:3px">${totalTodayNM>=totalTodayNmRR?'ahead of':'behind'} run rate</div>
+        </div>
+      </div>
+    </div>`;
+
+    teamSummaryRow.innerHTML = [...teamCards, totalCard].join('');
   }
 
   if(active.length===0){
