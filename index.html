@@ -7581,8 +7581,8 @@ function renderSpTable(){
     people.forEach(p => {
       _iOff[p.name] = new Set();
       _spMonths().forEach(mk => {
-        (((data.holidays||{})[mk])||{})[p.name]||[]).forEach(d => _iOff[p.name].add(d));
-        (((data.sickness||{})[mk])||{})[p.name]||[]).forEach(d => _iOff[p.name].add(d));
+        const _h = ((data.holidays||{})[mk]||{})[p.name]||[]; _h.forEach(d => _iOff[p.name].add(d));
+        const _s = ((data.sickness||{})[mk]||{})[p.name]||[]; _s.forEach(d => _iOff[p.name].add(d));
         const absObj = (((data.absences||{})[mk])||{})[p.name] || {};
         Object.entries(absObj).forEach(([ds,ab]) => {
           const t = (ab||{}).type;
