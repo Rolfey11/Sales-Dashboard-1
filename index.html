@@ -5445,7 +5445,10 @@ function calcTeamCOP(mk, memberNames, teamKey){
   wdDates.forEach(ds=>{
     const calcRR2 = memberRPDs.reduce((s,{name,rpd})=>{
       const st = getDayStatus(mk,name,ds);
-      return s + (st!=='hol'&&st!=='bh' ? rpd : 0);
+      if(st==='hol'||st==='bh') return s;
+      // Apply per-person RR override if set, otherwise use rpd
+      const personOvr = ((APP.personRROverrides||{})[name]||{})[mk]?.[ds];
+      return s + (personOvr !== undefined ? personOvr : rpd);
     }, 0);
     // Apply team-level RR override if set (teamKey passed as 3rd arg)
     const rrOvr2 = teamKey ? ((APP.rrOverrides||{})[teamKey]||{})[mk]?.[ds] : undefined;
