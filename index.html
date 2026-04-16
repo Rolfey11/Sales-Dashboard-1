@@ -12055,7 +12055,14 @@ function _renderSumTrends(){
 
   // ── 2. Per-consultant stats across all months ──
   const pStats = people.map(p => {
-    const months = allMks.map(mk => _getConsultantMonthStats(p.name, mk)).filter(x => x && x.target > 0);
+    const months = allMks.map(mk => _getConsultantMonthStats(p.name, mk)).filter(x => {
+      if(!x || x.target <= 0) return false;
+      // Only count months where targets were explicitly set for this person (month override)
+      // OR where they actually have entries — this prevents reset months from showing in the denominator
+      const hasOverride = !!(((APP.monthOverrides||{})[x.mk]||{})[p.name]);
+      const hasEntries  = (x.loggedDays||0) > 0 || (x.revMTD||0) > 0;
+      return hasOverride || hasEntries;
+    });
     if(!months.length) return null;
     const avgMonthlyRev = months.reduce((s,x)=>s+x.revMTD,0) / months.length;
     const avgPct        = months.reduce((s,x)=>s+x.revPct,0) / months.length;
