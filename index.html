@@ -12271,7 +12271,12 @@ function renderPersonProfile(name){
   });
 
   // Remaining days & projected finish
-  const daysLeft    = allWD.filter(ds=>ds>today).length;
+  // Exclude future dates where the person is on holiday, sick, or a bank holiday
+  const daysLeft    = allWD.filter(ds=>{
+    if(ds<=today) return false;
+    const st = getDayStatus(mk, name, ds);
+    return st!=='hol' && st!=='sick' && st!=='bh';
+  }).length;
   const revRemaining= Math.max(0, target - revMTD);
   const dailyNeeded = daysLeft>0 ? Math.round(revRemaining/daysLeft) : 0;
   const projected   = daysLeft>0 && wdDates.length>0
