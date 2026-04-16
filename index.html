@@ -4259,9 +4259,25 @@ function calcStats(monthKey){
     const calDays = calWorkDays(monthKey, p.name);
 
     // ── COP (next working day checkpoint) ────────────────────────
-    const copRev = (calDays * (ep.riskPerDay||0) + (ep.riskPerDay||0)) - revMTD;
+    // Use a day-by-day loop so per-day personRROverrides are respected
     const _nmR   = nmRateFor(p.name||'');
-    const copNm  = (calDays * _nmR + _nmR) - nmMTD;
+    const _today2 = _localDateStr(new Date());
+    const _wdElapsed = workingDatesInMonth(monthKey).filter(ds => ds <= _today2);
+    let _cumRR = 0, _cumNmRR = 0;
+    _wdElapsed.forEach(ds => {
+      const st = getDayStatus(monthKey, p.name, ds);
+      if(st === 'hol' || st === 'bh') return;
+      const personOvr = ((APP.personRROverrides||{})[p.name]||{})[monthKey]?.[ds];
+      _cumRR   += personOvr !== undefined ? personOvr : (ep.riskPerDay||0);
+      _cumNmRR += _nmR;
+    });
+    // Add one more day's worth for the "next working day" checkpoint
+    const _nextDayRpd = (()=>{
+      const personOvr = ((APP.personRROverrides||{})[p.name]||{})[monthKey]?.[_today2];
+      return personOvr !== undefined ? personOvr : (ep.riskPerDay||0);
+    })();
+    const copRev = (_cumRR + _nextDayRpd) - revMTD;
+    const copNm  = (_cumNmRR + _nmR) - nmMTD;
 
     // ── percentages ──────────────────────────────────────────────
     const revPct = target>0   ? Math.round(revMTD  / target   * 100) : 0;
