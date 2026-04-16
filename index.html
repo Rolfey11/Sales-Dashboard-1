@@ -11980,8 +11980,11 @@ function _renderSumTrends(){
   const people = APP.people.filter(p=>allMks.some(mk=>_getConsultantMonthStats(p.name,mk)&&_getConsultantMonthStats(p.name,mk).revMTD>0));
 
   // ── 1. Proper DOW analysis — exclude holidays/sick/BH, include 0-rev worked days ──
-  // Only count from the earliest month that has any data
-  const dowStartMk = allMks.length ? allMks.slice().sort()[0] : '2026-04';
+  // Only count from the first month that has actual revenue entries
+  // (not just targets configured — this prevents setup months before go-live from being counted)
+  const dowStartMk = allMks
+    .filter(mk => getEntries(mk).some(e => (e.revenue||0) > 0))
+    .sort()[0] || (allMks.slice().sort()[0]);
   const dowBuckets = {};
   [1,2,3,4,5].forEach(d => dowBuckets[d] = {rev:0, days:0, hits:0, nms:0});
 
