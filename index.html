@@ -5426,7 +5426,7 @@ function renderDashCharts(mk){
 // SHARED TEAM COP HELPER — same logic as renderTeamDashboard daily loop
 // Returns { copRev, copNm, cumActual, cumNmActual }
 // ═══════════════════════════════════════════════════════════════════
-function calcTeamCOP(mk, memberNames){
+function calcTeamCOP(mk, memberNames, teamKey){
   const entries    = getEntries(mk);
   const teamPeople = APP.people.filter(p=>memberNames.includes(p.name));
   const memberRPDs = teamPeople.map(p=>({ name:p.name, rpd:(getPersonForMonth(p,mk).riskPerDay||0) }));
@@ -5443,15 +5443,21 @@ function calcTeamCOP(mk, memberNames){
 
   let cumActual=0, cumRR=0, cumNmActual=0, cumNmRR=0;
   wdDates.forEach(ds=>{
-    let dayRR=0, dayNmRR=0;
-    memberRPDs.forEach(({name,rpd})=>{
+    const calcRR2 = memberRPDs.reduce((s,{name,rpd})=>{
       const st = getDayStatus(mk,name,ds);
-      if(st!=='hol'&&st!=='bh'){ dayRR+=rpd; dayNmRR+=1.75; }
-    });
+      return s + (st!=='hol'&&st!=='bh' ? rpd : 0);
+    }, 0);
+    // Apply team-level RR override if set (teamKey passed as 3rd arg)
+    const rrOvr2 = teamKey ? ((APP.rrOverrides||{})[teamKey]||{})[mk]?.[ds] : undefined;
+    const dayRR2 = rrOvr2 !== undefined ? rrOvr2 : calcRR2;
+    const dayNmRR2 = memberRPDs.reduce((s,{name})=>{
+      const st = getDayStatus(mk,name,ds);
+      return s + (st!=='hol'&&st!=='bh' ? 1.75 : 0);
+    }, 0);
     cumActual   += (dayLookup[ds]||{}).rev||0;
-    cumRR       += dayRR;
+    cumRR       += dayRR2;
     cumNmActual += (dayLookup[ds]||{}).nm||0;
-    cumNmRR     += dayNmRR;
+    cumNmRR     += dayNmRR2;
   });
   return { copRev: cumActual-cumRR, copNm: cumNmActual-cumNmRR, cumActual, cumNmActual };
 }
@@ -5566,7 +5572,7 @@ function renderDashboard(){
       const revPct= tTgt>0?Math.round(tRev/tTgt*100):0;
 
       // Use same daily-loop logic as the Teams tab
-      const cop = calcTeamCOP(mk, members);
+      const cop = calcTeamCOP(mk, members, tk);
       const revCls = cop.copRev>=0?'var(--green)':'var(--red)';
       const nmCls  = cop.copNm>=0?'var(--green)':'var(--red)';
       const copRevLbl = cop.copRev>=0?`+${fmt(Math.abs(cop.copRev))} ahead`:`${fmt(Math.abs(cop.copRev))} needed`;
@@ -5630,7 +5636,11 @@ function renderDashboard(){
     dashTableRows += `<tr style="border-bottom:1px solid var(--border);font-size:12px;font-family:var(--fm);">
       <td style="padding:8px 14px;color:var(--text2);white-space:nowrap">${dateLabel}</td>
       <td style="padding:8px 14px;text-align:right;color:${dayActual>0?'var(--text)':'var(--text3)'};font-weight:600">£${Math.round(dayActual).toLocaleString()}</td>
-      <td style="padding:8px 14px;text-align:right;color:var(--text3)">£${Math.round(dayRR).toLocaleString()}</td>
+      <td id="rrcell_${ds}" style="padding:6px 10px;text-align:right;white-space:nowrap">
+        <span style="font-family:var(--fm);font-size:12px;color:${isOvr?'var(--accent)':'var(--text3)'};font-weight:${isOvr?'700':'400'}">£${Math.round(dayRR).toLocaleString()}</span>
+        ${isOvr?`<button onclick="saveRROverride('${teamKey}','${mk}','${ds}','')" title="Reset to calculated £${Math.round(_calcDayRR).toLocaleString()}" style="margin-left:3px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:10px;padding:1px 3px;border-radius:3px;opacity:.7;line-height:1;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">↺</button>`:''}
+        <button onclick="editRRCell('${teamKey}','${mk}','${ds}',${Math.round(_calcDayRR)})" title="Edit run rate" style="margin-left:2px;background:none;border:1px solid var(--border);cursor:pointer;color:var(--text3);font-size:10px;padding:2px 5px;border-radius:3px;line-height:1;font-family:var(--fm);" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text3)'">✎</button>
+      </td>
       <td style="padding:8px 14px;text-align:right;color:${diffCls};font-weight:600">${diff>=0?'+':''}£${Math.round(diff).toLocaleString()}</td>
       <td style="padding:8px 14px;text-align:right;color:${dayNm>0?'var(--text)':'var(--text3)'};">${dayNm}</td>
       <td style="padding:8px 14px;text-align:right;color:var(--text3)">${dayNmRR.toFixed(2)}</td>
@@ -10826,6 +10836,38 @@ function switchTeamTab(tab){
   renderTeamTabContent();
 }
 
+
+// ── Per-day run rate override ─────────────────────────────────────────
+function saveRROverride(teamKey, mk, ds, rawVal){
+  if(!APP.rrOverrides)              APP.rrOverrides = {};
+  if(!APP.rrOverrides[teamKey])     APP.rrOverrides[teamKey] = {};
+  if(!APP.rrOverrides[teamKey][mk]) APP.rrOverrides[teamKey][mk] = {};
+  const val = parseFloat(rawVal);
+  if(rawVal===''||isNaN(val)){
+    delete APP.rrOverrides[teamKey][mk][ds];
+    if(!Object.keys(APP.rrOverrides[teamKey][mk]).length) delete APP.rrOverrides[teamKey][mk];
+    if(!Object.keys(APP.rrOverrides[teamKey]).length)     delete APP.rrOverrides[teamKey];
+  } else {
+    APP.rrOverrides[teamKey][mk][ds] = Math.round(val);
+  }
+  saveApp();
+  renderTeamTabContent();
+}
+
+function editRRCell(teamKey, mk, ds, calcRR){
+  const cell = document.getElementById('rrcell_'+ds);
+  if(!cell) return;
+  const cur = ((APP.rrOverrides||{})[teamKey]||{})[mk]?.[ds];
+  const initVal = cur !== undefined ? cur : calcRR;
+  cell.innerHTML = `<div style="display:inline-flex;align-items:center;gap:4px;justify-content:flex-end">
+    <input id="rrinput_${ds}" type="number" value="${initVal}" min="0" step="100"
+      style="width:90px;text-align:right;background:var(--surface3);border:1px solid var(--accent);border-radius:5px;padding:3px 7px;font-family:var(--fm);font-size:12px;color:var(--text);outline:none;"
+      onkeydown="if(event.key==='Enter'){saveRROverride('${teamKey}','${mk}','${ds}',this.value);}if(event.key==='Escape'){renderTeamTabContent();}"
+      onblur="saveRROverride('${teamKey}','${mk}','${ds}',this.value)">
+  </div>`;
+  setTimeout(()=>{ const el=document.getElementById('rrinput_${ds}'); if(el){el.focus();el.select();} },30);
+}
+
 function renderTeams(){
   populateAllSelects();
 
@@ -10940,14 +10982,18 @@ function renderTeamDashboard(container, teamKey){
   let tableRows='';
   wdDates.forEach(ds=>{
     // How many members are working (not on planned holiday or BH) and their combined RPD / NM rate
-    let dayRR=0, dayNmRR=0;
-    memberRPDs.forEach(({name,rpd})=>{
+    // Calculate base run rate then apply any manual override for this day
+    const _calcDayRR = memberRPDs.reduce((s,{name,rpd})=>{
       const st = getDayStatus(mk,name,ds);
-      if(st!=='hol'&&st!=='bh'){
-        dayRR    += rpd;
-        dayNmRR  += 1.75;
-      }
-    });
+      return s + (st!=='hol'&&st!=='bh' ? rpd : 0);
+    }, 0);
+    const _rrOvr = ((APP.rrOverrides||{})[teamKey]||{})[mk]?.[ds];
+    const dayRR  = _rrOvr !== undefined ? _rrOvr : _calcDayRR;
+    const isOvr  = _rrOvr !== undefined;
+    const dayNmRR = memberRPDs.reduce((s,{name})=>{
+      const st = getDayStatus(mk,name,ds);
+      return s + (st!=='hol'&&st!=='bh' ? 1.75 : 0);
+    }, 0);
     const dayActual = (dayLookup[ds]||{}).rev||0;
     const dayNm     = (dayLookup[ds]||{}).nm||0;
     cumActual  += dayActual;
@@ -13182,6 +13228,7 @@ function _applyDefaults(){
   if(APP.nmRate == null) APP.nmRate = 1.75; // NM per working day target
   if(!APP.monthOverrides) APP.monthOverrides = {};
   if(APP.manualElapsed == null) APP.manualElapsed = null;
+  if(!APP.rrOverrides)   APP.rrOverrides = {};
   if(!APP.people)        APP.people = [];
 }
 
