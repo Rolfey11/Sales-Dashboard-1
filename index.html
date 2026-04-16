@@ -6358,11 +6358,15 @@ function _renderMtConsultants(mk){
   });
 
   // Footer: team total
-  const teamEffTgt = people.reduce((s,p)=>{
+  // configuredCount = month-specific overrides only (so Reset All shows '—' not global fallback)
+  const configuredCount = people.filter(p => {
+    const mo = ((APP.monthOverrides||{})[mk]||{})[p.name] || {};
+    return mo.riskPerDay !== undefined || mo.daysT !== undefined;
+  }).length;
+  const teamEffTgt = configuredCount > 0 ? people.reduce((s,p)=>{
     const ep = getPersonForMonth(p, mk);
     return s + Math.round((ep.riskPerDay||0) * (ep.daysT||0));
-  }, 0);
-  const configuredCount = people.filter(p=>{ const ep=getPersonForMonth(p,mk); return (ep.riskPerDay||0)>0 || (ep.daysT||0)>0; }).length;
+  }, 0) : 0;
 
   html += `<div id="mto-footer-${mk}" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap">
     <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">Team total</div>
@@ -6417,11 +6421,16 @@ function _refreshMtFooter(mk){
   const footer = document.getElementById('mto-footer-'+mk);
   if(!footer) return;
   const people = APP.people;
-  const teamEffTgt = people.reduce((s,p)=>{
+  // configuredCount = consultants with MONTH-SPECIFIC overrides (not global defaults)
+  // This ensures the total shows '—' after Reset All rather than falling back to globals
+  const configuredCount = people.filter(p => {
+    const mo = ((APP.monthOverrides||{})[mk]||{})[p.name] || {};
+    return mo.riskPerDay !== undefined || mo.daysT !== undefined;
+  }).length;
+  const teamEffTgt = configuredCount > 0 ? people.reduce((s,p)=>{
     const ep = getPersonForMonth(p, mk);
     return s + Math.round((ep.riskPerDay||0) * (ep.daysT||0));
-  }, 0);
-  const configuredCount = people.filter(p=>{ const ep=getPersonForMonth(p,mk); return (ep.riskPerDay||0)>0||(ep.daysT||0)>0; }).length;
+  }, 0) : 0;
   footer.innerHTML = `
     <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">Team total</div>
     <div style="font-size:20px;font-weight:700;font-family:var(--fm);color:${configuredCount>0?'var(--green)':'var(--text3)'}">${configuredCount>0?'£'+teamEffTgt.toLocaleString():'—'}</div>
@@ -11980,11 +11989,15 @@ function _renderSumTrends(){
   const people = APP.people.filter(p=>allMks.some(mk=>_getConsultantMonthStats(p.name,mk)&&_getConsultantMonthStats(p.name,mk).revMTD>0));
 
   // ── 1. Proper DOW analysis — exclude holidays/sick/BH, include 0-rev worked days ──
-  // Only count from the first month that has actual revenue entries
-  // (not just targets configured — this prevents setup months before go-live from being counted)
-  const dowStartMk = allMks
-    .filter(mk => getEntries(mk).some(e => (e.revenue||0) > 0))
-    .sort()[0] || (allMks.slice().sort()[0]);
+  // Find the exact first date any revenue was recorded — use as DOW cutoff
+  let _firstEntryDate = null;
+  allMks.forEach(mk => {
+    getEntries(mk).filter(e => (e.revenue||0) > 0).forEach(e => {
+      if(!_firstEntryDate || e.date < _firstEntryDate) _firstEntryDate = e.date;
+    });
+  });
+  const dowCutoffDate = _firstEntryDate || today;
+  const dowStartMk   = dowCutoffDate.slice(0,7); // keep for the per-person loop below
   const dowBuckets = {};
   [1,2,3,4,5].forEach(d => dowBuckets[d] = {rev:0, days:0, hits:0, nms:0});
 
@@ -12002,7 +12015,7 @@ function _renderSumTrends(){
     });
     if(!activePeople.length) return;
 
-    const wdDates = workingDatesInMonth(mk).filter(ds => ds <= today);
+    const wdDates = workingDatesInMonth(mk).filter(ds => ds <= today && ds >= dowCutoffDate);
     wdDates.forEach(ds => {
       const dow = new Date(ds).getDay();
       if(dow < 1 || dow > 5) return;
@@ -12181,7 +12194,7 @@ function _renderSumTrends(){
       <div style="padding:10px 16px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
         <div>
           <div style="font-size:13px;font-weight:700;">📅 Day-of-Week Performance</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--fm)">Holidays, sick days & bank holidays excluded · all consultants · past worked days only</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--fm)">Holidays, sick days & bank holidays excluded · all consultants · past worked days only · <span style="color:var(--accent)">from ${dowCutoffDate}</span></div>
         </div>
       </div>
       <div style="overflow-x:auto;">
