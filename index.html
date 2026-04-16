@@ -6783,6 +6783,7 @@ function renderMonthlySummary(){
   const totNmDiff  = totNm  - totNmTgt;
   const allCOP     = calcTeamCOP(mk, rowData.map(p=>p.name));
   const hitCount   = rowData.filter(p=>p.revMTD>=p.target).length;
+  const copOnTrack = rowData.filter(p=>p.cop.copRev>=0).length;
 
   document.getElementById('mcsContent').innerHTML = `
     <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
@@ -6792,9 +6793,19 @@ function renderMonthlySummary(){
       <div class="kpi-card" style="flex:1;min-width:140px"><div class="kpi-label">Total NM MTD</div>
         <div class="kpi-val">${totNm}</div>
         <div class="kpi-sub">target: ${totNmTgt.toFixed(1)}</div></div>
-      <div class="kpi-card" style="flex:1;min-width:140px"><div class="kpi-label">Targets Hit</div>
-        <div class="kpi-val ${hitCount===rowData.length?'g':hitCount>0?'a':'r'}">${hitCount} / ${rowData.length}</div>
-        <div class="kpi-sub">consultants on target</div></div>
+      <div class="kpi-card" style="flex:1;min-width:160px">
+        <div class="kpi-label">Performance Status</div>
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <span style="font-size:11px;color:var(--text3);font-family:var(--fm)">Monthly target hit</span>
+            <span class="kpi-val ${hitCount===rowData.length?'g':hitCount>0?'a':'r'}" style="font-size:16px;margin:0">${hitCount} / ${rowData.length}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <span style="font-size:11px;color:var(--text3);font-family:var(--fm)">COP on track</span>
+            <span class="kpi-val ${copOnTrack===rowData.length?'g':copOnTrack>0?'a':'r'}" style="font-size:16px;margin:0">${copOnTrack} / ${rowData.length}</span>
+          </div>
+        </div>
+      </div>
       <div class="kpi-card" style="flex:1;min-width:140px"><div class="kpi-label">Team COP Rev</div>
         <div class="kpi-val ${allCOP.copRev>=0?'g':'r'}">${allCOP.copRev>=0?'+':''}£${Math.round(Math.abs(allCOP.copRev)).toLocaleString()}</div>
         <div class="kpi-sub">${allCOP.copRev>=0?'ahead':'behind'} of checkpoint</div></div>
@@ -12672,7 +12683,7 @@ function renderPersonProfile(name){
   const cop = calcTeamCOP(mk,[name]);
 
   // Consistency rate
-  const totalWorking = daysLogged + daysMissed + daysNoEntry;
+  const totalWorking = daysLogged + daysNoEntry; // worked days = revenue days + zero-entry days (holidays/sick excluded)
   const consistency  = totalWorking>0?Math.round(daysHit/totalWorking*100):0;
   const bestDay      = mine.length ? mine.reduce((a,b)=>(b.revenue||0)>(a.revenue||0)?b:a) : null;
   const avgRev       = daysLogged>0 ? Math.round(revMTD/daysLogged) : 0;
