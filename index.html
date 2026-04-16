@@ -11976,250 +11976,371 @@ function _renderSumTrends(){
     return;
   }
 
-  // Build all entries across all months
-  const allEntries = [];
-  allMks.forEach(mk=>{
-    getEntries(mk).forEach(e=>{ if((e.revenue||0)>0) allEntries.push({...e,mk}); });
-  });
-  if(!allEntries.length){
-    container.innerHTML='<div class="empty"><div class="empty-icon">🔍</div><div>No revenue entries to analyse.</div></div>';
-    return;
-  }
-
-  // ── 1. Day of week analysis ──
-  const dowRevs  = {1:[],2:[],3:[],4:[],5:[]}; // Mon-Fri
-  const dowNms   = {1:[],2:[],3:[],4:[],5:[]};
-  allEntries.forEach(e=>{
-    const dow = new Date(e.date).getDay();
-    if(dow>=1&&dow<=5){ dowRevs[dow].push(e.revenue||0); dowNms[dow].push(e.nm||0); }
-  });
-  const dayNames = {1:'Monday',2:'Tuesday',3:'Wednesday',4:'Thursday',5:'Friday'};
-  const dowAvgs  = Object.entries(dowRevs).map(([d,vals])=>({
-    d:+d, name:dayNames[+d],
-    avgRev: vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/vals.length) : 0,
-    avgNm:  dowNms[+d].length ? (dowNms[+d].reduce((a,b)=>a+b,0)/dowNms[+d].length).toFixed(1) : 0,
-    count:  vals.length
-  })).filter(x=>x.count>0);
-
-  const bestDow  = dowAvgs.length ? dowAvgs.reduce((a,b)=>b.avgRev>a.avgRev?b:a) : null;
-  const worstDow = dowAvgs.length ? dowAvgs.reduce((a,b)=>b.avgRev<a.avgRev?b:a) : null;
-
-  // ── 2. Per-consultant best/worst stats ──
+  const today = (new Date()).toISOString().slice(0,10);
   const people = APP.people.filter(p=>allMks.some(mk=>_getConsultantMonthStats(p.name,mk)&&_getConsultantMonthStats(p.name,mk).revMTD>0));
-  const pStats = people.map(p=>{
-    const months = allMks.map(mk=>_getConsultantMonthStats(p.name,mk)).filter(x=>x&&x.target>0);
+
+  // ── 1. Proper DOW analysis — exclude holidays/sick/BH, include 0-rev worked days ──
+  // Only count from the earliest month that has any data
+  const dowStartMk = allMks.length ? allMks.slice().sort()[0] : '2026-04';
+  const dowBuckets = {};
+  [1,2,3,4,5].forEach(d => dowBuckets[d] = {rev:0, days:0, hits:0, nms:0});
+
+  // Cache entries per month for performance
+  const _mkEntries = {};
+  allMks.forEach(mk => { _mkEntries[mk] = getEntries(mk); });
+
+  allMks.forEach(mk => {
+    if(mk < dowStartMk) return;
+    const wdDates = workingDatesInMonth(mk).filter(ds => ds <= today);
+    wdDates.forEach(ds => {
+      const dow = new Date(ds).getDay();
+      if(dow < 1 || dow > 5) return;
+      people.forEach(p => {
+        // Only count months where this person has a target set — this is the key guard
+        // that prevents counting pre-data months where targets weren't configured yet
+        const pMon = _getConsultantMonthStats(p.name, mk);
+        if(!pMon || pMon.target <= 0) return;
+        const status = getDayStatus(mk, p.name, ds);
+        if(status === 'hol' || status === 'sick' || status === 'bh') return;
+        const ent = _mkEntries[mk].find(e => e.name === p.name && e.date === ds);
+        const rev = ent ? (ent.revenue||0) : 0;
+        const nm  = ent ? (ent.nm||0) : 0;
+        dowBuckets[dow].days++;
+        dowBuckets[dow].rev += rev;
+        dowBuckets[dow].nms += nm;
+        if(rev > 0) dowBuckets[dow].hits++;
+      });
+    });
+  });
+
+  const DAY_NAMES = {1:'Monday',2:'Tuesday',3:'Wednesday',4:'Thursday',5:'Friday'};
+  const DAY_SHORT = {1:'Mon',2:'Tue',3:'Wed',4:'Thu',5:'Fri'};
+  const dowData = [1,2,3,4,5].map(d => {
+    const b = dowBuckets[d];
+    return {
+      d, name: DAY_NAMES[d], short: DAY_SHORT[d],
+      avgRev:  b.days > 0 ? Math.round(b.rev / b.days) : 0,
+      avgNm:   b.days > 0 ? (b.nms / b.days).toFixed(1) : 0,
+      hitRate: b.days > 0 ? Math.round(b.hits / b.days * 100) : 0,
+      hits: b.hits, days: b.days, totalRev: b.rev
+    };
+  }).filter(x => x.days > 0);
+
+  const maxAvgRev = Math.max(...dowData.map(x => x.avgRev), 1);
+  const bestDow   = dowData.length ? dowData.reduce((a,b) => b.avgRev > a.avgRev ? b : a) : null;
+  const worstDow  = dowData.length ? dowData.reduce((a,b) => b.avgRev < a.avgRev ? b : a) : null;
+
+  // ── 2. Per-consultant stats across all months ──
+  const pStats = people.map(p => {
+    const months = allMks.map(mk => _getConsultantMonthStats(p.name, mk)).filter(x => x && x.target > 0);
     if(!months.length) return null;
-    const avgMonthlyRev = months.reduce((s,x)=>s+x.revMTD,0)/months.length;
-    const avgPct = months.reduce((s,x)=>s+x.revPct,0)/months.length;
-    const hitMonths = months.filter(x=>x.revPct>=100).length;
-    const bestMonth = months.sort((a,b)=>b.revMTD-a.revMTD)[0];
-    const allPEntries = allEntries.filter(e=>e.name===p.name);
-    const bestSingle  = allPEntries.length ? allPEntries.reduce((a,b)=>(b.revenue||0)>(a.revenue||0)?b:a) : null;
-    const streakData  = _calcHitStreak(p.name, allMks);
-    return { name:p.name, avgMonthlyRev, avgPct, hitMonths, totalMonths:months.length, bestMonth, bestSingle, ...streakData };
+    const avgMonthlyRev = months.reduce((s,x)=>s+x.revMTD,0) / months.length;
+    const avgPct        = months.reduce((s,x)=>s+x.revPct,0) / months.length;
+    const hitMonths     = months.filter(x=>x.revPct>=100).length;
+    const bestMonth     = [...months].sort((a,b)=>b.revMTD-a.revMTD)[0];
+    const allPEntries   = allMks.flatMap(mk=>getEntries(mk).filter(e=>e.name===p.name&&(e.revenue||0)>0));
+    const bestSingle    = allPEntries.length ? allPEntries.reduce((a,b)=>(b.revenue||0)>(a.revenue||0)?b:a) : null;
+    const streakData    = _calcHitStreak(p.name, allMks);
+    // Per-person DOW
+    const pDow = {};
+    [1,2,3,4,5].forEach(d => pDow[d] = {rev:0,days:0,hits:0});
+    allMks.forEach(mk=>{
+      if(mk < dowStartMk) return;
+      const pMonChk = _getConsultantMonthStats(p.name, mk);
+      if(!pMonChk || pMonChk.target <= 0) return;
+      workingDatesInMonth(mk).filter(ds=>ds<=today).forEach(ds=>{
+        const dow2 = new Date(ds).getDay();
+        if(dow2<1||dow2>5) return;
+        const st = getDayStatus(mk, p.name, ds);
+        if(st==='hol'||st==='sick'||st==='bh') return;
+        const ent2 = (_mkEntries[mk]||getEntries(mk)).find(e=>e.name===p.name&&e.date===ds);
+        const rev2 = ent2?(ent2.revenue||0):0;
+        pDow[dow2].days++;
+        pDow[dow2].rev+=rev2;
+        if(rev2>0) pDow[dow2].hits++;
+      });
+    });
+    const bestPDow = Object.entries(pDow).filter(([,v])=>v.days>0)
+      .map(([d,v])=>({d:+d,avg:v.days>0?Math.round(v.rev/v.days):0,name:DAY_SHORT[+d]}))
+      .reduce((a,b)=>b.avg>a.avg?b:a, {avg:-1,name:'—'});
+    return { name:p.name, avgMonthlyRev, avgPct, hitMonths, totalMonths:months.length,
+             bestMonth, bestSingle, bestDow:bestPDow, ...streakData };
   }).filter(Boolean);
 
-  // ── 3. Team trends ──
-  const teamMonthlyRevs = allMks.map(mk=>{
-    const ents = getEntries(mk);
-    return ents.reduce((s,e)=>s+(e.revenue||0),0);
-  });
+  // ── 3. Quarterly breakdown ──
+  const allYears = [...new Set(allMks.map(mk=>mk.slice(0,4)))].sort();
+  const qBreakdown = allYears.flatMap(yr => {
+    return [0,1,2,3].map(qi => {
+      const qMks = allMks.filter(mk => mk.startsWith(yr) && Math.floor((parseInt(mk.slice(5,7))-1)/3) === qi);
+      if(!qMks.length) return null;
+      const label = ['Q1','Q2','Q3','Q4'][qi] + ' ' + yr;
+      const qStats = people.map(p => {
+        const rev = qMks.reduce((s,mk)=>{ const st=_getConsultantMonthStats(p.name,mk); return s+(st?st.revMTD:0); },0);
+        const tgt = qMks.reduce((s,mk)=>{ const st=_getConsultantMonthStats(p.name,mk); return s+(st?st.target:0); },0);
+        return { name:p.name, rev, tgt, pct: tgt>0?Math.round(rev/tgt*100):null };
+      }).filter(x=>x.rev>0||x.tgt>0);
+      const totalRev = qStats.reduce((s,x)=>s+x.rev,0);
+      const totalTgt = qStats.reduce((s,x)=>s+x.tgt,0);
+      return { label, qi, yr, qMks, qStats, totalRev, totalTgt,
+               totalPct: totalTgt>0?Math.round(totalRev/totalTgt*100):null };
+    }).filter(Boolean);
+  }).filter(q=>q.totalRev>0||q.totalTgt>0);
+
+  // ── 4. Team trend ──
+  const teamMonthlyRevs = allMks.map(mk => getEntries(mk).reduce((s,e)=>s+(e.revenue||0),0));
   const teamTrend = _trendArrow(teamMonthlyRevs);
 
-  // ── 4. Top streaker ──
-  const topStreaker = pStats.length ? pStats.sort((a,b)=>b.longestStreak-a.longestStreak)[0] : null;
+  // ── 5. Insight cards ──
+  const allEntries = allMks.flatMap(mk=>getEntries(mk).filter(e=>(e.revenue||0)>0));
   const mostReliable = pStats.length ? [...pStats].sort((a,b)=>b.avgPct-a.avgPct)[0] : null;
-  const mostImproved = pStats.filter(p=>p.totalMonths>=2).sort((a,b)=>{
-    const aVals = allMks.map(mk=>{ const s=_getConsultantMonthStats(a.name,mk); return s?s.revPct:0; }).filter(v=>v>0);
-    const bVals = allMks.map(mk=>{ const s=_getConsultantMonthStats(b.name,mk); return s?s.revPct:0; }).filter(v=>v>0);
-    const aTrend = aVals.length>=2?aVals[aVals.length-1]-aVals[0]:0;
-    const bTrend = bVals.length>=2?bVals[bVals.length-1]-bVals[0]:0;
-    return bTrend-aTrend;
+  const topStreaker  = pStats.length ? [...pStats].sort((a,b)=>b.longestStreak-a.longestStreak)[0] : null;
+  const mostImproved = [...pStats].filter(p=>p.totalMonths>=2).sort((a,b)=>{
+    const av = allMks.map(mk=>{const s=_getConsultantMonthStats(a.name,mk);return s&&s.target>0?s.revPct:null;}).filter(v=>v!==null);
+    const bv = allMks.map(mk=>{const s=_getConsultantMonthStats(b.name,mk);return s&&s.target>0?s.revPct:null;}).filter(v=>v!==null);
+    return (bv.length>=2?bv[bv.length-1]-bv[0]:0)-(av.length>=2?av[av.length-1]-av[0]:0);
   })[0];
-
-  const insights = [];
-
-  // Day of week
-  if(bestDow && worstDow && bestDow.d!==worstDow.d){
-    insights.push({
-      icon:'📅',
-      title:'Strongest Day of the Week',
-      body:`<span class="insight-highlight">${bestDow.name}</span> is the best performing day, averaging <span class="insight-highlight">£${bestDow.avgRev.toLocaleString()}</span> per consultant per day across ${bestDow.count} entries. <span class="insight-highlight">${worstDow.name}</span> is the weakest at £${worstDow.avgRev.toLocaleString()} average.`,
-      color:'var(--accent)'
-    });
-  }
-
-  // Team trend
-  if(allMks.length>=2){
-    const recent = teamMonthlyRevs.slice(-3);
-    const recentAvg = Math.round(recent.reduce((a,b)=>a+b,0)/recent.length);
-    insights.push({
-      icon: teamTrend.icon==='↑'?'📈':teamTrend.icon==='↓'?'📉':'📊',
-      title:'Team Revenue Trend',
-      body:`Team revenue is <span class="insight-highlight ${teamTrend.cls}">${teamTrend.label}</span>. Recent monthly average: <span class="insight-highlight">£${recentAvg.toLocaleString()}</span> across the last ${Math.min(3,allMks.length)} month${allMks.length>1?'s':''}.`,
-      color: teamTrend.cls==='trend-up'?'var(--green)':teamTrend.cls==='trend-down'?'var(--red)':'var(--amber)'
-    });
-  }
-
-  // Hit rate
-  if(mostReliable){
-    insights.push({
-      icon:'🎯',
-      title:'Most Reliable Against Target',
-      body:`<span class="insight-highlight">${mostReliable.name}</span> consistently performs closest to target, averaging <span class="insight-highlight">${Math.round(mostReliable.avgPct)}%</span> of monthly target across ${mostReliable.totalMonths} month${mostReliable.totalMonths!==1?'s':''}. Hit target in <span class="insight-highlight">${mostReliable.hitMonths}</span> month${mostReliable.hitMonths!==1?'s':''}.`,
-      color:'var(--green)'
-    });
-  }
-
-  // Streak
-  if(topStreaker && topStreaker.longestStreak>1){
-    insights.push({
-      icon:'🔥',
-      title:'Longest Consecutive Hit Streak',
-      body:`<span class="insight-highlight">${topStreaker.name}</span> holds the longest streak of consecutive days hitting their daily run rate: <span class="insight-highlight">${topStreaker.longestStreak} days</span> in a row.`,
-      color:'var(--amber)'
-    });
-  }
-
-  // Most improved
-  if(mostImproved && mostImproved.totalMonths>=2){
-    const vals = allMks.map(mk=>{ const s=_getConsultantMonthStats(mostImproved.name,mk); return s&&s.target>0?s.revPct:null; }).filter(v=>v!==null);
-    const delta = vals.length>=2?Math.round(vals[vals.length-1]-vals[0]):0;
-    if(delta>0){
-      insights.push({
-        icon:'🚀',
-        title:'Most Improved Consultant',
-        body:`<span class="insight-highlight">${mostImproved.name}</span> has shown the biggest improvement, going from <span class="insight-highlight">${vals[0]}%</span> to <span class="insight-highlight">${vals[vals.length-1]}%</span> of target — a <span class="insight-highlight trend-up">+${delta}pp</span> increase over ${vals.length} months.`,
-        color:'var(--purple)'
-      });
-    }
-  }
-
-  // Best single day
   const bestEver = allEntries.length ? allEntries.reduce((a,b)=>(b.revenue||0)>(a.revenue||0)?b:a) : null;
+
+  const insightCards = [];
+  if(bestDow && worstDow && bestDow.d !== worstDow.d){
+    insightCards.push({ icon:'📅', color:'var(--accent)',
+      title:'Strongest Day of the Week',
+      body:`<span class="insight-highlight">${bestDow.name}</span> averages <span class="insight-highlight">£${bestDow.avgRev.toLocaleString()}</span> per worked day (hit rate ${bestDow.hitRate}%) — <span class="insight-highlight">${worstDow.name}</span> is weakest at £${worstDow.avgRev.toLocaleString()}.` });
+  }
+  if(allMks.length >= 2){
+    const recent3Avg = Math.round(teamMonthlyRevs.slice(-3).reduce((a,b)=>a+b,0)/Math.min(3,teamMonthlyRevs.length));
+    insightCards.push({ icon:teamTrend.icon==='↑'?'📈':teamTrend.icon==='↓'?'📉':'📊',
+      color:teamTrend.cls==='trend-up'?'var(--green)':teamTrend.cls==='trend-down'?'var(--red)':'var(--amber)',
+      title:'Team Revenue Trend',
+      body:`Team revenue is <span class="insight-highlight ${teamTrend.cls}">${teamTrend.label}</span>. Last ${Math.min(3,allMks.length)} month average: <span class="insight-highlight">£${recent3Avg.toLocaleString()}</span>.` });
+  }
+  if(mostReliable){
+    insightCards.push({ icon:'🎯', color:'var(--green)', title:'Most Consistent Against Target',
+      body:`<span class="insight-highlight">${mostReliable.name}</span> averages <span class="insight-highlight">${Math.round(mostReliable.avgPct)}%</span> of target across ${mostReliable.totalMonths} months, hitting target <span class="insight-highlight">${mostReliable.hitMonths}</span> time${mostReliable.hitMonths!==1?'s':''}.` });
+  }
+  if(topStreaker && topStreaker.longestStreak > 1){
+    insightCards.push({ icon:'🔥', color:'var(--amber)', title:'Longest Hit Streak',
+      body:`<span class="insight-highlight">${topStreaker.name}</span> has the longest streak of consecutive days hitting daily run rate: <span class="insight-highlight">${topStreaker.longestStreak} days</span> in a row.` });
+  }
+  if(mostImproved && mostImproved.totalMonths >= 2){
+    const vals = allMks.map(mk=>{const s=_getConsultantMonthStats(mostImproved.name,mk);return s&&s.target>0?s.revPct:null;}).filter(v=>v!==null);
+    const delta = vals.length>=2?Math.round(vals[vals.length-1]-vals[0]):0;
+    if(delta>0) insightCards.push({ icon:'🚀', color:'var(--purple)', title:'Most Improved',
+      body:`<span class="insight-highlight">${mostImproved.name}</span> improved from <span class="insight-highlight">${vals[0]}%</span> to <span class="insight-highlight">${vals[vals.length-1]}%</span> of target — a <span class="insight-highlight trend-up">+${delta}pp</span> gain over ${vals.length} months.` });
+  }
   if(bestEver){
-    insights.push({
-      icon:'⚡',
-      title:'All-Time Best Single Day',
-      body:`The highest single-day revenue on record is <span class="insight-highlight">£${Math.round(bestEver.revenue||0).toLocaleString()}</span> by <span class="insight-highlight">${bestEver.name}</span> on <span class="insight-highlight">${bestEver.date}</span>.`,
-      color:'var(--green)'
-    });
+    insightCards.push({ icon:'⚡', color:'var(--green)', title:'All-Time Best Single Day',
+      body:`<span class="insight-highlight">£${Math.round(bestEver.revenue||0).toLocaleString()}</span> by <span class="insight-highlight">${bestEver.name}</span> on ${bestEver.date}.` });
+  }
+  if(dowData.find(x=>x.d===1) && dowData.find(x=>x.d===5)){
+    const mon = dowData.find(x=>x.d===1), fri = dowData.find(x=>x.d===5);
+    const diff = Math.abs(fri.avgRev-mon.avgRev);
+    insightCards.push({ icon:'📆', color:'var(--blue)', title:'Monday vs Friday',
+      body:`<span class="insight-highlight">${fri.avgRev>mon.avgRev?'Friday':'Monday'}</span> outperforms by <span class="insight-highlight">£${diff.toLocaleString()}</span> avg. Mon: £${mon.avgRev.toLocaleString()} · Fri: £${fri.avgRev.toLocaleString()}.` });
   }
 
-  // Friday vs Monday
-  if(dowAvgs.find(x=>x.d===1) && dowAvgs.find(x=>x.d===5)){
-    const mon = dowAvgs.find(x=>x.d===1);
-    const fri = dowAvgs.find(x=>x.d===5);
-    const diff = Math.abs(fri.avgRev - mon.avgRev);
-    const better = fri.avgRev > mon.avgRev ? 'Friday' : 'Monday';
-    insights.push({
-      icon:'📆',
-      title:'Monday vs Friday',
-      body:`<span class="insight-highlight">${better}</span> outperforms the other end of the week by <span class="insight-highlight">£${diff.toLocaleString()}</span> per consultant on average. Monday avg: £${mon.avgRev.toLocaleString()} · Friday avg: £${fri.avgRev.toLocaleString()}.`,
-      color:'var(--blue)'
-    });
+  // ── Helper colours ──
+  const pctBg  = p => p===null?'#f0f0f0':p>=100?'#c8f2d8':p>=75?'#fef3c0':'#fde0e6';
+  const pctCol = p => p===null?'#aaa':p>=100?'#0e6e44':p>=75?'#92540a':'#9b1d35';
+  const pctBadge = (p,suffix='') => `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;background:${pctBg(p)};color:${pctCol(p)}">${p===null?'—':p+suffix}</span>`;
+
+  // ── Build HTML ──────────────────────────────────────────────────────
+  let html = '';
+
+  // Insight cards
+  if(insightCards.length){
+    html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;margin-bottom:24px">
+      ${insightCards.map(c=>`
+        <div class="insight-card" style="border-left:3px solid ${c.color}">
+          <div class="insight-icon">${c.icon}</div>
+          <div><div class="insight-title">${c.title}</div><div class="insight-body">${c.body}</div></div>
+        </div>`).join('')}
+    </div>`;
   }
 
-  // DoW breakdown table
-  let html = `
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:14px;margin-bottom:24px">
-    ${insights.map(ins=>`
-      <div class="insight-card" style="border-left:3px solid ${ins.color}">
-        <div class="insight-icon">${ins.icon}</div>
+  // ── DOW table ───────────────────────────────────────────────────────
+  if(dowData.length){
+    html += `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;">
+      <div style="padding:10px 16px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
         <div>
-          <div class="insight-title">${ins.title}</div>
-          <div class="insight-body">${ins.body}</div>
+          <div style="font-size:13px;font-weight:700;">📅 Day-of-Week Performance</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--fm)">Holidays, sick days & bank holidays excluded · all consultants · past worked days only</div>
         </div>
-      </div>`).join('')}
-  </div>
+      </div>
+      <div style="overflow-x:auto;">
+      <table style="border-collapse:collapse;width:100%;min-width:480px;font-family:var(--fm);">
+        <thead>
+          <tr style="background:var(--surface2)">
+            <th style="padding:8px 14px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap;min-width:140px;">Metric</th>
+            ${dowData.map(x=>`<th style="padding:8px 14px;text-align:center;font-size:11px;font-weight:700;color:var(--text);border-bottom:1px solid var(--border);white-space:nowrap;">${x.name}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:8px 14px;font-size:11px;font-weight:700;color:var(--text3);background:var(--surface2)">Avg Revenue / Day</td>
+            ${dowData.map(x=>{
+              const barW = Math.round(x.avgRev/maxAvgRev*100);
+              const isB = bestDow && x.d===bestDow.d;
+              return `<td style="padding:8px 12px;text-align:center;background:var(--surface)">
+                <div style="font-size:14px;font-weight:700;color:${isB?'var(--green)':'var(--text)'};font-family:var(--fm)">£${x.avgRev.toLocaleString()}</div>
+                <div style="margin-top:4px;height:4px;background:var(--surface3);border-radius:2px;overflow:hidden;width:80%;margin-left:auto;margin-right:auto">
+                  <div style="height:100%;width:${barW}%;background:${isB?'var(--green)':'var(--accent)'};border-radius:2px;transition:width .3s"></div>
+                </div>
+              </td>`;
+            }).join('')}
+          </tr>
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:8px 14px;font-size:11px;font-weight:700;color:var(--text3);background:var(--surface2)">Hit Rate</td>
+            ${dowData.map(x=>`<td style="padding:8px 12px;text-align:center;background:var(--surface)">
+              ${pctBadge(x.hitRate,'%')}
+              <div style="font-size:10px;color:var(--text3);margin-top:3px;font-family:var(--fm)">${x.hits}/${x.days} days</div>
+            </td>`).join('')}
+          </tr>
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:8px 14px;font-size:11px;font-weight:700;color:var(--text3);background:var(--surface2)">Days Worked</td>
+            ${dowData.map(x=>`<td style="padding:8px 12px;text-align:center;font-size:13px;font-weight:600;color:var(--text);background:var(--surface)">${x.days}</td>`).join('')}
+          </tr>
+          <tr>
+            <td style="padding:8px 14px;font-size:11px;font-weight:700;color:var(--text3);background:var(--surface2)">Total Revenue</td>
+            ${dowData.map(x=>`<td style="padding:8px 12px;text-align:center;font-size:12px;font-weight:700;color:var(--green);background:var(--surface)">£${Math.round(x.totalRev).toLocaleString()}</td>`).join('')}
+          </tr>
+        </tbody>
+      </table>
+      </div>
+    </div>`;
+  }
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
-    <div class="chart-card">
-      <div class="chart-title">Average Revenue by Day of Week</div>
-      <div class="chart-sub">per consultant per day across all months</div>
-      <div style="position:relative;height:200px"><canvas id="cDowRev"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-title">Consultant Monthly Hit Rate</div>
-      <div class="chart-sub">average % of monthly target achieved</div>
-      <div style="position:relative;height:200px"><canvas id="cConsHit"></canvas></div>
-    </div>
-  </div>`;
+  // ── Quarterly breakdown table ────────────────────────────────────────
+  if(qBreakdown.length){
+    html += `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;">
+      <div style="padding:10px 16px;background:var(--surface2);border-bottom:1px solid var(--border);">
+        <div style="font-size:13px;font-weight:700;">📊 Quarterly Breakdown</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--fm)">Revenue vs target per quarter · team combined</div>
+      </div>
+      <div style="overflow-x:auto;">
+      <table style="border-collapse:collapse;width:100%;font-family:var(--fm);">
+        <thead>
+          <tr style="background:var(--surface2);border-bottom:1px solid var(--border)">
+            <th style="padding:8px 14px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;min-width:100px;">Quarter</th>
+            <th style="padding:8px 14px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;">Target</th>
+            <th style="padding:8px 14px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;">Actual</th>
+            <th style="padding:8px 14px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;">Diff</th>
+            <th style="padding:8px 14px;text-align:center;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;">% Target</th>
+            <th style="padding:8px 14px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;">Top Performer</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${qBreakdown.map((q,i)=>{
+            const diff = q.totalRev - q.totalTgt;
+            const diffCol = diff >= 0 ? 'var(--green)' : 'var(--red)';
+            const top = q.qStats.length ? [...q.qStats].sort((a,b)=>b.rev-a.rev)[0] : null;
+            const rowBg = i%2===0 ? 'var(--surface)' : 'var(--surface2)';
+            return `<tr style="border-bottom:1px solid var(--border);background:${rowBg}">
+              <td style="padding:8px 14px;font-size:12px;font-weight:700;color:var(--text)">${q.label}</td>
+              <td style="padding:8px 14px;text-align:right;font-size:12px;color:var(--text2);font-family:var(--fm)">${q.totalTgt>0?'£'+Math.round(q.totalTgt).toLocaleString():'—'}</td>
+              <td style="padding:8px 14px;text-align:right;font-size:12px;font-weight:700;color:var(--text);font-family:var(--fm)">£${Math.round(q.totalRev).toLocaleString()}</td>
+              <td style="padding:8px 14px;text-align:right;font-size:12px;font-weight:700;color:${diffCol};font-family:var(--fm)">${diff>=0?'+':''}£${Math.round(Math.abs(diff)).toLocaleString()}</td>
+              <td style="padding:8px 14px;text-align:center">${pctBadge(q.totalPct,'%')}</td>
+              <td style="padding:8px 14px;font-size:12px;color:var(--text2)">${top?`<span style="font-weight:700;color:var(--accent)">${top.name}</span> · £${Math.round(top.rev).toLocaleString()}`:'—'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+      </div>
+    </div>`;
+  }
 
-  // Per-consultant breakdown
+  // ── Per-consultant breakdown ──────────────────────────────────────────
   if(pStats.length){
-    html += `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:24px">
+    html += `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;">
+      <div style="padding:10px 16px;background:var(--surface2);border-bottom:1px solid var(--border);">
+        <div style="font-size:13px;font-weight:700;">👤 Per-Consultant Breakdown</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--fm)">All-time stats · sorted by average % of target</div>
+      </div>
+      <div style="overflow-x:auto;">
       <table class="sum-table">
         <thead><tr>
           <th class="sum-th">Consultant</th>
           <th class="sum-th">Avg Monthly Rev</th>
           <th class="sum-th">Avg % Target</th>
-          <th class="sum-th">Months Hit Target</th>
+          <th class="sum-th">Months Hit</th>
           <th class="sum-th">Best Month</th>
           <th class="sum-th">Best Single Day</th>
-          <th class="sum-th">Longest Streak</th>
-        </tr></thead><tbody>`;
-    [...pStats].sort((a,b)=>b.avgPct-a.avgPct).forEach(s=>{
-      const pctCls = s.avgPct>=100?'var(--green)':s.avgPct>=75?'var(--amber)':'var(--red)';
-      html += `<tr class="sum-tr">
-        <td class="sum-td">${s.name}</td>
-        <td class="sum-td">£${Math.round(s.avgMonthlyRev).toLocaleString()}</td>
-        <td class="sum-td" style="color:${pctCls};font-weight:700">${Math.round(s.avgPct)}%</td>
-        <td class="sum-td">${s.hitMonths} / ${s.totalMonths}</td>
-        <td class="sum-td">${s.bestMonth?monthLabel(s.bestMonth.mk).split(' ')[0]+' (£'+Math.round(s.bestMonth.revMTD).toLocaleString()+')':'—'}</td>
-        <td class="sum-td">${s.bestSingle?'£'+Math.round(s.bestSingle.revenue||0).toLocaleString()+' ('+s.bestSingle.date+')':'—'}</td>
-        <td class="sum-td" style="color:var(--amber)">${s.longestStreak} day${s.longestStreak!==1?'s':''}</td>
-      </tr>`;
-    });
-    html += '</tbody></table></div>';
+          <th class="sum-th">Best DOW</th>
+          <th class="sum-th">Streak</th>
+        </tr></thead>
+        <tbody>
+          ${[...pStats].sort((a,b)=>b.avgPct-a.avgPct).map(s=>`
+          <tr class="sum-tr">
+            <td class="sum-td" style="font-weight:700">${s.name}</td>
+            <td class="sum-td">£${Math.round(s.avgMonthlyRev).toLocaleString()}</td>
+            <td class="sum-td">${pctBadge(Math.round(s.avgPct),'%')}</td>
+            <td class="sum-td">${s.hitMonths} / ${s.totalMonths}</td>
+            <td class="sum-td">${s.bestMonth?monthLabel(s.bestMonth.mk).split(' ')[0]+' · £'+Math.round(s.bestMonth.revMTD).toLocaleString():'—'}</td>
+            <td class="sum-td">${s.bestSingle?'£'+Math.round(s.bestSingle.revenue||0).toLocaleString()+' · '+s.bestSingle.date:'—'}</td>
+            <td class="sum-td" style="color:var(--accent)">${s.bestDow&&s.bestDow.avg>0?s.bestDow.name+' (£'+s.bestDow.avg.toLocaleString()+' avg)':'—'}</td>
+            <td class="sum-td" style="color:var(--amber)">${s.longestStreak} day${s.longestStreak!==1?'s':''}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      </div>
+    </div>`;
   }
+
+  // Charts (DOW + hit rate)
+  html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+    <div class="chart-card">
+      <div class="chart-title">Avg Revenue by Day of Week</div>
+      <div class="chart-sub">per consultant per worked day · holidays excluded</div>
+      <div style="position:relative;height:200px"><canvas id="cDowRev"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Consultant Avg % of Target</div>
+      <div class="chart-sub">across all months with targets set</div>
+      <div style="position:relative;height:200px"><canvas id="cConsHit"></canvas></div>
+    </div>
+  </div>`;
 
   container.innerHTML = html;
 
   // Render charts
+  const tickCol = getComputedStyle(document.documentElement).getPropertyValue('--text3').trim()||'#666';
+  const gridCol = getComputedStyle(document.documentElement).getPropertyValue('--border').trim()||'#eee';
   setTimeout(()=>{
     destroyChart('dowRev'); destroyChart('consHit');
-
-    if(dowAvgs.length){
+    if(dowData.length){
       _charts.dowRev = new Chart(document.getElementById('cDowRev'),{
         type:'bar',
-        data:{
-          labels:dowAvgs.map(x=>x.name),
-          datasets:[{
-            data:dowAvgs.map(x=>x.avgRev),
-            backgroundColor:dowAvgs.map(x=>x.d===bestDow?.d?'#2dce89':'#5e9cf5'),
-            borderRadius:4,barPercentage:.65
-          }]
-        },
+        data:{ labels:dowData.map(x=>x.name),
+          datasets:[{data:dowData.map(x=>x.avgRev),
+            backgroundColor:dowData.map(x=>bestDow&&x.d===bestDow.d?'#2dce89':'#5e9cf5'),
+            borderRadius:4,barPercentage:.65}]},
         options:{responsive:true,maintainAspectRatio:false,
           plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'£'+Math.round(c.parsed.y).toLocaleString()}}},
-          scales:{x:{ticks:{color:tickCol,font:{size:11}},grid:{display:false}},y:{ticks:{color:tickCol,font:{size:10},callback:v=>'£'+Math.round(v/1000)+'k'},grid:{color:gridCol}}}}
+          scales:{x:{ticks:{color:tickCol,font:{size:11}},grid:{display:false}},
+                  y:{ticks:{color:tickCol,font:{size:10},callback:v=>'£'+Math.round(v/1000)+'k'},grid:{color:gridCol}}}}
       });
     }
-
     if(pStats.length){
       const sorted = [...pStats].sort((a,b)=>b.avgPct-a.avgPct);
       _charts.consHit = new Chart(document.getElementById('cConsHit'),{
         type:'bar',
-        data:{
-          labels:sorted.map(x=>x.name),
-          datasets:[{
-            data:sorted.map(x=>Math.round(x.avgPct)),
+        data:{labels:sorted.map(x=>x.name),
+          datasets:[{data:sorted.map(x=>Math.round(x.avgPct)),
             backgroundColor:sorted.map(x=>x.avgPct>=100?'#2dce89':x.avgPct>=75?'#fbb83a':'#f5365c'),
-            borderRadius:4,barPercentage:.65
-          },{
-            data:sorted.map(()=>100),
-            type:'line',borderColor:'rgba(255,255,255,.15)',borderWidth:1,pointRadius:0,borderDash:[4,3],fill:false,tension:0
-          }]
-        },
+            borderRadius:4,barPercentage:.65},
+            {data:sorted.map(()=>100),type:'line',borderColor:'rgba(255,255,255,.15)',borderWidth:1,pointRadius:0,borderDash:[4,3],fill:false,tension:0}]},
         options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
           plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.x+'%'}}},
-          scales:{x:{ticks:{color:tickCol,font:{size:10},callback:v=>v+'%'},grid:{color:gridCol},min:0,max:Math.max(120,...sorted.map(x=>Math.round(x.avgPct)+5))},y:{ticks:{color:tickCol,font:{size:11}},grid:{display:false}}}}
+          scales:{x:{ticks:{color:tickCol,font:{size:10},callback:v=>v+'%'},grid:{color:gridCol},min:0,max:Math.max(120,...sorted.map(x=>Math.round(x.avgPct)+5))},
+                  y:{ticks:{color:tickCol,font:{size:11}},grid:{display:false}}}}
       });
     }
   },50);
 }
-
 function _calcHitStreak(name, mks){
   // Find longest consecutive streak of days hitting daily run rate.
   // Holidays, sick days and bank holidays are skipped (don't break or count).
