@@ -4181,7 +4181,10 @@ function saveApp(){
 function _doSaveApp(){
   _ignoreNextSnapshot = true;
   if(!_dbRef){ setSyncStatus('error'); return; }
-  _dbRef.set(APP)
+  // Strip activeMonth before writing to Firebase — each user's month view is
+  // stored locally (localStorage) so it must never overwrite other users.
+  const { activeMonth: _am, ...appToSave } = APP;
+  _dbRef.set(appToSave)
     .then(()=>{ setSyncStatus('live'); _saveRetryCount=0; })
     .catch(e=>{
       _ignoreNextSnapshot = false;
@@ -4210,6 +4213,41 @@ function _localDateStr(d){
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
 
+// ── Per-user local view month ─────────────────────────────────────
+// Stored in localStorage so each user's month selection is independent.
+// Changing the month on one browser does NOT sync to other users.
+let _localViewMonth = null;
+
+function _lsViewKey(){
+  // Use divKey + user id if available, otherwise just divKey
+  // (divKey is always set before _initLocalViewMonth is called)
+  const uid = _currentUser?.id || sessionStorage.getItem('pd_uid') || 'anon';
+  return 'lvMonth_' + (_currentDivKey||'branch') + '_' + uid;
+}
+function _readLocalViewMonth(){
+  try{ return localStorage.getItem(_lsViewKey())||null; }catch(e){ return null; }
+}
+function _writeLocalViewMonth(mk){
+  _localViewMonth = mk;
+  try{ localStorage.setItem(_lsViewKey(), mk); }catch(e){}
+}
+// Restore user's saved month preference after login / initial load
+function _initLocalViewMonth(){
+  const saved = _readLocalViewMonth();
+  const keys  = Object.keys(APP.months||{});
+  if(saved && (keys.includes(saved) || saved===APP.activeMonth)){
+    _localViewMonth = saved;
+    APP.activeMonth = saved;
+  } else {
+    _localViewMonth = APP.activeMonth;
+    _writeLocalViewMonth(APP.activeMonth);
+  }
+}
+// After a remote Firebase sync, restore the user's local month preference
+function _restoreLocalViewMonth(){
+  if(_localViewMonth) APP.activeMonth = _localViewMonth;
+}
+
 let APP = {
   people: [],
   months: {},
@@ -4230,6 +4268,8 @@ function monthLabel(k){
 function allMonthKeys(){
   const keys=Object.keys(APP.months);
   if(!keys.includes(APP.activeMonth)) keys.push(APP.activeMonth);
+  // Also ensure the locally-selected month is always available in the list
+  if(_localViewMonth && !keys.includes(_localViewMonth)) keys.push(_localViewMonth);
   return [...new Set(keys)].sort().reverse();
 }
 // Extended version that also includes months from APP.absences (used by holiday tracker)
@@ -6102,6 +6142,7 @@ function clearDayEntries(){
 
 function onEntryMonthChange(){
   APP.activeMonth = document.getElementById('entryMonth').value;
+  _writeLocalViewMonth(APP.activeMonth);
   saveApp();
   buildEntryRows();
 }
@@ -6736,6 +6777,8 @@ function clearAllMonthOverrides(mk){
 
 function setActiveMonth(){
   APP.activeMonth = document.getElementById('activeMonthSel').value;
+  // Also persist locally so this user's view stays on the chosen month
+  _writeLocalViewMonth(APP.activeMonth);
   saveApp();
   populateAllSelects();
   showToast('Active month → '+monthLabel(APP.activeMonth));
@@ -6744,12 +6787,14 @@ function setActiveMonth(){
 function setGlobalMonth(){
   const val = document.getElementById('globalMonthSel').value;
   if(!val) return;
+  // Write month locally only — does NOT call saveApp() so other users
+  // are never affected by this user's month selection.
   APP.activeMonth = val;
-  saveApp();
-  // sync the settings selector too
+  _writeLocalViewMonth(val);
+  // Sync the settings selector too
   const s = document.getElementById('activeMonthSel');
   if(s) s.value = val;
-  // re-render current page
+  // Re-render current page
   const pg = document.querySelector('.page.active');
   if(pg){ showPage(pg.id.replace('page-','')); }
   showToast('Month → '+monthLabel(val));
@@ -6772,6 +6817,8 @@ function createNewMonth(){
   if(APP.months[key]){ showToast('Month already exists'); closeModal(); return; }
   APP.months[key]={entries:[]};
   APP.activeMonth=key;
+  // Store locally so this user's view switches to the new month
+  _writeLocalViewMonth(key);
   saveApp();
   populateAllSelects();
   _mtSelectedMonth = null; // go back to month list so new month appears
@@ -6784,6 +6831,7 @@ function clearAllData(){
   if(!confirm('Delete ALL data and consultants? This cannot be undone.')) return;
   APP={people:[],months:{},activeMonth:todayKey(),teams:{g:[],james:[],damo:[]},bizTargets:{},holidays:{},sickness:{},monthOverrides:{},manualElapsed:null};
   APP.months[APP.activeMonth]={entries:[]};
+  _writeLocalViewMonth(APP.activeMonth);
   saveApp();
   populateAllSelects();
   renderDashboard();
@@ -13568,6 +13616,8 @@ _dbRef.once('value').then(snap=>{
   const data = snap.val();
   if(data){ APP = data; }
   _applyDefaults();
+  // Restore this user's local month preference — must run AFTER _applyDefaults
+  _initLocalViewMonth();
   setSyncStatus('live');
   populateAllSelects();
   renderDashboard();
@@ -13583,6 +13633,9 @@ _dbRef.once('value').then(snap=>{
     if(!remote) return;
     APP = remote;
     _applyDefaults();
+    // IMPORTANT: restore this user's local month — don't let another user's
+    // month change bleed into this session.
+    _restoreLocalViewMonth();
     setSyncStatus('live');
     if(document.activeElement && ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
     const pg = document.querySelector('.page.active');
@@ -13592,6 +13645,7 @@ _dbRef.once('value').then(snap=>{
   console.error('Firebase load failed:', e);
   setSyncStatus('error');
   _applyDefaults();
+  _initLocalViewMonth();
   populateAllSelects();
   renderDashboard();
 });
