@@ -11989,15 +11989,9 @@ function _renderSumTrends(){
   const people = APP.people.filter(p=>allMks.some(mk=>_getConsultantMonthStats(p.name,mk)&&_getConsultantMonthStats(p.name,mk).revMTD>0));
 
   // ── 1. Proper DOW analysis — exclude holidays/sick/BH, include 0-rev worked days ──
-  // Find the exact first date any revenue was recorded — use as DOW cutoff
-  let _firstEntryDate = null;
-  allMks.forEach(mk => {
-    getEntries(mk).filter(e => (e.revenue||0) > 0).forEach(e => {
-      if(!_firstEntryDate || e.date < _firstEntryDate) _firstEntryDate = e.date;
-    });
-  });
-  const dowCutoffDate = _firstEntryDate || today;
-  const dowStartMk   = dowCutoffDate.slice(0,7); // keep for the per-person loop below
+  // Fixed data go-live date — only count DOW stats from 1 April 2026 onwards
+  const dowCutoffDate = '2026-04-01';
+  const dowStartMk   = '2026-04';
   const dowBuckets = {};
   [1,2,3,4,5].forEach(d => dowBuckets[d] = {rev:0, days:0, hits:0, nms:0});
 
@@ -12194,7 +12188,7 @@ function _renderSumTrends(){
       <div style="padding:10px 16px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
         <div>
           <div style="font-size:13px;font-weight:700;">📅 Day-of-Week Performance</div>
-          <div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--fm)">Holidays, sick days & bank holidays excluded · all consultants · past worked days only · <span style="color:var(--accent)">from ${dowCutoffDate}</span></div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:var(--fm)">Holidays, sick days & bank holidays excluded · all consultants · past worked days only · <span style="color:var(--accent)">from 01/04/2026</span></div>
         </div>
       </div>
       <div style="overflow-x:auto;">
