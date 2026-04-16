@@ -4258,34 +4258,29 @@ function calcStats(monthKey){
     // calendar working days elapsed for this person (holidays excluded)
     const calDays = calWorkDays(monthKey, p.name);
 
-    // ── COP (next working day checkpoint) ────────────────────────
-    // Use a day-by-day loop so per-day personRROverrides are respected
-    const _nmR   = nmRateFor(p.name||'');
-    const _today2 = _localDateStr(new Date());
+    // ── COP: day-by-day cumulative run rate vs actual (matches individual card MTD diff)
+    // positive = ahead, negative = behind — sick days excluded from run rate accumulation
+    const _nmR     = nmRateFor(p.name||'');
+    const _today2  = _localDateStr(new Date());
     const _wdElapsed = workingDatesInMonth(monthKey).filter(ds => ds <= _today2);
     let _cumRR = 0, _cumNmRR = 0;
     _wdElapsed.forEach(ds => {
       const st = getDayStatus(monthKey, p.name, ds);
-      if(st === 'hol' || st === 'bh') return;
+      if(st === 'hol' || st === 'sick' || st === 'bh') return;
       const personOvr = ((APP.personRROverrides||{})[p.name]||{})[monthKey]?.[ds];
       _cumRR   += personOvr !== undefined ? personOvr : (ep.riskPerDay||0);
       _cumNmRR += _nmR;
     });
-    // Add one more day's worth for the "next working day" checkpoint
-    const _nextDayRpd = (()=>{
-      const personOvr = ((APP.personRROverrides||{})[p.name]||{})[monthKey]?.[_today2];
-      return personOvr !== undefined ? personOvr : (ep.riskPerDay||0);
-    })();
-    const copRev = (_cumRR + _nextDayRpd) - revMTD;
-    const copNm  = (_cumNmRR + _nmR) - nmMTD;
+    const copRev = revMTD - _cumRR;
+    const copNm  = nmMTD  - _cumNmRR;
 
     // ── percentages ──────────────────────────────────────────────
     const revPct = target>0   ? Math.round(revMTD  / target   * 100) : 0;
     const nmTargetFixed = effectiveDays * nmRateFor(p.name||'');
     const nmPct  = nmTargetFixed>0 ? Math.round(nmMTD / nmTargetFixed * 100) : 0;
 
-    const riskAhead = copRev <= 0;
-    const nmAhead   = copNm  <= 0;
+    const riskAhead = copRev >= 0;
+    const nmAhead   = copNm  >= 0;
 
     const loggedDays = new Set(mine.filter(e=>(e.revenue||0)>0||(e.nm||0)>0).map(e=>e.date)).size;
 
@@ -5878,7 +5873,7 @@ function renderLeaderboard(){
   const byRev  = [...stats].sort((a,b)=>b.revMTD-a.revMTD);
   const byNM   = [...stats].sort((a,b)=>b.nmMTD-a.nmMTD);
   const byPct  = [...stats].sort((a,b)=>b.revPct-a.revPct);
-  const byCOP  = [...stats].filter(s=>s.riskAhead).sort((a,b)=>a.copRev-b.copRev);
+  const byCOP  = [...stats].filter(s=>s.riskAhead).sort((a,b)=>b.copRev-a.copRev);
 
   const maxRev = byRev[0]?.revMTD||1;
   const maxNM  = byNM[0]?.nmMTD||1;
@@ -16634,7 +16629,7 @@ function _buildEnhancedCard(p, mk){
   const rbc      = p.riskAhead?'#2dce89':p.revPct>=75?'#fbb83a':'#f5365c';
   const nbc      = p.nmAhead ?'#2dce89':p.nmPct>=75 ?'#fbb83a':'#f5365c';
   const cardCls  = p.riskAhead&&p.nmAhead?'ab':!p.riskAhead&&!p.nmAhead?'bb':'mx';
-  const copRevStr= p.riskAhead?'+'+fmt(Math.abs(p.copRev))+' ahead':fmt(p.copRev)+' needed';
+  const copRevStr= p.riskAhead?'+'+fmt(Math.abs(p.copRev))+' ahead':fmt(Math.abs(p.copRev))+' needed';
   const copNmStr = p.nmAhead  ?Math.abs(p.copNm).toFixed(1)+' ahead':p.copNm.toFixed(1)+' needed';
 
   const streak     = typeof _calcStreak==='function' ? _calcStreak(p.name, mk) : 0;
