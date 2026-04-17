@@ -4484,7 +4484,7 @@ function calcStats(monthKey){
     const riskAhead = copRev >= 0;
     const nmAhead   = copNm  >= 0;
 
-    const loggedDays = new Set(mine.filter(e=>(e.revenue||0)>0||(e.nm||0)>0).map(e=>e.date)).size;
+    const loggedDays = calWorkDays(monthKey, p.name);
 
     return {
       ...ep, name: p.name, target, revMTD, nmMTD, loggedDays, calDays, nmTarget,
