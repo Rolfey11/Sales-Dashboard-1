@@ -4142,6 +4142,11 @@ function _initApp(divKey){
     teams:{g:[],james:[],damo:[]}, bizTargets:{},
     holidays:{}, sickness:{}, absences:{}, allowances:{}, directReports:{}, nmRates:{}, monthOverrides:{}, manualElapsed:null
   };
+  // DATA-LOSS PROTECTION: reset the save-safety flags so we can't
+  // accidentally write this empty APP to the new division's Firebase path
+  // before we've loaded its real data.
+  _dbLoadedSuccessfully = false;
+  _lastSavedFootprint = 0;
   setSyncStatus('connecting');
   _startFirebase();
 }
@@ -4171,6 +4176,31 @@ const HIST_PAGE_SIZE = 50;
 
 let _saveRetryTimer = null;
 let _saveRetryCount = 0;
+// ─── Data-loss prevention ──────────────────────────────────────────
+// Once we've successfully loaded a non-empty division snapshot from Firebase,
+// this flag is set true. saveApp() will REFUSE to write if this is still
+// false — preventing the empty-APP-overwrites-real-data race condition that
+// can occur if _dbRef.once('value') rejects during initial load.
+let _dbLoadedSuccessfully = false;
+// Also track the last-known good size so we can refuse saves that would
+// catastrophically shrink the data (e.g. empty people list + empty months).
+let _lastSavedFootprint = 0;
+function _appFootprint(obj){
+  // Rough sanity measurement — how "full" the APP object looks
+  if(!obj || typeof obj !== 'object') return 0;
+  let score = 0;
+  if(Array.isArray(obj.people)) score += obj.people.length * 10;
+  if(obj.months && typeof obj.months === 'object'){
+    for(const mk in obj.months){
+      const m = obj.months[mk];
+      if(m && Array.isArray(m.entries)) score += m.entries.length;
+    }
+  }
+  if(obj.monthOverrides) score += Object.keys(obj.monthOverrides).length * 5;
+  if(obj.teams) score += Object.keys(obj.teams).length * 3;
+  return score;
+}
+
 function saveApp(){
   setSyncStatus('saving');
   clearTimeout(_saveTimer);
@@ -4179,13 +4209,54 @@ function saveApp(){
   _saveTimer = setTimeout(_doSaveApp, 400);
 }
 function _doSaveApp(){
-  _ignoreNextSnapshot = true;
   if(!_dbRef){ setSyncStatus('error'); return; }
+
+  // ── SAFETY GUARD #1: refuse to save before first successful load ──
+  // If _startFirebase() fell into the catch path (network error, auth blip),
+  // APP is empty and any save here would wipe the division's Firebase data.
+  if(!_dbLoadedSuccessfully){
+    console.warn('[saveApp] Refusing to save — initial Firebase load has not completed successfully. Protecting existing data.');
+    setSyncStatus('error');
+    showToast('Save blocked — still loading. Try again in a moment.', 'err');
+    return;
+  }
+
+  // ── SAFETY GUARD #2: refuse to save catastrophically shrunk data ──
+  // If APP has shrunk dramatically since the last successful save, something
+  // is wrong — don't let it overwrite Firebase.
+  const currentFootprint = _appFootprint(APP);
+  if(_lastSavedFootprint > 50 && currentFootprint < _lastSavedFootprint * 0.3){
+    console.error('[saveApp] Refusing to save — APP appears to have shrunk by more than 70% (from '+_lastSavedFootprint+' to '+currentFootprint+'). Protecting existing data.');
+    setSyncStatus('error');
+    showToast('Save blocked — data looks incomplete. Refreshing to re-sync…', 'err');
+    // Auto-recover by forcing a re-read from Firebase
+    setTimeout(()=>{
+      if(_dbRef){
+        _dbRef.once('value').then(snap=>{
+          const remote = snap.val();
+          if(remote && _appFootprint(remote) > currentFootprint){
+            APP = remote;
+            _applyDefaults();
+            setSyncStatus('live');
+            const pg = document.querySelector('.page.active');
+            if(pg && typeof _refreshCurrentPage === 'function') _refreshCurrentPage(pg.id.replace('page-',''));
+          }
+        }).catch(()=>{});
+      }
+    }, 500);
+    return;
+  }
+
+  _ignoreNextSnapshot = true;
   // Strip activeMonth before writing to Firebase — each user's month view is
   // stored locally (localStorage) so it must never overwrite other users.
   const { activeMonth: _am, ...appToSave } = APP;
   _dbRef.set(appToSave)
-    .then(()=>{ setSyncStatus('live'); _saveRetryCount=0; })
+    .then(()=>{
+      setSyncStatus('live');
+      _saveRetryCount = 0;
+      _lastSavedFootprint = currentFootprint;
+    })
     .catch(e=>{
       _ignoreNextSnapshot = false;
       console.error('Save failed',e);
@@ -5991,6 +6062,7 @@ function renderDashboard(){
 
   setTimeout(()=>renderDashCharts(mk), 50);
   if(typeof _enhanceDashboardCards==='function') setTimeout(_enhanceDashboardCards, 80);
+  if(typeof _fireCinematicCheckOnce==='function') setTimeout(_fireCinematicCheckOnce, 120);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -13616,6 +13688,12 @@ _dbRef.once('value').then(snap=>{
   const data = snap.val();
   if(data){ APP = data; }
   _applyDefaults();
+  // ── DATA-LOSS PROTECTION: only allow saves once we've confirmed a
+  // successful load. If `data` was null, this is a genuinely empty division
+  // (first-time use) and saves are safe. If `data` was populated, we've
+  // captured it and saves will preserve it.
+  _dbLoadedSuccessfully = true;
+  _lastSavedFootprint = _appFootprint(APP);
   // Restore this user's local month preference — must run AFTER _applyDefaults
   _initLocalViewMonth();
   setSyncStatus('live');
@@ -13633,6 +13711,8 @@ _dbRef.once('value').then(snap=>{
     if(!remote) return;
     APP = remote;
     _applyDefaults();
+    // Update footprint baseline from trusted remote data
+    _lastSavedFootprint = _appFootprint(APP);
     // IMPORTANT: restore this user's local month — don't let another user's
     // month change bleed into this session.
     _restoreLocalViewMonth();
@@ -13644,10 +13724,48 @@ _dbRef.once('value').then(snap=>{
 }).catch(e=>{
   console.error('Firebase load failed:', e);
   setSyncStatus('error');
-  _applyDefaults();
-  _initLocalViewMonth();
-  populateAllSelects();
-  renderDashboard();
+  // ── DATA-LOSS PROTECTION: DO NOT call _applyDefaults() or renderDashboard()
+  // on the catch path — either can trigger saveApp() which would overwrite
+  // the division's Firebase data with an empty APP. _dbLoadedSuccessfully
+  // remains false, so any save attempts will be blocked by the safety guard
+  // in _doSaveApp() until the user refreshes.
+  showToast('Could not load data — please refresh. Your data is safe in the cloud.', 'err');
+  // Retry silently after 5s in case it was a transient network issue
+  setTimeout(()=>{
+    if(!_dbLoadedSuccessfully && _dbRef){
+      console.log('[Firebase] Retrying initial load…');
+      _dbRef.once('value').then(snap=>{
+        const data = snap.val();
+        if(data){ APP = data; }
+        _applyDefaults();
+        _dbLoadedSuccessfully = true;
+        _lastSavedFootprint = _appFootprint(APP);
+        _initLocalViewMonth();
+        setSyncStatus('live');
+        populateAllSelects();
+        renderDashboard();
+        startNotifListener();
+        startRemedialListener();
+        startHolReqListener();
+        // Start the ongoing listener now that the initial load succeeded
+        _dbRef.on('value', snap=>{
+          if(_ignoreNextSnapshot){ _ignoreNextSnapshot=false; return; }
+          const remote = snap.val();
+          if(!remote) return;
+          APP = remote;
+          _applyDefaults();
+          _lastSavedFootprint = _appFootprint(APP);
+          _restoreLocalViewMonth();
+          setSyncStatus('live');
+          if(document.activeElement && ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
+          const pg = document.querySelector('.page.active');
+          if(pg) _refreshCurrentPage(pg.id.replace('page-',''));
+        });
+      }).catch(err2=>{
+        console.error('Retry also failed:', err2);
+      });
+    }
+  }, 5000);
 });
 }
 
@@ -17736,11 +17854,15 @@ function _onEntrySaved(name, revenue, nm, mk){
 }
 
 // ── Call cinematic check after dashboard loads ────────────────────
-const _origEnhanceDash = typeof _enhanceDashboardCards==='function' ? _enhanceDashboardCards : null;
-function _enhanceDashboardCards(){
-  if(_origEnhanceDash) _origEnhanceDash();
-  // Check for month-end on first load
-  if(!window._cinChecked){ window._cinChecked=true; setTimeout(_checkMonthEndCinematic, 500); }
+// NOTE: This used to wrap _enhanceDashboardCards with a "before" hook, but
+// due to JS function hoisting the wrapper captured itself as _origEnhanceDash,
+// causing infinite recursion and "Maximum call stack size exceeded" errors
+// that broke dashboard rendering. The cinematic check is now fired via a
+// separate function, invoked from renderDashboard.
+function _fireCinematicCheckOnce(){
+  if(window._cinChecked) return;
+  window._cinChecked = true;
+  setTimeout(_checkMonthEndCinematic, 500);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -17959,23 +18081,13 @@ function _injectConsultantLandingFeatures(mk, myName, data){
     }
   }
 
-  // 4. Target road — inject into cdContent after the KPI panel
-  const roadTarget = document.getElementById('roadFillTarget');
-  if(!roadTarget && cdContent){
-    const roadHtml = renderTargetRoad(data.pct, data.target, data.revMTD);
-    // Find the monthly summary panel and insert after it
-    const summaryPanel = cdContent.querySelector('div[style*="Monthly Summary"]');
-    if(summaryPanel && summaryPanel.parentElement){
-      summaryPanel.parentElement.insertAdjacentHTML('afterend', roadHtml);
-      _animateRoad(data.pct);
-    } else {
-      // Fallback: prepend to cdContent
-      cdContent.insertAdjacentHTML('afterbegin', roadHtml);
-      _animateRoad(data.pct);
-    }
-  } else if(roadTarget){
-    _animateRoad(data.pct);
-  }
+  // 4. Target road — DISABLED: the road bar is already rendered inline by
+  // renderConsultantDaily() inside the right-column "Progress to Target" panel.
+  // Previously this block injected a duplicate road bar with the same
+  // #roadFill / #roadCar IDs, causing a flicker on first render and
+  // unreliable animation behavior. The original right-column bar is animated
+  // by the existing _animateRoad(pct) call at the end of renderConsultantDaily.
+  // Intentionally a no-op.
 }
 
 function dismissCopBanner(){
