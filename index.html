@@ -5896,7 +5896,13 @@ function renderDashboard(){
       const tRev   = ts.reduce((s,p)=>s+p.revMTD,0);
       const tTgt   = ts.reduce((s,p)=>s+p.target,0);
       const tNm    = ts.reduce((s,p)=>s+p.nmMTD,0);
+      const tNmTgt = ts.reduce((s,p)=>s+p.nmTarget,0);
       const revPct = tTgt>0?Math.round(tRev/tTgt*100):0;
+
+      // ── Run Rate Needed (revenue & NM per remaining working day to hit target) ──
+      const remainingWD  = workingDatesInMonth(mk).filter(ds=>ds>=todayStr).length;
+      const revRRNeeded  = remainingWD>0 ? Math.max(0,(tTgt-tRev)/remainingWD) : 0;
+      const nmRRNeeded   = remainingWD>0 ? Math.max(0,(tNmTgt-tNm)/remainingWD) : 0;
 
       const cop = calcTeamCOP(mk,members,key);
       const revCls    = cop.copRev>=0?'var(--green)':'var(--red)';
@@ -5915,6 +5921,8 @@ function renderDashboard(){
           <span style="font-size:11px;font-family:var(--fm);color:var(--text2)">NM MTD <span style="color:var(--text);font-weight:700">${tNm}</span></span>
           <span style="font-size:11px;font-family:var(--fm)">COP Rev <span style="color:${revCls};font-weight:700">${copRevLbl}</span></span>
           <span style="font-size:11px;font-family:var(--fm)">COP NM <span style="color:${nmCls};font-weight:700">${copNmLbl}</span></span>
+          <span style="font-size:11px;font-family:var(--fm)">Rev RR Needed <span style="color:var(--amber);font-weight:700">£${Math.round(revRRNeeded).toLocaleString()}/day</span></span>
+          <span style="font-size:11px;font-family:var(--fm)">NM RR Needed <span style="color:var(--amber);font-weight:700">${nmRRNeeded.toFixed(2)}/day</span></span>
         </div>
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px">
           <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;font-family:var(--fm)">Today's Performance</div>
