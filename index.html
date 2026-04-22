@@ -10636,6 +10636,8 @@ function renderConsultantDaily(){
 
       <!-- Right: KPI panel -->
       <div style="display:flex;flex-direction:column;gap:12px;">
+        <!-- Live Bonus Tracker host — filled by injectLiveBonus() after render -->
+        <div id="liveBonusHost"></div>
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;">
           <div style="padding:10px 14px;background:linear-gradient(135deg,#1a4a1a,#0d2b0d);color:#fff;font-size:13px;font-weight:700;">Monthly Summary</div>
           ${[
@@ -10683,6 +10685,11 @@ function renderConsultantDaily(){
 
   // Animate road track
   if(typeof _animateRoad==='function') setTimeout(()=>_animateRoad(pct), 120);
+
+  // ── Inject Live Bonus Tracker (directly into the #liveBonusHost div) ──
+  if(typeof injectLiveBonus === 'function'){
+    setTimeout(()=>injectLiveBonus(mk, myName), 20);
+  }
 
   // ── Consultant landing features ──────────────────────────────────
   if(role==='consultant' && typeof _injectConsultantLandingFeatures==='function'){
@@ -20058,20 +20065,8 @@ function buildLiveBonusCard(mk, myName){
 
 function injectLiveBonus(mk, myName){
   try{
-    const cd = document.getElementById('page-consultantdaily');
-    if(!cd || !cd.classList.contains('active')) return;
-    const content = document.getElementById('cdContent');
-    if(!content) return;
-    const grid = content.querySelector('div[style*="grid-template-columns"]');
-    if(!grid) return;
-    const rightCol = grid.children[1];
-    if(!rightCol) return;
-    let host = document.getElementById('liveBonusHost');
-    if(!host){
-      host = document.createElement('div');
-      host.id = 'liveBonusHost';
-      rightCol.insertBefore(host, rightCol.firstChild);
-    }
+    const host = document.getElementById('liveBonusHost');
+    if(!host) return;
     host.innerHTML = buildLiveBonusCard(mk, myName);
   } catch(err){ console.warn('inject live bonus', err); }
 }
