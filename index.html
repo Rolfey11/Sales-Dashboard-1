@@ -2090,10 +2090,30 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <div class="section-sub" id="mcs-sub"></div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-s" onclick="openMcsGraph()" title="Generate graph of who's ahead / behind">📊 Generate Graph</button>
       <select id="mcsMonth" onchange="renderMonthlySummary()" style="width:180px"></select>
     </div>
   </div>
   <div id="mcsContent"></div>
+</div>
+
+<!-- Generate Graph modal (Monthly Summary) -->
+<div id="mcsGraphModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);max-width:1400px;width:100%;max-height:95vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.6)">
+    <div style="padding:16px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px">
+      <div style="flex:1">
+        <div style="font-size:15px;font-weight:700">COP — Ahead / Behind Pace per Person <span id="mcsGraphMonthLbl" style="color:var(--text3);font-weight:500;font-size:12px;margin-left:6px"></span></div>
+        <div id="mcsGraphSub" style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:2px">Based on Checkpoint of Pace — red bars are behind pace, green bars are ahead</div>
+      </div>
+      <div style="display:flex;gap:6px;background:var(--surface2);padding:3px;border-radius:8px;border:1px solid var(--border)">
+        <button id="mcsGraphModeRev" class="btn btn-s" onclick="_mcsSetGraphMode('rev')" style="padding:6px 12px">Revenue</button>
+        <button id="mcsGraphModeNm"  class="btn btn-s" onclick="_mcsSetGraphMode('nm')"  style="padding:6px 12px">Needs Met</button>
+      </div>
+      <button class="btn btn-s" onclick="_mcsDownloadGraph()" title="Download as SVG">⬇ Download</button>
+      <button class="icon-btn" onclick="closeMcsGraph()" title="Close" style="font-size:18px">✕</button>
+    </div>
+    <div id="mcsGraphBody" style="flex:1;overflow:auto;padding:22px;background:var(--surface2)"></div>
+  </div>
 </div>
 
 <!-- LEADERBOARD -->
@@ -2105,6 +2125,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <select id="lbMonth" onchange="renderLeaderboard()" style="width:180px"></select>
     </div>
   </div>
+  <div id="lbViewToggleWrap" style="display:none;align-items:center;gap:10px;margin-bottom:14px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)"></div>
   <div class="lb-grid" id="lbGrid"></div>
 </div>
 
@@ -2414,48 +2435,18 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
         <button class="btn btn-s" onclick="closeSettingsSub()" style="font-size:12px">← Back</button>
         <div>
           <div class="section-title">🎯 Monthly Targets</div>
-          <div class="section-sub">Manage consultants, NM rates, months and per-month targets</div>
+          <div class="section-sub">Select a month to set each consultant's risk/day, NM/day and working days</div>
         </div>
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:20px;">
-
-      <!-- Consultants -->
-      <div class="set-card">
-        <div class="set-title">👤 Consultants</div>
-        <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:14px">Add or rename consultants. Set targets per month below.</div>
-        <div id="personConfigRows"></div>
-        <div style="display:flex;gap:8px;margin-top:12px;">
-          <input type="text" id="newName" placeholder="Consultant name" style="flex:1">
-          <button class="btn btn-p" onclick="addPerson()" style="padding:8px 14px;font-size:13px;">+ Add</button>
-        </div>
-      </div>
-
-      <!-- NM Rate per consultant -->
-      <div class="set-card">
-        <div class="set-title">📊 NM Rate</div>
-        <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:4px;line-height:1.6">Needs Met target per working day. Set a default for all, or override per consultant.</div>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border)">
-          <div>
-            <div class="field-lbl" style="margin-bottom:4px">Default (all consultants)</div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <input type="number" id="nmRateInput" step="0.25" min="0.25" max="10" style="width:90px"
-                onchange="APP.nmRate=parseFloat(this.value)||1.75;saveApp();renderNmRateRows();showToast('Default NM rate updated')">
-              <span style="font-size:12px;color:var(--text3);font-family:var(--fm)">per day</span>
-            </div>
-          </div>
-        </div>
-        <div id="nmRateRows"></div>
-      </div>
-
+    <div style="margin-bottom:20px;">
       <!-- Month management -->
-      <div class="set-card">
+      <div class="set-card" style="max-width:360px">
         <div class="set-title">📅 Month Management</div>
         <div style="margin-bottom:12px"><div class="field-lbl">Active month</div><select id="activeMonthSel" onchange="setActiveMonth()"></select></div>
         <button class="btn btn-p btn-w" onclick="openNewMonthModal()">+ Create new month</button>
       </div>
-
     </div>
 
     <!-- Monthly targets table — full width -->
@@ -4604,10 +4595,15 @@ function nmRate(){ return (APP.nmRate != null ? APP.nmRate : 1.75); }
 function getPersonForMonth(p, mk){
   if(!mk) return {...p};
   const ovr = (APP.monthOverrides && APP.monthOverrides[mk] && APP.monthOverrides[mk][p.name]) || {};
+  // NM/day: prefer month override, then per-person rate (APP.nmRates), then global default
+  const fallbackNm = (APP.nmRates && APP.nmRates[p.name] != null)
+                      ? APP.nmRates[p.name]
+                      : (APP.nmRate != null ? APP.nmRate : 1.75);
   return {
     ...p,
     riskPerDay: ovr.riskPerDay !== undefined ? ovr.riskPerDay : (p.riskPerDay || 0),
-    daysT:      ovr.daysT      !== undefined ? ovr.daysT      : (p.daysT || 0)
+    daysT:      ovr.daysT      !== undefined ? ovr.daysT      : (p.daysT || 0),
+    nmPerDay:   ovr.nmPerDay   !== undefined ? ovr.nmPerDay   : fallbackNm
   };
 }
 
@@ -4683,7 +4679,16 @@ function calWorkDays(mk, personName){
   today.setHours(0,0,0,0);
   const [y, m] = mk.split('-').map(Number);
   const isActive = (y === today.getFullYear() && m === (today.getMonth()+1));
-  const cutoff = isActive ? today : new Date(y, m, 0);
+  // For the active month, today is still in-progress so the cutoff is YESTERDAY
+  // (i.e. we only count strictly completed working days). For past months, count
+  // the whole month.
+  let cutoff;
+  if(isActive){
+    cutoff = new Date(today);
+    cutoff.setDate(cutoff.getDate() - 1); // yesterday
+  } else {
+    cutoff = new Date(y, m, 0); // last day of month
+  }
   const hols = getHols(mk, personName||'');
   const sick = getSick(mk, personName||'');
   const allOff = [...new Set([...hols, ...sick])];
@@ -4743,14 +4748,14 @@ function calcStats(monthKey){
     const sickWorkDays  = getSickWorkDayCount(monthKey, p.name);
     const effectiveDays = Math.max(0, (ep.daysT||0) - sickWorkDays);
     const target   = Math.round((ep.riskPerDay||0) * effectiveDays);
-    const nmTarget = parseFloat((effectiveDays * nmRateFor(p.name||'')).toFixed(2));
+    const nmTarget = parseFloat((effectiveDays * nmRateFor(p.name||'', monthKey)).toFixed(2));
 
     // calendar working days elapsed for this person (holidays excluded)
     const calDays = calWorkDays(monthKey, p.name);
 
     // ── COP: day-by-day cumulative run rate vs actual (matches individual card MTD diff)
     // positive = ahead, negative = behind — sick days excluded from run rate accumulation
-    const _nmR     = nmRateFor(p.name||'');
+    const _nmR     = nmRateFor(p.name||'', monthKey);
     const _today2  = _localDateStr(new Date());
     const _wdElapsed = workingDatesInMonth(monthKey).filter(ds => ds <= _today2);
     let _cumRR = 0, _cumNmRR = 0;
@@ -4766,7 +4771,7 @@ function calcStats(monthKey){
 
     // ── percentages ──────────────────────────────────────────────
     const revPct = target>0   ? Math.round(revMTD  / target   * 100) : 0;
-    const nmTargetFixed = effectiveDays * nmRateFor(p.name||'');
+    const nmTargetFixed = effectiveDays * nmRateFor(p.name||'', monthKey);
     const nmPct  = nmTargetFixed>0 ? Math.round(nmMTD / nmTargetFixed * 100) : 0;
 
     const riskAhead = copRev >= 0;
@@ -5956,7 +5961,7 @@ function calcTeamCOP(mk, memberNames, teamKey){
     const dayRR2 = rrOvr2 !== undefined ? rrOvr2 : calcRR2;
     const dayNmRR2 = memberRPDs.reduce((s,{name})=>{
       const st = getDayStatus(mk,name,ds);
-      return s + (st!=='hol'&&st!=='bh' ? 1.75 : 0);
+      return s + (st!=='hol'&&st!=='bh' ? nmRateFor(name, mk) : 0);
     }, 0);
     cumActual   += (dayLookup[ds]||{}).rev||0;
     cumRR       += dayRR2;
@@ -5998,8 +6003,11 @@ function renderDashboard(){
       .map(n=>`<option value="${n}"${n===elapsed?' selected':''}>${n}</option>`).join('');
   }
 
-  // NM target = sum of each active person's daysT × 1.75
-  const nmTarget = active.reduce((s,p)=>s+(getPersonForMonth(p,mk).daysT||0)*nmRate(), 0);
+  // NM target = sum of each active person's daysT × their per-month NM/day rate
+  const nmTarget = active.reduce((s,p)=>{
+    const ep = getPersonForMonth(p, mk);
+    return s + (ep.daysT||0) * nmRateFor(p.name, mk);
+  }, 0);
 
   // COP — same day-by-day loop as teams tab (matches MTD Diff at bottom of teams table)
   const today2   = _localDateStr(new Date());
@@ -6205,13 +6213,30 @@ function renderDashboard(){
   if(active.length===0){
     document.getElementById('cardsGrid').innerHTML=`<div class="empty" style="grid-column:1/-1">
       <div class="empty-icon">📊</div><div style="font-size:14px">No consultants yet. Go to Settings to add your team.</div></div>`;
+    window._lastDashCardsFp = null;
   } else {
-    document.getElementById('cardsGrid').innerHTML=active.map(p=>
-      typeof _buildEnhancedCard==='function'
-        ? _buildEnhancedCard(p, mk)
-        : p.name
-    ).join('');
-    if(typeof _animateGauges==='function') setTimeout(()=>{ _animateGauges(); _animateBars(); _updatePresenceDots(); }, 60);
+    // Build a fingerprint of the data that actually drives the cards/gauges.
+    // If it matches the previous render, skip re-rendering so the gauges don't
+    // re-animate on unrelated Firebase updates (holidays, team changes, etc.).
+    const cardsFp = JSON.stringify(active.map(p=>[
+      p.name, p.target, p.revMTD, p.nmMTD,
+      Math.round((p.target>0 ? p.revMTD/p.target*100 : 0))
+    ]));
+    const grid = document.getElementById('cardsGrid');
+    const already = window._lastDashCardsFp === cardsFp && grid.children.length > 0
+                    && !grid.querySelector('.empty');
+    if(!already){
+      grid.innerHTML = active.map(p=>
+        typeof _buildEnhancedCard==='function'
+          ? _buildEnhancedCard(p, mk)
+          : p.name
+      ).join('');
+      window._lastDashCardsFp = cardsFp;
+      if(typeof _animateGauges==='function') setTimeout(()=>{ _animateGauges(); _animateBars(); _updatePresenceDots(); }, 60);
+    } else {
+      // Cards unchanged — just refresh presence dots (they're independent and cheap)
+      if(typeof _updatePresenceDots==='function') setTimeout(_updatePresenceDots, 30);
+    }
   }
 
   // ── Daily Breakdown table (same logic as Teams tab) ──────────────
@@ -6458,6 +6483,13 @@ function onEntryMonthChange(){
 // ═══════════════════════════════════════════════════════════════════
 // LEADERBOARD
 // ═══════════════════════════════════════════════════════════════════
+// Leaderboard view mode — 'top10' (default) or 'full'
+let _lbViewMode = 'top10';
+function toggleLeaderboardView(){
+  _lbViewMode = (_lbViewMode === 'top10') ? 'full' : 'top10';
+  renderLeaderboard();
+}
+
 function renderLeaderboard(){
   const mk    = document.getElementById('lbMonth').value || APP.activeMonth;
   const stats = calcStats(mk).filter(s=>s.target>0);
@@ -6465,6 +6497,8 @@ function renderLeaderboard(){
 
   if(stats.length===0){
     document.getElementById('lbGrid').innerHTML='<div class="empty" style="grid-column:1/-1"><div>No data for this month.</div></div>';
+    const ctrl = document.getElementById('lbViewToggleWrap');
+    if(ctrl) ctrl.style.display = 'none';
     return;
   }
 
@@ -6476,13 +6510,35 @@ function renderLeaderboard(){
   const maxRev = byRev[0]?.revMTD||1;
   const maxNM  = byNM[0]?.nmMTD||1;
 
+  // Decide how many rows to show per card
+  const showAll   = _lbViewMode === 'full';
+  const rowLimit  = showAll ? stats.length : 10;
+
   function lbRows(arr, valFn, barFn, colFn){
-    return arr.slice(0,10).map((p,i)=>`<div class="lb-row">
+    return arr.slice(0,rowLimit).map((p,i)=>`<div class="lb-row">
       <div class="lb-rank ${rankCls(i)}">${rankLbl(i)}</div>
       <div class="lb-name">${p.name}</div>
       <div class="lb-bar-bg"><div class="lb-bar-fill" style="width:${barFn(p)+'%'};background:${colFn(p)}"></div></div>
       <div class="lb-val" style="color:${colFn(p)}">${valFn(p)}</div>
     </div>`).join('');
+  }
+
+  // Toggle control — only show if there are more than 10 people
+  const needsToggle = stats.length > 10;
+  const ctrlWrap = document.getElementById('lbViewToggleWrap');
+  if(ctrlWrap){
+    if(needsToggle){
+      ctrlWrap.style.display = 'flex';
+      ctrlWrap.innerHTML = `
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm);letter-spacing:.05em">
+          Showing ${showAll ? 'full team' : 'top 10'} of ${stats.length} consultants
+        </div>
+        <button class="btn btn-s" onclick="toggleLeaderboardView()" style="margin-left:auto">
+          ${showAll ? '▲ Show top 10 only' : '▼ View full team ('+stats.length+')'}
+        </button>`;
+    } else {
+      ctrlWrap.style.display = 'none';
+    }
   }
 
   document.getElementById('lbGrid').innerHTML=`
@@ -6650,10 +6706,18 @@ function deleteDeal(mk, date, name, dealIndex){
 // SETTINGS
 // ═══════════════════════════════════════════════════════════════════
 // ── Per-consultant NM rate helper ────────────────────────────────
-function nmRateFor(personName){
-  // Check per-person override first, then fall back to global
+// Resolution order: per-month override → per-person override → global default
+function nmRateFor(personName, mk){
+  // 1. Per-month override (set on the Monthly Targets page)
+  if(mk && APP.monthOverrides && APP.monthOverrides[mk]
+     && APP.monthOverrides[mk][personName]
+     && APP.monthOverrides[mk][personName].nmPerDay != null){
+    return APP.monthOverrides[mk][personName].nmPerDay;
+  }
+  // 2. Per-person override (APP.nmRates)
   if(APP.nmRates && APP.nmRates[personName] != null) return APP.nmRates[personName];
-  return nmRate(); // global default
+  // 3. Global default
+  return nmRate();
 }
 
 // ── Settings: open/close sub-pages ───────────────────────────────
@@ -6694,12 +6758,8 @@ function _renderTargetsSub(){
   // Make sure activeMonthSel is up to date (it lives in the targets sub-page now)
   const amSel = document.getElementById('activeMonthSel');
   if(amSel) amSel.value = APP.activeMonth;
-  // NM Rate default
-  const nmEl = document.getElementById('nmRateInput');
-  if(nmEl) nmEl.value = nmRate();
-  // Per-consultant rows
-  _renderPersonConfigRows();
-  renderNmRateRows();
+  // NOTE: Consultants card and NM-rate card have been removed from this sub-page
+  // (consultants are managed on Users, NM/day is now a per-month column below).
   renderMonthlyTargets();
 }
 
@@ -6763,7 +6823,38 @@ function clearPersonNmRate(name){
 }
 
 function renderSettings(){
-  // Always start at the hub when settings page is opened
+  // If a sub-page is currently open (e.g. Backup & Restore), preserve it —
+  // don't reset back to the hub on Firebase-triggered re-renders.
+  const subIds = ['settingsSubUsers','settingsSubThemes','settingsSubTargets','settingsSubDirectreports','settingsSubBackup'];
+  const openSub = subIds.find(id => {
+    const el = document.getElementById(id);
+    return el && el.style.display !== 'none' && el.style.display !== '';
+  });
+  // Note: display:'' counts as default (none via CSS or initial). We need to detect
+  // explicitly-opened subs. openSettingsSub() sets display = '' on the target,
+  // so check for that pattern instead.
+  const explicitlyOpen = subIds.find(id => {
+    const el = document.getElementById(id);
+    if(!el) return false;
+    // A sub-page is considered open if its inline display is '' (cleared by openSettingsSub)
+    // AND the hub is hidden.
+    const hub = document.getElementById('settingsHub');
+    const hubHidden = hub && hub.style.display === 'none';
+    return hubHidden && el.style.display !== 'none';
+  });
+
+  if(explicitlyOpen){
+    // Re-render the content of the currently-open sub-page without collapsing to hub
+    const subKey = explicitlyOpen.replace('settingsSub','').toLowerCase();
+    if(subKey==='users')         renderUsersRoles();
+    if(subKey==='themes')        renderThemePicker();
+    if(subKey==='targets')       _renderTargetsSub();
+    if(subKey==='directreports') renderDirectReports();
+    if(subKey==='backup')        bkpRenderList();
+    return;
+  }
+
+  // No sub-page open — show the hub
   closeSettingsSub();
 }
 
@@ -6875,7 +6966,7 @@ function _renderMtMonthList(){
     const ovrs = (APP.monthOverrides && APP.monthOverrides[mk]) || {};
     const customCount = APP.people.filter(p => {
       const o = ovrs[p.name]||{};
-      return o.riskPerDay !== undefined || o.daysT !== undefined;
+      return o.riskPerDay !== undefined || o.daysT !== undefined || o.nmPerDay !== undefined;
     }).length;
     const isActive = mk === APP.activeMonth;
     // Team target for this month — sum of each person's month-specific values
@@ -6932,9 +7023,10 @@ function _renderMtConsultants(mk){
   }
 
   // Column headers
-  html += `<div style="display:grid;grid-template-columns:130px 100px 90px 110px 36px;gap:8px;margin-bottom:8px;">
+  html += `<div style="display:grid;grid-template-columns:130px 100px 90px 90px 110px 36px;gap:8px;margin-bottom:8px;">
     <div class="th">Name</div>
     <div class="th">Risk/day (£)</div>
+    <div class="th">NM/day</div>
     <div class="th">Work days</div>
     <div class="th">Monthly target</div>
     <div></div>
@@ -6943,11 +7035,13 @@ function _renderMtConsultants(mk){
   people.forEach(p => {
     const ovr        = ovrs[p.name] || {};
     const hasOvrRpd  = ovr.riskPerDay !== undefined;
+    const hasOvrNm   = ovr.nmPerDay   !== undefined;
     const hasOvrDays = ovr.daysT      !== undefined;
-    const hasAnyOvr  = hasOvrRpd || hasOvrDays;
+    const hasAnyOvr  = hasOvrRpd || hasOvrNm || hasOvrDays;
 
     // Show override value if set, else blank (new month) or global default
     const rpdVal  = hasOvrRpd  ? ovr.riskPerDay : '';
+    const nmVal   = hasOvrNm   ? ovr.nmPerDay   : '';
     const daysVal = hasOvrDays ? ovr.daysT      : '';
 
     // Preview target: use set value or fall back to global for live calc
@@ -6959,7 +7053,12 @@ function _renderMtConsultants(mk){
     const tgtColor = hasAnyOvr ? 'var(--accent)' : 'var(--text3)';
     const tgtText  = effTgt !== null ? '£'+effTgt.toLocaleString() : '—';
 
-    html += `<div class="pcfg-row" style="grid-template-columns:130px 100px 90px 110px 36px">
+    // Default NM placeholder = global fallback (per-person or app-wide)
+    const defaultNm = (APP.nmRates && APP.nmRates[p.name] != null)
+                       ? APP.nmRates[p.name]
+                       : (APP.nmRate != null ? APP.nmRate : 1.75);
+
+    html += `<div class="pcfg-row" style="grid-template-columns:130px 100px 90px 90px 110px 36px">
       <div style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px">
         ${p.name}
         ${hasAnyOvr ? '<span style="font-size:9px;font-weight:700;background:rgba(45,206,137,0.15);color:var(--green);padding:2px 6px;border-radius:10px;letter-spacing:.04em;text-transform:uppercase">set</span>' : ''}
@@ -6972,6 +7071,11 @@ function _renderMtConsultants(mk){
           data-mto-id="${mk}__${p.name}__rpd"
           oninput="saveMonthOverride('${mk}','${safeName}','riskPerDay',this.value)">
       </div>
+      <input type="number" step="0.25" min="0"
+        value="${nmVal}"
+        placeholder="${defaultNm}"
+        data-mto-id="${mk}__${p.name}__nm"
+        oninput="saveMonthOverride('${mk}','${safeName}','nmPerDay',this.value)">
       <input type="number" step="0.5" min="0"
         value="${daysVal}"
         placeholder="e.g. 21"
@@ -6988,7 +7092,7 @@ function _renderMtConsultants(mk){
   // configuredCount = month-specific overrides only (so Reset All shows '—' not global fallback)
   const configuredCount = people.filter(p => {
     const mo = ((APP.monthOverrides||{})[mk]||{})[p.name] || {};
-    return mo.riskPerDay !== undefined || mo.daysT !== undefined;
+    return mo.riskPerDay !== undefined || mo.daysT !== undefined || mo.nmPerDay !== undefined;
   }).length;
   const teamEffTgt = configuredCount > 0 ? people.reduce((s,p)=>{
     const ep = getPersonForMonth(p, mk);
@@ -7124,7 +7228,10 @@ function createNewMonth(){
   const y = document.getElementById('modalYear').value;
   const key = y+'-'+m;
   if(APP.months[key]){ showToast('Month already exists'); closeModal(); return; }
-  APP.months[key]={entries:[]};
+  // Seed with a sentinel `created` timestamp alongside entries — Firebase Realtime
+  // DB strips empty objects/arrays, so without this an empty month would vanish
+  // from the database the next time it's written or re-read.
+  APP.months[key]={entries:[], created: Date.now()};
   APP.activeMonth=key;
   // Store locally so this user's view switches to the new month
   _writeLocalViewMonth(key);
@@ -7213,7 +7320,7 @@ function showPage(id){
   document.querySelectorAll('.sidebar-item').forEach(el=>el.classList.remove('sb-active'));
   const sbItem = document.getElementById('sbItem-'+id);
   if(sbItem) sbItem.classList.add('sb-active');
-  if(id==='dashboard')       renderDashboard();
+  if(id==='dashboard')       { window._lastDashCardsFp = null; renderDashboard(); }
   if(id==='biz')            { populateAllSelects(); renderBizTarget(); }
   if(id==='teams')          { populateAllSelects(); renderTeams(); }
   if(id==='summary')         renderConsultantSummary();
@@ -7228,7 +7335,7 @@ function showPage(id){
     // switchHolTab now calls _configHolTabs internally
     switchHolTab(role2==='consultant'?'myhol':'calendar');
   }
-  if(id==='settings')        renderSettings();
+  if(id==='settings')        { closeSettingsSub(); renderSettings(); }
   if(id==='manageroverview'){ populateAllSelects(); renderManagerOverview(); }
   if(id==='dailysend')     { populateAllSelects(); renderDailySend(); }
   if(id==='staffperf')     { renderStaffPerf(); }
@@ -7491,6 +7598,264 @@ function renderMonthlySummary(){
       <span style="color:var(--accent)">↑↓ Click any column header to sort</span>
     </div>`;
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// MONTHLY SUMMARY — Generate Graph (value needed per person)
+// ═══════════════════════════════════════════════════════════════════
+let _mcsGraphMode = 'rev'; // 'rev' | 'nm'
+
+function openMcsGraph(){
+  const modal = document.getElementById('mcsGraphModal');
+  if(!modal) return;
+  modal.style.display = 'flex';
+  _mcsRenderGraph();
+}
+function closeMcsGraph(){
+  const modal = document.getElementById('mcsGraphModal');
+  if(modal) modal.style.display = 'none';
+}
+function _mcsSetGraphMode(m){
+  _mcsGraphMode = m;
+  _mcsRenderGraph();
+}
+
+function _mcsRenderGraph(){
+  const body    = document.getElementById('mcsGraphBody');
+  const lblEl   = document.getElementById('mcsGraphMonthLbl');
+  const subEl   = document.getElementById('mcsGraphSub');
+  if(!body) return;
+  const mk      = document.getElementById('mcsMonth')?.value || APP.activeMonth;
+  if(lblEl) lblEl.textContent = '· ' + monthLabel(mk);
+
+  // Active-button styling
+  const bRev = document.getElementById('mcsGraphModeRev');
+  const bNm  = document.getElementById('mcsGraphModeNm');
+  if(bRev && bNm){
+    const active   = 'background:var(--accent);color:#fff;border-color:var(--accent)';
+    const inactive = 'background:transparent;color:var(--text2)';
+    bRev.setAttribute('style', 'padding:6px 12px;'+(_mcsGraphMode==='rev'?active:inactive));
+    bNm .setAttribute('style', 'padding:6px 12px;'+(_mcsGraphMode==='nm' ?active:inactive));
+  }
+
+  const stats = calcStats(mk).filter(s=>s.target>0);
+  if(stats.length === 0){
+    body.innerHTML = '<div class="empty" style="padding:60px 20px"><div class="empty-icon">📊</div><div>No consultants with targets set for this month.</div></div>';
+    return;
+  }
+
+  // Build the dataset based on COP (Checkpoint Of Pace) — i.e. where each person
+  // is against their run-rate-to-date, NOT their full monthly target. This shows
+  // who's pulling ahead / falling behind relative to expected pace.
+  // COP sign convention in calcStats: positive copRev/copNm = ahead.
+  // Graph convention: positive bar = "still needs", negative bar = "ahead/surplus".
+  // So we negate COP to flip into "needed" terms.
+  const rows = stats.map(s=>{
+    const cop   = (_mcsGraphMode==='rev') ? (s.copRev || 0) : (s.copNm || 0);
+    const value = -cop;
+    return { name: s.name, value };
+  }).sort((a,b)=> b.value - a.value); // biggest "behind" first, most "ahead" last
+
+  const unitLbl    = (_mcsGraphMode==='rev') ? 'COP Revenue Gap' : 'COP NM Gap';
+  const axisLbl    = (_mcsGraphMode==='rev') ? 'Value (£)'       : 'Needs Met';
+  const titleLine  = (_mcsGraphMode==='rev')
+    ? 'COP Revenue — Value Needed per Person (Sorted Highest First)'
+    : 'COP Needs Met — Value Needed per Person (Sorted Highest First)';
+  if(subEl) subEl.textContent =
+    (_mcsGraphMode==='rev')
+      ? 'Red = £ behind pace (checkpoint of pace) · Green = ahead of pace'
+      : 'Red = NM behind pace (checkpoint of pace) · Green = ahead of pace';
+
+  // ── SVG geometry ─────────────────────────────────────────────────
+  // Enlarged chart so longer names/values never overlap. Left column is
+  // widened to fit full names and negative bar value labels are placed
+  // INSIDE the bar (just after zero) when the bar is long enough, so they
+  // can never cross into the name column.
+  const rowH      = 32;                        // taller rows — more breathing room
+  const paddingT  = 52;
+  const paddingB  = 64;
+  const paddingL  = 170;                       // was 110 — more room for names
+  const paddingR  = 150;                       // was 120 — extra room for positive-bar values
+  const chartW    = 1300;                      // was 820 — much wider
+  const chartH    = paddingT + rows.length * rowH + paddingB;
+
+  const plotW   = chartW - paddingL - paddingR;
+  const maxAbs  = Math.max(1, ...rows.map(r=>Math.abs(r.value)));
+  // "Nice" round the axis extent
+  function niceMax(v){
+    if(v <= 0) return 1;
+    const pow = Math.pow(10, Math.floor(Math.log10(v)));
+    const mant = v / pow;
+    let nice;
+    if(mant <= 1)      nice = 1;
+    else if(mant <= 2) nice = 2;
+    else if(mant <= 5) nice = 5;
+    else               nice = 10;
+    return nice * pow;
+  }
+  const axisMax = niceMax(maxAbs);
+  const midX    = paddingL + plotW/2;
+  const scale   = (plotW/2) / axisMax;
+
+  const fmtVal = v => {
+    if(_mcsGraphMode==='rev'){
+      const sign = v < 0 ? '-£' : '£';
+      return sign + Math.abs(Math.round(v)).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2});
+    } else {
+      return (v<0?'-':'') + Math.abs(v).toFixed(2);
+    }
+  };
+
+  // Axis ticks (5 evenly spaced including 0)
+  const tickCount = 5;
+  const ticks = [];
+  for(let i = -tickCount; i <= tickCount; i++){
+    const val = (axisMax / tickCount) * i;
+    ticks.push(val);
+  }
+
+  // Build SVG
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${chartW} ${chartH}" style="width:100%;max-width:${chartW}px;height:auto;display:block;margin:0 auto;background:#ffffff;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.35)" id="mcsGraphSvg">`;
+
+  // Title
+  svg += `<text x="${chartW/2}" y="28" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="16" font-weight="700" fill="#1a1a1a">${titleLine}</text>`;
+
+  // Y-axis label
+  svg += `<text x="22" y="${paddingT + rows.length*rowH/2}" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600" fill="#555" transform="rotate(-90, 22, ${paddingT + rows.length*rowH/2})">Person</text>`;
+
+  // Plot background
+  svg += `<rect x="${paddingL}" y="${paddingT}" width="${plotW}" height="${rows.length*rowH}" fill="#fafafa" stroke="#d0d0d0" stroke-width="1"/>`;
+
+  // Vertical gridlines at ticks
+  ticks.forEach(t=>{
+    const x = midX + t * scale;
+    const isZero = t === 0;
+    svg += `<line x1="${x}" y1="${paddingT}" x2="${x}" y2="${paddingT + rows.length*rowH}" stroke="${isZero?'#333':'#e5e5e5'}" stroke-width="${isZero?1.5:1}"/>`;
+  });
+
+  // Approximate pixel width of a value label — used to decide whether to place
+  // it inside the bar (near zero) or outside (past the bar end). A tighter
+  // bound than the longest raw string; enough that short labels can still
+  // float outside for neatness.
+  function estimateLabelWidth(txt){ return txt.length * 6.2 + 8; }
+
+  // Bars + labels
+  rows.forEach((r, i)=>{
+    const y  = paddingT + i*rowH + 4;
+    const h  = rowH - 8;
+    const isNeg = r.value < 0;
+    const barW  = Math.abs(r.value) * scale;
+    const bx    = isNeg ? (midX - barW) : midX;
+    const col   = isNeg ? '#0f8a3e' : '#e41e26'; // green = ahead, red = behind
+
+    // Bar
+    svg += `<rect x="${bx}" y="${y}" width="${Math.max(barW,0)}" height="${h}" fill="${col}"/>`;
+
+    // Person label on the left axis
+    svg += `<text x="${paddingL - 10}" y="${y + h/2 + 4}" text-anchor="end" font-family="Inter, system-ui, sans-serif" font-size="13" font-weight="600" fill="#1a1a1a">${r.name}</text>`;
+
+    // Value label — decide inside-vs-outside placement to avoid overlap.
+    // If the bar is long enough to fit the label inside (with 10px margin),
+    // place it inside just past the zero line. Otherwise, place outside the
+    // end of the bar as before.
+    const valTxt   = fmtVal(r.value);
+    const labelW   = estimateLabelWidth(valTxt);
+    const fitsIn   = barW >= labelW + 12;
+
+    if(isNeg){
+      if(fitsIn){
+        // Inside the green bar, just to the LEFT of zero (bar goes leftward from midX)
+        svg += `<text x="${midX - 6}" y="${y + h/2 + 4}" text-anchor="end" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="700" fill="#ffffff">${valTxt}</text>`;
+      } else {
+        // Outside the far-left end of the bar
+        svg += `<text x="${bx - 6}" y="${y + h/2 + 4}" text-anchor="end" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600" fill="#1a1a1a">${valTxt}</text>`;
+      }
+    } else {
+      if(fitsIn){
+        // Inside the red bar, just to the RIGHT of zero
+        svg += `<text x="${midX + 6}" y="${y + h/2 + 4}" text-anchor="start" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="700" fill="#ffffff">${valTxt}</text>`;
+      } else {
+        // Outside the far-right end of the bar
+        svg += `<text x="${bx + barW + 6}" y="${y + h/2 + 4}" text-anchor="start" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600" fill="#1a1a1a">${valTxt}</text>`;
+      }
+    }
+  });
+
+  // X-axis tick labels (below plot area)
+  const axisY = paddingT + rows.length*rowH;
+  ticks.forEach(t=>{
+    const x = midX + t * scale;
+    const lbl = (_mcsGraphMode==='rev')
+      ? (t === 0 ? '0' : (t<0?'-':'') + Math.abs(Math.round(t)).toLocaleString('en-GB'))
+      : (t === 0 ? '0' : (t<0?'-':'') + Math.abs(t).toFixed(0));
+    svg += `<line x1="${x}" y1="${axisY}" x2="${x}" y2="${axisY + 5}" stroke="#333" stroke-width="1"/>`;
+    svg += `<text x="${x}" y="${axisY + 20}" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="11" fill="#555">${lbl}</text>`;
+  });
+  // X-axis label
+  svg += `<text x="${chartW/2}" y="${axisY + 48}" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600" fill="#555">${axisLbl}</text>`;
+
+  svg += `</svg>`;
+
+  // Stats summary line above the chart
+  const behind = rows.filter(r => r.value > 0);
+  const ahead  = rows.filter(r => r.value < 0);
+  const totalBehind = behind.reduce((s,r)=>s+r.value,0);
+  const totalAhead  = Math.abs(ahead.reduce((s,r)=>s+r.value,0));
+  const fmtMoneyLocal = v => (_mcsGraphMode==='rev')
+    ? ('£' + Math.round(v).toLocaleString('en-GB'))
+    : v.toFixed(1);
+
+  const summary = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px">
+        <div style="font-size:10px;color:var(--text3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px">Behind pace</div>
+        <div style="font-size:18px;font-weight:700;color:#e41e26">${behind.length}</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">total behind COP: ${fmtMoneyLocal(totalBehind)}</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px">
+        <div style="font-size:10px;color:var(--text3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px">Ahead of pace</div>
+        <div style="font-size:18px;font-weight:700;color:#0f8a3e">${ahead.length}</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">total ahead of COP: ${fmtMoneyLocal(totalAhead)}</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px">
+        <div style="font-size:10px;color:var(--text3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px">Net team ${unitLbl.toLowerCase()}</div>
+        <div style="font-size:18px;font-weight:700;color:${(totalBehind-totalAhead)>0?'#e41e26':'#0f8a3e'}">${fmtMoneyLocal(totalBehind - totalAhead)}</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">${(totalBehind-totalAhead)>0?'team is behind combined pace':'team is ahead of combined pace'}</div>
+      </div>
+    </div>`;
+
+  body.innerHTML = summary + svg;
+}
+
+function _mcsDownloadGraph(){
+  const svg = document.getElementById('mcsGraphSvg');
+  if(!svg){ showToast('Nothing to download yet','err'); return; }
+  const serializer = new XMLSerializer();
+  const src = '<?xml version="1.0" encoding="UTF-8"?>\n' + serializer.serializeToString(svg);
+  const blob = new Blob([src], {type:'image/svg+xml;charset=utf-8'});
+  const url  = URL.createObjectURL(blob);
+  const mk   = document.getElementById('mcsMonth')?.value || APP.activeMonth;
+  const a    = Object.assign(document.createElement('a'),{
+    href: url,
+    download: `COP_${_mcsGraphMode}_${mk}.svg`
+  });
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Graph downloaded as SVG');
+}
+
+// Close modal on backdrop click
+document.addEventListener('click', function(e){
+  const modal = document.getElementById('mcsGraphModal');
+  if(!modal || modal.style.display === 'none') return;
+  if(e.target === modal) closeMcsGraph();
+});
+// Close modal on Escape
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape'){
+    const modal = document.getElementById('mcsGraphModal');
+    if(modal && modal.style.display !== 'none') closeMcsGraph();
+  }
+});
 
 // ═══════════════════════════════════════════════════════════════════
 // DAILY SEND — cross-division morning report (matches manager photo)
@@ -11610,7 +11975,10 @@ function renderTeamDashboard(container, teamKey){
 
   // Team COP — use per-person stats so we only count people who have
   // teamCopRev and teamCopNm are derived from the daily loop below
-  const teamNmTarget = teamPeople.reduce((s,p)=>s+(getPersonForMonth(p,mk).daysT||0)*1.75,0);
+  const teamNmTarget = teamPeople.reduce((s,p)=>{
+    const ep = getPersonForMonth(p, mk);
+    return s + (ep.daysT||0) * nmRateFor(p.name, mk);
+  }, 0);
 
   const TEAM_IMGS = { g: TEAM_G_IMG, james: TEAM_JAMES_IMG, damo: TEAM_DAMO_IMG };
   const teamImg = TEAM_IMGS[teamKey];
@@ -11765,6 +12133,13 @@ function renderTeamDashboard(container, teamKey){
         '<div class="p-card">'+p.name+'</div>'
       ).join('')}
     </div>
+    ${typeof window._buildForecastCard === 'function' ? `<div style="margin-top:16px">${window._buildForecastCard({
+      mk,
+      filter: s => members.includes(s.name),
+      title: `${label} — End-of-Month Forecast`,
+      entityLabel: 'Team Members',
+      subLabel: 'contributing to forecast'
+    })}</div>` : ''}
     ${dailyTable}
     <div class="charts-row" style="margin-top:20px">
       <div class="chart-card">
@@ -13926,7 +14301,15 @@ document.getElementById('navDate').textContent =
 function _applyDefaults(){
   if(!APP.months)        APP.months = {};
   if(!APP.activeMonth)   APP.activeMonth = todayKey();
-  if(!APP.months[APP.activeMonth]) APP.months[APP.activeMonth]={entries:[]};
+  if(!APP.months[APP.activeMonth]) APP.months[APP.activeMonth]={entries:[], created: Date.now()};
+  // Ensure every month has a sentinel `created` field. Firebase Realtime DB
+  // drops keys whose value is an empty object/array, so a month with just
+  // `{entries:[]}` would vanish on the next write. The sentinel keeps it alive.
+  Object.keys(APP.months).forEach(mk=>{
+    if(!APP.months[mk]) APP.months[mk] = {entries:[], created: Date.now()};
+    if(!APP.months[mk].entries) APP.months[mk].entries = [];
+    if(APP.months[mk].created == null) APP.months[mk].created = Date.now();
+  });
   if(!APP.teams)         APP.teams = {g:[],james:[],damo:[]};
   if(!APP.bizTargets)    APP.bizTargets = {};
   if(!APP.holidays)      APP.holidays = {};
@@ -19258,11 +19641,16 @@ function _explicitNmRate(name, mk){
   return APP.nmRate || 1.75;
 }
 
-function buildForecastCard(){
+function buildForecastCard(opts){
   try{
-    const mk = APP.activeMonth;
+    const mk = (opts && opts.mk) || APP.activeMonth;
     if(!mk) return '';
-    const stats = calcStats(mk).filter(s => s.target > 0);
+    const filter    = (opts && typeof opts.filter === 'function') ? opts.filter : null;
+    const titleText = (opts && opts.title)  || 'End-of-Month Forecast';
+    const subText   = (opts && opts.subLabel) || 'contributing to forecast';
+    const entityLbl = (opts && opts.entityLabel) || 'Active Consultants';
+    let stats = calcStats(mk).filter(s => s.target > 0);
+    if(filter) stats = stats.filter(filter);
     if(stats.length === 0) return '';
     const teamTgt   = stats.reduce((s,p)=>s+p.target, 0);
     const teamRev   = stats.reduce((s,p)=>s+p.revMTD, 0);
@@ -19270,7 +19658,9 @@ function buildForecastCard(){
     const allWD     = workingDatesInMonth(mk);
     const totalWD   = allWD.length;
     const today     = _localDateStr(new Date());
-    const wdElapsed = allWD.filter(d => d <= today).length;
+    // Elapsed = strictly completed working days BEFORE today. Today is still
+    // in-progress so it doesn't count as elapsed. wdLeft therefore includes today.
+    const wdElapsed = allWD.filter(d => d < today).length;
     const wdLeft    = Math.max(0, totalWD - wdElapsed);
     if(totalWD === 0) return '';
 
@@ -19303,7 +19693,7 @@ function buildForecastCard(){
         <div class="fc-head">
           <div class="fc-title">
             <span class="fc-icon">${statusIcon}</span>
-            <span>End-of-Month Forecast</span>
+            <span>${titleText}</span>
           </div>
           <span class="fc-badge" style="background:${statusColor}22;color:${statusColor};border-color:${statusColor}55;">${statusLabel}</span>
         </div>
@@ -19345,9 +19735,9 @@ function buildForecastCard(){
             <div class="fc-sec-sub">${totalWD > 0 ? Math.round(wdElapsed/totalWD*100) : 0}% of month done</div>
           </div>
           <div class="fc-sec-block">
-            <div class="fc-sec-lbl">Active Consultants</div>
+            <div class="fc-sec-lbl">${entityLbl}</div>
             <div class="fc-sec-val">${stats.length}</div>
-            <div class="fc-sec-sub">contributing to forecast</div>
+            <div class="fc-sec-sub">${subText}</div>
           </div>
         </div>
       </div>`;
@@ -19386,6 +19776,7 @@ if(typeof renderDashboard === 'function'){
 }
 
 window._injectDashForecast = injectForecast;
+window._buildForecastCard  = buildForecastCard;
 
 })(); // end forecast module
 
@@ -20185,35 +20576,35 @@ window.bkpImportFileSettings = bkpImportFileSettings;
 
 
 // ═══════════════════════════════════════════════════════════════════
-// DAILY AUTO-DOWNLOAD — exports a full backup JSON once per day
-// Only runs for master / manager roles.
+// PER-LOGIN AUTO-DOWNLOAD — exports a full backup JSON once per login
+// Only runs for master / manager roles. Uses a session-scoped guard so
+// every fresh login triggers a new backup (rather than once per day).
 // ═══════════════════════════════════════════════════════════════════
 (function(){
-  const AUTO_DL_KEY = 'st_lastAutoDownload';
+  // Session-scoped flag — resets on every page load / login
+  let _autoDlDone = false;
 
   function _shouldAutoDownload(){
+    if(_autoDlDone) return false;
     const role = typeof _currentUser !== 'undefined' ? (_currentUser?.role||'') : '';
     if(role !== 'master' && role !== 'manager') return false;
-    const today = new Date().toISOString().slice(0,10);
-    try{ return localStorage.getItem(AUTO_DL_KEY) !== today; }catch(e){ return false; }
+    return true;
   }
-
-  function _markDone(){ try{ localStorage.setItem(AUTO_DL_KEY, new Date().toISOString().slice(0,10)); }catch(e){} }
 
   function _triggerAutoDownload(){
     if(!_shouldAutoDownload()) return;
     if(typeof _db === 'undefined' || !_db || typeof APP === 'undefined') return;
-    const ts    = new Date().toISOString().slice(0,10);
-    const fname = `ST_AutoBackup_${ts}.json`;
+    const ts    = new Date().toISOString().slice(0,10) + '_' + new Date().toTimeString().slice(0,5).replace(':','-');
+    const fname = `ST_AutoBackup_${_currentDivKey||'div'}_${ts}.json`;
     const blob  = new Blob([JSON.stringify({
-      _meta:{ exported:new Date().toISOString(), autoDownload:true, division:_currentDivKey },
+      _meta:{ exported:new Date().toISOString(), autoDownload:true, division:_currentDivKey, user:_currentUser?.name||'' },
       data:  JSON.parse(JSON.stringify(APP))
     }, null, 2)], {type:'application/json'});
     const url = URL.createObjectURL(blob);
     const a   = Object.assign(document.createElement('a'),{href:url, download:fname});
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    _markDone();
+    _autoDlDone = true;
   }
 
   const _origSSS_adl = setSyncStatus;
