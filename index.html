@@ -1668,36 +1668,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 .blc-delta-pos{font-size:11px;color:var(--green);font-family:var(--fm);background:rgba(45,206,137,.08);border:1px solid rgba(45,206,137,.2);border-radius:8px;padding:7px 12px;margin-bottom:12px;}
 .blc-delta-neg{font-size:11px;color:var(--amber);font-family:var(--fm);background:rgba(251,184,58,.08);border:1px solid rgba(251,184,58,.2);border-radius:8px;padding:7px 12px;margin-bottom:12px;}
 
-/* ── KUDOS WALL ──────────────────────────────────────────────────── */
-.kudos-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;transition:box-shadow .2s,transform .15s;position:relative;overflow:hidden;}
-.kudos-card:hover{box-shadow:0 6px 28px rgba(0,0,0,.28);transform:translateY(-2px);}
-.kudos-cat-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;font-family:var(--fm);background:var(--blue-bg);color:var(--blue);border:1px solid rgba(94,156,245,.3);}
-.kudos-message{font-size:13px;line-height:1.65;color:var(--text);margin:10px 0;}
-.kudos-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-.kudos-from{font-size:11px;font-weight:700;font-family:var(--fm);color:var(--text2);}
-.kudos-time{font-size:10px;color:var(--text3);font-family:var(--fm);}
-.kudos-reactions{display:flex;gap:4px;flex-wrap:wrap;margin-top:10px;}
-.kudos-react-btn{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:12px;cursor:pointer;transition:all .15s;font-family:var(--fm);display:flex;align-items:center;gap:4px;}
-.kudos-react-btn:hover{background:var(--surface3);border-color:var(--border2);}
-.kudos-react-btn.mine{border-color:var(--accent);background:var(--blue-bg);}
-.kudos-react-count{font-size:10px;font-weight:700;color:var(--text2);}
-.kudos-lb-strip{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
-.kudos-lb-chip{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:6px 14px;display:flex;align-items:center;gap:8px;font-size:12px;font-family:var(--fm);}
-.kudos-lb-rank{font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;}
-.kudos-lb-name{font-weight:700;color:var(--text);}
-.kudos-lb-count{font-size:10px;font-weight:700;color:var(--accent);margin-left:2px;}
-.kudos-cat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:4px;}
-.kudos-cat-item{background:var(--surface2);border:2px solid var(--border);border-radius:10px;padding:10px 12px;cursor:pointer;transition:all .15s;display:flex;align-items:flex-start;gap:10px;}
-.kudos-cat-item:hover{border-color:var(--border2);}
-.kudos-cat-item.selected{border-color:var(--accent);background:var(--blue-bg);}
-.kudos-cat-icon{font-size:20px;flex-shrink:0;}
-.kudos-cat-name{font-size:12px;font-weight:700;margin-bottom:2px;}
-.kudos-cat-desc{font-size:10px;color:var(--text3);font-family:var(--fm);line-height:1.4;}
-.rt-field{margin-bottom:14px;}
-.rt-field-lbl{font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;}
-.rt-helper{font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:4px;}
-#kudosMessage{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none;resize:vertical;}
-#kudosMessage:focus{border-color:var(--accent);}
+/* (Kudos Wall removed) */
 
 
 </style>
@@ -6445,6 +6416,11 @@ function saveAllEntries(){
           ? prevDeals   // keep existing deals as-is (base-only edit)
           : [ { rev:parseFloat(rev.toFixed(2)), nm, swiftRef:'', time:entryTime, enteredBy, authBy:enteredBy } ]; // first-time entry via base field
       newForDate.push({ date, name:p.name, revenue:rev, nm, deals:newDeals });
+      // Track NEW deal deltas for sales feed (only when add_* fields had values)
+      if(addRev>0){
+        if(!window._sfPendingPosts) window._sfPendingPosts = [];
+        window._sfPendingPosts.push({ name:p.name, revenue:parseFloat(addRev.toFixed(2)), nm:addNm, mk });
+      }
     }
   });
 
@@ -6468,6 +6444,13 @@ function saveAllEntries(){
           }).catch(()=>{});
         });
       }
+      // Post any new deal deltas to the Sales Feed
+      try{
+        if(window._sfPendingPosts && typeof window._sfPostSale === 'function'){
+          window._sfPendingPosts.forEach(p => window._sfPostSale(p.name, p.revenue, p.nm, p.mk));
+        }
+      }catch(err){ console.warn('[salesFeed] post-on-save err', err); }
+      window._sfPendingPosts = [];
       showToast('Saved entries for '+date+' ✓');
       buildEntryRows();
     }).catch(()=>showToast('Save failed — check connection','err'));
@@ -6475,6 +6458,13 @@ function saveAllEntries(){
     // Consultant / other: same deal-tracking logic, local save
     entries = entries.concat(newForDate);
     setEntries(mk, entries);
+    // Post any new deal deltas to the Sales Feed
+    try{
+      if(window._sfPendingPosts && typeof window._sfPostSale === 'function'){
+        window._sfPendingPosts.forEach(p => window._sfPostSale(p.name, p.revenue, p.nm, p.mk));
+      }
+    }catch(err){ console.warn('[salesFeed] post-on-save err', err); }
+    window._sfPendingPosts = [];
     showToast('Saved entries for '+date);
     buildEntryRows();
   }
@@ -10395,6 +10385,12 @@ function handleReview(id, action){
           APP.months[mk].entries = confirmed;
 
           showToast(action==='amended'?'Amended & approved ✓':'Approved ✓');
+          // Post approved sale to the Sales Feed
+          try{
+            if(finalRev > 0 && typeof window._sfPostSale === 'function'){
+              window._sfPostSale(e.consultantName, finalRev, finalNm, mk);
+            }
+          }catch(err){ console.warn('[salesFeed] approval post err', err); }
           // Store approval meta for history tab
           const metaRef = _entryMetaRef();
           if(metaRef) metaRef.child(mk+'/'+e.consultantName.replace(/[^a-zA-Z0-9]/g,'_')+'/'+e.date).set({
@@ -11155,6 +11151,12 @@ function saveManagerDirectEntry(){
 
     document.getElementById('reviewModal').classList.remove('open');
     showToast(`Saved: ${savedDeals.length} deal(s) for ${name} ✓`);
+    // Post new sale to the Sales Feed
+    try{
+      if(rev > 0 && typeof window._sfPostSale === 'function'){
+        window._sfPostSale(name, rev, nm, mk);
+      }
+    }catch(err){ console.warn('[salesFeed] mgr-direct post err', err); }
     renderConsultantDaily();
     if(document.getElementById('page-dashboard').classList.contains('active'))  renderDashboard();
     if(document.getElementById('page-history').classList.contains('active'))    renderHistory();
@@ -20073,353 +20075,6 @@ window._buildForecastCard  = buildForecastCard;
 
 
 
-// ═══════════════════════════════════════════════════════════════════
-// MODULE: PEER KUDOS (Shout-outs)
-// ═══════════════════════════════════════════════════════════════════
-const _kudosDbRef = () => (_db ? _db.ref('perfDash2/kudos') : null);
-
-let _kudosAll      = {};
-let _kudosListener = null;
-
-const KUDOS_CATEGORIES = [
-  { key:'team-player', icon:'🤝', label:'Team Player',        desc:'Helped the team or covered for someone' },
-  { key:'closer',      icon:'💪', label:'Closer',             desc:'Smashed a difficult sale' },
-  { key:'mentor',      icon:'🎓', label:'Mentor',             desc:'Coached or supported a colleague' },
-  { key:'positivity',  icon:'☀️', label:'Positivity',         desc:'Brought great energy to the floor' },
-  { key:'goes-extra',  icon:'🚀', label:'Goes the Extra Mile',desc:'Went above and beyond' },
-  { key:'compliance',  icon:'🛡️', label:'Quality',            desc:'Outstanding compliance / call quality' },
-  { key:'innovation',  icon:'💡', label:'Bright Idea',        desc:'Suggested an improvement' },
-  { key:'comeback',    icon:'🔥', label:'Comeback Kid',       desc:'Bounced back strong' }
-];
-
-const KUDOS_REACTIONS = ['👏','🙌','🔥','💯','❤️','🎉'];
-
-function startKudosListener(){
-  const ref = _kudosDbRef();
-  if(!ref) return;
-  if(_kudosListener){ try{ _kudosListener.off(); }catch(e){} }
-  _kudosListener = ref;
-  ref.on('value', snap=>{
-    _kudosAll = snap.val() || {};
-    if(document.getElementById('page-kudos')?.classList.contains('active')) renderKudosWall();
-  }, err=>console.warn('kudos listener err', err));
-}
-
-function stopKudosListener(){
-  if(_kudosListener){ try{ _kudosListener.off(); }catch(e){} _kudosListener = null; }
-  _kudosAll = {};
-}
-
-function _ensureKudosPageExists(){
-  if(document.getElementById('page-kudos')) return;
-  const page = document.createElement('div');
-  page.className = 'page';
-  page.id = 'page-kudos';
-  page.innerHTML = `
-    <div class="section-head">
-      <div>
-        <div class="section-title">🌟 Kudos Wall</div>
-        <div class="section-sub" id="kudos-sub">Shout-outs from teammates · recognise great work</div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <select id="kudosFilter" onchange="renderKudosWall()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;font-size:12px;font-family:var(--fm);color:var(--text);outline:none;cursor:pointer;">
-          <option value="all">All Kudos</option>
-          <option value="received">For Me</option>
-          <option value="sent">Sent by Me</option>
-          <option value="week">This Week</option>
-          <option value="month">This Month</option>
-        </select>
-        <button class="btn btn-p" onclick="openGiveKudosModal()" style="font-size:13px;padding:8px 18px;">✨ Give Kudos</button>
-      </div>
-    </div>
-    <div id="kudosLeaderboard"></div>
-    <div id="kudosWall" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;margin-top:18px;"></div>
-    <div id="kudosEmpty" style="display:none;padding:60px 20px;text-align:center;">
-      <div style="font-size:54px;margin-bottom:18px;opacity:.4;">🌟</div>
-      <div style="font-size:18px;font-weight:700;margin-bottom:8px;">No kudos yet</div>
-      <div style="font-size:13px;color:var(--text3);font-family:var(--fm);max-width:400px;margin:0 auto 20px;line-height:1.6;">Be the first to recognise a teammate.</div>
-      <button class="btn btn-p" onclick="openGiveKudosModal()" style="font-size:13px;padding:10px 24px;">✨ Give the First Kudos</button>
-    </div>`;
-  const firstPage = document.querySelector('.page');
-  if(firstPage) firstPage.parentNode.insertBefore(page, firstPage);
-
-  const navTabs = document.querySelector('.nav-tabs');
-  if(navTabs && !document.getElementById('kudosNavTab')){
-    const tab = document.createElement('button');
-    tab.className = 'nav-tab';
-    tab.id = 'kudosNavTab';
-    tab.setAttribute('onclick', "showPage('kudos')");
-    tab.innerHTML = '🌟 Kudos';
-    const lbTab = [...navTabs.children].find(t => /Leaderboard/i.test(t.textContent));
-    if(lbTab) navTabs.insertBefore(tab, lbTab.nextSibling);
-    else navTabs.appendChild(tab);
-  }
-
-  if(!document.getElementById('giveKudosModal')){
-    const div = document.createElement('div');
-    div.innerHTML = `
-      <div class="modal-overlay" id="giveKudosModal">
-        <div class="modal" style="width:560px;max-width:96vw;">
-          <div class="modal-title" style="display:flex;align-items:center;gap:10px;"><span style="font-size:22px;">✨</span><span>Give Kudos</span></div>
-          <div style="font-size:12px;color:var(--text3);font-family:var(--fm);margin-bottom:18px;line-height:1.5;">Recognise a teammate. Your name will appear on the wall.</div>
-          <div class="rt-field">
-            <div class="rt-field-lbl">👤 Recognise</div>
-            <select id="kudosToSel" style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none;"></select>
-          </div>
-          <div class="rt-field">
-            <div class="rt-field-lbl">🏷️ Category</div>
-            <div id="kudosCategoryGrid" class="kudos-cat-grid"></div>
-          </div>
-          <div class="rt-field">
-            <div class="rt-field-lbl">💬 Message</div>
-            <textarea id="kudosMessage" placeholder="What did they do that deserves recognition?" rows="3" maxlength="280"></textarea>
-            <div class="rt-helper">Keep it short and specific. Max 280 characters.</div>
-          </div>
-          <div class="modal-btns">
-            <button class="btn btn-s" onclick="closeGiveKudosModal()">Cancel</button>
-            <button class="btn btn-p" id="kudosSubmitBtn" onclick="submitKudos()">Send Kudos</button>
-          </div>
-        </div>
-      </div>`;
-    document.body.appendChild(div.firstElementChild);
-    document.getElementById('giveKudosModal').addEventListener('click', function(e){ if(e.target === this) closeGiveKudosModal(); });
-  }
-}
-
-let _kudosSelectedCat = null;
-
-function openGiveKudosModal(){
-  _ensureKudosPageExists();
-  _kudosSelectedCat = null;
-  const sel = document.getElementById('kudosToSel');
-  if(sel){
-    const me = _currentUser?.name||'';
-    sel.innerHTML = '<option value="">— Select a colleague —</option>' +
-      APP.people.filter(p=>p.name!==me).map(p=>`<option value="${p.name}">${p.name}</option>`).join('');
-  }
-  const grid = document.getElementById('kudosCategoryGrid');
-  if(grid){
-    grid.innerHTML = KUDOS_CATEGORIES.map(c=>`
-      <div class="kudos-cat-item" id="kudosCat_${c.key}" onclick="_selectKudosCat('${c.key}')">
-        <span class="kudos-cat-icon">${c.icon}</span>
-        <div><div class="kudos-cat-name">${c.label}</div><div class="kudos-cat-desc">${c.desc}</div></div>
-      </div>`).join('');
-  }
-  const msgEl = document.getElementById('kudosMessage');
-  if(msgEl) msgEl.value = '';
-  document.getElementById('giveKudosModal').classList.add('open');
-}
-
-function _selectKudosCat(key){
-  _kudosSelectedCat = key;
-  document.querySelectorAll('.kudos-cat-item').forEach(el=>{
-    el.classList.toggle('selected', el.id === 'kudosCat_'+key);
-  });
-}
-
-function closeGiveKudosModal(){
-  const m = document.getElementById('giveKudosModal');
-  if(m) m.classList.remove('open');
-}
-
-function submitKudos(){
-  const toName  = document.getElementById('kudosToSel')?.value?.trim();
-  const message = document.getElementById('kudosMessage')?.value?.trim();
-  const btn     = document.getElementById('kudosSubmitBtn');
-  if(!toName){ showToast('Please select a colleague','err'); return; }
-  if(!_kudosSelectedCat){ showToast('Please select a category','err'); return; }
-  if(!message){ showToast('Please write a short message','err'); return; }
-  const ref = _kudosDbRef();
-  if(!ref){ showToast('Not connected','err'); return; }
-  if(btn){ btn.disabled=true; btn.textContent='Sending…'; }
-  const id  = 'k_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-  const cat = KUDOS_CATEGORIES.find(c=>c.key===_kudosSelectedCat)||KUDOS_CATEGORIES[0];
-  ref.child(id).set({
-    id, fromName: _currentUser?.name||'Anonymous', fromId: _currentUser?.id||'',
-    fromRole: _currentUser?.role||'consultant', fromDivKey: _currentDivKey||'branch',
-    toName, toDivKey: _currentDivKey||'branch',
-    message, category: _kudosSelectedCat, categoryLabel: cat.label, categoryIcon: cat.icon,
-    createdAt: new Date().toISOString(), reactions: {}
-  }).then(()=>{
-    closeGiveKudosModal();
-    showToast(`Kudos sent to ${toName} 🌟`);
-    if(btn){ btn.disabled=false; btn.textContent='Send Kudos'; }
-  }).catch(err=>{
-    showToast('Failed: '+err.message,'err');
-    if(btn){ btn.disabled=false; btn.textContent='Send Kudos'; }
-  });
-}
-
-function toggleKudosReaction(kudosId, emoji){
-  const ref = _kudosDbRef();
-  if(!ref) return;
-  const uid  = _currentUser?.id || _currentUser?.name || 'anon';
-  const name = _currentUser?.name||'';
-  const k    = _kudosAll[kudosId];
-  if(!k) return;
-  const existing = (k.reactions||{})[emoji]||{};
-  if(existing[uid]){
-    ref.child(kudosId+'/reactions/'+emoji+'/'+uid).remove();
-  } else {
-    ref.child(kudosId+'/reactions/'+emoji+'/'+uid).set(name);
-  }
-}
-
-function deleteKudos(kudosId){
-  const k = _kudosAll[kudosId];
-  if(!k) return;
-  if(k.fromName !== _currentUser?.name && k.fromId !== _currentUser?.id && _currentUser?.role !== 'master'){
-    showToast('You can only delete your own kudos','err'); return;
-  }
-  if(!confirm('Delete this kudos? This cannot be undone.')) return;
-  const ref = _kudosDbRef();
-  if(!ref) return;
-  ref.child(kudosId).remove().then(()=>showToast('Kudos deleted')).catch(err=>showToast('Failed: '+err.message,'err'));
-}
-
-function renderKudosWall(){
-  _ensureKudosPageExists();
-  const wall   = document.getElementById('kudosWall');
-  const empty  = document.getElementById('kudosEmpty');
-  const lb     = document.getElementById('kudosLeaderboard');
-  const filter = document.getElementById('kudosFilter')?.value||'all';
-  if(!wall) return;
-  const me     = _currentUser?.name||'';
-  const myId   = _currentUser?.id||'';
-  const now    = Date.now();
-  const weekAgo  = now - 7  * 86400 * 1000;
-  const monthAgo = now - 30 * 86400 * 1000;
-
-  let items = Object.values(_kudosAll||{}).filter(k=>k&&k.id);
-  if(filter==='received') items = items.filter(k=>k.toName===me);
-  else if(filter==='sent') items = items.filter(k=>k.fromName===me||k.fromId===myId);
-  else if(filter==='week')  items = items.filter(k=>new Date(k.createdAt).getTime()>=weekAgo);
-  else if(filter==='month') items = items.filter(k=>new Date(k.createdAt).getTime()>=monthAgo);
-  items.sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
-
-  // Leaderboard
-  const last30 = Object.values(_kudosAll||{}).filter(k=>k&&new Date(k.createdAt).getTime()>=monthAgo);
-  const counts = {};
-  last30.forEach(k=>{ counts[k.toName]=(counts[k.toName]||0)+1; });
-  const top = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  if(lb){
-    lb.innerHTML = top.length ? `<div class="kudos-lb-strip">${top.map(([name,cnt],i)=>`
-      <div class="kudos-lb-chip">
-        <span class="kudos-lb-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</span>
-        <span class="kudos-lb-name">${name}</span>
-        <span class="kudos-lb-count">${cnt} 🌟</span>
-      </div>`).join('')}</div>` : '';
-  }
-
-  if(!items.length){
-    wall.style.display = 'none';
-    if(empty) empty.style.display = '';
-    return;
-  }
-  wall.style.display = '';
-  if(empty) empty.style.display = 'none';
-
-  wall.innerHTML = items.map(k=>{
-    const cat  = KUDOS_CATEGORIES.find(c=>c.key===k.category)||{icon:'🌟',label:k.category||'Kudos'};
-    const time = _fmtKudosTime(k.createdAt);
-    const uid  = _currentUser?.id||_currentUser?.name||'anon';
-    const reactHtml = KUDOS_REACTIONS.map(emoji=>{
-      const reactions = (k.reactions||{})[emoji]||{};
-      const count = Object.keys(reactions).length;
-      const mine  = !!reactions[uid];
-      return count > 0 || true
-        ? `<button class="kudos-react-btn ${mine?'mine':''}" onclick="toggleKudosReaction('${k.id}','${emoji}')">
-             ${emoji}${count>0?`<span class="kudos-react-count">${count}</span>`:''}
-           </button>` : '';
-    }).join('');
-    const canDelete = k.fromName===_currentUser?.name||k.fromId===(_currentUser?.id||'')||_currentUser?.role==='master';
-    return `<div class="kudos-card">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px;">
-        <div>
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-            <div style="width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff;flex-shrink:0">${(k.toName||'?').charAt(0).toUpperCase()}</div>
-            <div>
-              <div style="font-size:13px;font-weight:700">${k.toName||'?'}</div>
-              <div style="font-size:10px;color:var(--text3);font-family:var(--fm)">from ${k.fromName||'?'}</div>
-            </div>
-          </div>
-          <span class="kudos-cat-badge">${cat.icon} ${cat.label}</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <span class="kudos-time" style="font-size:10px;color:var(--text3);font-family:var(--fm);white-space:nowrap">${time}</span>
-          ${canDelete?`<button onclick="deleteKudos('${k.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:2px 4px;line-height:1;" title="Delete">✕</button>`:''}
-        </div>
-      </div>
-      <div class="kudos-message">${(k.message||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
-      <div class="kudos-reactions">${reactHtml}</div>
-    </div>`;
-  }).join('');
-}
-
-function _fmtKudosTime(iso){
-  if(!iso) return '';
-  const d = new Date(iso);
-  const diff = Date.now() - d.getTime();
-  if(diff < 60000) return 'just now';
-  if(diff < 3600000) return Math.floor(diff/60000)+'m ago';
-  if(diff < 86400000) return Math.floor(diff/3600000)+'h ago';
-  if(diff < 604800000) return Math.floor(diff/86400000)+'d ago';
-  return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
-}
-
-// Hook showPage for kudos
-if(typeof showPage === 'function'){
-  const _origShowPage_kd = showPage;
-  showPage = function(id){
-    if(id==='kudos') _ensureKudosPageExists();
-    const ret = _origShowPage_kd.apply(this, arguments);
-    if(id==='kudos') setTimeout(()=>{ try{ renderKudosWall(); }catch(e){ console.warn(e); } }, 50);
-    return ret;
-  };
-}
-
-// Hook startup
-if(typeof _startWithRole === 'function'){
-  const _origStartKudos = _startWithRole;
-  _startWithRole = function(){
-    const ret = _origStartKudos.apply(this, arguments);
-    try{ _ensureKudosPageExists(); startKudosListener(); }catch(e){ console.warn('kudos init',e); }
-    return ret;
-  };
-}
-
-// Keep kudos tab visible for all roles
-if(typeof applyRoleVisibility === 'function'){
-  const _origApplyRole_kd = applyRoleVisibility;
-  applyRoleVisibility = function(){
-    const ret = _origApplyRole_kd.apply(this, arguments);
-    try{ const kt = document.getElementById('kudosNavTab'); if(kt) kt.style.display=''; }catch(e){}
-    return ret;
-  };
-}
-
-// Hook logout
-if(typeof logoutUser === 'function'){
-  const _origLogout_kd = logoutUser;
-  logoutUser = function(){
-    try{ stopKudosListener(); closeGiveKudosModal(); }catch(e){}
-    return _origLogout_kd.apply(this, arguments);
-  };
-}
-
-// Escape closes modal
-document.addEventListener('keydown', function(e){
-  if(e.key==='Escape'){
-    if(document.getElementById('giveKudosModal')?.classList.contains('open')) closeGiveKudosModal();
-  }
-});
-
-// Kick start on session restore
-setTimeout(()=>{
-  try{
-    if(typeof _currentUser !== 'undefined' && _currentUser){ _ensureKudosPageExists(); startKudosListener(); }
-  }catch(e){ console.warn(e); }
-}, 1800);
 
 
 // ═══════════════════════════════════════════════════════════════════
@@ -21187,7 +20842,7 @@ function _ensureSalesFeedPageExists(){
   const firstPage = document.querySelector('.page');
   if(firstPage) firstPage.parentNode.insertBefore(page, firstPage);
 
-  // Nav tab — insert next to Kudos if present, otherwise near Leaderboard
+  // Nav tab — insert near Leaderboard
   const navTabs = document.querySelector('.nav-tabs');
   if(navTabs && !document.getElementById('salesFeedNavTab')){
     const tab = document.createElement('button');
@@ -21195,13 +20850,9 @@ function _ensureSalesFeedPageExists(){
     tab.id = 'salesFeedNavTab';
     tab.setAttribute('onclick', "showPage('salesfeed')");
     tab.innerHTML = '📣 Sales Feed';
-    const kudosTab = document.getElementById('kudosNavTab');
-    if(kudosTab) navTabs.insertBefore(tab, kudosTab);
-    else {
-      const lbTab = [...navTabs.children].find(t => /Leaderboard/i.test(t.textContent));
-      if(lbTab) navTabs.insertBefore(tab, lbTab);
-      else navTabs.appendChild(tab);
-    }
+    const lbTab = [...navTabs.children].find(t => /Leaderboard/i.test(t.textContent));
+    if(lbTab) navTabs.insertBefore(tab, lbTab);
+    else navTabs.appendChild(tab);
   }
 }
 
@@ -21278,6 +20929,7 @@ setTimeout(()=>{
 window.toggleSalesFeedReaction = toggleSalesFeedReaction;
 window.sendSalesFeedCheer      = sendSalesFeedCheer;
 window.renderSalesFeed         = renderSalesFeed;
+window._sfPostSale             = _sfPostSale;   // direct posting hook for save/approve paths
 
 })(); // end Sales Feed module
 
