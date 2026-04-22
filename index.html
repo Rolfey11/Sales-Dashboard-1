@@ -5963,7 +5963,7 @@ function calcTeamCOP(mk, memberNames, teamKey){
   wdDates.forEach(ds=>{
     const calcRR2 = memberRPDs.reduce((s,{name,rpd})=>{
       const st = getDayStatus(mk,name,ds);
-      if(st==='hol'||st==='bh') return s;
+      if(st==='hol'||st==='sick'||st==='bh') return s;
       // Apply per-person RR override if set, otherwise use rpd
       const personOvr = ((APP.personRROverrides||{})[name]||{})[mk]?.[ds];
       return s + (personOvr !== undefined ? personOvr : rpd);
@@ -5973,7 +5973,7 @@ function calcTeamCOP(mk, memberNames, teamKey){
     const dayRR2 = rrOvr2 !== undefined ? rrOvr2 : calcRR2;
     const dayNmRR2 = memberRPDs.reduce((s,{name})=>{
       const st = getDayStatus(mk,name,ds);
-      if(st==='hol'||st==='bh') return s;
+      if(st==='hol'||st==='sick'||st==='bh') return s;
       // Per-day NM RR override takes precedence over the monthly NM rate
       const nmOvr = ((APP.personNmRROverrides||{})[name]||{})[mk]?.[ds];
       return s + (nmOvr !== undefined ? nmOvr : nmRateFor(name, mk));
@@ -10739,6 +10739,18 @@ function renderConsultantDaily(){
       const minRPD  = (typeof bcMinRPD === 'function') ? bcMinRPD() : 1200;
       const paceBonus = bcBonusForRPD(paceRPD, personType).bonus;
       const tgtBonus  = bcBonusForRPD(riskPerDay, personType).bonus;
+      // Pro-rata adjustment: bonus scales with actual available working days vs total
+      // Matches the Bonus Calc formula: bonusTotal * (yourDays / wdm)
+      // yourDays = wdAvailable_lb + remaining working days NOT off (holiday/sick/BH)
+      const wdRemaining_nonoff = allWD.filter(ds => {
+        if(ds <= today_lb) return false;
+        const st = getDayStatus(mk, myName, ds);
+        return st !== 'hol' && st !== 'sick' && st !== 'bh';
+      }).length;
+      const yourDays_lb = wdAvailable_lb + wdRemaining_nonoff;
+      const proRataFactor = totalWD > 0 ? (yourDays_lb / totalWD) : 1;
+      const paceBonusProRata = paceBonus * proRataFactor;
+      const tgtBonusProRata  = tgtBonus  * proRataFactor;
       const onTrack   = tgtBonus > 0 && paceBonus >= tgtBonus;
       const belowMin  = paceRPD < minRPD;
       const projColor = belowMin ? 'var(--text3)' : paceBonus >= tgtBonus && tgtBonus > 0 ? 'var(--green)' : paceBonus >= tgtBonus * 0.75 ? 'var(--amber)' : 'var(--blue)';
@@ -10748,6 +10760,7 @@ function renderConsultantDaily(){
       const nextBracketRPD = Math.floor(paceRPD / STEP) * STEP + STEP;
       const nextBonus = bcBonusForRPD(nextBracketRPD, personType).bonus;
       const bonusJump = nextBonus - paceBonus;
+      const bonusJumpProRata = bonusJump * proRataFactor;
       const projectedTotalRev = paceRPD * effectiveDaysT;
       const revToNextBracket = Math.max(0, nextBracketRPD * effectiveDaysT - projectedTotalRev);
       const daysLeft_lb = Math.max(0, effectiveDaysT - wdAvailable_lb);
@@ -10760,8 +10773,8 @@ function renderConsultantDaily(){
       if(todayRev_lb > 0 && wdAvailable_lb >= 2){
         const revBefore = revMTD - todayRev_lb;
         const paceBefore = revBefore / (wdAvailable_lb - 1);
-        const bonusBefore = bcBonusForRPD(paceBefore, personType).bonus;
-        const delta = paceBonus - bonusBefore;
+        const bonusBefore = bcBonusForRPD(paceBefore, personType).bonus * proRataFactor;
+        const delta = paceBonusProRata - bonusBefore;
         if(delta > 0) todayDelta = '<div class="blc-delta-pos">↑ Today\u2019s sales lifted your projected bonus by <strong>£'+Math.round(delta).toLocaleString()+'</strong></div>';
         else if(delta < 0) todayDelta = '<div class="blc-delta-neg">↓ Today\u2019s pace dipped your projection by £'+Math.round(Math.abs(delta)).toLocaleString()+'</div>';
       }
@@ -10779,16 +10792,16 @@ function renderConsultantDaily(){
             </span>
           </div>
           <div class="blc-projected">
-            <div class="blc-proj-lbl">Projected Bonus (Current Pace)</div>
-            <div class="blc-proj-val" style="color:${projColor}">£${Math.round(paceBonus).toLocaleString()}</div>
-            <div class="blc-proj-sub">at RPD of £${Math.round(paceRPD).toLocaleString()}/day · ${personType==='senior'?'Senior':'Non-Senior'} scale</div>
+            <div class="blc-proj-lbl">Projected Bonus (Pro-Rata)</div>
+            <div class="blc-proj-val" style="color:${projColor}">£${Math.round(paceBonusProRata).toLocaleString()}</div>
+            <div class="blc-proj-sub">at RPD of £${Math.round(paceRPD).toLocaleString()}/day · ${yourDays_lb}/${totalWD} working days · ${personType==='senior'?'Senior':'Non-Senior'} scale</div>
           </div>
           ${todayDelta}
           <div class="blc-tiers">
             <div class="blc-tier tier-projected" style="flex:1;max-width:none;">
-              <div class="blc-tier-lbl">On Current Pace</div>
-              <div class="blc-tier-val" style="color:${projColor}">£${Math.round(paceBonus).toLocaleString()}</div>
-              <div class="blc-tier-sub">What you'll earn · RPD £${Math.round(paceRPD).toLocaleString()}/day</div>
+              <div class="blc-tier-lbl">On Current Pace (Pro-Rata)</div>
+              <div class="blc-tier-val" style="color:${projColor}">£${Math.round(paceBonusProRata).toLocaleString()}</div>
+              <div class="blc-tier-sub">Full month value £${Math.round(paceBonus).toLocaleString()} × ${yourDays_lb}/${totalWD} days</div>
             </div>
           </div>
           ${bonusJump > 0 && revToNextBracket > 0 && nextBracketRPD <= riskPerDay + 200 ? `
@@ -10796,11 +10809,11 @@ function renderConsultantDaily(){
             <div class="blc-next-icon">🎯</div>
             <div class="blc-next-content">
               <div class="blc-next-title">Next Bracket: £${nextBracketRPD.toLocaleString()} RPD</div>
-              <div class="blc-next-sub">Add <strong style="color:var(--accent)">£${Math.round(revToNextBracket).toLocaleString()}</strong> more revenue ${daysLeft_lb > 0 ? '(<strong>£'+Math.round(revPerDayToNext).toLocaleString()+'/day</strong> over '+daysLeft_lb+' day'+(daysLeft_lb===1?'':'s')+' left)' : ''} to unlock <strong style="color:var(--green)">+£${Math.round(bonusJump).toLocaleString()}</strong> bonus</div>
+              <div class="blc-next-sub">Add <strong style="color:var(--accent)">£${Math.round(revToNextBracket).toLocaleString()}</strong> more revenue ${daysLeft_lb > 0 ? '(<strong>£'+Math.round(revPerDayToNext).toLocaleString()+'/day</strong> over '+daysLeft_lb+' day'+(daysLeft_lb===1?'':'s')+' left)' : ''} to unlock <strong style="color:var(--green)">+£${Math.round(bonusJumpProRata).toLocaleString()}</strong> bonus</div>
             </div>
           </div>` : ''}
           ${belowMin ? '<div class="blc-warn"><span>⚠️</span><span>Current pace RPD (£'+Math.round(paceRPD).toLocaleString()+') is below the £'+minRPD.toLocaleString()+'/day minimum. No bonus payout until pace improves.</span></div>' : ''}
-          <div class="blc-foot">Live projection — based on current pace extrapolated to month end. Using <strong>${personType==='senior'?'Senior':'Non-Senior'}</strong> pay scale (set by admin on Users &amp; Roles).</div>
+          <div class="blc-foot">Pro-rata projection — bonus scaled by <strong>${yourDays_lb}/${totalWD}</strong> working days (holiday/sick/BH excluded). Using <strong>${personType==='senior'?'Senior':'Non-Senior'}</strong> pay scale (set by admin on Users &amp; Roles).</div>
         </div>`;
     } else if(host) {
       // Empty state when target not set up
