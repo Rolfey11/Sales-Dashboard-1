@@ -10667,12 +10667,12 @@ function renderConsultantDaily(){
             ['Targeted Days', effectiveDaysT||'—', sickDaysCount>0?`(${sickDaysCount} sick/absence day${sickDaysCount>1?'s':''} deducted)`:null],
             ['Holidays This Month', myHols.length > 0 ? myHols.length + ' day' + (myHols.length>1?'s':'') : '—', null],
             ['Sick / Absence Days', (()=>{ const n = new Set([...mySick, ...Object.keys(myAbsences).filter(ds=>{ const t=(myAbsences[ds]||{}).type; return t&&ABS_NON_DEDUCTIBLE.includes(t)&&t!=='B'; })]).size; return n>0?n+' day'+(n>1?'s':''):'—'; })(), null],
-            ['Days Worked', daysWorked, null],
+            ['Days Worked', elapsed, null],
             ['For Target', target>0?'£'+Math.round(forTarget).toLocaleString():'—', null],
             null,
             ['Current Risk (MTD)', '£'+Math.round(revMTD).toLocaleString(), pct+'%'],
             ['Needs Met (MTD)', nmMTD, null],
-            ['Risk Per Day (earned)', riskPerDay>0?'£'+Math.round(revMTD/Math.max(daysWorked,1)).toLocaleString():'—', null],
+            ['Risk Per Day', riskPerDay>0?'£'+Math.round(revMTD/Math.max(elapsed,1)).toLocaleString():'—', null],
             null,
             ['COP Risk Needed', copRiskNeeded>0?'£'+Math.round(copRiskNeeded).toLocaleString():'<span style="color:var(--green)">+£'+Math.round(Math.abs(copRiskNeeded)).toLocaleString()+' ahead ✓</span>', null],
             ['COP NM Needed', copNmNeeded>0?copNmNeeded.toFixed(1):'<span style="color:var(--green)">+'+Math.abs(copNmNeeded).toFixed(1)+' ahead ✓</span>', null],
@@ -10734,8 +10734,9 @@ function renderConsultantDaily(){
         const st = getDayStatus(mk, myName, ds);
         return st !== 'hol' && st !== 'sick' && st !== 'bh';
       }).length;
-      // Pace RPD = revenue divided by available working days (days he could have worked)
-      const paceRPD = wdAvailable_lb > 0 ? revMTD / wdAvailable_lb : 0;
+      // Pace RPD = revenue divided by elapsed working days (through yesterday, excl hol/sick/BH)
+      // Uses the same `elapsed` variable as the Monthly Summary so RPD figures match.
+      const paceRPD = elapsed > 0 ? revMTD / elapsed : 0;
       const minRPD  = (typeof bcMinRPD === 'function') ? bcMinRPD() : 1200;
       const paceBonus = bcBonusForRPD(paceRPD, personType).bonus;
       const tgtBonus  = bcBonusForRPD(riskPerDay, personType).bonus;
@@ -10757,16 +10758,17 @@ function renderConsultantDaily(){
       const bonusJump = nextBonusPR - paceBonusPR;
       const projectedTotalRev = paceRPD * effectiveDaysT;
       const revToNextBracket = Math.max(0, nextBracketRPD * effectiveDaysT - projectedTotalRev);
-      const daysLeft_lb = Math.max(0, effectiveDaysT - wdAvailable_lb);
+      const daysLeft_lb = Math.max(0, effectiveDaysT - elapsed);
       const revPerDayToNext = daysLeft_lb > 0 ? revToNextBracket / daysLeft_lb : 0;
 
       // Today's delta — how much today's sales lifted/dipped the projection
       const todayEntries_lb = mine.filter(e => e.date === today_lb);
       const todayRev_lb = todayEntries_lb.reduce((s,e) => s + (e.revenue||0), 0);
       let todayDelta = '';
-      if(todayRev_lb > 0 && wdAvailable_lb >= 2){
+      if(todayRev_lb > 0 && elapsed >= 1){
         const revBefore = revMTD - todayRev_lb;
-        const paceBefore = revBefore / (wdAvailable_lb - 1);
+        // "Before today" pace uses the same elapsed count (since today isn't in elapsed)
+        const paceBefore = elapsed > 0 ? revBefore / elapsed : 0;
         const bonusBefore = bcBonusForRPD(paceBefore, personType).bonus * proRataFactor;
         const delta = paceBonusPR - bonusBefore;
         if(delta > 0) todayDelta = '<div class="blc-delta-pos">↑ Today\u2019s sales lifted your projected bonus by <strong>£'+Math.round(delta).toLocaleString()+'</strong></div>';
