@@ -10739,28 +10739,22 @@ function renderConsultantDaily(){
       const minRPD  = (typeof bcMinRPD === 'function') ? bcMinRPD() : 1200;
       const paceBonus = bcBonusForRPD(paceRPD, personType).bonus;
       const tgtBonus  = bcBonusForRPD(riskPerDay, personType).bonus;
-      // Pro-rata adjustment: bonus scales with actual available working days vs total
-      // Matches the Bonus Calc formula: bonusTotal * (yourDays / wdm)
-      // yourDays = wdAvailable_lb + remaining working days NOT off (holiday/sick/BH)
-      const wdRemaining_nonoff = allWD.filter(ds => {
-        if(ds <= today_lb) return false;
-        const st = getDayStatus(mk, myName, ds);
-        return st !== 'hol' && st !== 'sick' && st !== 'bh';
-      }).length;
-      const yourDays_lb = wdAvailable_lb + wdRemaining_nonoff;
-      const proRataFactor = totalWD > 0 ? (yourDays_lb / totalWD) : 1;
-      const paceBonusProRata = paceBonus * proRataFactor;
-      const tgtBonusProRata  = tgtBonus  * proRataFactor;
-      const onTrack   = tgtBonus > 0 && paceBonus >= tgtBonus;
+      // Pro-rata bonus — unique per person based on their targeted days
+      // vs total working days in month (matches Bonus Calc page formula:
+      // fullBonus * yourDays / wdm). Accounts for holidays/sick via effectiveDaysT.
+      const proRataFactor  = totalWD > 0 ? (effectiveDaysT / totalWD) : 1;
+      const paceBonusPR    = paceBonus * proRataFactor;
+      const tgtBonusPR     = tgtBonus  * proRataFactor;
+      const onTrack   = tgtBonusPR > 0 && paceBonusPR >= tgtBonusPR;
       const belowMin  = paceRPD < minRPD;
-      const projColor = belowMin ? 'var(--text3)' : paceBonus >= tgtBonus && tgtBonus > 0 ? 'var(--green)' : paceBonus >= tgtBonus * 0.75 ? 'var(--amber)' : 'var(--blue)';
+      const projColor = belowMin ? 'var(--text3)' : paceBonusPR >= tgtBonusPR && tgtBonusPR > 0 ? 'var(--green)' : paceBonusPR >= tgtBonusPR * 0.75 ? 'var(--amber)' : 'var(--blue)';
 
       // Next bracket
       const STEP = 100;
       const nextBracketRPD = Math.floor(paceRPD / STEP) * STEP + STEP;
       const nextBonus = bcBonusForRPD(nextBracketRPD, personType).bonus;
-      const bonusJump = nextBonus - paceBonus;
-      const bonusJumpProRata = bonusJump * proRataFactor;
+      const nextBonusPR = nextBonus * proRataFactor;
+      const bonusJump = nextBonusPR - paceBonusPR;
       const projectedTotalRev = paceRPD * effectiveDaysT;
       const revToNextBracket = Math.max(0, nextBracketRPD * effectiveDaysT - projectedTotalRev);
       const daysLeft_lb = Math.max(0, effectiveDaysT - wdAvailable_lb);
@@ -10774,7 +10768,7 @@ function renderConsultantDaily(){
         const revBefore = revMTD - todayRev_lb;
         const paceBefore = revBefore / (wdAvailable_lb - 1);
         const bonusBefore = bcBonusForRPD(paceBefore, personType).bonus * proRataFactor;
-        const delta = paceBonusProRata - bonusBefore;
+        const delta = paceBonusPR - bonusBefore;
         if(delta > 0) todayDelta = '<div class="blc-delta-pos">↑ Today\u2019s sales lifted your projected bonus by <strong>£'+Math.round(delta).toLocaleString()+'</strong></div>';
         else if(delta < 0) todayDelta = '<div class="blc-delta-neg">↓ Today\u2019s pace dipped your projection by £'+Math.round(Math.abs(delta)).toLocaleString()+'</div>';
       }
@@ -10792,16 +10786,17 @@ function renderConsultantDaily(){
             </span>
           </div>
           <div class="blc-projected">
-            <div class="blc-proj-lbl">Projected Bonus (Pro-Rata)</div>
-            <div class="blc-proj-val" style="color:${projColor}">£${Math.round(paceBonusProRata).toLocaleString()}</div>
-            <div class="blc-proj-sub">at RPD of £${Math.round(paceRPD).toLocaleString()}/day · ${yourDays_lb}/${totalWD} working days · ${personType==='senior'?'Senior':'Non-Senior'} scale</div>
+            <div class="blc-proj-lbl">Projected Bonus (Current Pace)</div>
+            <div class="blc-proj-val" style="color:${projColor}">£${Math.round(paceBonusPR).toLocaleString()}</div>
+            <div class="blc-proj-sub">at RPD of £${Math.round(paceRPD).toLocaleString()}/day · ${personType==='senior'?'Senior':'Non-Senior'} scale</div>
+            <div class="blc-proj-sub" style="margin-top:4px;font-size:11px;color:var(--text3)">Pro-rata: £${Math.round(paceBonus).toLocaleString()} × ${effectiveDaysT}/${totalWD} working days</div>
           </div>
           ${todayDelta}
           <div class="blc-tiers">
             <div class="blc-tier tier-projected" style="flex:1;max-width:none;">
-              <div class="blc-tier-lbl">On Current Pace (Pro-Rata)</div>
-              <div class="blc-tier-val" style="color:${projColor}">£${Math.round(paceBonusProRata).toLocaleString()}</div>
-              <div class="blc-tier-sub">Full month value £${Math.round(paceBonus).toLocaleString()} × ${yourDays_lb}/${totalWD} days</div>
+              <div class="blc-tier-lbl">On Current Pace</div>
+              <div class="blc-tier-val" style="color:${projColor}">£${Math.round(paceBonusPR).toLocaleString()}</div>
+              <div class="blc-tier-sub">What you'll earn · RPD £${Math.round(paceRPD).toLocaleString()}/day · ${effectiveDaysT}/${totalWD} days</div>
             </div>
           </div>
           ${bonusJump > 0 && revToNextBracket > 0 && nextBracketRPD <= riskPerDay + 200 ? `
@@ -10809,11 +10804,11 @@ function renderConsultantDaily(){
             <div class="blc-next-icon">🎯</div>
             <div class="blc-next-content">
               <div class="blc-next-title">Next Bracket: £${nextBracketRPD.toLocaleString()} RPD</div>
-              <div class="blc-next-sub">Add <strong style="color:var(--accent)">£${Math.round(revToNextBracket).toLocaleString()}</strong> more revenue ${daysLeft_lb > 0 ? '(<strong>£'+Math.round(revPerDayToNext).toLocaleString()+'/day</strong> over '+daysLeft_lb+' day'+(daysLeft_lb===1?'':'s')+' left)' : ''} to unlock <strong style="color:var(--green)">+£${Math.round(bonusJumpProRata).toLocaleString()}</strong> bonus</div>
+              <div class="blc-next-sub">Add <strong style="color:var(--accent)">£${Math.round(revToNextBracket).toLocaleString()}</strong> more revenue ${daysLeft_lb > 0 ? '(<strong>£'+Math.round(revPerDayToNext).toLocaleString()+'/day</strong> over '+daysLeft_lb+' day'+(daysLeft_lb===1?'':'s')+' left)' : ''} to unlock <strong style="color:var(--green)">+£${Math.round(bonusJump).toLocaleString()}</strong> bonus</div>
             </div>
           </div>` : ''}
           ${belowMin ? '<div class="blc-warn"><span>⚠️</span><span>Current pace RPD (£'+Math.round(paceRPD).toLocaleString()+') is below the £'+minRPD.toLocaleString()+'/day minimum. No bonus payout until pace improves.</span></div>' : ''}
-          <div class="blc-foot">Pro-rata projection — bonus scaled by <strong>${yourDays_lb}/${totalWD}</strong> working days (holiday/sick/BH excluded). Using <strong>${personType==='senior'?'Senior':'Non-Senior'}</strong> pay scale (set by admin on Users &amp; Roles).</div>
+          <div class="blc-foot">Live projection — based on current pace extrapolated to month end. Using <strong>${personType==='senior'?'Senior':'Non-Senior'}</strong> pay scale (set by admin on Users &amp; Roles).</div>
         </div>`;
     } else if(host) {
       // Empty state when target not set up
@@ -13939,9 +13934,12 @@ function renderPersonProfile(name){
   const ep         = getPersonForMonth(p, mk);
   const riskPerDay = ep.riskPerDay||0;
   const daysT      = ep.daysT||0;
-  const target     = Math.round(riskPerDay * daysT);
+  // Match calcStats: effective days = daysT - sickWorkDays (targets scale down for sick days)
+  const sickWorkDays  = (typeof getSickWorkDayCount === 'function') ? getSickWorkDayCount(mk, name) : 0;
+  const effectiveDaysT = Math.max(0, daysT - sickWorkDays);
+  const target     = Math.round(riskPerDay * effectiveDaysT);
   const nmPerDay   = (typeof nmRateFor === 'function') ? nmRateFor(name, mk) : 1.75;
-  const nmTarget   = parseFloat((daysT * nmPerDay).toFixed(2));
+  const nmTarget   = parseFloat((effectiveDaysT * nmPerDay).toFixed(2));
 
   const entries    = getEntries(mk);
   const mine       = entries.filter(e=>e.name===name);
