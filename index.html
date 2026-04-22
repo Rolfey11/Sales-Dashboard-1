@@ -20033,16 +20033,10 @@ function buildLiveBonusCard(mk, myName){
         </div>
         ${todayDelta}
         <div class="blc-tiers">
-          <div class="blc-tier tier-projected">
+          <div class="blc-tier tier-projected" style="flex:1;max-width:none;">
             <div class="blc-tier-lbl">On Current Pace</div>
             <div class="blc-tier-val" style="color:${projColor}">£${Math.round(paceBonus).toLocaleString()}</div>
-            <div class="blc-tier-sub">RPD £${Math.round(paceRPD).toLocaleString()}/day</div>
-          </div>
-          <div class="blc-tier-arrow">→</div>
-          <div class="blc-tier ${onTrack?'tier-target-hit':''}">
-            <div class="blc-tier-lbl">If You Hit Target</div>
-            <div class="blc-tier-val">£${Math.round(tgtBonus).toLocaleString()}</div>
-            <div class="blc-tier-sub">RPD £${Math.round(riskPerDay).toLocaleString()}/day</div>
+            <div class="blc-tier-sub">What you'll earn · RPD £${Math.round(paceRPD).toLocaleString()}/day</div>
           </div>
         </div>
         ${bonusJump > 0 && revToNextBracket > 0 && nextBracketRPD <= riskPerDay + 200 ? `
