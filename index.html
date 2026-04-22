@@ -10467,8 +10467,30 @@ function renderConsultantDaily(){
   const nmMTD   = mine.reduce((s,e)=>s+(e.nm||0),0);
   const elapsed = calWorkDays(mk, myName);
   const forTarget   = target - revMTD;
-  const copRiskNeeded = riskPerDay>0 ? (riskPerDay*(elapsed+1) - revMTD) : 0;
-  const copNmNeeded   = (elapsed*nmRate()+nmRate()) - nmMTD;
+
+  // ── COP: day-by-day cumulative run rate (matches dashboard/teams calcStats) ──
+  // Loops through each elapsed working day, skips hol/sick/bh, sums expected RR,
+  // then compares against actual MTD. positive = ahead, negative = needed.
+  const _today_cop  = _localDateStr(new Date());
+  const _wdElapsedCop = workingDatesInMonth(mk).filter(ds => ds <= _today_cop);
+  let _cumRR_cop = 0, _cumNmRR_cop = 0;
+  const _nmR_cop = (typeof nmRateFor === 'function') ? nmRateFor(myName, mk) : nmRate();
+  _wdElapsedCop.forEach(ds => {
+    const st = getDayStatus(mk, myName, ds);
+    if(st === 'hol' || st === 'sick' || st === 'bh') return;
+    const personOvr = ((APP.personRROverrides||{})[myName]||{})[mk]?.[ds];
+    _cumRR_cop   += personOvr !== undefined ? personOvr : (riskPerDay||0);
+    const nmOvr = ((APP.personNmRROverrides||{})[myName]||{})[mk]?.[ds];
+    _cumNmRR_cop += nmOvr !== undefined ? nmOvr : _nmR_cop;
+  });
+  // copRisk: positive = AHEAD of run rate, negative = behind / needed
+  const copRiskAhead = revMTD - _cumRR_cop;
+  const copNmAhead   = nmMTD  - _cumNmRR_cop;
+  // Legacy variables kept for downstream functions (landing features, banners):
+  // copRiskNeeded positive = still needed, negative = ahead
+  const copRiskNeeded = -copRiskAhead;
+  const copNmNeeded   = -copNmAhead;
+
   const rpdNeeded     = (effectiveDaysT - elapsed)>0 ? forTarget/(effectiveDaysT - elapsed) : 0;
   const daysWorked    = new Set(mine.filter(e=>(e.revenue||0)>0||(e.nm||0)>0).map(e=>e.date)).size;
 
@@ -10686,9 +10708,112 @@ function renderConsultantDaily(){
   // Animate road track
   if(typeof _animateRoad==='function') setTimeout(()=>_animateRoad(pct), 120);
 
-  // ── Inject Live Bonus Tracker (directly into the #liveBonusHost div) ──
-  if(typeof injectLiveBonus === 'function'){
-    setTimeout(()=>injectLiveBonus(mk, myName), 20);
+  // ── Inject Live Bonus Tracker INLINE (bulletproof, no IIFE dependency) ──
+  try {
+    const host = document.getElementById('liveBonusHost');
+    if(host && typeof bcBonusForRPD === 'function' && riskPerDay > 0 && effectiveDaysT > 0){
+      // Determine Senior / Non-Senior
+      let personType = 'nonsenior';
+      if(typeof _allUsers !== 'undefined' && _allUsers){
+        const matched = Object.values(_allUsers).find(u => u.name === myName);
+        if(matched && matched.isSenior) personType = 'senior';
+      }
+      if(personType === 'nonsenior' && _currentUser && _currentUser.name === myName && _currentUser.isSenior){
+        personType = 'senior';
+      }
+
+      const allWD   = workingDatesInMonth(mk);
+      const totalWD = allWD.length;
+      const today_lb = _localDateStr(new Date());
+      const wdElapsed_lb = allWD.filter(d => d <= today_lb).length;
+      // "Working days available" = elapsed working days MINUS holidays/sick/BH
+      // (includes today if today is a working day)
+      // This is the correct denominator for RPD pace — same logic as COP calc above
+      const wdAvailable_lb = allWD.filter(ds => {
+        if(ds > today_lb) return false;
+        const st = getDayStatus(mk, myName, ds);
+        return st !== 'hol' && st !== 'sick' && st !== 'bh';
+      }).length;
+      // Pace RPD = revenue divided by available working days (days he could have worked)
+      const paceRPD = wdAvailable_lb > 0 ? revMTD / wdAvailable_lb : 0;
+      const minRPD  = (typeof bcMinRPD === 'function') ? bcMinRPD() : 1200;
+      const paceBonus = bcBonusForRPD(paceRPD, personType).bonus;
+      const tgtBonus  = bcBonusForRPD(riskPerDay, personType).bonus;
+      const onTrack   = tgtBonus > 0 && paceBonus >= tgtBonus;
+      const belowMin  = paceRPD < minRPD;
+      const projColor = belowMin ? 'var(--text3)' : paceBonus >= tgtBonus && tgtBonus > 0 ? 'var(--green)' : paceBonus >= tgtBonus * 0.75 ? 'var(--amber)' : 'var(--blue)';
+
+      // Next bracket
+      const STEP = 100;
+      const nextBracketRPD = Math.floor(paceRPD / STEP) * STEP + STEP;
+      const nextBonus = bcBonusForRPD(nextBracketRPD, personType).bonus;
+      const bonusJump = nextBonus - paceBonus;
+      const projectedTotalRev = paceRPD * effectiveDaysT;
+      const revToNextBracket = Math.max(0, nextBracketRPD * effectiveDaysT - projectedTotalRev);
+      const daysLeft_lb = Math.max(0, effectiveDaysT - wdAvailable_lb);
+      const revPerDayToNext = daysLeft_lb > 0 ? revToNextBracket / daysLeft_lb : 0;
+
+      // Today's delta — how much today's sales lifted/dipped the projection
+      const todayEntries_lb = mine.filter(e => e.date === today_lb);
+      const todayRev_lb = todayEntries_lb.reduce((s,e) => s + (e.revenue||0), 0);
+      let todayDelta = '';
+      if(todayRev_lb > 0 && wdAvailable_lb >= 2){
+        const revBefore = revMTD - todayRev_lb;
+        const paceBefore = revBefore / (wdAvailable_lb - 1);
+        const bonusBefore = bcBonusForRPD(paceBefore, personType).bonus;
+        const delta = paceBonus - bonusBefore;
+        if(delta > 0) todayDelta = '<div class="blc-delta-pos">↑ Today\u2019s sales lifted your projected bonus by <strong>£'+Math.round(delta).toLocaleString()+'</strong></div>';
+        else if(delta < 0) todayDelta = '<div class="blc-delta-neg">↓ Today\u2019s pace dipped your projection by £'+Math.round(Math.abs(delta)).toLocaleString()+'</div>';
+      }
+
+      host.innerHTML = `
+        <div class="bonus-live-card">
+          <div class="blc-head">
+            <span class="blc-icon">💰</span>
+            <span class="blc-title">Live Bonus Tracker</span>
+            <span class="blc-pill" style="background:${personType==='senior'?'rgba(232,121,249,0.18)':'rgba(94,156,245,0.18)'};color:${personType==='senior'?'#e879f9':'#5e9cf5'};border-color:${personType==='senior'?'#e879f955':'#5e9cf555'};font-weight:700;">
+              ${personType==='senior'?'SENIOR':'NON-SENIOR'}
+            </span>
+            <span class="blc-pill" style="background:${onTrack?'var(--green-bg)':'var(--amber-bg)'};color:${onTrack?'var(--green)':'var(--amber)'};border-color:${onTrack?'var(--green)':'var(--amber)'}55;">
+              ${onTrack ? '✓ ON PACE' : belowMin ? 'BELOW MIN' : 'BUILDING'}
+            </span>
+          </div>
+          <div class="blc-projected">
+            <div class="blc-proj-lbl">Projected Bonus (Current Pace)</div>
+            <div class="blc-proj-val" style="color:${projColor}">£${Math.round(paceBonus).toLocaleString()}</div>
+            <div class="blc-proj-sub">at RPD of £${Math.round(paceRPD).toLocaleString()}/day · ${personType==='senior'?'Senior':'Non-Senior'} scale</div>
+          </div>
+          ${todayDelta}
+          <div class="blc-tiers">
+            <div class="blc-tier tier-projected" style="flex:1;max-width:none;">
+              <div class="blc-tier-lbl">On Current Pace</div>
+              <div class="blc-tier-val" style="color:${projColor}">£${Math.round(paceBonus).toLocaleString()}</div>
+              <div class="blc-tier-sub">What you'll earn · RPD £${Math.round(paceRPD).toLocaleString()}/day</div>
+            </div>
+          </div>
+          ${bonusJump > 0 && revToNextBracket > 0 && nextBracketRPD <= riskPerDay + 200 ? `
+          <div class="blc-next">
+            <div class="blc-next-icon">🎯</div>
+            <div class="blc-next-content">
+              <div class="blc-next-title">Next Bracket: £${nextBracketRPD.toLocaleString()} RPD</div>
+              <div class="blc-next-sub">Add <strong style="color:var(--accent)">£${Math.round(revToNextBracket).toLocaleString()}</strong> more revenue ${daysLeft_lb > 0 ? '(<strong>£'+Math.round(revPerDayToNext).toLocaleString()+'/day</strong> over '+daysLeft_lb+' day'+(daysLeft_lb===1?'':'s')+' left)' : ''} to unlock <strong style="color:var(--green)">+£${Math.round(bonusJump).toLocaleString()}</strong> bonus</div>
+            </div>
+          </div>` : ''}
+          ${belowMin ? '<div class="blc-warn"><span>⚠️</span><span>Current pace RPD (£'+Math.round(paceRPD).toLocaleString()+') is below the £'+minRPD.toLocaleString()+'/day minimum. No bonus payout until pace improves.</span></div>' : ''}
+          <div class="blc-foot">Live projection — based on current pace extrapolated to month end. Using <strong>${personType==='senior'?'Senior':'Non-Senior'}</strong> pay scale (set by admin on Users &amp; Roles).</div>
+        </div>`;
+    } else if(host) {
+      // Empty state when target not set up
+      host.innerHTML = `<div class="bonus-live-card empty">
+        <div class="blc-empty-icon">💰</div>
+        <div class="blc-empty-title">Live Bonus Tracker</div>
+        <div class="blc-empty-sub">Set up your monthly target (Targeted Days &amp; Risk Per Day) to see live bonus projections</div>
+      </div>`;
+    }
+  } catch(err){
+    console.error('Live bonus render error:', err);
+    const host = document.getElementById('liveBonusHost');
+    if(host) host.innerHTML = '<div class="bonus-live-card empty"><div class="blc-empty-icon">⚠️</div><div class="blc-empty-title">Live Bonus Tracker</div><div class="blc-empty-sub">Error loading: '+(err?.message||err)+'</div></div>';
   }
 
   // ── Consultant landing features ──────────────────────────────────
@@ -14713,11 +14838,9 @@ function updateUserSenior(uid, val){
       if(_currentUser && _currentUser.id === uid){
         _currentUser.isSenior = isSenior;
       }
-      // Re-render live bonus & bonus calc if visible
-      if(typeof window._injectLiveBonus === 'function'){
-        const mk   = document.getElementById('cdMonth')?.value || APP.activeMonth;
-        const nm   = _currentUser?.name || '';
-        try{ window._injectLiveBonus(mk, nm); }catch(e){}
+      // Re-render Consultant Daily if visible (picks up new Senior/Non-Senior)
+      if(document.getElementById('page-consultantdaily')?.classList.contains('active')){
+        try{ renderConsultantDaily(); }catch(e){}
       }
     })
     .catch(()=>showToast('Save failed','err'));
@@ -19935,166 +20058,6 @@ window._buildForecastCard  = buildForecastCard;
 })(); // end forecast module
 
 
-// ═══════════════════════════════════════════════════════════════════
-// MODULE: LIVE BONUS WIDGET (Consultant Daily)
-// ═══════════════════════════════════════════════════════════════════
-(function(){
-
-function buildLiveBonusCard(mk, myName){
-  try{
-    if(!mk || !myName) return '';
-    if(typeof bcBonusForRPD !== 'function') return '';
-    const p = APP.people.find(x => x.name === myName);
-    if(!p) return '';
-    const ep = getPersonForMonth(p, mk);
-    const riskPerDay = ep?.riskPerDay || 0;
-    const daysT      = ep?.daysT || 0;
-    if(!daysT || !riskPerDay){
-      return `<div class="bonus-live-card empty">
-        <div class="blc-empty-icon">💰</div>
-        <div class="blc-empty-title">Live Bonus Tracker</div>
-        <div class="blc-empty-sub">Set up your monthly target to see live bonus projections</div>
-      </div>`;
-    }
-
-    // Resolution order for Senior / Non-Senior:
-    // 1. Per-user flag stored on the user record (master-configured in Users & Roles)
-    // 2. The current logged-in user if they're viewing their own card
-    // 3. Bonus Calculator toggle (_bcType) as a last-resort fallback
-    let personType = 'nonsenior';
-    try {
-      // First try to find the user record by matching the consultant name
-      if(typeof _allUsers !== 'undefined' && _allUsers){
-        const matched = Object.values(_allUsers).find(u => u.name === myName);
-        if(matched && matched.isSenior != null){
-          personType = matched.isSenior ? 'senior' : 'nonsenior';
-        }
-      }
-      // If viewing your own data and nothing matched above, use _currentUser
-      if(personType === 'nonsenior' && _currentUser && _currentUser.name === myName && _currentUser.isSenior){
-        personType = 'senior';
-      }
-      // Last fallback: the Bonus Calculator transient toggle
-      if(personType === 'nonsenior' && typeof _bcType !== 'undefined' && _bcType === 'senior'
-         && _currentUser && _currentUser.name === myName){
-        personType = 'senior';
-      }
-    } catch(e){ /* defaults stand */ }
-    const entries = getEntries(mk);
-    const mine    = entries.filter(e => e.name === myName);
-    const revMTD  = mine.reduce((s,e)=>s + (e.revenue||0), 0);
-    const allWD   = workingDatesInMonth(mk);
-    const totalWD = allWD.length;
-    const today   = _localDateStr(new Date());
-    const wdElapsed = allWD.filter(d => d <= today).length;
-    const sickDaysCount   = (typeof getSickWorkDayCount === 'function') ? getSickWorkDayCount(mk, myName) : 0;
-    const effectiveDaysT  = Math.max(1, daysT - sickDaysCount);
-    const minRPD          = bcMinRPD();
-    const paceRPD         = wdElapsed > 0 ? revMTD / wdElapsed : 0;
-    const fullBonusAtPace = bcBonusForRPD(paceRPD, personType);
-    const fullBonusAtTgt  = bcBonusForRPD(riskPerDay, personType);
-    const paceBonus       = fullBonusAtPace.bonus;
-    const tgtBonus        = fullBonusAtTgt.bonus;
-    const projectedBonus  = paceBonus;
-    const STEP = 100;
-    const nextBracketRPD = Math.floor(paceRPD / STEP) * STEP + STEP;
-    const nextBonusInfo  = bcBonusForRPD(nextBracketRPD, personType);
-    const projectedTotalRev = paceRPD * effectiveDaysT;
-    const revToNextBracket  = Math.max(0, nextBracketRPD * effectiveDaysT - projectedTotalRev);
-    const bonusJump         = nextBonusInfo.bonus - projectedBonus;
-    const daysLeft          = Math.max(0, totalWD - wdElapsed);
-    const revPerDayToNext   = daysLeft > 0 ? revToNextBracket / daysLeft : 0;
-    let projColor = paceRPD < minRPD ? 'var(--text3)' : projectedBonus >= tgtBonus && tgtBonus > 0 ? 'var(--green)' : tgtBonus > 0 && projectedBonus >= tgtBonus * 0.75 ? 'var(--amber)' : 'var(--blue)';
-    const onTrack  = tgtBonus > 0 && projectedBonus >= tgtBonus;
-    const belowMin = paceRPD < minRPD;
-
-    const todayEntries = mine.filter(e => e.date === today);
-    const todayRev     = todayEntries.reduce((s,e)=>s + (e.revenue||0), 0);
-    let todayDelta = '';
-    if(todayRev > 0 && wdElapsed >= 2){
-      const revBeforeToday    = revMTD - todayRev;
-      const wdBeforeToday     = wdElapsed - 1;
-      const paceRPDBefore     = revBeforeToday / wdBeforeToday;
-      const bonusBeforeToday  = bcBonusForRPD(paceRPDBefore, personType).bonus;
-      const delta = projectedBonus - bonusBeforeToday;
-      if(delta > 0) todayDelta = `<div class="blc-delta-pos">↑ Today's sales lifted your projected bonus by <strong>£${Math.round(delta).toLocaleString()}</strong></div>`;
-      else if(delta < 0) todayDelta = `<div class="blc-delta-neg">↓ Today's pace dipped your projection by £${Math.round(Math.abs(delta)).toLocaleString()}</div>`;
-    }
-
-    return `
-      <div class="bonus-live-card">
-        <div class="blc-head">
-          <span class="blc-icon">💰</span>
-          <span class="blc-title">Live Bonus Tracker</span>
-          <span class="blc-pill" style="background:${personType==='senior'?'rgba(232,121,249,0.18)':'rgba(94,156,245,0.18)'};color:${personType==='senior'?'#e879f9':'#5e9cf5'};border-color:${personType==='senior'?'#e879f955':'#5e9cf555'};font-weight:700;">
-            ${personType==='senior'?'SENIOR':'NON-SENIOR'}
-          </span>
-          <span class="blc-pill" style="background:${onTrack?'var(--green-bg)':'var(--amber-bg)'};color:${onTrack?'var(--green)':'var(--amber)'};border-color:${onTrack?'var(--green)':'var(--amber)'}55;">
-            ${onTrack ? '✓ ON PACE' : belowMin ? 'BELOW MIN' : 'BUILDING'}
-          </span>
-        </div>
-        <div class="blc-projected">
-          <div class="blc-proj-lbl">Projected Bonus (Current Pace)</div>
-          <div class="blc-proj-val" style="color:${projColor}">£${Math.round(projectedBonus).toLocaleString()}</div>
-          <div class="blc-proj-sub">at RPD of £${Math.round(paceRPD).toLocaleString()}/day · ${personType==='senior'?'Senior':'Non-Senior'} scale</div>
-        </div>
-        ${todayDelta}
-        <div class="blc-tiers">
-          <div class="blc-tier tier-projected" style="flex:1;max-width:none;">
-            <div class="blc-tier-lbl">On Current Pace</div>
-            <div class="blc-tier-val" style="color:${projColor}">£${Math.round(paceBonus).toLocaleString()}</div>
-            <div class="blc-tier-sub">What you'll earn · RPD £${Math.round(paceRPD).toLocaleString()}/day</div>
-          </div>
-        </div>
-        ${bonusJump > 0 && revToNextBracket > 0 && nextBracketRPD <= riskPerDay + 200 ? `
-        <div class="blc-next">
-          <div class="blc-next-icon">🎯</div>
-          <div class="blc-next-content">
-            <div class="blc-next-title">Next Bracket: £${nextBracketRPD.toLocaleString()} RPD</div>
-            <div class="blc-next-sub">Add <strong style="color:var(--accent)">£${Math.round(revToNextBracket).toLocaleString()}</strong> more revenue ${daysLeft > 0 ? `(<strong>£${Math.round(revPerDayToNext).toLocaleString()}/day</strong> over ${daysLeft} day${daysLeft===1?'':'s'} left)` : ''} to unlock <strong style="color:var(--green)">+£${Math.round(bonusJump).toLocaleString()}</strong> bonus</div>
-          </div>
-        </div>` : ''}
-        ${belowMin ? `<div class="blc-warn"><span>⚠️</span><span>Current pace RPD (£${Math.round(paceRPD).toLocaleString()}) is below the £${minRPD.toLocaleString()}/day minimum. No bonus payout until pace improves.</span></div>` : ''}
-        <div class="blc-foot">Live projection — based on current pace extrapolated to month end. Using <strong>${personType==='senior'?'Senior':'Non-Senior'}</strong> pay scale (set by admin on Users &amp; Roles).</div>
-      </div>`;
-  } catch(err){
-    console.warn('live bonus card error', err);
-    return '';
-  }
-}
-
-function injectLiveBonus(mk, myName){
-  try{
-    const host = document.getElementById('liveBonusHost');
-    if(!host) return;
-    host.innerHTML = buildLiveBonusCard(mk, myName);
-  } catch(err){ console.warn('inject live bonus', err); }
-}
-
-if(typeof renderConsultantDaily === 'function'){
-  const _origRenderConsultantDaily_lb = renderConsultantDaily;
-  renderConsultantDaily = function(){
-    const ret = _origRenderConsultantDaily_lb.apply(this, arguments);
-    setTimeout(()=>{
-      try{
-        const mk   = document.getElementById('cdMonth')?.value || APP.activeMonth;
-        const role = _currentUser?.role || 'consultant';
-        let myName;
-        if((role === 'manager' || role === 'master') && document.getElementById('cdConsultantSel')?.value){
-          myName = document.getElementById('cdConsultantSel').value;
-        } else {
-          myName = _currentUser?.name || '';
-        }
-        injectLiveBonus(mk, myName);
-      } catch(e){ console.warn(e); }
-    }, 60);
-    return ret;
-  };
-}
-
-window._injectLiveBonus = injectLiveBonus;
-
-})(); // end live bonus module
 
 
 // ═══════════════════════════════════════════════════════════════════
