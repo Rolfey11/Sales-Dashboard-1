@@ -14073,7 +14073,7 @@ function renderPersonProfile(name){
   const avgRev       = daysLogged>0 ? Math.round(revMTD/daysLogged) : 0;
 
   document.getElementById('person-title').textContent = name;
-  document.getElementById('person-sub').textContent = teamLabel + ' · ' + monthLabel(mk);
+  document.getElementById('person-sub').textContent = teamLabel + ' · ' + monthLabel(mk) + ' · build v2-sick-fix';
 
   document.getElementById('personContent').innerHTML = `
 
