@@ -20805,6 +20805,483 @@ window.addEventListener('unhandledrejection', function(evt){
   }
 });
 
+
+// ═══════════════════════════════════════════════════════════════════
+// MODULE: SALES FEED (cross-division, realtime)
+// - Auto-posts on any new revenue entry
+// - Positive-only emoji reactions
+// - "Cheer" button broadcasts a fullscreen "Well done" overlay to everyone
+// ═══════════════════════════════════════════════════════════════════
+(function(){
+'use strict';
+
+const SF_DB_POSTS  = 'perfDash2/salesFeed/posts';
+const SF_DB_CHEERS = 'perfDash2/salesFeed/cheers';
+const SF_REACTIONS = ['👏','🙌','🎉','⭐','💪','🔥','❤️','😊','🥳','✨'];
+const SF_MAX_POSTS = 200;          // show the most recent N
+const SF_CHEER_TTL_MS = 10000;     // purge cheer nodes after 10s
+const SF_OVERLAY_MS   = 6000;      // on-screen duration
+
+let _sfPosts    = {};
+let _sfListener = null;
+let _sfCheerListener = null;
+let _sfSeenCheers    = new Set(); // remember cheer ids we've already displayed this session
+
+// ── Firebase refs ──────────────────────────────────────────────────
+function _sfPostsRef(){ return (typeof _db !== 'undefined' && _db) ? _db.ref(SF_DB_POSTS) : null; }
+function _sfCheersRef(){ return (typeof _db !== 'undefined' && _db) ? _db.ref(SF_DB_CHEERS) : null; }
+
+function _sfEscape(str){
+  return String(str||'').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+function _sfCurrentUserId(){
+  if(typeof _currentUser === 'undefined' || !_currentUser) return null;
+  return _currentUser.id || _currentUser.name || null;
+}
+
+function _sfCurrentUserName(){
+  if(typeof _currentUser === 'undefined' || !_currentUser) return 'Someone';
+  return _currentUser.name || 'Someone';
+}
+
+function _sfTimeAgo(iso){
+  if(!iso) return '';
+  const t = new Date(iso).getTime();
+  if(isNaN(t)) return '';
+  const diffS = Math.max(0, Math.floor((Date.now()-t)/1000));
+  if(diffS < 45) return 'just now';
+  if(diffS < 90) return '1 min ago';
+  const diffM = Math.floor(diffS/60);
+  if(diffM < 60) return diffM+' mins ago';
+  const diffH = Math.floor(diffM/60);
+  if(diffH < 24) return diffH+'h ago';
+  const diffD = Math.floor(diffH/24);
+  if(diffD < 7) return diffD+'d ago';
+  return new Date(iso).toLocaleDateString('en-GB', {day:'numeric', month:'short'});
+}
+
+// ── Post to feed (called from _onEntrySaved hook) ───────────────────
+function _sfPostSale(name, revenue, nm, mk){
+  if(!name || !(revenue > 0)) return;
+  const ref = _sfPostsRef();
+  if(!ref) return;
+  const divKey = (typeof _currentDivKey !== 'undefined') ? _currentDivKey : null;
+  const divLabel = (typeof DIVISIONS !== 'undefined' && divKey && DIVISIONS[divKey]) ? (DIVISIONS[divKey].label||divKey) : '';
+  const post = {
+    name: name,
+    revenue: Math.round((revenue||0)*100)/100,
+    nm: parseInt(nm||0) || 0,
+    mk: mk || '',
+    divKey: divKey || '',
+    divLabel: divLabel || '',
+    createdAt: new Date().toISOString(),
+    reactions: {},
+    postedBy: _sfCurrentUserName()
+  };
+  ref.push(post).catch(err=>console.warn('[salesFeed] post failed', err));
+  // Trim old posts asynchronously — keep DB lean
+  setTimeout(_sfTrimPosts, 1500);
+}
+
+function _sfTrimPosts(){
+  const ref = _sfPostsRef();
+  if(!ref) return;
+  ref.once('value').then(snap=>{
+    const val = snap.val() || {};
+    const ids = Object.keys(val);
+    if(ids.length <= SF_MAX_POSTS) return;
+    const sorted = ids.map(id=>({id, t:val[id]?.createdAt||''}))
+      .sort((a,b)=>a.t.localeCompare(b.t));
+    const toDelete = sorted.slice(0, ids.length - SF_MAX_POSTS);
+    toDelete.forEach(d=>{ ref.child(d.id).remove().catch(()=>{}); });
+  }).catch(()=>{});
+}
+
+// ── Realtime listener for posts ────────────────────────────────────
+function startSalesFeedListener(){
+  const ref = _sfPostsRef();
+  if(!ref) return;
+  if(_sfListener){ try{ _sfListener.off(); }catch(e){} }
+  _sfListener = ref;
+  ref.on('value', snap=>{
+    _sfPosts = snap.val() || {};
+    if(document.getElementById('page-salesfeed')?.classList.contains('active')) renderSalesFeed();
+  }, err=>console.warn('[salesFeed] listener err', err));
+}
+function stopSalesFeedListener(){
+  if(_sfListener){ try{ _sfListener.off(); }catch(e){} _sfListener = null; }
+  _sfPosts = {};
+}
+
+// ── Realtime listener for cheers (global overlay broadcast) ─────────
+function startSalesFeedCheerListener(){
+  const ref = _sfCheersRef();
+  if(!ref) return;
+  if(_sfCheerListener){ try{ _sfCheerListener.off(); }catch(e){} }
+  _sfCheerListener = ref;
+  // Only fire overlay for cheers created after THIS listener attached.
+  const attachedAt = Date.now();
+  ref.on('child_added', snap=>{
+    const id = snap.key;
+    const data = snap.val() || {};
+    if(_sfSeenCheers.has(id)) return;
+    _sfSeenCheers.add(id);
+    const cheerTime = new Date(data.at || 0).getTime();
+    if(cheerTime < attachedAt - 2000) return; // skip replayed historical cheers
+    _showWellDoneOverlay(data.cheeredName, data.cheererName);
+    // Auto-purge this cheer node shortly after
+    setTimeout(()=>{ ref.child(id).remove().catch(()=>{}); }, SF_CHEER_TTL_MS);
+  }, err=>console.warn('[salesFeed] cheer listener err', err));
+}
+function stopSalesFeedCheerListener(){
+  if(_sfCheerListener){ try{ _sfCheerListener.off(); }catch(e){} _sfCheerListener = null; }
+  _sfSeenCheers = new Set();
+}
+
+// ── Reactions ──────────────────────────────────────────────────────
+function toggleSalesFeedReaction(postId, emoji){
+  const ref = _sfPostsRef();
+  if(!ref) return;
+  const uid = _sfCurrentUserId();
+  if(!uid) { if(typeof showToast==='function') showToast('Not signed in','err'); return; }
+  const safeUid = String(uid).replace(/[.#$[\]/]/g, '_');
+  const path = ref.child(postId).child('reactions').child(emoji).child(safeUid);
+  path.once('value').then(snap=>{
+    if(snap.exists()) path.remove().catch(()=>{});
+    else path.set(_sfCurrentUserName()).catch(()=>{});
+  }).catch(()=>{});
+}
+
+// ── Send a cheer ───────────────────────────────────────────────────
+function sendSalesFeedCheer(postId, cheeredName){
+  const ref = _sfCheersRef();
+  if(!ref){ if(typeof showToast==='function') showToast('Not connected','err'); return; }
+  const cheer = {
+    postId: postId,
+    cheeredName: cheeredName || '',
+    cheererName: _sfCurrentUserName(),
+    at: new Date().toISOString()
+  };
+  ref.push(cheer).catch(err=>console.warn('[salesFeed] cheer failed', err));
+  // Don't show the overlay locally — the listener will fire for us too,
+  // so everyone (including sender) sees it from the same path.
+}
+
+// ── "Well done" fullscreen overlay ─────────────────────────────────
+function _showWellDoneOverlay(cheeredName, cheererName){
+  // Remove any existing overlay so new ones stack cleanly
+  document.querySelectorAll('.sf-welldone-overlay').forEach(n=>n.remove());
+
+  const ov = document.createElement('div');
+  ov.className = 'sf-welldone-overlay';
+  ov.innerHTML = `
+    <div class="sf-wd-bg"></div>
+    <div class="sf-wd-content">
+      <div class="sf-wd-emoji">🎉</div>
+      <div class="sf-wd-headline">Well Done</div>
+      <div class="sf-wd-name">${_sfEscape(cheeredName||'')}</div>
+      <div class="sf-wd-cheerer">${cheererName ? 'Cheered by ' + _sfEscape(cheererName) : ''}</div>
+    </div>
+    <canvas class="sf-wd-canvas"></canvas>
+  `;
+  document.body.appendChild(ov);
+
+  // Confetti (canvas-based — no deps)
+  const canvas = ov.querySelector('.sf-wd-canvas');
+  const ctx = canvas.getContext('2d');
+  const resize = ()=>{ canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+  resize();
+  window.addEventListener('resize', resize);
+
+  const colors = ['#fbb83a','#2dce89','#5e9cf5','#f5365c','#e879f9','#ffffff','#ff9f43','#18c964'];
+  const pieces = [];
+  const N = 180;
+  for(let i=0;i<N;i++){
+    pieces.push({
+      x: Math.random()*canvas.width,
+      y: -20 - Math.random()*canvas.height*0.5,
+      w: 6 + Math.random()*8,
+      h: 10 + Math.random()*14,
+      vx: -2 + Math.random()*4,
+      vy: 2 + Math.random()*5,
+      rot: Math.random()*Math.PI*2,
+      vr:  -0.15 + Math.random()*0.3,
+      color: colors[Math.floor(Math.random()*colors.length)]
+    });
+  }
+
+  let rafId = null;
+  let running = true;
+  const startT = performance.now();
+  function tick(){
+    if(!running) return;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const elapsed = performance.now() - startT;
+    // gentle fade of pieces over last 1.5s
+    const fadeStart = SF_OVERLAY_MS - 1500;
+    const alpha = elapsed > fadeStart ? Math.max(0, 1 - (elapsed - fadeStart)/1500) : 1;
+    pieces.forEach(p=>{
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.vr;
+      p.vy += 0.05; // gravity
+      if(p.y > canvas.height + 30){
+        p.y = -20;
+        p.x = Math.random()*canvas.width;
+        p.vy = 2 + Math.random()*5;
+      }
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+      ctx.restore();
+    });
+    rafId = requestAnimationFrame(tick);
+  }
+  tick();
+
+  // Trigger CSS entrance
+  requestAnimationFrame(()=>{ ov.classList.add('sf-wd-show'); });
+  // Begin fade out at (SF_OVERLAY_MS - 800)ms
+  setTimeout(()=>{ ov.classList.add('sf-wd-fade'); }, Math.max(0, SF_OVERLAY_MS - 800));
+  // Tear down
+  setTimeout(()=>{
+    running = false;
+    if(rafId) cancelAnimationFrame(rafId);
+    window.removeEventListener('resize', resize);
+    ov.remove();
+  }, SF_OVERLAY_MS);
+}
+
+// ── Render the feed page ──────────────────────────────────────────
+function renderSalesFeed(){
+  const wrap = document.getElementById('salesFeedList');
+  if(!wrap) return;
+  const posts = Object.entries(_sfPosts||{})
+    .map(([id, p])=>({id, ...p}))
+    .filter(p=>p.name && p.revenue > 0)
+    .sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));
+
+  const countEl = document.getElementById('salesFeedCount');
+  if(countEl) countEl.textContent = posts.length + ' sale' + (posts.length===1?'':'s');
+
+  if(!posts.length){
+    wrap.innerHTML = `<div style="background:var(--surface);border:1px dashed var(--border2);border-radius:var(--radius);padding:50px 24px;text-align:center;">
+      <div style="font-size:42px;margin-bottom:14px;">📣</div>
+      <div style="font-size:16px;font-weight:700;margin-bottom:6px;">No sales posted yet</div>
+      <div style="font-size:12px;color:var(--text3);font-family:var(--fm);">When anyone logs a sale, it'll appear here for the whole business to celebrate.</div>
+    </div>`;
+    return;
+  }
+
+  const uid = _sfCurrentUserId();
+  const safeUid = uid ? String(uid).replace(/[.#$[\]/]/g, '_') : null;
+
+  wrap.innerHTML = posts.map(p=>{
+    const revStr = '£' + Math.round(p.revenue||0).toLocaleString();
+    const nmStr  = (p.nm||0) + ' NM';
+    const when   = _sfTimeAgo(p.createdAt);
+    const divBadge = p.divLabel ? `<span class="sf-div">${_sfEscape(p.divLabel)}</span>` : '';
+
+    // Build reaction buttons — always show all positive options
+    const reactionsHtml = SF_REACTIONS.map(em=>{
+      const users = (p.reactions && p.reactions[em]) || {};
+      const count = Object.keys(users).length;
+      const mine = safeUid && users[safeUid];
+      const title = count>0 ? Object.values(users).slice(0,5).join(', ') + (count>5?' + '+(count-5)+' more':'') : 'React with '+em;
+      return `<button class="sf-react ${mine?'sf-react-mine':''}" onclick="toggleSalesFeedReaction('${p.id}', '${em}')" title="${_sfEscape(title)}">
+        <span class="sf-react-em">${em}</span>${count>0?`<span class="sf-react-ct">${count}</span>`:''}
+      </button>`;
+    }).join('');
+
+    return `<div class="sf-card">
+      <div class="sf-card-head">
+        <div class="sf-card-headline">
+          <span class="sf-card-icon">🎊</span>
+          <span class="sf-card-msg">Congratulations <strong>${_sfEscape(p.name)}</strong> on your <strong>${revStr}</strong> and <strong>${nmStr}</strong>, Keep up the good work!</span>
+        </div>
+        <div class="sf-card-meta">
+          <span>${_sfEscape(when)}</span>
+          ${divBadge}
+        </div>
+      </div>
+      <div class="sf-card-reactions">${reactionsHtml}</div>
+      <div class="sf-card-cheer">
+        <button class="sf-cheer-btn" onclick="sendSalesFeedCheer('${p.id}', '${_sfEscape(p.name).replace(/'/g,"\\'")}')">
+          <span class="sf-cheer-icon">🎉</span>
+          <span>Cheer ${_sfEscape(p.name)}</span>
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Inject page + nav tab + styles ────────────────────────────────
+function _sfInjectStyles(){
+  if(document.getElementById('sf-styles')) return;
+  const s = document.createElement('style');
+  s.id = 'sf-styles';
+  s.textContent = `
+    .sf-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px; margin-bottom:14px; transition:border-color .2s; }
+    .sf-card:hover { border-color:var(--border2); }
+    .sf-card-head { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; margin-bottom:12px; }
+    .sf-card-headline { display:flex; align-items:flex-start; gap:10px; flex:1; }
+    .sf-card-icon { font-size:22px; flex-shrink:0; }
+    .sf-card-msg { font-size:14px; line-height:1.55; color:var(--text); }
+    .sf-card-msg strong { color:var(--text); font-weight:700; }
+    .sf-card-meta { display:flex; flex-direction:column; align-items:flex-end; gap:4px; font-size:11px; color:var(--text3); font-family:var(--fm); white-space:nowrap; }
+    .sf-div { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:2px 8px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--text2); }
+    .sf-card-reactions { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; padding-top:10px; border-top:1px solid var(--border); padding-top:12px; }
+    .sf-react { background:var(--surface2); border:1px solid var(--border); border-radius:20px; padding:4px 10px; cursor:pointer; font-size:13px; display:inline-flex; align-items:center; gap:5px; transition:all .15s; font-family:inherit; color:var(--text); }
+    .sf-react:hover { border-color:var(--accent); transform:translateY(-1px); }
+    .sf-react-mine { background:rgba(94,156,245,.14); border-color:var(--accent); }
+    .sf-react-em { font-size:15px; line-height:1; }
+    .sf-react-ct { font-size:11px; font-weight:700; color:var(--text2); font-family:var(--fm); }
+    .sf-card-cheer { display:flex; justify-content:flex-end; }
+    .sf-cheer-btn { background:linear-gradient(135deg, #fbb83a, #ff9f43); border:none; color:#1a1a1a; border-radius:10px; padding:9px 18px; font-size:13px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:all .2s; font-family:inherit; box-shadow:0 2px 8px rgba(251,184,58,.25); }
+    .sf-cheer-btn:hover { transform:translateY(-1px); box-shadow:0 4px 14px rgba(251,184,58,.4); }
+    .sf-cheer-btn:active { transform:translateY(0); }
+    .sf-cheer-icon { font-size:16px; }
+
+    /* Fullscreen Well Done overlay */
+    .sf-welldone-overlay { position:fixed; inset:0; z-index:99999; display:flex; align-items:center; justify-content:center; pointer-events:none; opacity:0; transition:opacity .35s ease-out; }
+    .sf-welldone-overlay.sf-wd-show { opacity:1; }
+    .sf-welldone-overlay.sf-wd-fade { opacity:0; transition:opacity .8s ease-in; }
+    .sf-wd-bg { position:absolute; inset:0; background:radial-gradient(ellipse at center, rgba(45,206,137,.35), rgba(0,0,0,.72) 70%); backdrop-filter:blur(4px); }
+    .sf-wd-canvas { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+    .sf-wd-content { position:relative; text-align:center; padding:40px 56px; z-index:2; transform:scale(.6); animation:sfWdPop .6s cubic-bezier(.34,1.56,.64,1) forwards; }
+    @keyframes sfWdPop { 0%{transform:scale(.6);opacity:0} 60%{transform:scale(1.08);opacity:1} 100%{transform:scale(1);opacity:1} }
+    .sf-wd-emoji { font-size:76px; margin-bottom:10px; animation:sfWdBounce 1.2s ease-in-out infinite; }
+    @keyframes sfWdBounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+    .sf-wd-headline { font-size:72px; font-weight:900; color:#fff; letter-spacing:-.02em; text-shadow:0 4px 24px rgba(0,0,0,.5); margin-bottom:14px; background:linear-gradient(135deg, #fbb83a, #2dce89); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+    .sf-wd-name { font-size:36px; font-weight:700; color:#fff; text-shadow:0 2px 14px rgba(0,0,0,.5); margin-bottom:8px; }
+    .sf-wd-cheerer { font-size:15px; color:rgba(255,255,255,.85); font-family:var(--fm,monospace); text-shadow:0 1px 6px rgba(0,0,0,.5); }
+
+    @media (max-width:600px){
+      .sf-wd-headline { font-size:48px; }
+      .sf-wd-name { font-size:26px; }
+      .sf-wd-emoji { font-size:58px; }
+    }
+  `;
+  document.head.appendChild(s);
+}
+
+function _ensureSalesFeedPageExists(){
+  _sfInjectStyles();
+  if(document.getElementById('page-salesfeed')) return;
+  const page = document.createElement('div');
+  page.className = 'page';
+  page.id = 'page-salesfeed';
+  page.innerHTML = `
+    <div class="section-head">
+      <div>
+        <div class="section-title">📣 Sales Feed</div>
+        <div class="section-sub">Every sale logged, celebrated across the business · <span id="salesFeedCount">0 sales</span></div>
+      </div>
+    </div>
+    <div id="salesFeedList" style="max-width:900px;"></div>
+  `;
+  const firstPage = document.querySelector('.page');
+  if(firstPage) firstPage.parentNode.insertBefore(page, firstPage);
+
+  // Nav tab — insert next to Kudos if present, otherwise near Leaderboard
+  const navTabs = document.querySelector('.nav-tabs');
+  if(navTabs && !document.getElementById('salesFeedNavTab')){
+    const tab = document.createElement('button');
+    tab.className = 'nav-tab';
+    tab.id = 'salesFeedNavTab';
+    tab.setAttribute('onclick', "showPage('salesfeed')");
+    tab.innerHTML = '📣 Sales Feed';
+    const kudosTab = document.getElementById('kudosNavTab');
+    if(kudosTab) navTabs.insertBefore(tab, kudosTab);
+    else {
+      const lbTab = [...navTabs.children].find(t => /Leaderboard/i.test(t.textContent));
+      if(lbTab) navTabs.insertBefore(tab, lbTab);
+      else navTabs.appendChild(tab);
+    }
+  }
+}
+
+// ── Hook into showPage routing ────────────────────────────────────
+if(typeof showPage === 'function'){
+  const _origShowPage_sf = showPage;
+  showPage = function(id){
+    if(id === 'salesfeed'){
+      _ensureSalesFeedPageExists();
+      startSalesFeedListener();
+    }
+    const ret = _origShowPage_sf.apply(this, arguments);
+    if(id === 'salesfeed'){
+      setTimeout(()=>{ try{ renderSalesFeed(); }catch(e){ console.warn('[salesFeed] render', e); } }, 50);
+    }
+    return ret;
+  };
+}
+
+// ── Hook into _onEntrySaved (autopost every new revenue entry) ─────
+if(typeof _onEntrySaved === 'function'){
+  const _origOnSaved_sf = _onEntrySaved;
+  _onEntrySaved = function(name, revenue, nm, mk){
+    try{ _sfPostSale(name, revenue, nm, mk); }catch(e){ console.warn('[salesFeed] post hook err', e); }
+    return _origOnSaved_sf.apply(this, arguments);
+  };
+}
+
+// ── Hook into startup ──────────────────────────────────────────────
+if(typeof _startWithRole === 'function'){
+  const _origStart_sf = _startWithRole;
+  _startWithRole = function(){
+    const ret = _origStart_sf.apply(this, arguments);
+    try{
+      _ensureSalesFeedPageExists();
+      startSalesFeedListener();
+      startSalesFeedCheerListener();
+    }catch(e){ console.warn('[salesFeed] init', e); }
+    return ret;
+  };
+}
+
+// ── Keep nav tab visible for all roles ─────────────────────────────
+if(typeof applyRoleVisibility === 'function'){
+  const _origApplyRole_sf = applyRoleVisibility;
+  applyRoleVisibility = function(){
+    const ret = _origApplyRole_sf.apply(this, arguments);
+    try{ const t = document.getElementById('salesFeedNavTab'); if(t) t.style.display=''; }catch(e){}
+    return ret;
+  };
+}
+
+// ── Hook into logout to clean up listeners ─────────────────────────
+if(typeof logoutUser === 'function'){
+  const _origLogout_sf = logoutUser;
+  logoutUser = function(){
+    try{ stopSalesFeedListener(); stopSalesFeedCheerListener(); }catch(e){}
+    return _origLogout_sf.apply(this, arguments);
+  };
+}
+
+// ── Kick-start on session restore (parallel to Kudos pattern) ─────
+setTimeout(()=>{
+  try{
+    if(typeof _currentUser !== 'undefined' && _currentUser){
+      _ensureSalesFeedPageExists();
+      startSalesFeedListener();
+      startSalesFeedCheerListener();
+    }
+  }catch(e){ console.warn('[salesFeed] restore', e); }
+}, 2000);
+
+// Expose for onclick handlers
+window.toggleSalesFeedReaction = toggleSalesFeedReaction;
+window.sendSalesFeedCheer      = sendSalesFeedCheer;
+window.renderSalesFeed         = renderSalesFeed;
+
+})(); // end Sales Feed module
+
+
 </script>
 
 </body>
