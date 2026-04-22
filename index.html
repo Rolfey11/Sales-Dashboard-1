@@ -3222,6 +3222,16 @@ function bcInit(){
   populateAllSelects();
   const bcMonthEl = document.getElementById('bcMonth');
   if(bcMonthEl && !bcMonthEl.value) bcMonthEl.value = APP.activeMonth;
+  // Default the Senior / Non-Senior toggle to the current user's saved status.
+  // Only run once per init so the user can still override mid-session if they
+  // want to preview a different scale.
+  try{
+    if(!window._bcTypeInitialisedForUser || window._bcTypeInitialisedForUser !== _currentUser?.id){
+      const defaultType = (_currentUser && _currentUser.isSenior) ? 'senior' : 'nonsenior';
+      if(typeof bcSetType === 'function') bcSetType(defaultType);
+      window._bcTypeInitialisedForUser = _currentUser?.id || 'anon';
+    }
+  } catch(e){ /* non-fatal */ }
   bcOnMonthChange();
 }
 
@@ -4764,7 +4774,9 @@ function calcStats(monthKey){
       if(st === 'hol' || st === 'sick' || st === 'bh') return;
       const personOvr = ((APP.personRROverrides||{})[p.name]||{})[monthKey]?.[ds];
       _cumRR   += personOvr !== undefined ? personOvr : (ep.riskPerDay||0);
-      _cumNmRR += _nmR;
+      // Per-day NM RR override takes precedence over monthly NM rate
+      const nmOvr = ((APP.personNmRROverrides||{})[p.name]||{})[monthKey]?.[ds];
+      _cumNmRR += nmOvr !== undefined ? nmOvr : _nmR;
     });
     const copRev = revMTD - _cumRR;
     const copNm  = nmMTD  - _cumNmRR;
@@ -5961,7 +5973,10 @@ function calcTeamCOP(mk, memberNames, teamKey){
     const dayRR2 = rrOvr2 !== undefined ? rrOvr2 : calcRR2;
     const dayNmRR2 = memberRPDs.reduce((s,{name})=>{
       const st = getDayStatus(mk,name,ds);
-      return s + (st!=='hol'&&st!=='bh' ? nmRateFor(name, mk) : 0);
+      if(st==='hol'||st==='bh') return s;
+      // Per-day NM RR override takes precedence over the monthly NM rate
+      const nmOvr = ((APP.personNmRROverrides||{})[name]||{})[mk]?.[ds];
+      return s + (nmOvr !== undefined ? nmOvr : nmRateFor(name, mk));
     }, 0);
     cumActual   += (dayLookup[ds]||{}).rev||0;
     cumRR       += dayRR2;
@@ -6027,7 +6042,8 @@ function renderDashboard(){
       if(st!=='hol'&&st!=='bh'){
         const personOvr = ((APP.personRROverrides||{})[p.name]||{})[mk]?.[ds];
         dayRR += personOvr !== undefined ? personOvr : rpd;
-        dayNmRR += 1.75;
+        const nmOvr = ((APP.personNmRROverrides||{})[p.name]||{})[mk]?.[ds];
+        dayNmRR += nmOvr !== undefined ? nmOvr : nmRateFor(p.name, mk);
       }
     });
     const dayActual = entries.filter(e=>e.date===ds).reduce((s,e)=>s+(e.revenue||0),0);
@@ -6257,7 +6273,8 @@ function renderDashboard(){
       if(st!=='hol'&&st!=='bh'){
         const personOvr = ((APP.personRROverrides||{})[name]||{})[mk]?.[ds];
         dayRR += personOvr !== undefined ? personOvr : rpd;
-        dayNmRR += 1.75;
+        const nmOvr = ((APP.personNmRROverrides||{})[name]||{})[mk]?.[ds];
+        dayNmRR += nmOvr !== undefined ? nmOvr : nmRateFor(name, mk);
       }
     });
     const dayActual = (dayLookupDash[ds]||{}).rev||0;
@@ -12013,7 +12030,9 @@ function renderTeamDashboard(container, teamKey){
     const isOvr  = _rrOvr !== undefined;
     const dayNmRR = memberRPDs.reduce((s,{name})=>{
       const st = getDayStatus(mk,name,ds);
-      return s + (st!=='hol'&&st!=='bh' ? 1.75 : 0);
+      if(st==='hol'||st==='bh') return s;
+      const nmOvr = ((APP.personNmRROverrides||{})[name]||{})[mk]?.[ds];
+      return s + (nmOvr !== undefined ? nmOvr : nmRateFor(name, mk));
     }, 0);
     const dayActual = (dayLookup[ds]||{}).rev||0;
     const dayNm     = (dayLookup[ds]||{}).nm||0;
@@ -12612,6 +12631,58 @@ function savePersonRROverride(name, mk, ds, rawVal){
   }
 }
 
+// ── NM Run Rate override (parallel to revenue RR override) ──────────
+// Storage: APP.personNmRROverrides[name][mk][ds] = number
+// Consumed by: dashboard daily table NM RR, teams daily table NM RR,
+// calcTeamCOP NM RR accumulator. Empty / NaN clears the override.
+function savePersonNmRROverride(name, mk, ds, rawVal){
+  if(window._pnrrSaving) return;
+  window._pnrrSaving = true;
+  setTimeout(()=>{ window._pnrrSaving = false; }, 300);
+  if(!APP.personNmRROverrides)             APP.personNmRROverrides = {};
+  if(!APP.personNmRROverrides[name])       APP.personNmRROverrides[name] = {};
+  if(!APP.personNmRROverrides[name][mk])   APP.personNmRROverrides[name][mk] = {};
+  const val = parseFloat(rawVal);
+  if(rawVal===''||isNaN(val)){
+    delete APP.personNmRROverrides[name][mk][ds];
+    if(!Object.keys(APP.personNmRROverrides[name][mk]).length) delete APP.personNmRROverrides[name][mk];
+    if(!Object.keys(APP.personNmRROverrides[name]).length)     delete APP.personNmRROverrides[name];
+  } else {
+    APP.personNmRROverrides[name][mk][ds] = Math.round(val * 100) / 100; // 2 dp
+  }
+  saveApp();
+  if(document.getElementById('page-person')?.classList.contains('active')){
+    renderPersonProfile(name);
+  } else {
+    renderPersonTracker(name);
+  }
+}
+
+function editPersonNmRRCell(name, mk, ds, calcNm){
+  const cell = document.getElementById('pnrcell_'+ds);
+  if(!cell) return;
+  const cur = ((APP.personNmRROverrides||{})[name]||{})[mk]?.[ds];
+  const initVal = cur !== undefined ? cur : calcNm;
+  const safeName = name.replace(/'/g,"\\'");
+  cell.innerHTML = `<div style="display:inline-flex;align-items:center;gap:4px;justify-content:flex-end">
+    <input id="pnrinput_${ds}" type="number" value="${initVal}" min="0" step="0.25"
+      style="width:80px;text-align:right;background:var(--surface3);border:1px solid var(--accent);border-radius:5px;padding:3px 7px;font-family:var(--fm);font-size:12px;color:var(--text);outline:none;"
+      onkeydown="if(event.key==='Enter'){savePersonNmRROverride('${safeName}','${mk}','${ds}',this.value);}if(event.key==='Escape'){_rerenderPersonView('${safeName}');}"
+      onblur="savePersonNmRROverride('${safeName}','${mk}','${ds}',this.value)">
+  </div>`;
+  setTimeout(()=>{ const el=document.getElementById('pnrinput_'+ds); if(el){el.focus();el.select();} },30);
+}
+
+// Helper: re-render whichever person view is currently active (Day-by-Day tab
+// vs the Person Profile page). Used by the edit-cell inputs on Escape.
+function _rerenderPersonView(name){
+  if(document.getElementById('page-person')?.classList.contains('active')){
+    renderPersonProfile(name);
+  } else {
+    renderPersonTracker(name);
+  }
+}
+
 function editPersonRRCell(name, mk, ds, calcRR){
   const cell = document.getElementById('prrcell_'+ds);
   if(!cell) return;
@@ -12621,7 +12692,7 @@ function editPersonRRCell(name, mk, ds, calcRR){
   cell.innerHTML = `<div style="display:inline-flex;align-items:center;gap:4px;justify-content:flex-end">
     <input id="prrinput_${ds}" type="number" value="${initVal}" min="0" step="100"
       style="width:90px;text-align:right;background:var(--surface3);border:1px solid var(--accent);border-radius:5px;padding:3px 7px;font-family:var(--fm);font-size:12px;color:var(--text);outline:none;"
-      onkeydown="if(event.key==='Enter'){savePersonRROverride('${safeName}','${mk}','${ds}',this.value);}if(event.key==='Escape'){renderPersonTracker('${safeName}');}"
+      onkeydown="if(event.key==='Enter'){savePersonRROverride('${safeName}','${mk}','${ds}',this.value);}if(event.key==='Escape'){_rerenderPersonView('${safeName}');}"
       onblur="savePersonRROverride('${safeName}','${mk}','${ds}',this.value)">
   </div>`;
   setTimeout(()=>{ const el=document.getElementById('prrinput_${ds}'); if(el){el.focus();el.select();} },30);
@@ -12636,9 +12707,9 @@ function renderPersonTracker(name){
   const today     = _localDateStr(new Date());
   const ep        = getPersonForMonth(p, mk);  // effective config for this month
   const riskPerDay= ep.riskPerDay||0;
-  const nmPerDay  = 1.75;
+  const nmPerDay  = (typeof nmRateFor === 'function') ? nmRateFor(name, mk) : 1.75;
   const target    = Math.round(riskPerDay * (ep.daysT||0));
-  const nmTarget  = parseFloat(((ep.daysT||0)*1.75).toFixed(2));
+  const nmTarget  = parseFloat(((ep.daysT||0)*nmPerDay).toFixed(2));
   const teamKey   = _dbdTeam;
   const color     = TEAM_COLORS[teamKey]||'var(--accent)';
 
@@ -12686,7 +12757,7 @@ function renderPersonTracker(name){
         <th class="itrk-th">Daily Run Rate</th>
         <th class="itrk-th">% of Run Rate</th>
         <th class="itrk-th">NM</th>
-        <th class="itrk-th">NM Target/day</th>
+        <th class="itrk-th" title="Click to edit — default is the monthly NM rate">Daily NM Run Rate</th>
         <th class="itrk-th">Cumul Revenue</th>
         <th class="itrk-th">Cumul Target</th>
         <th class="itrk-th">MTD Diff</th>
@@ -12705,34 +12776,58 @@ function renderPersonTracker(name){
     const isBH    = holStatus==='bh';
     const isOff   = isHol || isSick || isBH;
 
+    // Per-day overrides (revenue RR + NM RR). An override means the default
+    // value (monthly risk/day or monthly NM/day) has been replaced for this
+    // day. Cumulative targets respect the overrides so this view stays
+    // consistent with the rest of the dashboard.
+    const rrOvr   = ((APP.personRROverrides||{})[name]||{})[mk]?.[ds];
+    const nmOvr   = ((APP.personNmRROverrides||{})[name]||{})[mk]?.[ds];
+    const isRrOvr = rrOvr !== undefined;
+    const isNmOvr = nmOvr !== undefined;
+    const effRpd  = isRrOvr ? rrOvr : riskPerDay;
+    const effNm   = isNmOvr ? nmOvr : nmPerDay;
+
     // Exclude holiday, sickness AND bank holidays from cumulative targets
-    if(!isOff) cumTgt    += riskPerDay;
-    if(!isOff) cumNmTgt  += nmPerDay;
+    if(!isOff) cumTgt    += effRpd;
+    if(!isOff) cumNmTgt  += effNm;
     cumRev += rev;
     cumNm  += nm;
 
-    const runRate  = isOff ? 0 : riskPerDay;
-    const nmTgtDay = isOff ? 0 : nmPerDay;
+    const runRate  = isOff ? 0 : effRpd;
+    const nmTgtDay = isOff ? 0 : effNm;
     const pct      = runRate>0 ? Math.round(rev/runRate*100) : (rev>0?100:0);
     const pctCls   = pct>=100?'var(--green)':pct>=75?'var(--amber)':'var(--red)';
     const mDiff    = cumRev - cumTgt;
     const mDiffCls = mDiff>=0?'var(--green)':'var(--red)';
     const isToday  = ds===today;
     const dayName  = new Date(ds).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+    const safeName = name.replace(/'/g,"\\'");
 
     let rowNote = '';
     if(isHol)  rowNote = ' <span style="font-size:12px;font-weight:800;color:var(--red);background:var(--red-bg);padding:3px 7px;border-radius:4px;letter-spacing:.04em">HOL</span>';
     if(isSick) rowNote = ' <span style="font-size:12px;font-weight:800;color:var(--amber);background:var(--amber-bg);padding:3px 7px;border-radius:4px;letter-spacing:.04em">SICK</span>';
     if(isBH)   rowNote = ' <span style="font-size:12px;font-weight:800;color:#830544;background:rgba(131,5,68,0.12);padding:3px 7px;border-radius:4px;letter-spacing:.04em">BANK HOL</span>';
 
+    // Revenue RR cell — editable, shows override reset button when applicable
+    const rrCellContent = isOff ? '—' : `
+      <span style="font-family:var(--fm);font-size:12px;color:${isRrOvr?'var(--accent)':'var(--text3)'};font-weight:${isRrOvr?'700':'400'}">£${runRate.toLocaleString()}</span>
+      ${isRrOvr?`<button onclick="savePersonRROverride('${safeName}','${mk}','${ds}','')" title="Reset to default" style="margin-left:3px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:10px;padding:1px 3px;border-radius:3px;opacity:.7;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">↺</button>`:''}
+      <button onclick="editPersonRRCell('${safeName}','${mk}','${ds}',${Math.round(riskPerDay)})" title="Edit run rate" style="margin-left:2px;background:none;border:1px solid var(--border);cursor:pointer;color:var(--text3);font-size:10px;padding:2px 5px;border-radius:3px;line-height:1;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text3)'">✎</button>`;
+
+    // NM RR cell — editable, same pattern as revenue
+    const nmCellContent = isOff ? '—' : `
+      <span style="font-family:var(--fm);font-size:12px;color:${isNmOvr?'var(--accent)':'var(--text3)'};font-weight:${isNmOvr?'700':'400'}">${effNm.toFixed(2)}</span>
+      ${isNmOvr?`<button onclick="savePersonNmRROverride('${safeName}','${mk}','${ds}','')" title="Reset to default" style="margin-left:3px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:10px;padding:1px 3px;border-radius:3px;opacity:.7;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">↺</button>`:''}
+      <button onclick="editPersonNmRRCell('${safeName}','${mk}','${ds}',${nmPerDay})" title="Edit NM run rate" style="margin-left:2px;background:none;border:1px solid var(--border);cursor:pointer;color:var(--text3);font-size:10px;padding:2px 5px;border-radius:3px;line-height:1;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text3)'">✎</button>`;
+
     const rowOffBg = isHol ? 'background:rgba(245,54,92,0.08);' : isSick ? 'background:rgba(251,184,58,0.08);' : isBH ? 'background:rgba(131,5,68,0.08);' : '';
     html += `<tr class="itrk-tr${isToday?' today-row':''}" style="${rowOffBg}">
       <td class="itrk-td" style="text-align:left;color:var(--text2)">${dayName}${rowNote}</td>
       <td class="itrk-td" style="color:${rev>0?'var(--green)':'var(--text3)'}">${rev>0?'£'+Math.round(rev).toLocaleString():'—'}</td>
-      <td class="itrk-td" style="color:var(--text3)">${isOff?'—':'£'+runRate.toLocaleString()}</td>
+      <td id="prrcell_${ds}" class="itrk-td" style="white-space:nowrap">${rrCellContent}</td>
       <td class="itrk-td" style="color:${pctCls};font-weight:600">${isOff?'—':pct+'%'}</td>
       <td class="itrk-td" style="color:${nm>0?'var(--text)':'var(--text3)'}">${nm>0?nm:'—'}</td>
-      <td class="itrk-td" style="color:var(--text3)">${isOff?'—':nmTgtDay.toFixed(2)}</td>
+      <td id="pnrcell_${ds}" class="itrk-td" style="white-space:nowrap">${nmCellContent}</td>
       <td class="itrk-td" style="color:${color};font-weight:600">£${Math.round(cumRev).toLocaleString()}</td>
       <td class="itrk-td" style="color:var(--text3)">£${Math.round(cumTgt).toLocaleString()}</td>
       <td class="itrk-td" style="color:${mDiffCls};font-weight:600">${mDiff>=0?'+':''}£${Math.round(Math.abs(mDiff)).toLocaleString()}</td>
@@ -13700,7 +13795,8 @@ function renderPersonProfile(name){
   const riskPerDay = ep.riskPerDay||0;
   const daysT      = ep.daysT||0;
   const target     = Math.round(riskPerDay * daysT);
-  const nmTarget   = parseFloat((daysT * 1.75).toFixed(2));
+  const nmPerDay   = (typeof nmRateFor === 'function') ? nmRateFor(name, mk) : 1.75;
+  const nmTarget   = parseFloat((daysT * nmPerDay).toFixed(2));
 
   const entries    = getEntries(mk);
   const mine       = entries.filter(e=>e.name===name);
@@ -13737,14 +13833,19 @@ function renderPersonProfile(name){
     const isSick = status==='sick';
     const isBH   = status==='bh';
 
-    // Check for a manual per-day run rate override for this person
+    // Per-day Revenue Run Rate override
     const _pRROvr    = ((APP.personRROverrides||{})[name]||{})[mk]?.[ds];
     const _calcRunRate = riskPerDay;
     const _effRunRate  = _pRROvr !== undefined ? _pRROvr : _calcRunRate;
     const isPRROvr     = _pRROvr !== undefined;
 
+    // Per-day NM Run Rate override (parallel to revenue)
+    const _pNmOvr   = ((APP.personNmRROverrides||{})[name]||{})[mk]?.[ds];
+    const _effNmRR  = _pNmOvr !== undefined ? _pNmOvr : nmPerDay;
+    const isPNmOvr  = _pNmOvr !== undefined;
+
     if(!isOff) cumTgt   += _effRunRate;
-    if(!isOff) cumNmTgt += 1.75;
+    if(!isOff) cumNmTgt += _effNmRR;
     cumRev += rev;
     cumNm  += nm;
 
@@ -13758,11 +13859,13 @@ function renderPersonProfile(name){
     const mDiff    = cumRev - cumTgt;
     const mDiffCls = mDiff>=0?'var(--green)':'var(--red)';
     const runRate  = isOff ? 0 : _effRunRate;
+    const nmRR     = isOff ? 0 : _effNmRR;
     const pct      = runRate>0 ? Math.round(rev/runRate*100) : (rev>0?100:0);
     const pctCls   = pct>=100?'var(--green)':pct>=75?'var(--amber)':'var(--red)';
     const nmDiff   = cumNm - cumNmTgt;
     const isToday  = ds===today;
     const dayName  = new Date(ds).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+    const safeName = name.replace(/'/g,"\\'");
 
     let statusBadge = '';
     if(isHol)  statusBadge = `<span style="font-size:9px;font-weight:800;color:var(--red);background:var(--red-bg);padding:2px 6px;border-radius:3px">HOL</span>`;
@@ -13777,8 +13880,15 @@ function renderPersonProfile(name){
       <td id="prrcell_${ds}" style="padding:6px 10px;text-align:right;white-space:nowrap;font-family:var(--fm)">
         ${isOff ? '<span style="color:var(--text3);font-size:12px">—</span>' : `
           <span style="font-size:12px;color:${isPRROvr?'var(--accent)':'var(--text3)'};font-weight:${isPRROvr?'700':'400'}">£${runRate.toLocaleString()}</span>
-          ${isPRROvr?`<button onclick="savePersonRROverride('${name.replace(/'/g,"\\'")}','${mk}','${ds}','')" title="Reset to £${_calcRunRate.toLocaleString()}" style="margin-left:3px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:10px;padding:1px 3px;border-radius:3px;opacity:.7;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">↺</button>`:''}
-          <button onclick="editPersonRRCell('${name.replace(/'/g,"\\'")}','${mk}','${ds}',${_calcRunRate})" title="Edit run rate" style="margin-left:2px;background:none;border:1px solid var(--border);cursor:pointer;color:var(--text3);font-size:10px;padding:2px 5px;border-radius:3px;line-height:1;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text3)'">✎</button>
+          ${isPRROvr?`<button onclick="savePersonRROverride('${safeName}','${mk}','${ds}','')" title="Reset to £${_calcRunRate.toLocaleString()}" style="margin-left:3px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:10px;padding:1px 3px;border-radius:3px;opacity:.7;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">↺</button>`:''}
+          <button onclick="editPersonRRCell('${safeName}','${mk}','${ds}',${_calcRunRate})" title="Edit run rate" style="margin-left:2px;background:none;border:1px solid var(--border);cursor:pointer;color:var(--text3);font-size:10px;padding:2px 5px;border-radius:3px;line-height:1;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text3)'">✎</button>
+        `}
+      </td>
+      <td id="pnrcell_${ds}" style="padding:6px 10px;text-align:right;white-space:nowrap;font-family:var(--fm)">
+        ${isOff ? '<span style="color:var(--text3);font-size:12px">—</span>' : `
+          <span style="font-size:12px;color:${isPNmOvr?'var(--accent)':'var(--text3)'};font-weight:${isPNmOvr?'700':'400'}">${nmRR.toFixed(2)}</span>
+          ${isPNmOvr?`<button onclick="savePersonNmRROverride('${safeName}','${mk}','${ds}','')" title="Reset to ${nmPerDay.toFixed(2)}" style="margin-left:3px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:10px;padding:1px 3px;border-radius:3px;opacity:.7;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">↺</button>`:''}
+          <button onclick="editPersonNmRRCell('${safeName}','${mk}','${ds}',${nmPerDay})" title="Edit NM run rate" style="margin-left:2px;background:none;border:1px solid var(--border);cursor:pointer;color:var(--text3);font-size:10px;padding:2px 5px;border-radius:3px;line-height:1;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text3)'">✎</button>
         `}
       </td>
       <td style="padding:8px 12px;text-align:right;font-family:var(--fm);font-size:12px;color:${pctCls};font-weight:600">${isOff?'—':pct+'%'}</td>
@@ -13913,6 +14023,7 @@ function renderPersonProfile(name){
             <th style="padding:9px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap">Date</th>
             <th style="padding:9px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap">Revenue</th>
             <th style="padding:9px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap">Run Rate</th>
+            <th style="padding:9px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap" title="Daily NM run rate — click ✎ to edit, feeds into the dashboard">NM Run Rate</th>
             <th style="padding:9px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap">% of RR</th>
             <th style="padding:9px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap">NM</th>
             <th style="padding:9px 12px;text-align:right;font-size:10px;font-weight:700;color:${teamColor};font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;white-space:nowrap;border-left:2px solid var(--border2)">Cumul Rev</th>
@@ -14323,6 +14434,7 @@ function _applyDefaults(){
   if(APP.manualElapsed == null) APP.manualElapsed = null;
   if(!APP.rrOverrides)       APP.rrOverrides = {};
   if(!APP.personRROverrides) APP.personRROverrides = {};
+  if(!APP.personNmRROverrides) APP.personNmRROverrides = {};
   if(!APP.people)        APP.people = [];
 }
 
@@ -14491,11 +14603,12 @@ function _renderUsersTable(){
       PINs are auto-generated for new consultants — click 👁 to reveal, or Edit to change.
     </div>
     <div style="overflow-x:auto;">
-    <table style="width:100%;border-collapse:collapse;min-width:700px;">
+    <table style="width:100%;border-collapse:collapse;min-width:780px;">
       <thead><tr>
         <th ${thS}>Name</th>
         <th ${thS}>Role</th>
         <th ${thS}>Team / Division</th>
+        <th ${thS} title="Senior or Non-Senior — determines bonus scale">Bonus Scale</th>
         <th ${thS}>PIN</th>
         <th ${thS}>Actions</th>
       </tr></thead>
@@ -14503,6 +14616,8 @@ function _renderUsersTable(){
         ${users.map(u=>{
           const roleCol  = ROLE_COLORS[u.role]||'var(--text3)';
           const noTeam   = u.role==='master'||u.role==='compliance';
+          const isConsultant = u.role === 'consultant';
+          const isSenior = !!u.isSenior;
           return `<tr style="border-bottom:1px solid var(--border)">
             <td style="padding:9px 12px;font-weight:600;font-size:13px">
               ${u.name}
@@ -14519,6 +14634,14 @@ function _renderUsersTable(){
                 ${noTeam?'disabled title="Master & Compliance see all divisions"':''}
                 style="font-size:12px;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:4px 8px;cursor:pointer;${noTeam?'opacity:.45;cursor:not-allowed;':''}">
                 ${teamOpts.map(t=>`<option value="${t.val}"${(u.divKey||'')===(t.val)?' selected':''}>${noTeam&&t.val===''?'N/A — sees all':t.label}</option>`).join('')}
+              </select>
+            </td>
+            <td style="padding:9px 12px;">
+              <select onchange="updateUserSenior('${u.id}',this.value)"
+                ${!isConsultant?'disabled title="Bonus scale applies to consultants only"':''}
+                style="font-size:12px;font-weight:600;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:4px 8px;cursor:pointer;${!isConsultant?'opacity:.45;cursor:not-allowed;':''}">
+                <option value="nonsenior"${!isSenior?' selected':''}>Non-Senior</option>
+                <option value="senior"${isSenior?' selected':''}>Senior</option>
               </select>
             </td>
             <td style="padding:9px 12px;">
@@ -14565,6 +14688,30 @@ function updateUserTeam(uid, divKey){
       const label = divKey ? (DIVISIONS[divKey]?.label||divKey) : 'N/A';
       showToast(`Team updated to ${label}`);
       _renderUsersTable();
+    })
+    .catch(()=>showToast('Save failed','err'));
+}
+
+// Senior / Non-Senior flag — feeds the Bonus Calculator and Live Bonus Tracker
+function updateUserSenior(uid, val){
+  if(!_allUsers[uid]) return;
+  const isSenior = val === 'senior';
+  _allUsers[uid].isSenior = isSenior;
+  _usersDbRef()?.child(uid).update({isSenior})
+    .then(()=>{
+      showToast(`${_allUsers[uid].name} set to ${isSenior?'Senior':'Non-Senior'}`);
+      // Live-update: if the affected user is the currently-logged-in user,
+      // also update _currentUser so the Bonus Calculator / Live Bonus widget
+      // pick up the change without requiring a re-login.
+      if(_currentUser && _currentUser.id === uid){
+        _currentUser.isSenior = isSenior;
+      }
+      // Re-render live bonus & bonus calc if visible
+      if(typeof window._injectLiveBonus === 'function'){
+        const mk   = document.getElementById('cdMonth')?.value || APP.activeMonth;
+        const nm   = _currentUser?.name || '';
+        try{ window._injectLiveBonus(mk, nm); }catch(e){}
+      }
     })
     .catch(()=>showToast('Save failed','err'));
 }
@@ -19803,7 +19950,29 @@ function buildLiveBonusCard(mk, myName){
       </div>`;
     }
 
-    const personType = (typeof _bcType !== 'undefined' && _bcType === 'senior') ? 'senior' : 'nonsenior';
+    // Resolution order for Senior / Non-Senior:
+    // 1. Per-user flag stored on the user record (master-configured in Users & Roles)
+    // 2. The current logged-in user if they're viewing their own card
+    // 3. Bonus Calculator toggle (_bcType) as a last-resort fallback
+    let personType = 'nonsenior';
+    try {
+      // First try to find the user record by matching the consultant name
+      if(typeof _allUsers !== 'undefined' && _allUsers){
+        const matched = Object.values(_allUsers).find(u => u.name === myName);
+        if(matched && matched.isSenior != null){
+          personType = matched.isSenior ? 'senior' : 'nonsenior';
+        }
+      }
+      // If viewing your own data and nothing matched above, use _currentUser
+      if(personType === 'nonsenior' && _currentUser && _currentUser.name === myName && _currentUser.isSenior){
+        personType = 'senior';
+      }
+      // Last fallback: the Bonus Calculator transient toggle
+      if(personType === 'nonsenior' && typeof _bcType !== 'undefined' && _bcType === 'senior'
+         && _currentUser && _currentUser.name === myName){
+        personType = 'senior';
+      }
+    } catch(e){ /* defaults stand */ }
     const entries = getEntries(mk);
     const mine    = entries.filter(e => e.name === myName);
     const revMTD  = mine.reduce((s,e)=>s + (e.revenue||0), 0);
@@ -19850,6 +20019,9 @@ function buildLiveBonusCard(mk, myName){
         <div class="blc-head">
           <span class="blc-icon">💰</span>
           <span class="blc-title">Live Bonus Tracker</span>
+          <span class="blc-pill" style="background:${personType==='senior'?'rgba(232,121,249,0.18)':'rgba(94,156,245,0.18)'};color:${personType==='senior'?'#e879f9':'#5e9cf5'};border-color:${personType==='senior'?'#e879f955':'#5e9cf555'};font-weight:700;">
+            ${personType==='senior'?'SENIOR':'NON-SENIOR'}
+          </span>
           <span class="blc-pill" style="background:${onTrack?'var(--green-bg)':'var(--amber-bg)'};color:${onTrack?'var(--green)':'var(--amber)'};border-color:${onTrack?'var(--green)':'var(--amber)'}55;">
             ${onTrack ? '✓ ON PACE' : belowMin ? 'BELOW MIN' : 'BUILDING'}
           </span>
@@ -19882,7 +20054,7 @@ function buildLiveBonusCard(mk, myName){
           </div>
         </div>` : ''}
         ${belowMin ? `<div class="blc-warn"><span>⚠️</span><span>Current pace RPD (£${Math.round(paceRPD).toLocaleString()}) is below the £${minRPD.toLocaleString()}/day minimum. No bonus payout until pace improves.</span></div>` : ''}
-        <div class="blc-foot">Live projection — based on current pace extrapolated to month end. Toggle senior/non-senior on the <a href="javascript:showPage('bonuscalc')">Bonus Calculator</a>.</div>
+        <div class="blc-foot">Live projection — based on current pace extrapolated to month end. Using <strong>${personType==='senior'?'Senior':'Non-Senior'}</strong> pay scale (set by admin on Users &amp; Roles).</div>
       </div>`;
   } catch(err){
     console.warn('live bonus card error', err);
