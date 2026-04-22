@@ -1607,6 +1607,99 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 /* Arctic light theme fix */
 [data-theme="arctic"] .ham-btn{color:var(--text);}
 
+/* ── FORECAST CARD (Dashboard) ──────────────────────────────────── */
+.forecast-card{background:linear-gradient(135deg,var(--surface),rgba(94,156,245,.04));border:1px solid var(--border2);border-radius:var(--radius);padding:20px 22px;position:relative;overflow:hidden;}
+.forecast-card::before{content:'';position:absolute;top:-40px;right:-40px;width:140px;height:140px;background:radial-gradient(circle,rgba(94,156,245,.12),transparent 65%);pointer-events:none;}
+.fc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;}
+.fc-title{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;}
+.fc-icon{font-size:18px;}
+.fc-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.05em;font-family:var(--fm);border:1px solid;}
+.fc-main-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;}
+@media(max-width:700px){.fc-main-grid{grid-template-columns:1fr 1fr;}}
+.fc-main-col{background:var(--surface2);border-radius:10px;padding:14px;}
+.fc-main-lbl{font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px;}
+.fc-main-val{font-size:22px;font-weight:700;font-family:var(--fm);letter-spacing:-.01em;line-height:1.1;}
+.fc-main-sub{font-size:11px;color:var(--text2);font-family:var(--fm);margin-top:4px;}
+.fc-narrative{font-size:12px;color:var(--text2);font-family:var(--fm);line-height:1.7;background:var(--surface2);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;padding:10px 14px;margin-bottom:16px;}
+.fc-secondary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;}
+@media(max-width:700px){.fc-secondary-grid{grid-template-columns:1fr 1fr;}}
+.fc-sec-block{text-align:center;}
+.fc-sec-lbl{font-size:9px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px;}
+.fc-sec-val{font-size:16px;font-weight:700;font-family:var(--fm);}
+.fc-sec-sub{font-size:10px;font-family:var(--fm);margin-top:2px;}
+.fc-team-section{border-top:1px solid var(--border);padding-top:14px;}
+.fc-team-title{font-size:11px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;margin-bottom:8px;}
+.fc-team-head,.fc-team-row{display:grid;grid-template-columns:1fr 90px 70px 90px;gap:8px;align-items:center;}
+.fc-team-head{font-size:9px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.fc-team-row{padding:6px 0;border-bottom:1px solid var(--border);font-family:var(--fm);font-size:12px;}
+.fc-team-row:last-child{border-bottom:none;}
+.fc-team-proj,.fc-team-pct,.fc-team-gap{text-align:right;}
+
+/* ── LIVE BONUS TRACKER ─────────────────────────────────────────── */
+.bonus-live-card{background:linear-gradient(135deg,rgba(251,184,58,.06),rgba(45,206,137,.04));border:1px solid rgba(251,184,58,.25);border-radius:var(--radius);padding:18px 20px;margin-bottom:20px;position:relative;overflow:hidden;}
+.bonus-live-card.empty{border-color:var(--border);background:var(--surface);text-align:center;padding:32px;}
+.blc-empty-icon{font-size:36px;margin-bottom:8px;}
+.blc-empty-title{font-size:14px;font-weight:700;margin-bottom:4px;}
+.blc-empty-sub{font-size:12px;color:var(--text3);font-family:var(--fm);}
+.blc-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.blc-icon{font-size:20px;}
+.blc-title{font-size:14px;font-weight:700;flex:1;}
+.blc-pill{font-size:9px;font-weight:700;padding:3px 9px;border-radius:12px;border:1px solid;font-family:var(--fm);letter-spacing:.05em;}
+.blc-projected{text-align:center;margin-bottom:16px;}
+.blc-proj-lbl{font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;margin-bottom:4px;}
+.blc-proj-val{font-size:36px;font-weight:700;font-family:var(--fm);letter-spacing:-.02em;line-height:1;}
+.blc-proj-sub{font-size:11px;color:var(--text2);font-family:var(--fm);margin-top:4px;}
+.blc-tiers{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.blc-tier{flex:1;min-width:90px;background:var(--surface2);border-radius:10px;padding:12px 10px;text-align:center;}
+.blc-tier.tier-projected{background:rgba(251,184,58,.08);border:1px solid rgba(251,184,58,.2);}
+.blc-tier.tier-target-hit{background:rgba(45,206,137,.08);border:1px solid rgba(45,206,137,.2);}
+.blc-tier-lbl{font-size:9px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px;}
+.blc-tier-val{font-size:16px;font-weight:700;font-family:var(--fm);}
+.blc-tier-sub{font-size:10px;color:var(--text2);font-family:var(--fm);margin-top:3px;}
+.blc-tier-arrow{font-size:16px;color:var(--text3);}
+.blc-next{display:flex;align-items:flex-start;gap:10px;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:12px 14px;margin-bottom:12px;}
+.blc-next-icon{font-size:20px;flex-shrink:0;}
+.blc-next-content{flex:1;}
+.blc-next-title{font-size:12px;font-weight:700;margin-bottom:3px;}
+.blc-next-sub{font-size:11px;color:var(--text2);font-family:var(--fm);line-height:1.5;}
+.blc-warn{display:flex;gap:8px;align-items:flex-start;background:rgba(245,54,92,.08);border:1px solid rgba(245,54,92,.2);border-radius:8px;padding:10px 12px;font-size:11px;font-family:var(--fm);color:var(--text2);margin-bottom:12px;}
+.blc-foot{font-size:10px;color:var(--text3);font-family:var(--fm);line-height:1.5;border-top:1px solid var(--border);padding-top:10px;margin-top:4px;}
+.blc-foot a{color:var(--accent);}
+.blc-delta-pos{font-size:11px;color:var(--green);font-family:var(--fm);background:rgba(45,206,137,.08);border:1px solid rgba(45,206,137,.2);border-radius:8px;padding:7px 12px;margin-bottom:12px;}
+.blc-delta-neg{font-size:11px;color:var(--amber);font-family:var(--fm);background:rgba(251,184,58,.08);border:1px solid rgba(251,184,58,.2);border-radius:8px;padding:7px 12px;margin-bottom:12px;}
+
+/* ── KUDOS WALL ──────────────────────────────────────────────────── */
+.kudos-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;transition:box-shadow .2s,transform .15s;position:relative;overflow:hidden;}
+.kudos-card:hover{box-shadow:0 6px 28px rgba(0,0,0,.28);transform:translateY(-2px);}
+.kudos-cat-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;font-family:var(--fm);background:var(--blue-bg);color:var(--blue);border:1px solid rgba(94,156,245,.3);}
+.kudos-message{font-size:13px;line-height:1.65;color:var(--text);margin:10px 0;}
+.kudos-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.kudos-from{font-size:11px;font-weight:700;font-family:var(--fm);color:var(--text2);}
+.kudos-time{font-size:10px;color:var(--text3);font-family:var(--fm);}
+.kudos-reactions{display:flex;gap:4px;flex-wrap:wrap;margin-top:10px;}
+.kudos-react-btn{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:12px;cursor:pointer;transition:all .15s;font-family:var(--fm);display:flex;align-items:center;gap:4px;}
+.kudos-react-btn:hover{background:var(--surface3);border-color:var(--border2);}
+.kudos-react-btn.mine{border-color:var(--accent);background:var(--blue-bg);}
+.kudos-react-count{font-size:10px;font-weight:700;color:var(--text2);}
+.kudos-lb-strip{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+.kudos-lb-chip{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:6px 14px;display:flex;align-items:center;gap:8px;font-size:12px;font-family:var(--fm);}
+.kudos-lb-rank{font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.06em;text-transform:uppercase;}
+.kudos-lb-name{font-weight:700;color:var(--text);}
+.kudos-lb-count{font-size:10px;font-weight:700;color:var(--accent);margin-left:2px;}
+.kudos-cat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:4px;}
+.kudos-cat-item{background:var(--surface2);border:2px solid var(--border);border-radius:10px;padding:10px 12px;cursor:pointer;transition:all .15s;display:flex;align-items:flex-start;gap:10px;}
+.kudos-cat-item:hover{border-color:var(--border2);}
+.kudos-cat-item.selected{border-color:var(--accent);background:var(--blue-bg);}
+.kudos-cat-icon{font-size:20px;flex-shrink:0;}
+.kudos-cat-name{font-size:12px;font-weight:700;margin-bottom:2px;}
+.kudos-cat-desc{font-size:10px;color:var(--text3);font-family:var(--fm);line-height:1.4;}
+.rt-field{margin-bottom:14px;}
+.rt-field-lbl{font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;}
+.rt-helper{font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:4px;}
+#kudosMessage{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none;resize:vertical;}
+#kudosMessage:focus{border-color:var(--accent);}
+
+
 </style>
 <body class="pre-auth">
 
@@ -1633,6 +1726,33 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
         onkeydown="if(event.key==='Enter')attemptLogin()">
       <button class="login-btn" onclick="attemptLogin()">Continue →</button>
       <div class="login-err" id="loginErr"></div>
+      <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);text-align:center;">
+        <button onclick="goToAdminLogin()" style="background:none;border:none;color:var(--text3);font-size:11px;font-family:var(--fm);cursor:pointer;text-decoration:underline;padding:4px;">Admin Login</button>
+      </div>
+    </div>
+
+    <!-- Admin PIN step -->
+    <div id="loginAdminPin" style="display:none">
+      <div class="login-sub">Admin access — enter your PIN</div>
+      <div class="login-label">Admin PIN</div>
+      <input class="login-input" type="password" id="loginAdminPinInput" placeholder="Enter admin PIN"
+        maxlength="8" onkeydown="if(event.key==='Enter')attemptAdminPin()">
+      <button class="login-btn" onclick="attemptAdminPin()">Continue →</button>
+      <button class="login-btn" style="background:var(--surface2);color:var(--text2);margin-top:6px;" onclick="backToStep1()">← Back</button>
+      <div class="login-err" id="loginAdminPinErr"></div>
+    </div>
+
+    <!-- Admin choice step -->
+    <div id="loginAdminChoice" style="display:none">
+      <div class="login-sub">What would you like to do?</div>
+      <button class="login-btn" onclick="proceedAdminLogin()" style="margin-top:14px">
+        🔓 Login as Admin
+      </button>
+      <button class="login-btn" onclick="triggerEmergencyRestore()" style="background:rgba(245,54,92,.12);color:var(--red);border:1px solid rgba(245,54,92,.3);margin-top:8px;">
+        🆘 Emergency Restore from Backup
+      </button>
+      <button class="login-btn" style="background:var(--surface2);color:var(--text2);margin-top:8px;" onclick="backToStep1()">← Back to Login</button>
+      <input type="file" id="loginRestoreFile" accept=".json" style="display:none" onchange="loginDoRestore(this)">
     </div>
 
     <!-- Step 2: User selection -->
@@ -1645,11 +1765,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <button class="login-btn" onclick="proceedToPin()" style="margin-top:8px">Continue →</button>
       <button class="login-btn" style="background:var(--surface2);color:var(--text2);margin-top:6px;" onclick="backToPassword()">← Back</button>
       <div class="login-err" id="loginErr2"></div>
-      <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);text-align:center;">
-        <button onclick="showAdminLogin()" style="background:none;border:none;color:var(--text3);font-size:11px;font-family:var(--fm);cursor:pointer;text-decoration:underline;padding:4px;">
-          Admin Login
-        </button>
-      </div>
+
     </div>
 
     <!-- Step 3: PIN -->
@@ -1683,25 +1799,10 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
         <div class="div-name">D2C</div>
         <div class="div-desc">Direct to consumer team</div>
       </div>
-      <div class="div-btn" onclick="selectDivision('guidance')">
-        <div class="div-icon">🔗</div>
-        <div class="div-name">Single Tie Guidance</div>
-        <div class="div-desc">Single tie guidance advisors</div>
-      </div>
       <div class="div-btn" onclick="selectDivision('retail')">
         <div class="div-icon">🏪</div>
         <div class="div-name">Retail / Digital</div>
         <div class="div-desc">Retail and digital channel</div>
-      </div>
-      <div class="div-btn" onclick="selectDivision('advice')">
-        <div class="div-icon">💼</div>
-        <div class="div-name">Advice</div>
-        <div class="div-desc">Full advice team</div>
-      </div>
-      <div class="div-btn" onclick="selectDivision('core')">
-        <div class="div-icon">⭐</div>
-        <div class="div-name">Core</div>
-        <div class="div-desc">Core team</div>
       </div>
     </div>
   </div>
@@ -1844,7 +1945,15 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     <div style="display:flex;gap:8px;align-items:center">
       <div style="display:flex;align-items:center;gap:6px">
         <span style="font-size:11px;color:var(--text3);font-family:var(--fm);white-space:nowrap">Working days elapsed:</span>
-        <select id="elapsedDaysSel" onchange="setElapsedDays(this.value)" style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:5px 10px;font-size:13px;font-weight:700;font-family:var(--fm);color:var(--text);outline:none;cursor:pointer;width:70px;"></select>
+        <div id="elapsedAutoDisplay" style="display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:5px 10px;">
+          <span id="elapsedAutoVal" style="font-size:13px;font-weight:700;font-family:var(--fm);color:var(--text)">—</span>
+          <span style="font-size:9px;font-weight:700;background:rgba(45,206,137,.15);color:var(--green);padding:1px 6px;border-radius:8px;letter-spacing:.04em">AUTO</span>
+          <button onclick="toggleElapsedOverride()" title="Override elapsed days" style="background:none;border:1px solid var(--border2);border-radius:5px;padding:1px 6px;font-size:9px;font-weight:700;color:var(--text3);cursor:pointer;font-family:var(--fm);letter-spacing:.04em;line-height:1.6;transition:border-color .15s,color .15s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">✏</button>
+        </div>
+        <div id="elapsedOverrideRow" style="display:none;align-items:center;gap:6px;">
+          <select id="elapsedDaysSel" onchange="setElapsedDays(this.value)" style="background:var(--surface2);border:1px solid var(--accent);border-radius:8px;padding:5px 10px;font-size:13px;font-weight:700;font-family:var(--fm);color:var(--text);outline:none;cursor:pointer;width:70px;"></select>
+          <button onclick="resetElapsedAuto()" style="background:none;border:1px solid var(--border2);border-radius:7px;padding:4px 8px;font-size:10px;font-weight:700;color:var(--text2);cursor:pointer;font-family:var(--fm);white-space:nowrap;letter-spacing:.04em;transition:border-color .15s,color .15s;" onmouseover="this.style.borderColor='var(--blue)';this.style.color='var(--blue)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text2)'">↺ AUTO</button>
+        </div>
       </div>
       <button class="btn btn-s" onclick="exportDashboardCSV()">↓ Export CSV</button>
       <button class="btn btn-s" onclick="generateMonthlyReport()" style="background:var(--purple-bg);color:var(--purple);border-color:var(--purple);">📄 PDF Report</button>
@@ -2249,6 +2358,17 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
         <div style="margin-top:12px;font-size:11px;font-weight:700;color:var(--amber)">Open →</div>
       </div>
 
+      <!-- Backup & Restore -->
+      <div class="set-card" style="cursor:pointer;transition:all .2s;border-left:4px solid var(--red);"
+        onclick="openSettingsSub('backup')"
+        onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='var(--shadow)'"
+        onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="font-size:28px;margin-bottom:10px">💾</div>
+        <div class="set-title" style="margin-bottom:4px">Backup &amp; Restore</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm);line-height:1.6">Automatic hourly snapshots, manual JSON export and one-click restore to any previous save.</div>
+        <div style="margin-top:12px;font-size:11px;font-weight:700;color:var(--red)">Open →</div>
+      </div>
+
     </div>
   </div>
 
@@ -2358,6 +2478,57 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     </div>
     <div class="set-card" id="directReportsCard">
       <div id="directReportsContent"></div>
+    </div>
+  </div>
+
+  <!-- Backup & Restore sub-page -->
+  <div id="settingsSubBackup" style="display:none">
+    <div class="section-head">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="btn btn-s" onclick="closeSettingsSub()" style="font-size:12px">← Back</button>
+        <div>
+          <div class="section-title">💾 Backup &amp; Restore</div>
+          <div class="section-sub">Auto snapshots every hour · Export JSON · Restore to any previous save</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-s" onclick="bkpExportNow()" style="font-size:12px;border-color:var(--green);color:var(--green)">⬇ Export JSON</button>
+        <button class="btn btn-s" onclick="document.getElementById('bkpImportFileSettings').click()" style="font-size:12px;border-color:var(--blue);color:var(--blue)">⬆ Import JSON</button>
+        <input type="file" id="bkpImportFileSettings" accept=".json" style="display:none" onchange="bkpImportFileSettings(this)">
+        <button class="btn btn-p" onclick="bkpSnapshotNow()" style="font-size:12px">📸 Snapshot Now</button>
+      </div>
+    </div>
+
+    <!-- Status strip -->
+    <div class="set-card" style="margin-bottom:12px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px">
+        <div>
+          <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px">Auto-backup</div>
+          <div style="font-size:14px;font-weight:700;color:var(--green);font-family:var(--fm)" id="bkpAutoStatus">⟳ Running</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:2px">Snapshots every hour</div>
+        </div>
+        <div>
+          <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px">Snapshots Stored</div>
+          <div style="font-size:14px;font-weight:700;font-family:var(--fm)" id="bkpCount">—</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:2px">Up to 7 daily + 24 hourly</div>
+        </div>
+        <div>
+          <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px">Last Snapshot</div>
+          <div style="font-size:14px;font-weight:700;font-family:var(--fm)" id="bkpLastTime">—</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:2px" id="bkpDivLabel">Current division</div>
+        </div>
+        <div>
+          <div style="font-size:9px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px">Storage Used</div>
+          <div style="font-size:14px;font-weight:700;font-family:var(--fm)" id="bkpSize">—</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:2px">IndexedDB (this browser)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Snapshot list -->
+    <div class="set-card">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;margin-bottom:14px">Saved Snapshots</div>
+      <div id="bkpList"><div style="color:var(--text3);font-size:12px;font-family:var(--fm)">Loading…</div></div>
     </div>
   </div>
 
@@ -3996,12 +4167,67 @@ function backToUserSelect(){
 let _adminLoginMode = false;
 
 function showAdminLogin(){
+  // Legacy: keep for any remaining internal references
+  goToAdminLogin();
+}
+
+function goToAdminLogin(){
   _adminLoginMode = true;
-  document.getElementById('loginPinLabel').textContent = 'Admin Login — Enter PIN';
-  document.getElementById('loginStep2').style.display = 'none';
-  document.getElementById('loginStep3').style.display = '';
-  document.getElementById('loginPin').value = '';
-  document.getElementById('loginPin').focus();
+  _hideAllLoginSteps();
+  document.getElementById('loginAdminPin').style.display = '';
+  const inp = document.getElementById('loginAdminPinInput');
+  if(inp){ inp.value = ''; inp.focus(); }
+  const err = document.getElementById('loginAdminPinErr');
+  if(err) err.textContent = '';
+}
+
+function backToStep1(){
+  _adminLoginMode = false;
+  _hideAllLoginSteps();
+  document.getElementById('loginStep1').style.display = '';
+  const inp = document.getElementById('loginPwd');
+  if(inp){ inp.value = ''; inp.focus(); }
+}
+
+function _hideAllLoginSteps(){
+  ['loginStep1','loginStep2','loginStep3','loginAdminPin','loginAdminChoice'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.style.display = 'none';
+  });
+}
+
+async function attemptAdminPin(){
+  const pin  = document.getElementById('loginAdminPinInput')?.value || '';
+  const err  = document.getElementById('loginAdminPinErr');
+  if(!pin){ if(err) err.textContent='Please enter the admin PIN.'; return; }
+  const pinHash = await _sha256(pin);
+  if(pinHash !== ADMIN_PIN_HASH){
+    if(err) err.textContent='Incorrect admin PIN.';
+    const inp = document.getElementById('loginAdminPinInput');
+    if(inp){ inp.value = ''; inp.focus(); }
+    return;
+  }
+  if(err) err.textContent = '';
+  // Show choice screen
+  _hideAllLoginSteps();
+  document.getElementById('loginAdminChoice').style.display = '';
+}
+
+function proceedAdminLogin(){
+  _adminLoginMode = false;
+  _currentUser = { id:'__admin__', name:'Admin', role:'master', divKey:'' };
+  sessionStorage.setItem('pd_auth','1');
+  sessionStorage.setItem('pd_user', JSON.stringify(_currentUser));
+  document.getElementById('loginScreen').classList.add('hidden');
+  const badge = document.getElementById('userRoleBadge');
+  const logoutBtn = document.getElementById('logoutBtn');
+  if(badge){ badge.style.display=''; badge.textContent='Admin · Master'; badge.style.color=ROLE_COLORS.master||'#e879f9'; }
+  if(logoutBtn) logoutBtn.style.display='';
+  showGreeting('Admin', null, ()=>_startWithRole());
+}
+
+function triggerEmergencyRestore(){
+  document.getElementById('loginRestoreFile')?.click();
 }
 
 // ─── LOGIN STEP 3: PIN verification ─────────────────────────────
@@ -4010,7 +4236,7 @@ async function attemptPinLogin(){
   const err3 = document.getElementById('loginErr3');
   if(!pin){ err3.textContent='Please enter your PIN.'; return; }
 
-  // Admin bootstrap override — compare against hashed PIN, never plaintext
+  // Admin bootstrap override (legacy path kept for safety)
   if(_adminLoginMode){
     const pinHash = await _sha256(pin);
     if(pinHash !== ADMIN_PIN_HASH){
@@ -4020,16 +4246,7 @@ async function attemptPinLogin(){
       return;
     }
     _adminLoginMode = false;
-    _currentUser = { id:'__admin__', name:'Admin', role:'master', divKey:'' };
-    sessionStorage.setItem('pd_auth','1');
-    sessionStorage.setItem('pd_user', JSON.stringify(_currentUser));
-    document.getElementById('loginScreen').classList.add('hidden');
-    err3.textContent='';
-    const badge = document.getElementById('userRoleBadge');
-    const logoutBtn = document.getElementById('logoutBtn');
-    if(badge){ badge.style.display=''; badge.textContent='Admin · Master'; badge.style.color=ROLE_COLORS.master; }
-    if(logoutBtn) logoutBtn.style.display='';
-    showGreeting('Admin', null, ()=>_startWithRole());
+    proceedAdminLogin();
     return;
   }
 
@@ -5763,7 +5980,18 @@ function renderDashboard(){
   const ahead    = active.filter(p=>p.riskAhead).length;
   const elapsed  = APP.manualElapsed!=null ? APP.manualElapsed : calWorkDaysTeam(mk);
 
-  // Populate elapsed days selector
+  // Update AUTO display and toggle between auto/manual modes
+  const elAutoVal   = document.getElementById('elapsedAutoVal');
+  const elAutoDisp  = document.getElementById('elapsedAutoDisplay');
+  const elOverrideRow = document.getElementById('elapsedOverrideRow');
+  const isManual = APP.manualElapsed != null;
+
+  if(elAutoVal) elAutoVal.textContent = isManual ? APP.manualElapsed : elapsed;
+  // Mutually exclusive: show either auto display OR override row, never both
+  if(elAutoDisp)    elAutoDisp.style.display    = isManual ? 'none' : 'flex';
+  if(elOverrideRow) elOverrideRow.style.display = isManual ? 'flex' : 'none';
+
+  // Populate elapsed days override selector
   const elSel = document.getElementById('elapsedDaysSel');
   if(elSel){
     elSel.innerHTML = Array.from({length:31},(_,i)=>i)
@@ -6434,7 +6662,7 @@ function openSettingsSub(sub){
   const hub = document.getElementById('settingsHub');
   if(hub) hub.style.display = 'none';
   // Hide all sub-pages
-  ['users','themes','targets','directreports'].forEach(s => {
+  ['users','themes','targets','directreports','backup'].forEach(s => {
     const el = document.getElementById('settingsSub'+s.charAt(0).toUpperCase()+s.slice(1));
     if(el) el.style.display = 'none';
   });
@@ -6447,11 +6675,12 @@ function openSettingsSub(sub){
   if(sub==='themes')        renderThemePicker();
   if(sub==='targets')       _renderTargetsSub();
   if(sub==='directreports') renderDirectReports();
+  if(sub==='backup')        { bkpRenderList(); }
 }
 
 function closeSettingsSub(){
   // Hide all sub-pages
-  ['users','themes','targets','directreports'].forEach(s => {
+  ['users','themes','targets','directreports','backup'].forEach(s => {
     const el = document.getElementById('settingsSub'+s.charAt(0).toUpperCase()+s.slice(1));
     if(el) el.style.display = 'none';
   });
@@ -11032,6 +11261,30 @@ function setElapsedDays(val){
   const n2 = parseInt(val);
   APP.manualElapsed = isNaN(n2) ? null : n2;
   saveApp();
+  renderDashboard();
+}
+
+function toggleElapsedOverride(){
+  const autoDisp    = document.getElementById('elapsedAutoDisplay');
+  const overrideRow = document.getElementById('elapsedOverrideRow');
+  if(!autoDisp || !overrideRow) return;
+  const isOverride = (overrideRow.style.display !== 'none');
+  if(isOverride){
+    resetElapsedAuto();
+  } else {
+    // Switch to manual mode: hide auto display, show override row
+    autoDisp.style.display = 'none';
+    overrideRow.style.display = 'flex';
+  }
+}
+
+function resetElapsedAuto(){
+  APP.manualElapsed = null;
+  saveApp();
+  const autoDisp    = document.getElementById('elapsedAutoDisplay');
+  const overrideRow = document.getElementById('elapsedOverrideRow');
+  if(autoDisp)    autoDisp.style.display = 'flex';
+  if(overrideRow) overrideRow.style.display = 'none';
   renderDashboard();
 }
 
@@ -18978,6 +19231,1052 @@ async function bsmExportPayroll(){
     btn.disabled  = false;
   }
 }
+</script>
+
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// MODULE: END-OF-MONTH FORECAST (Dashboard)
+// ═══════════════════════════════════════════════════════════════════
+(function(){
+
+function _fmtMoney(n){
+  if(n == null || isNaN(n)) return '£0';
+  const v = Math.round(n);
+  if(Math.abs(v) >= 1000000) return '£' + (v/1000000).toFixed(2).replace(/\.?0+$/,'') + 'm';
+  if(Math.abs(v) >= 10000)   return '£' + Math.round(v/1000) + 'k';
+  return '£' + v.toLocaleString();
+}
+
+function _explicitNmRate(name, mk){
+  if(!APP) return 0;
+  const p = APP.people.find(x=>x.name===name);
+  if(!p) return 0;
+  const ep = getPersonForMonth(p, mk);
+  if(typeof ep.nmPerDay !== 'undefined') return ep.nmPerDay;
+  if(APP.nmRates && APP.nmRates[name] != null) return APP.nmRates[name];
+  return APP.nmRate || 1.75;
+}
+
+function buildForecastCard(){
+  try{
+    const mk = APP.activeMonth;
+    if(!mk) return '';
+    const stats = calcStats(mk).filter(s => s.target > 0);
+    if(stats.length === 0) return '';
+    const teamTgt   = stats.reduce((s,p)=>s+p.target, 0);
+    const teamRev   = stats.reduce((s,p)=>s+p.revMTD, 0);
+    const teamNm    = stats.reduce((s,p)=>s+p.nmMTD, 0);
+    const allWD     = workingDatesInMonth(mk);
+    const totalWD   = allWD.length;
+    const today     = _localDateStr(new Date());
+    const wdElapsed = allWD.filter(d => d <= today).length;
+    const wdLeft    = Math.max(0, totalWD - wdElapsed);
+    if(totalWD === 0) return '';
+
+    const revPerDay  = wdElapsed > 0 ? teamRev / wdElapsed : 0;
+    const projection = Math.round(revPerDay * totalWD);
+    const gap        = teamTgt - projection;
+    const onTrackPct = teamTgt > 0 ? Math.round(projection / teamTgt * 100) : 0;
+    const requiredPerDay = wdLeft > 0 ? Math.max(0, (teamTgt - teamRev) / wdLeft) : 0;
+    const currentRunRate = revPerDay;
+    const rateChange = currentRunRate > 0 ? (requiredPerDay / currentRunRate - 1) : 0;
+
+    const nmTarget    = stats.reduce((s,p)=>s + _explicitNmRate(p.name, mk) * (getPersonForMonth(p, mk).daysT||0), 0);
+    const nmPerDay    = wdElapsed > 0 ? teamNm / wdElapsed : 0;
+    const nmProjected = Math.round(nmPerDay * totalWD);
+    const nmGap       = nmTarget - nmProjected;
+
+    let statusColor, statusLabel, statusIcon;
+    if(onTrackPct >= 100){
+      statusColor = 'var(--green)'; statusLabel = 'ON TRACK TO BEAT TARGET'; statusIcon = '🚀';
+    } else if(onTrackPct >= 95){
+      statusColor = 'var(--green)'; statusLabel = 'ON TRACK'; statusIcon = '✅';
+    } else if(onTrackPct >= 85){
+      statusColor = 'var(--amber)'; statusLabel = 'SLIGHTLY BEHIND'; statusIcon = '⚠️';
+    } else {
+      statusColor = 'var(--red)'; statusLabel = 'OFF PACE'; statusIcon = '🔴';
+    }
+
+    return `
+      <div class="forecast-card">
+        <div class="fc-head">
+          <div class="fc-title">
+            <span class="fc-icon">${statusIcon}</span>
+            <span>End-of-Month Forecast</span>
+          </div>
+          <span class="fc-badge" style="background:${statusColor}22;color:${statusColor};border-color:${statusColor}55;">${statusLabel}</span>
+        </div>
+
+        <div class="fc-main-grid">
+          <div class="fc-main-col">
+            <div class="fc-main-lbl">Projected Finish</div>
+            <div class="fc-main-val" style="color:${statusColor}">${_fmtMoney(projection)}</div>
+            <div class="fc-main-sub">${onTrackPct}% of ${_fmtMoney(teamTgt)} target</div>
+          </div>
+          <div class="fc-main-col">
+            <div class="fc-main-lbl">${gap > 0 ? 'Gap to Target' : 'Surplus'}</div>
+            <div class="fc-main-val" style="color:${gap > 0 ? 'var(--red)' : 'var(--green)'}">${gap > 0 ? '−' : '+'}${_fmtMoney(Math.abs(gap))}</div>
+            <div class="fc-main-sub">at current pace of ${_fmtMoney(currentRunRate)}/day</div>
+          </div>
+          <div class="fc-main-col">
+            <div class="fc-main-lbl">Required Daily</div>
+            <div class="fc-main-val" style="color:${rateChange > 0.15 ? 'var(--red)' : rateChange > 0 ? 'var(--amber)' : 'var(--green)'}">${_fmtMoney(requiredPerDay)}</div>
+            <div class="fc-main-sub">${wdLeft} day${wdLeft===1?'':'s'} left ${rateChange > 0 ? `· ${Math.round(rateChange*100)}% lift needed` : '· already on pace'}</div>
+          </div>
+        </div>
+
+        <div class="fc-narrative">
+          ${gap > 0
+            ? `At your current pace of <strong>${_fmtMoney(currentRunRate)}/day</strong>, you'll finish at <strong style="color:${statusColor}">${_fmtMoney(projection)}</strong> — that's <strong style="color:var(--red)">${_fmtMoney(gap)} short</strong> of the ${_fmtMoney(teamTgt)} target. To close the gap, the team needs <strong>${_fmtMoney(requiredPerDay)}/day</strong> over the remaining ${wdLeft} working day${wdLeft===1?'':'s'}.`
+            : `The team is currently on pace to <strong style="color:var(--green)">beat target by ${_fmtMoney(Math.abs(gap))}</strong>. Maintain ${_fmtMoney(currentRunRate)}/day to lock it in.`
+          }
+        </div>
+
+        <div class="fc-secondary-grid">
+          <div class="fc-sec-block">
+            <div class="fc-sec-lbl">NM Projection</div>
+            <div class="fc-sec-val">${nmProjected} / ${Math.round(nmTarget)}</div>
+            <div class="fc-sec-sub" style="color:${nmGap > 0 ? 'var(--red)' : 'var(--green)'}">${nmGap > 0 ? '−' : '+'}${Math.abs(Math.round(nmGap))} NM ${nmGap > 0 ? 'short' : 'over'}</div>
+          </div>
+          <div class="fc-sec-block">
+            <div class="fc-sec-lbl">Days Elapsed</div>
+            <div class="fc-sec-val">${wdElapsed} / ${totalWD}</div>
+            <div class="fc-sec-sub">${totalWD > 0 ? Math.round(wdElapsed/totalWD*100) : 0}% of month done</div>
+          </div>
+          <div class="fc-sec-block">
+            <div class="fc-sec-lbl">Active Consultants</div>
+            <div class="fc-sec-val">${stats.length}</div>
+            <div class="fc-sec-sub">contributing to forecast</div>
+          </div>
+        </div>
+      </div>`;
+  } catch(err){
+    console.warn('forecast card error', err);
+    return '';
+  }
+}
+
+function injectForecast(){
+  try{
+    const dashPage = document.getElementById('page-dashboard');
+    if(!dashPage || !dashPage.classList.contains('active')) return;
+    const cardsGrid = document.getElementById('cardsGrid');
+    const teamRow   = document.getElementById('teamSummaryRow');
+    const anchor    = cardsGrid || teamRow;
+    if(!anchor) return;
+    let host = document.getElementById('forecastHost');
+    if(!host){
+      host = document.createElement('div');
+      host.id = 'forecastHost';
+      host.style.marginTop = '16px';
+      anchor.parentNode.insertBefore(host, anchor.nextSibling);
+    }
+    host.innerHTML = buildForecastCard();
+  } catch(err){ console.warn('inject forecast', err); }
+}
+
+if(typeof renderDashboard === 'function'){
+  const _origRenderDash_fc = renderDashboard;
+  renderDashboard = function(){
+    const ret = _origRenderDash_fc.apply(this, arguments);
+    setTimeout(injectForecast, 50);
+    return ret;
+  };
+}
+
+window._injectDashForecast = injectForecast;
+
+})(); // end forecast module
+
+
+// ═══════════════════════════════════════════════════════════════════
+// MODULE: LIVE BONUS WIDGET (Consultant Daily)
+// ═══════════════════════════════════════════════════════════════════
+(function(){
+
+function buildLiveBonusCard(mk, myName){
+  try{
+    if(!mk || !myName) return '';
+    if(typeof bcBonusForRPD !== 'function') return '';
+    const p = APP.people.find(x => x.name === myName);
+    if(!p) return '';
+    const ep = getPersonForMonth(p, mk);
+    const riskPerDay = ep?.riskPerDay || 0;
+    const daysT      = ep?.daysT || 0;
+    if(!daysT || !riskPerDay){
+      return `<div class="bonus-live-card empty">
+        <div class="blc-empty-icon">💰</div>
+        <div class="blc-empty-title">Live Bonus Tracker</div>
+        <div class="blc-empty-sub">Set up your monthly target to see live bonus projections</div>
+      </div>`;
+    }
+
+    const personType = (typeof _bcType !== 'undefined' && _bcType === 'senior') ? 'senior' : 'nonsenior';
+    const entries = getEntries(mk);
+    const mine    = entries.filter(e => e.name === myName);
+    const revMTD  = mine.reduce((s,e)=>s + (e.revenue||0), 0);
+    const allWD   = workingDatesInMonth(mk);
+    const totalWD = allWD.length;
+    const today   = _localDateStr(new Date());
+    const wdElapsed = allWD.filter(d => d <= today).length;
+    const sickDaysCount   = (typeof getSickWorkDayCount === 'function') ? getSickWorkDayCount(mk, myName) : 0;
+    const effectiveDaysT  = Math.max(1, daysT - sickDaysCount);
+    const minRPD          = bcMinRPD();
+    const paceRPD         = wdElapsed > 0 ? revMTD / wdElapsed : 0;
+    const fullBonusAtPace = bcBonusForRPD(paceRPD, personType);
+    const fullBonusAtTgt  = bcBonusForRPD(riskPerDay, personType);
+    const paceBonus       = fullBonusAtPace.bonus;
+    const tgtBonus        = fullBonusAtTgt.bonus;
+    const projectedBonus  = paceBonus;
+    const STEP = 100;
+    const nextBracketRPD = Math.floor(paceRPD / STEP) * STEP + STEP;
+    const nextBonusInfo  = bcBonusForRPD(nextBracketRPD, personType);
+    const projectedTotalRev = paceRPD * effectiveDaysT;
+    const revToNextBracket  = Math.max(0, nextBracketRPD * effectiveDaysT - projectedTotalRev);
+    const bonusJump         = nextBonusInfo.bonus - projectedBonus;
+    const daysLeft          = Math.max(0, totalWD - wdElapsed);
+    const revPerDayToNext   = daysLeft > 0 ? revToNextBracket / daysLeft : 0;
+    let projColor = paceRPD < minRPD ? 'var(--text3)' : projectedBonus >= tgtBonus && tgtBonus > 0 ? 'var(--green)' : tgtBonus > 0 && projectedBonus >= tgtBonus * 0.75 ? 'var(--amber)' : 'var(--blue)';
+    const onTrack  = tgtBonus > 0 && projectedBonus >= tgtBonus;
+    const belowMin = paceRPD < minRPD;
+
+    const todayEntries = mine.filter(e => e.date === today);
+    const todayRev     = todayEntries.reduce((s,e)=>s + (e.revenue||0), 0);
+    let todayDelta = '';
+    if(todayRev > 0 && wdElapsed >= 2){
+      const revBeforeToday    = revMTD - todayRev;
+      const wdBeforeToday     = wdElapsed - 1;
+      const paceRPDBefore     = revBeforeToday / wdBeforeToday;
+      const bonusBeforeToday  = bcBonusForRPD(paceRPDBefore, personType).bonus;
+      const delta = projectedBonus - bonusBeforeToday;
+      if(delta > 0) todayDelta = `<div class="blc-delta-pos">↑ Today's sales lifted your projected bonus by <strong>£${Math.round(delta).toLocaleString()}</strong></div>`;
+      else if(delta < 0) todayDelta = `<div class="blc-delta-neg">↓ Today's pace dipped your projection by £${Math.round(Math.abs(delta)).toLocaleString()}</div>`;
+    }
+
+    return `
+      <div class="bonus-live-card">
+        <div class="blc-head">
+          <span class="blc-icon">💰</span>
+          <span class="blc-title">Live Bonus Tracker</span>
+          <span class="blc-pill" style="background:${onTrack?'var(--green-bg)':'var(--amber-bg)'};color:${onTrack?'var(--green)':'var(--amber)'};border-color:${onTrack?'var(--green)':'var(--amber)'}55;">
+            ${onTrack ? '✓ ON PACE' : belowMin ? 'BELOW MIN' : 'BUILDING'}
+          </span>
+        </div>
+        <div class="blc-projected">
+          <div class="blc-proj-lbl">Projected Bonus (Current Pace)</div>
+          <div class="blc-proj-val" style="color:${projColor}">£${Math.round(projectedBonus).toLocaleString()}</div>
+          <div class="blc-proj-sub">at RPD of £${Math.round(paceRPD).toLocaleString()}/day · ${personType==='senior'?'Senior':'Non-Senior'} scale</div>
+        </div>
+        ${todayDelta}
+        <div class="blc-tiers">
+          <div class="blc-tier tier-projected">
+            <div class="blc-tier-lbl">On Current Pace</div>
+            <div class="blc-tier-val" style="color:${projColor}">£${Math.round(paceBonus).toLocaleString()}</div>
+            <div class="blc-tier-sub">RPD £${Math.round(paceRPD).toLocaleString()}/day</div>
+          </div>
+          <div class="blc-tier-arrow">→</div>
+          <div class="blc-tier ${onTrack?'tier-target-hit':''}">
+            <div class="blc-tier-lbl">If You Hit Target</div>
+            <div class="blc-tier-val">£${Math.round(tgtBonus).toLocaleString()}</div>
+            <div class="blc-tier-sub">RPD £${Math.round(riskPerDay).toLocaleString()}/day</div>
+          </div>
+        </div>
+        ${bonusJump > 0 && revToNextBracket > 0 && nextBracketRPD <= riskPerDay + 200 ? `
+        <div class="blc-next">
+          <div class="blc-next-icon">🎯</div>
+          <div class="blc-next-content">
+            <div class="blc-next-title">Next Bracket: £${nextBracketRPD.toLocaleString()} RPD</div>
+            <div class="blc-next-sub">Add <strong style="color:var(--accent)">£${Math.round(revToNextBracket).toLocaleString()}</strong> more revenue ${daysLeft > 0 ? `(<strong>£${Math.round(revPerDayToNext).toLocaleString()}/day</strong> over ${daysLeft} day${daysLeft===1?'':'s'} left)` : ''} to unlock <strong style="color:var(--green)">+£${Math.round(bonusJump).toLocaleString()}</strong> bonus</div>
+          </div>
+        </div>` : ''}
+        ${belowMin ? `<div class="blc-warn"><span>⚠️</span><span>Current pace RPD (£${Math.round(paceRPD).toLocaleString()}) is below the £${minRPD.toLocaleString()}/day minimum. No bonus payout until pace improves.</span></div>` : ''}
+        <div class="blc-foot">Live projection — based on current pace extrapolated to month end. Toggle senior/non-senior on the <a href="javascript:showPage('bonuscalc')">Bonus Calculator</a>.</div>
+      </div>`;
+  } catch(err){
+    console.warn('live bonus card error', err);
+    return '';
+  }
+}
+
+function injectLiveBonus(mk, myName){
+  try{
+    const cd = document.getElementById('page-consultantdaily');
+    if(!cd || !cd.classList.contains('active')) return;
+    const content = document.getElementById('cdContent');
+    if(!content) return;
+    const grid = content.querySelector('div[style*="grid-template-columns"]');
+    if(!grid) return;
+    const rightCol = grid.children[1];
+    if(!rightCol) return;
+    let host = document.getElementById('liveBonusHost');
+    if(!host){
+      host = document.createElement('div');
+      host.id = 'liveBonusHost';
+      rightCol.insertBefore(host, rightCol.firstChild);
+    }
+    host.innerHTML = buildLiveBonusCard(mk, myName);
+  } catch(err){ console.warn('inject live bonus', err); }
+}
+
+if(typeof renderConsultantDaily === 'function'){
+  const _origRenderConsultantDaily_lb = renderConsultantDaily;
+  renderConsultantDaily = function(){
+    const ret = _origRenderConsultantDaily_lb.apply(this, arguments);
+    setTimeout(()=>{
+      try{
+        const mk   = document.getElementById('cdMonth')?.value || APP.activeMonth;
+        const role = _currentUser?.role || 'consultant';
+        let myName;
+        if((role === 'manager' || role === 'master') && document.getElementById('cdConsultantSel')?.value){
+          myName = document.getElementById('cdConsultantSel').value;
+        } else {
+          myName = _currentUser?.name || '';
+        }
+        injectLiveBonus(mk, myName);
+      } catch(e){ console.warn(e); }
+    }, 60);
+    return ret;
+  };
+}
+
+window._injectLiveBonus = injectLiveBonus;
+
+})(); // end live bonus module
+
+
+// ═══════════════════════════════════════════════════════════════════
+// MODULE: PEER KUDOS (Shout-outs)
+// ═══════════════════════════════════════════════════════════════════
+const _kudosDbRef = () => (_db ? _db.ref('perfDash2/kudos') : null);
+
+let _kudosAll      = {};
+let _kudosListener = null;
+
+const KUDOS_CATEGORIES = [
+  { key:'team-player', icon:'🤝', label:'Team Player',        desc:'Helped the team or covered for someone' },
+  { key:'closer',      icon:'💪', label:'Closer',             desc:'Smashed a difficult sale' },
+  { key:'mentor',      icon:'🎓', label:'Mentor',             desc:'Coached or supported a colleague' },
+  { key:'positivity',  icon:'☀️', label:'Positivity',         desc:'Brought great energy to the floor' },
+  { key:'goes-extra',  icon:'🚀', label:'Goes the Extra Mile',desc:'Went above and beyond' },
+  { key:'compliance',  icon:'🛡️', label:'Quality',            desc:'Outstanding compliance / call quality' },
+  { key:'innovation',  icon:'💡', label:'Bright Idea',        desc:'Suggested an improvement' },
+  { key:'comeback',    icon:'🔥', label:'Comeback Kid',       desc:'Bounced back strong' }
+];
+
+const KUDOS_REACTIONS = ['👏','🙌','🔥','💯','❤️','🎉'];
+
+function startKudosListener(){
+  const ref = _kudosDbRef();
+  if(!ref) return;
+  if(_kudosListener){ try{ _kudosListener.off(); }catch(e){} }
+  _kudosListener = ref;
+  ref.on('value', snap=>{
+    _kudosAll = snap.val() || {};
+    if(document.getElementById('page-kudos')?.classList.contains('active')) renderKudosWall();
+  }, err=>console.warn('kudos listener err', err));
+}
+
+function stopKudosListener(){
+  if(_kudosListener){ try{ _kudosListener.off(); }catch(e){} _kudosListener = null; }
+  _kudosAll = {};
+}
+
+function _ensureKudosPageExists(){
+  if(document.getElementById('page-kudos')) return;
+  const page = document.createElement('div');
+  page.className = 'page';
+  page.id = 'page-kudos';
+  page.innerHTML = `
+    <div class="section-head">
+      <div>
+        <div class="section-title">🌟 Kudos Wall</div>
+        <div class="section-sub" id="kudos-sub">Shout-outs from teammates · recognise great work</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <select id="kudosFilter" onchange="renderKudosWall()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;font-size:12px;font-family:var(--fm);color:var(--text);outline:none;cursor:pointer;">
+          <option value="all">All Kudos</option>
+          <option value="received">For Me</option>
+          <option value="sent">Sent by Me</option>
+          <option value="week">This Week</option>
+          <option value="month">This Month</option>
+        </select>
+        <button class="btn btn-p" onclick="openGiveKudosModal()" style="font-size:13px;padding:8px 18px;">✨ Give Kudos</button>
+      </div>
+    </div>
+    <div id="kudosLeaderboard"></div>
+    <div id="kudosWall" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;margin-top:18px;"></div>
+    <div id="kudosEmpty" style="display:none;padding:60px 20px;text-align:center;">
+      <div style="font-size:54px;margin-bottom:18px;opacity:.4;">🌟</div>
+      <div style="font-size:18px;font-weight:700;margin-bottom:8px;">No kudos yet</div>
+      <div style="font-size:13px;color:var(--text3);font-family:var(--fm);max-width:400px;margin:0 auto 20px;line-height:1.6;">Be the first to recognise a teammate.</div>
+      <button class="btn btn-p" onclick="openGiveKudosModal()" style="font-size:13px;padding:10px 24px;">✨ Give the First Kudos</button>
+    </div>`;
+  const firstPage = document.querySelector('.page');
+  if(firstPage) firstPage.parentNode.insertBefore(page, firstPage);
+
+  const navTabs = document.querySelector('.nav-tabs');
+  if(navTabs && !document.getElementById('kudosNavTab')){
+    const tab = document.createElement('button');
+    tab.className = 'nav-tab';
+    tab.id = 'kudosNavTab';
+    tab.setAttribute('onclick', "showPage('kudos')");
+    tab.innerHTML = '🌟 Kudos';
+    const lbTab = [...navTabs.children].find(t => /Leaderboard/i.test(t.textContent));
+    if(lbTab) navTabs.insertBefore(tab, lbTab.nextSibling);
+    else navTabs.appendChild(tab);
+  }
+
+  if(!document.getElementById('giveKudosModal')){
+    const div = document.createElement('div');
+    div.innerHTML = `
+      <div class="modal-overlay" id="giveKudosModal">
+        <div class="modal" style="width:560px;max-width:96vw;">
+          <div class="modal-title" style="display:flex;align-items:center;gap:10px;"><span style="font-size:22px;">✨</span><span>Give Kudos</span></div>
+          <div style="font-size:12px;color:var(--text3);font-family:var(--fm);margin-bottom:18px;line-height:1.5;">Recognise a teammate. Your name will appear on the wall.</div>
+          <div class="rt-field">
+            <div class="rt-field-lbl">👤 Recognise</div>
+            <select id="kudosToSel" style="width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:10px 12px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none;"></select>
+          </div>
+          <div class="rt-field">
+            <div class="rt-field-lbl">🏷️ Category</div>
+            <div id="kudosCategoryGrid" class="kudos-cat-grid"></div>
+          </div>
+          <div class="rt-field">
+            <div class="rt-field-lbl">💬 Message</div>
+            <textarea id="kudosMessage" placeholder="What did they do that deserves recognition?" rows="3" maxlength="280"></textarea>
+            <div class="rt-helper">Keep it short and specific. Max 280 characters.</div>
+          </div>
+          <div class="modal-btns">
+            <button class="btn btn-s" onclick="closeGiveKudosModal()">Cancel</button>
+            <button class="btn btn-p" id="kudosSubmitBtn" onclick="submitKudos()">Send Kudos</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(div.firstElementChild);
+    document.getElementById('giveKudosModal').addEventListener('click', function(e){ if(e.target === this) closeGiveKudosModal(); });
+  }
+}
+
+let _kudosSelectedCat = null;
+
+function openGiveKudosModal(){
+  _ensureKudosPageExists();
+  _kudosSelectedCat = null;
+  const sel = document.getElementById('kudosToSel');
+  if(sel){
+    const me = _currentUser?.name||'';
+    sel.innerHTML = '<option value="">— Select a colleague —</option>' +
+      APP.people.filter(p=>p.name!==me).map(p=>`<option value="${p.name}">${p.name}</option>`).join('');
+  }
+  const grid = document.getElementById('kudosCategoryGrid');
+  if(grid){
+    grid.innerHTML = KUDOS_CATEGORIES.map(c=>`
+      <div class="kudos-cat-item" id="kudosCat_${c.key}" onclick="_selectKudosCat('${c.key}')">
+        <span class="kudos-cat-icon">${c.icon}</span>
+        <div><div class="kudos-cat-name">${c.label}</div><div class="kudos-cat-desc">${c.desc}</div></div>
+      </div>`).join('');
+  }
+  const msgEl = document.getElementById('kudosMessage');
+  if(msgEl) msgEl.value = '';
+  document.getElementById('giveKudosModal').classList.add('open');
+}
+
+function _selectKudosCat(key){
+  _kudosSelectedCat = key;
+  document.querySelectorAll('.kudos-cat-item').forEach(el=>{
+    el.classList.toggle('selected', el.id === 'kudosCat_'+key);
+  });
+}
+
+function closeGiveKudosModal(){
+  const m = document.getElementById('giveKudosModal');
+  if(m) m.classList.remove('open');
+}
+
+function submitKudos(){
+  const toName  = document.getElementById('kudosToSel')?.value?.trim();
+  const message = document.getElementById('kudosMessage')?.value?.trim();
+  const btn     = document.getElementById('kudosSubmitBtn');
+  if(!toName){ showToast('Please select a colleague','err'); return; }
+  if(!_kudosSelectedCat){ showToast('Please select a category','err'); return; }
+  if(!message){ showToast('Please write a short message','err'); return; }
+  const ref = _kudosDbRef();
+  if(!ref){ showToast('Not connected','err'); return; }
+  if(btn){ btn.disabled=true; btn.textContent='Sending…'; }
+  const id  = 'k_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  const cat = KUDOS_CATEGORIES.find(c=>c.key===_kudosSelectedCat)||KUDOS_CATEGORIES[0];
+  ref.child(id).set({
+    id, fromName: _currentUser?.name||'Anonymous', fromId: _currentUser?.id||'',
+    fromRole: _currentUser?.role||'consultant', fromDivKey: _currentDivKey||'branch',
+    toName, toDivKey: _currentDivKey||'branch',
+    message, category: _kudosSelectedCat, categoryLabel: cat.label, categoryIcon: cat.icon,
+    createdAt: new Date().toISOString(), reactions: {}
+  }).then(()=>{
+    closeGiveKudosModal();
+    showToast(`Kudos sent to ${toName} 🌟`);
+    if(btn){ btn.disabled=false; btn.textContent='Send Kudos'; }
+  }).catch(err=>{
+    showToast('Failed: '+err.message,'err');
+    if(btn){ btn.disabled=false; btn.textContent='Send Kudos'; }
+  });
+}
+
+function toggleKudosReaction(kudosId, emoji){
+  const ref = _kudosDbRef();
+  if(!ref) return;
+  const uid  = _currentUser?.id || _currentUser?.name || 'anon';
+  const name = _currentUser?.name||'';
+  const k    = _kudosAll[kudosId];
+  if(!k) return;
+  const existing = (k.reactions||{})[emoji]||{};
+  if(existing[uid]){
+    ref.child(kudosId+'/reactions/'+emoji+'/'+uid).remove();
+  } else {
+    ref.child(kudosId+'/reactions/'+emoji+'/'+uid).set(name);
+  }
+}
+
+function deleteKudos(kudosId){
+  const k = _kudosAll[kudosId];
+  if(!k) return;
+  if(k.fromName !== _currentUser?.name && k.fromId !== _currentUser?.id && _currentUser?.role !== 'master'){
+    showToast('You can only delete your own kudos','err'); return;
+  }
+  if(!confirm('Delete this kudos? This cannot be undone.')) return;
+  const ref = _kudosDbRef();
+  if(!ref) return;
+  ref.child(kudosId).remove().then(()=>showToast('Kudos deleted')).catch(err=>showToast('Failed: '+err.message,'err'));
+}
+
+function renderKudosWall(){
+  _ensureKudosPageExists();
+  const wall   = document.getElementById('kudosWall');
+  const empty  = document.getElementById('kudosEmpty');
+  const lb     = document.getElementById('kudosLeaderboard');
+  const filter = document.getElementById('kudosFilter')?.value||'all';
+  if(!wall) return;
+  const me     = _currentUser?.name||'';
+  const myId   = _currentUser?.id||'';
+  const now    = Date.now();
+  const weekAgo  = now - 7  * 86400 * 1000;
+  const monthAgo = now - 30 * 86400 * 1000;
+
+  let items = Object.values(_kudosAll||{}).filter(k=>k&&k.id);
+  if(filter==='received') items = items.filter(k=>k.toName===me);
+  else if(filter==='sent') items = items.filter(k=>k.fromName===me||k.fromId===myId);
+  else if(filter==='week')  items = items.filter(k=>new Date(k.createdAt).getTime()>=weekAgo);
+  else if(filter==='month') items = items.filter(k=>new Date(k.createdAt).getTime()>=monthAgo);
+  items.sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+
+  // Leaderboard
+  const last30 = Object.values(_kudosAll||{}).filter(k=>k&&new Date(k.createdAt).getTime()>=monthAgo);
+  const counts = {};
+  last30.forEach(k=>{ counts[k.toName]=(counts[k.toName]||0)+1; });
+  const top = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  if(lb){
+    lb.innerHTML = top.length ? `<div class="kudos-lb-strip">${top.map(([name,cnt],i)=>`
+      <div class="kudos-lb-chip">
+        <span class="kudos-lb-rank">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</span>
+        <span class="kudos-lb-name">${name}</span>
+        <span class="kudos-lb-count">${cnt} 🌟</span>
+      </div>`).join('')}</div>` : '';
+  }
+
+  if(!items.length){
+    wall.style.display = 'none';
+    if(empty) empty.style.display = '';
+    return;
+  }
+  wall.style.display = '';
+  if(empty) empty.style.display = 'none';
+
+  wall.innerHTML = items.map(k=>{
+    const cat  = KUDOS_CATEGORIES.find(c=>c.key===k.category)||{icon:'🌟',label:k.category||'Kudos'};
+    const time = _fmtKudosTime(k.createdAt);
+    const uid  = _currentUser?.id||_currentUser?.name||'anon';
+    const reactHtml = KUDOS_REACTIONS.map(emoji=>{
+      const reactions = (k.reactions||{})[emoji]||{};
+      const count = Object.keys(reactions).length;
+      const mine  = !!reactions[uid];
+      return count > 0 || true
+        ? `<button class="kudos-react-btn ${mine?'mine':''}" onclick="toggleKudosReaction('${k.id}','${emoji}')">
+             ${emoji}${count>0?`<span class="kudos-react-count">${count}</span>`:''}
+           </button>` : '';
+    }).join('');
+    const canDelete = k.fromName===_currentUser?.name||k.fromId===(_currentUser?.id||'')||_currentUser?.role==='master';
+    return `<div class="kudos-card">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px;">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <div style="width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#fff;flex-shrink:0">${(k.toName||'?').charAt(0).toUpperCase()}</div>
+            <div>
+              <div style="font-size:13px;font-weight:700">${k.toName||'?'}</div>
+              <div style="font-size:10px;color:var(--text3);font-family:var(--fm)">from ${k.fromName||'?'}</div>
+            </div>
+          </div>
+          <span class="kudos-cat-badge">${cat.icon} ${cat.label}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="kudos-time" style="font-size:10px;color:var(--text3);font-family:var(--fm);white-space:nowrap">${time}</span>
+          ${canDelete?`<button onclick="deleteKudos('${k.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:2px 4px;line-height:1;" title="Delete">✕</button>`:''}
+        </div>
+      </div>
+      <div class="kudos-message">${(k.message||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+      <div class="kudos-reactions">${reactHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+function _fmtKudosTime(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  const diff = Date.now() - d.getTime();
+  if(diff < 60000) return 'just now';
+  if(diff < 3600000) return Math.floor(diff/60000)+'m ago';
+  if(diff < 86400000) return Math.floor(diff/3600000)+'h ago';
+  if(diff < 604800000) return Math.floor(diff/86400000)+'d ago';
+  return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+}
+
+// Hook showPage for kudos
+if(typeof showPage === 'function'){
+  const _origShowPage_kd = showPage;
+  showPage = function(id){
+    if(id==='kudos') _ensureKudosPageExists();
+    const ret = _origShowPage_kd.apply(this, arguments);
+    if(id==='kudos') setTimeout(()=>{ try{ renderKudosWall(); }catch(e){ console.warn(e); } }, 50);
+    return ret;
+  };
+}
+
+// Hook startup
+if(typeof _startWithRole === 'function'){
+  const _origStartKudos = _startWithRole;
+  _startWithRole = function(){
+    const ret = _origStartKudos.apply(this, arguments);
+    try{ _ensureKudosPageExists(); startKudosListener(); }catch(e){ console.warn('kudos init',e); }
+    return ret;
+  };
+}
+
+// Keep kudos tab visible for all roles
+if(typeof applyRoleVisibility === 'function'){
+  const _origApplyRole_kd = applyRoleVisibility;
+  applyRoleVisibility = function(){
+    const ret = _origApplyRole_kd.apply(this, arguments);
+    try{ const kt = document.getElementById('kudosNavTab'); if(kt) kt.style.display=''; }catch(e){}
+    return ret;
+  };
+}
+
+// Hook logout
+if(typeof logoutUser === 'function'){
+  const _origLogout_kd = logoutUser;
+  logoutUser = function(){
+    try{ stopKudosListener(); closeGiveKudosModal(); }catch(e){}
+    return _origLogout_kd.apply(this, arguments);
+  };
+}
+
+// Escape closes modal
+document.addEventListener('keydown', function(e){
+  if(e.key==='Escape'){
+    if(document.getElementById('giveKudosModal')?.classList.contains('open')) closeGiveKudosModal();
+  }
+});
+
+// Kick start on session restore
+setTimeout(()=>{
+  try{
+    if(typeof _currentUser !== 'undefined' && _currentUser){ _ensureKudosPageExists(); startKudosListener(); }
+  }catch(e){ console.warn(e); }
+}, 1800);
+
+
+// ═══════════════════════════════════════════════════════════════════
+// MODULE: AUTOMATIC FULL BACKUPS + SETTINGS UI
+// ═══════════════════════════════════════════════════════════════════
+(function(){
+'use strict';
+
+const BKP_DB_NAME  = 'st_backups';
+const BKP_STORE    = 'snapshots';
+const BKP_VERSION  = 1;
+const BKP_INTERVAL = 60 * 60 * 1000; // 1 hour
+const BKP_MAX_HOURLY = 24;
+const BKP_MAX_DAILY  = 7;
+
+let _bkpTimer = null;
+let _ignoreNextSnapshot = 0;
+
+function _bkpOpen(){
+  return new Promise((res,rej)=>{
+    const req = indexedDB.open(BKP_DB_NAME, BKP_VERSION);
+    req.onupgradeneeded = e=>{
+      const db = e.target.result;
+      if(!db.objectStoreNames.contains(BKP_STORE)){
+        const store = db.createObjectStore(BKP_STORE, {keyPath:'id'});
+        store.createIndex('divKey',    'divKey',    {unique:false});
+        store.createIndex('timestamp', 'timestamp', {unique:false});
+      }
+    };
+    req.onsuccess = e=>res(e.target.result);
+    req.onerror   = e=>rej(e.target.error);
+  });
+}
+
+function bkpSnapshot(label){
+  if(_ignoreNextSnapshot > 0) return;
+  if(typeof APP === 'undefined' || !APP) return;
+  const ts     = Date.now();
+  const dateStr= new Date(ts).toISOString().slice(0,10);
+  const snap   = {
+    id: 'snap_'+ts+'_'+Math.random().toString(36).slice(2,6),
+    divKey:    _currentDivKey || 'branch',
+    label:     label || 'Auto',
+    timestamp: ts,
+    dateStr,
+    people:    (APP.people||[]).length,
+    months:    Object.keys(APP.months||{}).length,
+    data:      JSON.parse(JSON.stringify(APP))
+  };
+  _bkpOpen().then(db=>{
+    const tx = db.transaction(BKP_STORE,'readwrite');
+    tx.objectStore(BKP_STORE).put(snap);
+    _pruneSnapshots(db);
+  }).catch(()=>{});
+}
+
+function _pruneSnapshots(db){
+  const tx    = db.transaction(BKP_STORE,'readwrite');
+  const store = tx.objectStore(BKP_STORE);
+  const idx   = store.index('timestamp');
+  const req   = idx.getAll();
+  req.onsuccess = e=>{
+    const all = (e.target.result||[]).sort((a,b)=>b.timestamp - a.timestamp);
+    const byDate = {};
+    all.forEach(s=>{ byDate[s.dateStr]=byDate[s.dateStr]||[]; byDate[s.dateStr].push(s); });
+    const dailyDates = Object.keys(byDate).sort().reverse();
+    const keepIds = new Set();
+    all.slice(0, BKP_MAX_HOURLY).forEach(s=>keepIds.add(s.id));
+    dailyDates.slice(0, BKP_MAX_DAILY).forEach(date=>{ keepIds.add(byDate[date][0].id); });
+    all.forEach(s=>{ if(!keepIds.has(s.id)){ const d2 = db.transaction(BKP_STORE,'readwrite'); d2.objectStore(BKP_STORE).delete(s.id); } });
+  };
+}
+
+function _bkpStartAuto(){
+  clearInterval(_bkpTimer);
+  _bkpTimer = setInterval(()=>bkpSnapshot('Auto'), BKP_INTERVAL);
+  _bkpOpen().then(db=>{
+    const tx  = db.transaction(BKP_STORE,'readonly');
+    const idx = tx.objectStore(BKP_STORE).index('timestamp');
+    const req = idx.getAll();
+    req.onsuccess = e=>{
+      const all  = (e.target.result||[]).sort((a,b)=>b.timestamp-a.timestamp);
+      const last = all[0]?.timestamp||0;
+      if(Date.now()-last > BKP_INTERVAL) bkpSnapshot('Auto (startup)');
+    };
+  }).catch(()=>bkpSnapshot('Auto (startup)'));
+}
+
+// Hook into setSyncStatus to start backup once Firebase is live
+let _bkpStarted = false;
+const _origSSS_bkp = setSyncStatus;
+setSyncStatus = function(state){
+  _origSSS_bkp.apply(this, arguments);
+  if(state==='live' && !_bkpStarted){
+    _bkpStarted = true;
+    _bkpOpen().then(()=>_bkpStartAuto()).catch(()=>{});
+  }
+};
+
+// Re-start on division switch
+if(typeof selectDivision === 'function'){
+  const _origSelectDiv_bkp = selectDivision;
+  selectDivision = function(key){
+    _bkpStarted = false;
+    return _origSelectDiv_bkp.apply(this, arguments);
+  };
+}
+
+window.bkpSnapshot     = bkpSnapshot;
+window.bkpSnapshotNow  = function(){ bkpSnapshot('Manual'); showToast('📸 Snapshot saved'); setTimeout(bkpRenderList, 400); };
+
+// ── Render snapshot list in settings ────────────────────────────
+function bkpRenderList(){
+  _bkpUpdateStatusBar();
+  const list = document.getElementById('bkpList');
+  if(!list) return;
+  list.innerHTML = '<div style="color:var(--text3);font-size:12px;font-family:var(--fm)">Loading snapshots…</div>';
+  _bkpOpen().then(db=>{
+    const tx    = db.transaction(BKP_STORE,'readonly');
+    const idx   = tx.objectStore(BKP_STORE).index('timestamp');
+    const req   = idx.getAll();
+    req.onsuccess = e=>{
+      const all = (e.target.result||[]).sort((a,b)=>b.timestamp-a.timestamp);
+      if(!all.length){
+        list.innerHTML = '<div style="color:var(--text3);font-size:12px;font-family:var(--fm);padding:20px 0;text-align:center">No snapshots yet — taken automatically every hour, or click <strong>Snapshot Now</strong>.</div>';
+        return;
+      }
+      const byDate = {};
+      all.forEach(s=>{ byDate[s.dateStr]=byDate[s.dateStr]||[]; byDate[s.dateStr].push(s); });
+      const dates = Object.keys(byDate).sort().reverse();
+      list.innerHTML = dates.map(date=>{
+        const snaps = byDate[date];
+        const dateLabel = new Date(date+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'long',year:'numeric'});
+        const rows = snaps.map(s=>{
+          const time    = new Date(s.timestamp).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+          const sizeKB  = Math.round(JSON.stringify(s.data).length/1024);
+          const isLatest= s.id===all[0].id;
+          return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border2);">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:12px;font-weight:600;font-family:var(--fm);display:flex;align-items:center;gap:8px">
+                🕐 ${time}
+                <span style="font-size:10px;font-weight:400;color:var(--text3)">${s.label}</span>
+                <span style="font-size:9px;color:var(--text3);font-family:var(--fm)">${s.divKey||''}</span>
+                ${isLatest?'<span style="font-size:9px;font-weight:700;background:rgba(45,206,137,.15);color:var(--green);padding:1px 7px;border-radius:6px;letter-spacing:.04em">LATEST</span>':''}
+              </div>
+              <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:2px">${s.people} consultants · ${s.months} months · ${sizeKB} KB</div>
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0">
+              <button class="btn btn-s" onclick="bkpExportSnapshot('${s.id}')" style="font-size:11px;padding:4px 10px;border-color:var(--green);color:var(--green)" title="Download as JSON">⬇</button>
+              <button class="btn btn-s" onclick="bkpRestoreFromSnapshot('${s.id}')" style="font-size:11px;padding:4px 10px;border-color:var(--blue);color:var(--blue)" title="Restore to this snapshot">↩ Restore</button>
+            </div>
+          </div>`;
+        }).join('');
+        return `<div style="margin-bottom:18px">
+          <div style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.08em;text-transform:uppercase;padding:6px 0;border-bottom:2px solid var(--border)">${dateLabel}</div>
+          ${rows}
+        </div>`;
+      }).join('');
+    };
+    req.onerror = ()=>{ list.innerHTML = '<div style="color:var(--red);font-size:12px">Failed to load snapshots.</div>'; };
+  }).catch(e=>{ list.innerHTML = '<div style="color:var(--red);font-size:12px">IndexedDB unavailable: '+(e?.message||e)+'</div>'; });
+}
+
+function _bkpUpdateStatusBar(){
+  _bkpOpen().then(db=>{
+    const tx  = db.transaction(BKP_STORE,'readonly');
+    const req = tx.objectStore(BKP_STORE).getAll();
+    req.onsuccess = e=>{
+      const all    = (e.target.result||[]).sort((a,b)=>b.timestamp-a.timestamp);
+      const count  = all.length;
+      const last   = all[0];
+      const sizeEst= all.reduce((s,snap)=>s+JSON.stringify(snap.data).length,0);
+      const sizeMB = (sizeEst/1024/1024).toFixed(2);
+      const cEl = document.getElementById('bkpCount');
+      const tEl = document.getElementById('bkpLastTime');
+      const sEl = document.getElementById('bkpSize');
+      const dEl = document.getElementById('bkpDivLabel');
+      if(cEl) cEl.textContent = count+' snapshot'+(count===1?'':'s');
+      if(tEl) tEl.textContent = last ? new Date(last.timestamp).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '—';
+      if(sEl) sEl.textContent = sizeMB+' MB';
+      if(dEl) dEl.textContent = last ? (DIVISIONS[last.divKey]?.label||last.divKey||'') : '';
+    };
+  }).catch(()=>{});
+}
+
+// ── Export current APP data as JSON download ─────────────────────
+function bkpExportNow(){
+  if(typeof APP === 'undefined' || !APP){ showToast('No data to export','err'); return; }
+  const ts    = new Date().toISOString().slice(0,16).replace('T','_').replace(/:/g,'-');
+  const fname = `ST_FullBackup_${_currentDivKey||'div'}_${ts}.json`;
+  const blob  = new Blob([JSON.stringify({
+    _meta:{ exported:new Date().toISOString(), version:1, division:_currentDivKey },
+    data:  JSON.parse(JSON.stringify(APP))
+  }, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a   = Object.assign(document.createElement('a'),{href:url, download:fname});
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('⬇ Backup downloaded: '+fname);
+}
+
+// ── Export specific stored snapshot ─────────────────────────────
+function bkpExportSnapshot(id){
+  _bkpOpen().then(db=>{
+    const tx  = db.transaction(BKP_STORE,'readonly');
+    const req = tx.objectStore(BKP_STORE).get(id);
+    req.onsuccess = e=>{
+      const snap = e.target.result;
+      if(!snap){ showToast('Snapshot not found','err'); return; }
+      const ts   = new Date(snap.timestamp).toISOString().slice(0,16).replace('T','_').replace(/:/g,'-');
+      const fname = `ST_Snapshot_${snap.divKey||'div'}_${ts}.json`;
+      const blob  = new Blob([JSON.stringify({
+        _meta:{ exported:new Date().toISOString(), snapshotTime:new Date(snap.timestamp).toISOString(), divKey:snap.divKey, label:snap.label },
+        data:  snap.data
+      }, null, 2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a   = Object.assign(document.createElement('a'),{href:url, download:fname});
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('⬇ Downloaded '+fname);
+    };
+  }).catch(()=>showToast('Export failed','err'));
+}
+
+// ── Restore from stored snapshot ─────────────────────────────────
+function bkpRestoreFromSnapshot(id){
+  _bkpOpen().then(db=>{
+    const tx  = db.transaction(BKP_STORE,'readonly');
+    const req = tx.objectStore(BKP_STORE).get(id);
+    req.onsuccess = e=>{
+      const snap = e.target.result;
+      if(!snap){ showToast('Snapshot not found','err'); return; }
+      const time = new Date(snap.timestamp).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+      if(!confirm(`⚠️ Restore to snapshot from ${time}?\n\nThis will OVERWRITE all current data in Firebase. Make sure you've exported your current data first if needed.`)) return;
+      if(!confirm('Are you absolutely sure? All changes since this snapshot will be lost.')) return;
+      _bkpDoRestore(snap.data);
+    };
+  }).catch(()=>showToast('Restore failed','err'));
+}
+
+// ── Import from file ──────────────────────────────────────────────
+function bkpImportFileSettings(input){
+  const file = input.files[0];
+  if(!file) return;
+  input.value = '';
+  const reader = new FileReader();
+  reader.onload = evt=>{
+    try{
+      const parsed = JSON.parse(evt.target.result);
+      const data   = parsed.data || parsed;
+      if(!data.people && !data.months){ showToast('Invalid backup file','err'); return; }
+      const meta    = parsed._meta || {};
+      const timeStr = meta.snapshotTime ? new Date(meta.snapshotTime).toLocaleString('en-GB') : 'unknown time';
+      if(!confirm(`Restore backup from ${timeStr}?\n\nThis will OVERWRITE all current Firebase data. Export your current data first if needed.`)) return;
+      if(!confirm('Confirm: overwrite all current data with this backup?')) return;
+      _bkpDoRestore(data);
+    } catch(err){ showToast('Failed to parse backup file: '+(err?.message||err),'err'); }
+  };
+  reader.readAsText(file);
+}
+
+// ── Write data to Firebase + reload ──────────────────────────────
+function _bkpDoRestore(data){
+  if(typeof _db === 'undefined' || !_db){ showToast('Not connected to Firebase','err'); return; }
+  if(!_dbRef){ showToast('No active division reference','err'); return; }
+  showToast('⏳ Restoring…');
+  const { activeMonth:_am, ...toWrite } = data;
+  _ignoreNextSnapshot++;
+  _dbRef.set(toWrite).then(()=>{
+    APP = { ...data, activeMonth: APP.activeMonth || (typeof todayKey==='function'?todayKey():'') };
+    if(typeof _applyDefaults === 'function') _applyDefaults();
+    _ignoreNextSnapshot = Math.max(0, _ignoreNextSnapshot-1);
+    if(typeof setSyncStatus === 'function') setSyncStatus('live');
+    if(typeof populateAllSelects === 'function') populateAllSelects();
+    if(typeof renderDashboard === 'function') renderDashboard();
+    showToast('✅ Restore complete — data loaded from backup');
+    setTimeout(bkpRenderList, 800);
+  }).catch(err=>{
+    _ignoreNextSnapshot = Math.max(0, _ignoreNextSnapshot-1);
+    showToast('Restore failed: '+(err?.message||err),'err');
+  });
+}
+
+window.bkpRenderList         = bkpRenderList;
+window.bkpExportNow          = bkpExportNow;
+window.bkpExportSnapshot     = bkpExportSnapshot;
+window.bkpRestoreFromSnapshot= bkpRestoreFromSnapshot;
+window.bkpImportFileSettings = bkpImportFileSettings;
+
+})(); // end backup module
+
+
+// ═══════════════════════════════════════════════════════════════════
+// DAILY AUTO-DOWNLOAD — exports a full backup JSON once per day
+// Only runs for master / manager roles.
+// ═══════════════════════════════════════════════════════════════════
+(function(){
+  const AUTO_DL_KEY = 'st_lastAutoDownload';
+
+  function _shouldAutoDownload(){
+    const role = typeof _currentUser !== 'undefined' ? (_currentUser?.role||'') : '';
+    if(role !== 'master' && role !== 'manager') return false;
+    const today = new Date().toISOString().slice(0,10);
+    try{ return localStorage.getItem(AUTO_DL_KEY) !== today; }catch(e){ return false; }
+  }
+
+  function _markDone(){ try{ localStorage.setItem(AUTO_DL_KEY, new Date().toISOString().slice(0,10)); }catch(e){} }
+
+  function _triggerAutoDownload(){
+    if(!_shouldAutoDownload()) return;
+    if(typeof _db === 'undefined' || !_db || typeof APP === 'undefined') return;
+    const ts    = new Date().toISOString().slice(0,10);
+    const fname = `ST_AutoBackup_${ts}.json`;
+    const blob  = new Blob([JSON.stringify({
+      _meta:{ exported:new Date().toISOString(), autoDownload:true, division:_currentDivKey },
+      data:  JSON.parse(JSON.stringify(APP))
+    }, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a   = Object.assign(document.createElement('a'),{href:url, download:fname});
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    _markDone();
+  }
+
+  const _origSSS_adl = setSyncStatus;
+  setSyncStatus = function(state){
+    _origSSS_adl.apply(this, arguments);
+    if(state==='live') setTimeout(_triggerAutoDownload, 3000);
+  };
+})(); // end auto-download module
+
+
+// ═══════════════════════════════════════════════════════════════════
+// EMERGENCY RESTORE — works from the login screen before login
+// ═══════════════════════════════════════════════════════════════════
+function loginEmergencyRestore(){
+  document.getElementById('loginRestoreFile').click();
+}
+
+function loginDoRestore(input){
+  const file = input?.files?.[0];
+  if(!file) return;
+  input.value = '';
+  const reader = new FileReader();
+  reader.onload = evt => {
+    try{
+      const parsed = JSON.parse(evt.target.result);
+      const data   = parsed.data || parsed;
+      if(!data.people && !data.months){
+        alert('This does not look like a valid Single Tie Dashboard backup file.');
+        return;
+      }
+      if(!confirm('Restore this backup?\n\nThis will overwrite all current data in Firebase and reload the page.')) return;
+      const _doWrite = () => {
+        if(typeof _db === 'undefined' || !_db){ alert('Cannot connect to Firebase. Check your internet connection.'); return; }
+        const { activeMonth:_am, ...toWrite } = data;
+        _db.ref(DIVISIONS[_currentDivKey||'branch'].dbKey).set(toWrite)
+          .then(()=>{ alert('✅ Restore complete! The page will now reload.'); location.reload(); })
+          .catch(err=>alert('Restore failed: ' + (err?.message||err)));
+      };
+      if(typeof _db !== 'undefined' && _db){ _doWrite(); }
+      else { alert('Connecting to Firebase…'); setTimeout(()=>{ if(typeof _db !== 'undefined' && _db) _doWrite(); else alert('Could not connect to Firebase.'); }, 2500); }
+    } catch(err){ alert('Failed to read backup file: ' + (err?.message||err)); }
+  };
+  reader.readAsText(file);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GLOBAL ERROR BOUNDARY
+// ═══════════════════════════════════════════════════════════════════
+window.addEventListener('error', function(evt){
+  const msg = evt?.message||'Unknown error';
+  if(typeof showToast === 'function' && !msg.includes('Script error')){
+    showToast('Something went wrong — try refreshing if the page looks broken','err');
+  }
+});
+
+window.addEventListener('unhandledrejection', function(evt){
+  const reason = evt?.reason?.message||evt?.reason||'Unknown';
+  console.error('Unhandled promise rejection:', reason);
+  if(typeof showToast === 'function'){
+    showToast('A background operation failed — your data may not have saved. Check your connection.','err');
+  }
+});
+
 </script>
 
 </body>
