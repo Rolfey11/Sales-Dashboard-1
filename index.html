@@ -6973,16 +6973,26 @@ function _renderMtMonthList(){
   html += `<div style="display:flex;flex-wrap:wrap;gap:10px;">`;
   months.forEach(mk => {
     const ovrs = (APP.monthOverrides && APP.monthOverrides[mk]) || {};
-    const customCount = APP.people.filter(p => {
+    // People with a TRUE override for this month — at least one of risk/days/nm set
+    const peopleWithOvr = APP.people.filter(p => {
       const o = ovrs[p.name]||{};
       return o.riskPerDay !== undefined || o.daysT !== undefined || o.nmPerDay !== undefined;
-    }).length;
+    });
+    const customCount = peopleWithOvr.length;
     const isActive = mk === APP.activeMonth;
-    // Team target for this month — sum of each person's month-specific values
-    const teamTgt = APP.people.reduce((s,p)=>{
-      const ep = getPersonForMonth(p, mk);
-      return s + Math.round((ep.riskPerDay||0) * (ep.daysT||0));
-    }, 0);
+
+    // Team target for this month — ONLY count people who have BOTH risk/day AND work days
+    // explicitly set for this month. No fallback to global defaults.
+    let teamTgt = 0;
+    let contributingCount = 0;
+    APP.people.forEach(p => {
+      const o = ovrs[p.name] || {};
+      if(o.riskPerDay !== undefined && o.daysT !== undefined){
+        teamTgt += Math.round((o.riskPerDay||0) * (o.daysT||0));
+        contributingCount++;
+      }
+    });
+    const hasAnyTarget = contributingCount > 0;
 
     html += `<button onclick="_mtOpenMonth('${mk}')" style="
       background:var(--surface2);border:1px solid ${isActive?'var(--accent)':'var(--border2)'};
@@ -6995,9 +7005,11 @@ function _renderMtMonthList(){
         ${monthLabel(mk)}
         ${isActive ? '<span style="font-size:9px;font-weight:700;background:rgba(94,156,245,0.15);color:var(--accent);padding:2px 6px;border-radius:10px;letter-spacing:.04em">ACTIVE</span>' : ''}
       </div>
-      <div style="font-size:12px;font-family:var(--fm);color:var(--green);margin-bottom:4px">£${teamTgt.toLocaleString()}</div>
+      <div style="font-size:12px;font-family:var(--fm);color:${hasAnyTarget?'var(--green)':'var(--text3)'};margin-bottom:4px">
+        ${hasAnyTarget ? ('£'+teamTgt.toLocaleString()+(contributingCount < APP.people.length ? ' <span style=\"font-size:9px;color:var(--text3)\">('+contributingCount+'/'+APP.people.length+' set)</span>' : '')) : 'Not set'}
+      </div>
       <div style="font-size:10px;font-family:var(--fm);color:${customCount>0?'var(--accent)':'var(--text3)'}">
-        ${customCount>0 ? `${customCount} custom override${customCount!==1?'s':''}` : 'using global defaults'}
+        ${customCount>0 ? `${customCount} consultant override${customCount!==1?'s':''}` : 'No targets set'}
       </div>
     </button>`;
   });
@@ -20668,19 +20680,19 @@ function sendSalesFeedCheer(postId, cheeredName){
   }).catch(err=>console.warn('[salesFeed] cheer check failed', err));
 }
 
-// ── Live Cheer Feed (bottom-right toast stack, minimisable) ────────
-const SF_TOAST_MAX      = 4;     // max visible at once — older ones fade out
-const SF_TOAST_DURATION = 7000;  // individual toast lifetime ms
+// ── Live Cheer Feed (bottom-right, ephemeral - only visible while cheers active) ──
+const SF_TOAST_MAX        = 10;    // stack up to 10 before oldest fades
+const SF_TOAST_DURATION   = 7000;  // individual toast lifetime ms
+const SF_BOX_IDLE_HIDE_MS = 5000;  // hide box 5s after the last cheer disappears
 
-function _sfGetCheerContainer(){
+let _sfBoxIdleTimer = null;
+
+function _sfCreateCheerContainer(){
   let c = document.getElementById('sfCheerContainer');
   if(c) return c;
   c = document.createElement('div');
   c.id = 'sfCheerContainer';
   c.className = 'sf-cheer-container';
-  // Default state is open
-  const minimised = localStorage.getItem('sfCheerMinimised') === '1';
-  if(minimised) c.classList.add('sf-cheer-min');
   c.innerHTML = `
     <div class="sf-cheer-header" id="sfCheerHeader" onclick="_toggleCheerFeed()">
       <span class="sf-cheer-header-title">
@@ -20694,18 +20706,42 @@ function _sfGetCheerContainer(){
     <div class="sf-cheer-list" id="sfCheerList"></div>
   `;
   document.body.appendChild(c);
+  // Trigger slide-in after mount
+  requestAnimationFrame(()=>{ c.classList.add('sf-cheer-container-in'); });
   return c;
 }
 
 function _toggleCheerFeed(){
-  const c = _sfGetCheerContainer();
-  const isMin = c.classList.toggle('sf-cheer-min');
-  localStorage.setItem('sfCheerMinimised', isMin ? '1' : '0');
+  const c = document.getElementById('sfCheerContainer');
+  if(!c) return;
+  c.classList.toggle('sf-cheer-min');
 }
 window._toggleCheerFeed = _toggleCheerFeed;
 
+function _sfArmIdleHide(){
+  if(_sfBoxIdleTimer){ clearTimeout(_sfBoxIdleTimer); _sfBoxIdleTimer = null; }
+  _sfBoxIdleTimer = setTimeout(()=>{
+    const c = document.getElementById('sfCheerContainer');
+    if(!c) return;
+    // Only hide if there are no toasts still showing
+    const list = document.getElementById('sfCheerList');
+    if(list && list.querySelector('.sf-cheer-toast:not(.sf-cheer-toast-out)')) {
+      // Still active - re-arm
+      _sfArmIdleHide();
+      return;
+    }
+    c.classList.add('sf-cheer-container-out');
+    setTimeout(()=>{ try{ c.remove(); }catch(e){} }, 300);
+  }, SF_BOX_IDLE_HIDE_MS);
+}
+
 function _showCheerToast(cheeredName, cheererName){
-  _sfGetCheerContainer(); // ensure exists
+  const box = _sfCreateCheerContainer();
+  // Cancel any pending hide since we're getting fresh activity
+  if(_sfBoxIdleTimer){ clearTimeout(_sfBoxIdleTimer); _sfBoxIdleTimer = null; }
+  // If box had been set to hide, remove that state
+  box.classList.remove('sf-cheer-container-out');
+
   const list = document.getElementById('sfCheerList');
   if(!list) return;
 
@@ -20725,8 +20761,8 @@ function _showCheerToast(cheeredName, cheererName){
   // Entrance animation
   requestAnimationFrame(()=>{ t.classList.add('sf-cheer-toast-in'); });
 
-  // Enforce max count — fade out the oldest
-  const toasts = list.querySelectorAll('.sf-cheer-toast');
+  // Enforce max count — fade out the oldest beyond the cap
+  const toasts = list.querySelectorAll('.sf-cheer-toast:not(.sf-cheer-toast-out)');
   if(toasts.length > SF_TOAST_MAX){
     for(let i=SF_TOAST_MAX; i<toasts.length; i++){
       const old = toasts[i];
@@ -20735,15 +20771,20 @@ function _showCheerToast(cheeredName, cheererName){
     }
   }
 
-  // Auto-fade after duration
+  // Auto-fade this toast after duration, then arm idle hide
   setTimeout(()=>{
     if(!t.isConnected) return;
     t.classList.add('sf-cheer-toast-out');
-    setTimeout(()=>{ try{ t.remove(); }catch(e){} }, 350);
+    setTimeout(()=>{
+      try{ t.remove(); }catch(e){}
+      // After this toast is gone, if no others are visible, start the idle countdown
+      const remaining = document.querySelectorAll('#sfCheerList .sf-cheer-toast:not(.sf-cheer-toast-out)');
+      if(remaining.length === 0) _sfArmIdleHide();
+    }, 350);
   }, SF_TOAST_DURATION);
 
-  // Flash the header dot to indicate activity if minimised
-  const dot = document.querySelector('.sf-cheer-header-dot');
+  // Flash the header dot to indicate activity
+  const dot = box.querySelector('.sf-cheer-header-dot');
   if(dot){
     dot.classList.remove('sf-cheer-pulse');
     void dot.offsetWidth; // reflow
@@ -20890,8 +20931,11 @@ function _sfInjectStyles(){
       background:var(--surface,#1c1c1c); border:1px solid var(--border2,#333); border-radius:12px;
       box-shadow:0 8px 28px rgba(0,0,0,.35);
       font-family:inherit; overflow:hidden;
-      transition:all .25s ease;
+      transform:translateY(20px) scale(.96); opacity:0;
+      transition:transform .3s cubic-bezier(.34,1.56,.64,1), opacity .3s ease-out;
     }
+    .sf-cheer-container.sf-cheer-container-in { transform:translateY(0) scale(1); opacity:1; }
+    .sf-cheer-container.sf-cheer-container-out { transform:translateY(20px) scale(.96); opacity:0; }
     .sf-cheer-header {
       display:flex; justify-content:space-between; align-items:center;
       padding:8px 12px; background:linear-gradient(135deg, rgba(251,184,58,.18), rgba(45,206,137,.14));
@@ -20906,7 +20950,7 @@ function _sfInjectStyles(){
     .sf-cheer-container.sf-cheer-min .sf-cheer-chev { transform:rotate(180deg); }
     .sf-cheer-container.sf-cheer-min .sf-cheer-list { max-height:0; padding:0 10px; opacity:0; }
     .sf-cheer-list {
-      max-height:340px; overflow-y:auto; padding:8px 10px 10px;
+      max-height:60vh; overflow-y:auto; padding:8px 10px 10px;
       transition:max-height .25s ease, padding .25s ease, opacity .2s ease;
       display:flex; flex-direction:column; gap:8px;
     }
