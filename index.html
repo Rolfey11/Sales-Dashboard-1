@@ -20549,11 +20549,26 @@ function _sfTimeAgo(iso){
 }
 
 // ── Post to feed (called from _onEntrySaved hook) ───────────────────
+// Stamps the post with the CONSULTANT'S home division, not the viewer's currently-
+// selected division. This ensures the sale appears on the feed of the people who
+// work with that consultant, regardless of where the sale was entered from.
 function _sfPostSale(name, revenue, nm, mk){
   if(!name || !(revenue > 0)) return;
   const ref = _sfPostsRef();
   if(!ref) return;
-  const divKey = (typeof _currentDivKey !== 'undefined') ? _currentDivKey : null;
+
+  // Resolve the consultant's actual home division.
+  // 1. Check the users registry (_allUsers) for a user with this exact name.
+  let divKey = '';
+  try{
+    if(typeof _allUsers === 'object' && _allUsers){
+      const userMatch = Object.values(_allUsers).find(u => u && u.name === name && u.divKey);
+      if(userMatch) divKey = userMatch.divKey || '';
+    }
+  }catch(e){}
+  // 2. Fall back to the currently-viewed division (legacy behaviour).
+  if(!divKey && typeof _currentDivKey !== 'undefined') divKey = _currentDivKey || '';
+
   const divLabel = (typeof DIVISIONS !== 'undefined' && divKey && DIVISIONS[divKey]) ? (DIVISIONS[divKey].label||divKey) : '';
   const post = {
     name: name,
@@ -20617,6 +20632,8 @@ function _sfUserDivKey(){
 function _sfPostVisible(post){
   if(!post) return false;
   if(_sfCanSeeAll()) return true;
+  // The consultant named in the post ALWAYS sees their own sale, regardless of division
+  if(typeof _currentUser !== 'undefined' && _currentUser && post.name === _currentUser.name) return true;
   const myDiv = _sfUserDivKey();
   if(!myDiv) return true;                 // no assigned division → see everything
   if(!post.divKey) return true;           // legacy post without divKey → show to all
