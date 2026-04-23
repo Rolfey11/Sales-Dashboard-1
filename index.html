@@ -6444,8 +6444,8 @@ function saveAllEntries(){
     }
   });
 
-  if(role==='manager' || role==='master'){
-    // Manager/Master: write directly to Firebase without approval
+  if(role==='manager' || role==='master' || role==='smt'){
+    // Manager/Master/SMT: write directly to Firebase without approval
     entries = entries.concat(newForDate);
     const divDbKey = (DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey;
     const entriesPath = `${divDbKey}/months/${mk}/entries`;
@@ -10451,7 +10451,7 @@ function _populateCdConsultantSel(){
   const wrap  = document.getElementById('cdConsultantPickerWrap');
   const sel   = document.getElementById('cdConsultantSel');
   if(!wrap || !sel) return;
-  if(role === 'manager' || role === 'master'){
+  if(role === 'manager' || role === 'master' || role === 'smt'){
     wrap.style.display = 'flex';
     const current = sel.value;
     sel.innerHTML = APP.people.map(p=>`<option value="${p.name}"${p.name===current?' selected':''}>${p.name}</option>`).join('');
@@ -10469,15 +10469,15 @@ function renderConsultantDaily(){
   _populateCdConsultantSel();
   const mk       = document.getElementById('cdMonth')?.value || APP.activeMonth;
   const role     = _currentUser?.role || 'consultant';
-  // For manager/master, use the picker; for consultants, use their own name
+  // For manager/master/smt, use the picker; for consultants, use their own name
   let myName;
-  if((role === 'manager' || role === 'master') && document.getElementById('cdConsultantSel')?.value){
+  if((role === 'manager' || role === 'master' || role === 'smt') && document.getElementById('cdConsultantSel')?.value){
     myName = document.getElementById('cdConsultantSel').value;
   } else {
     myName = _currentUser?.name || '';
   }
   const content  = document.getElementById('cdContent');
-  document.getElementById('cd-sub').textContent = monthLabel(mk) + ' · ' + (myName||'') + (role==='manager'||role==='master' ? ' (Manager View)' : '');
+  document.getElementById('cd-sub').textContent = monthLabel(mk) + ' · ' + (myName||'') + (role==='manager'||role==='master'||role==='smt' ? ' (Manager View)' : '');
 
   const p = APP.people.find(x=>x.name===myName);
   const ep = p ? getPersonForMonth(p, mk) : null;
@@ -10561,7 +10561,7 @@ function renderConsultantDaily(){
       pend.status==='approved'||pend.status==='amended'?'<span style="font-size:9px;font-weight:700;background:rgba(45,206,137,.2);color:var(--green);padding:2px 7px;border-radius:10px;margin-left:6px">✓ Approved</span>':
       '<span style="font-size:9px;font-weight:700;background:rgba(245,54,92,.2);color:var(--red);padding:2px 7px;border-radius:10px;margin-left:6px">✕ Declined</span>') : '';
     const dayLabel = new Date(ds).toLocaleDateString('en-GB',{weekday:'short',day:'numeric'});
-    const isManagerRole = (role==='manager'||role==='master');
+    const isManagerRole = (role==='manager'||role==='master'||role==='smt');
     // Normalise deals: if no deals array, synthesise from entry totals so legacy
     // entries show the + button and expand just like properly-tracked ones.
     const _normD2 = (d)=> !d ? [] : Array.isArray(d) ? d : Object.values(d).filter(Boolean);
@@ -10649,7 +10649,7 @@ function renderConsultantDaily(){
           <button class="btn btn-p" onclick="openDailySubmit('${today}')" style="font-size:12px;padding:8px 20px;">+ Add Today's Sale</button>
           <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-left:auto">Submitted figures go to your team leader for approval</div>
         </div>` : ''}
-        ${(role==='manager'||role==='master') ? `
+        ${(role==='manager'||role==='master'||role==='smt') ? `
         <div style="background:linear-gradient(135deg,rgba(94,156,245,0.08),rgba(94,156,245,0.03));border:1px solid rgba(94,156,245,0.25);border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
           <div>
             <div style="font-size:13px;font-weight:700;color:var(--accent)">Manager View — ${myName}</div>
@@ -16253,7 +16253,7 @@ function _updateNotifBadgeWithMsgs(){
   let pendingCount=0;
   if(role==='consultant'){
     pendingCount = Object.values(_pendingEntries).filter(e=>e.status==='pending'&&e.consultantName===me).length;
-  } else if(role==='manager'||role==='master'){
+  } else if(role==='manager'||role==='master'||role==='smt'){
     pendingCount = Object.values(_pendingEntries).filter(e=>e.status==='pending').length;
   }
 
@@ -16329,7 +16329,7 @@ function _renderNotifList(){
         <div><div style="color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em">NM</div><div style="font-weight:700">${e.nm||0}</div></div>
         <div><div style="color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em">SWIFT Ref</div><div style="font-weight:600">${e.swiftRef||'—'}</div></div>
       </div>
-      ${e.status==='pending'&&(role==='manager'||role==='master') ? `<button class="btn btn-p" onclick="openReviewModal('${e.id}')" style="width:100%;font-size:12px;padding:7px">Review →</button>` : ''}
+      ${e.status==='pending'&&(role==='manager'||role==='master'||role==='smt') ? `<button class="btn btn-p" onclick="openReviewModal('${e.id}')" style="width:100%;font-size:12px;padding:7px">Review →</button>` : ''}
       ${e.status!=='pending' ? `<div style="font-size:11px;color:var(--text3);font-family:var(--fm);">Reviewed by ${e.reviewedBy||'—'} · ${e.reviewedAt ? new Date(e.reviewedAt).toLocaleDateString('en-GB') : ''}</div>` : ''}
       ${e.notes ? `<div style="font-size:11px;color:var(--text2);margin-top:4px;font-style:italic;">"${e.notes}"</div>` : ''}
     </div>`;
@@ -18814,12 +18814,15 @@ function _copTrafficClass(p){
 
 // ═══════════════════════════════════════════════════════════════════
 // WIRE UP: extend _onEntrySaved to trigger pulse
+// IMPORTANT: use a function EXPRESSION (not declaration) so that hoisting
+// doesn't make _origOnEntrySaved capture this wrapper itself and recurse.
+// See note below — same pattern previously broke _enhanceDashboardCards.
 // ═══════════════════════════════════════════════════════════════════
 const _origOnEntrySaved = typeof _onEntrySaved==='function' ? _onEntrySaved : null;
-function _onEntrySaved(name, revenue, nm, mk){
+_onEntrySaved = function _onEntrySaved(name, revenue, nm, mk){
   if(_origOnEntrySaved) _origOnEntrySaved(name, revenue, nm, mk);
   if(revenue>0) _triggerRevPulse(name, revenue, mk);
-}
+};
 
 // ── Call cinematic check after dashboard loads ────────────────────
 // NOTE: This used to wrap _enhanceDashboardCards with a "before" hook, but
