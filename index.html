@@ -4590,8 +4590,19 @@ function getPersonForMonth(p, mk){
   };
 }
 
-// Month-aware target
+// ── True if a person has MANUALLY set monthly targets for this month.
+// Used to suppress target-driven outputs (team target, COP, % to target, projections)
+// when the month hasn't been configured. Rate fields (nmPerDay) still fall back for
+// day-by-day calculations that need a value.
+function hasMonthTarget(personName, mk){
+  if(!mk) return false;
+  const ovr = (APP.monthOverrides && APP.monthOverrides[mk] && APP.monthOverrides[mk][personName]) || {};
+  return ovr.riskPerDay !== undefined && ovr.daysT !== undefined;
+}
+
+// Month-aware target — ZERO unless the month has been configured manually
 function personTargetForMonth(p, mk){
+  if(!hasMonthTarget(p.name, mk)) return 0;
   const ep = getPersonForMonth(p, mk);
   return Math.round((ep.riskPerDay||0) * (ep.daysT||0));
 }
@@ -4720,6 +4731,7 @@ function calcStats(monthKey){
 
   return APP.people.map(p=>{
     const ep = getPersonForMonth(p, monthKey); // effective person for this month
+    const hasTgt = hasMonthTarget(p.name, monthKey);
 
     const mine = entries.filter(e=>e.name===p.name);
 
@@ -4728,35 +4740,41 @@ function calcStats(monthKey){
     const nmMTD  = mine.reduce((s,e)=>s+(e.nm||0), 0);
 
     // ── fixed targets — adjusted for sick days ───────────────────
+    // If no manual month target has been set, target/nmTarget are zero
+    // and COP collapses to zero (no run-rate to track against).
     const sickWorkDays  = getSickWorkDayCount(monthKey, p.name);
     const effectiveDays = Math.max(0, (ep.daysT||0) - sickWorkDays);
-    const target   = Math.round((ep.riskPerDay||0) * effectiveDays);
-    const nmTarget = parseFloat((effectiveDays * nmRateFor(p.name||'', monthKey)).toFixed(2));
+    const target   = hasTgt ? Math.round((ep.riskPerDay||0) * effectiveDays) : 0;
+    const nmTarget = hasTgt ? parseFloat((effectiveDays * nmRateFor(p.name||'', monthKey)).toFixed(2)) : 0;
 
     // calendar working days elapsed for this person (holidays excluded)
     const calDays = calWorkDays(monthKey, p.name);
 
     // ── COP: day-by-day cumulative run rate vs actual (matches individual card MTD diff)
     // positive = ahead, negative = behind — sick days excluded from run rate accumulation
-    const _nmR     = nmRateFor(p.name||'', monthKey);
-    const _today2  = _localDateStr(new Date());
-    const _wdElapsed = workingDatesInMonth(monthKey).filter(ds => ds <= _today2);
-    let _cumRR = 0, _cumNmRR = 0;
-    _wdElapsed.forEach(ds => {
-      const st = getDayStatus(monthKey, p.name, ds);
-      if(st === 'hol' || st === 'sick' || st === 'bh') return;
-      const personOvr = ((APP.personRROverrides||{})[p.name]||{})[monthKey]?.[ds];
-      _cumRR   += personOvr !== undefined ? personOvr : (ep.riskPerDay||0);
-      // Per-day NM RR override takes precedence over monthly NM rate
-      const nmOvr = ((APP.personNmRROverrides||{})[p.name]||{})[monthKey]?.[ds];
-      _cumNmRR += nmOvr !== undefined ? nmOvr : _nmR;
-    });
-    const copRev = revMTD - _cumRR;
-    const copNm  = nmMTD  - _cumNmRR;
+    // Only accumulated when the month has a manually-set target; otherwise COP = 0.
+    let copRev = 0, copNm = 0;
+    if(hasTgt){
+      const _nmR     = nmRateFor(p.name||'', monthKey);
+      const _today2  = _localDateStr(new Date());
+      const _wdElapsed = workingDatesInMonth(monthKey).filter(ds => ds <= _today2);
+      let _cumRR = 0, _cumNmRR = 0;
+      _wdElapsed.forEach(ds => {
+        const st = getDayStatus(monthKey, p.name, ds);
+        if(st === 'hol' || st === 'sick' || st === 'bh') return;
+        const personOvr = ((APP.personRROverrides||{})[p.name]||{})[monthKey]?.[ds];
+        _cumRR   += personOvr !== undefined ? personOvr : (ep.riskPerDay||0);
+        // Per-day NM RR override takes precedence over monthly NM rate
+        const nmOvr = ((APP.personNmRROverrides||{})[p.name]||{})[monthKey]?.[ds];
+        _cumNmRR += nmOvr !== undefined ? nmOvr : _nmR;
+      });
+      copRev = revMTD - _cumRR;
+      copNm  = nmMTD  - _cumNmRR;
+    }
 
     // ── percentages ──────────────────────────────────────────────
     const revPct = target>0   ? Math.round(revMTD  / target   * 100) : 0;
-    const nmTargetFixed = effectiveDays * nmRateFor(p.name||'', monthKey);
+    const nmTargetFixed = hasTgt ? (effectiveDays * nmRateFor(p.name||'', monthKey)) : 0;
     const nmPct  = nmTargetFixed>0 ? Math.round(nmMTD / nmTargetFixed * 100) : 0;
 
     const riskAhead = copRev >= 0;
@@ -20584,22 +20602,25 @@ function stopSalesFeedListener(){
 }
 
 // ── Division visibility helper ─────────────────────────────────────
-// Master and SMT see every division. Everyone else sees only their own.
+// Master and SMT see every division. Users without an assigned division
+// also see all. Posts missing divKey (legacy) are visible to all.
 function _sfCanSeeAll(){
   const role = (typeof _currentUser !== 'undefined' && _currentUser) ? _currentUser.role : null;
   return role === 'master' || role === 'smt';
 }
 function _sfUserDivKey(){
   if(typeof _currentUser === 'undefined' || !_currentUser) return '';
-  // Prefer the user's assigned division, fall back to currently selected one
-  return _currentUser.divKey || (typeof _currentDivKey !== 'undefined' ? _currentDivKey : '') || '';
+  // ONLY use the user's assigned division. Do NOT fall back to the currently-viewed
+  // division — that caused sales to disappear when managers switched divisions.
+  return _currentUser.divKey || '';
 }
 function _sfPostVisible(post){
   if(!post) return false;
   if(_sfCanSeeAll()) return true;
   const myDiv = _sfUserDivKey();
-  if(!myDiv) return true; // no division set — don't block
-  return (post.divKey || '') === myDiv;
+  if(!myDiv) return true;                 // no assigned division → see everything
+  if(!post.divKey) return true;           // legacy post without divKey → show to all
+  return post.divKey === myDiv;
 }
 
 // ── Realtime listener for cheers (bottom-right toast broadcast) ────
