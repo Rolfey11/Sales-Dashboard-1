@@ -20516,6 +20516,7 @@ let _sfPosts    = {};
 let _sfListener = null;
 let _sfCheerListener = null;
 let _sfSeenCheers    = new Set(); // remember cheer ids we've already displayed this session
+let _sfSeenPosts     = new Set(); // remember post ids we've already shown a sale popup for
 
 // ── Firebase refs ──────────────────────────────────────────────────
 function _sfPostsRef(){ return (typeof _db !== 'undefined' && _db) ? _db.ref(SF_DB_POSTS) : null; }
@@ -20585,113 +20586,8 @@ function _sfPostSale(name, revenue, nm, mk){
     postedBy: _sfCurrentUserName()
   };
   ref.push(post).catch(err=>console.warn('[salesFeed] post failed', err));
-  // Show in-app popup + OS desktop notification
-  try{ _showSalePopup(name, revenue, nm); }catch(e){}
   // Trim old posts asynchronously — keep DB lean
   setTimeout(_sfTrimPosts, 1500);
-}
-
-function _sfRequestNotifPermission(){
-  if(!('Notification' in window)) return;
-  if(Notification.permission === 'default'){
-    Notification.requestPermission().catch(function(){});
-  }
-}
-
-function _sfDesktopNotify(name, revenue, nm){
-  if(!('Notification' in window) || Notification.permission !== 'granted') return;
-  const revFmt = '\u00a3' + parseFloat(revenue).toLocaleString('en-GB', {minimumFractionDigits:0, maximumFractionDigits:2});
-  const body   = nm > 0 ? revFmt + '  \u00b7  ' + nm + ' NM' : revFmt;
-  const icon   = 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>&#128176;</text></svg>';
-  try{
-    const n = new Notification('\ud83d\udcb0 Sale \u2014 ' + name, {
-      body: body, icon: icon,
-      tag: 'sf-sale-' + Date.now(),
-      requireInteraction: false
-    });
-    n.onclick = function(){
-      try{ window.focus(); }catch(e){}
-      try{
-        if(typeof _ensureSalesFeedPageExists === 'function') _ensureSalesFeedPageExists();
-        if(typeof showPage === 'function') showPage('salesfeed');
-      }catch(e){}
-      n.close();
-    };
-  }catch(e){ console.warn('[salesFeed] desktop notify err', e); }
-}
-
-function _showSalePopup(name, revenue, nm){
-  _sfDesktopNotify(name, revenue, nm);
-
-  if(!document.getElementById('sfSalePopupStyle')){
-    const s = document.createElement('style');
-    s.id = 'sfSalePopupStyle';
-    s.textContent =
-      '#sfSalePopup{position:fixed;bottom:24px;left:24px;' +
-      'background:linear-gradient(135deg,#162416,#1a2e1a);' +
-      'border:1.5px solid var(--green,#2dce89);border-radius:14px;padding:14px 18px;' +
-      'display:flex;align-items:center;gap:14px;' +
-      'box-shadow:0 8px 32px rgba(0,0,0,.6),0 0 0 0 rgba(45,206,137,.4);' +
-      'z-index:9998;cursor:pointer;min-width:230px;max-width:320px;' +
-      'transform:translateY(90px) scale(.96);opacity:0;' +
-      'transition:transform .35s cubic-bezier(.34,1.56,.64,1),opacity .3s ease;user-select:none;}' +
-      '#sfSalePopup.sfsp-in{transform:translateY(0) scale(1);opacity:1;animation:sfspPulse .7s ease-out .15s 1;}' +
-      '#sfSalePopup.sfsp-out{transform:translateY(90px) scale(.96);opacity:0;}' +
-      '@keyframes sfspPulse{' +
-      '0%{box-shadow:0 8px 32px rgba(0,0,0,.6),0 0 0 0 rgba(45,206,137,.55);}' +
-      '60%{box-shadow:0 8px 32px rgba(0,0,0,.6),0 0 0 14px rgba(45,206,137,.0);}' +
-      '100%{box-shadow:0 8px 32px rgba(0,0,0,.6),0 0 0 0 rgba(45,206,137,.0);}}' +
-      '#sfSalePopup:hover{border-color:#5ef5b8;filter:brightness(1.1);}' +
-      '.sfsp-icon{font-size:30px;line-height:1;flex-shrink:0;}' +
-      '.sfsp-body{flex:1;min-width:0;}' +
-      '.sfsp-name{font-size:11px;font-weight:700;color:#bbb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:uppercase;letter-spacing:.06em;}' +
-      '.sfsp-rev{font-size:22px;font-weight:800;color:var(--green,#2dce89);line-height:1.2;}' +
-      '.sfsp-nm{font-size:11px;color:#aaa;margin-top:1px;}' +
-      '.sfsp-cta{font-size:10px;color:rgba(45,206,137,.6);margin-top:5px;font-style:italic;}' +
-      '.sfsp-close{position:absolute;top:7px;right:9px;background:transparent;border:none;' +
-      'color:#555;font-size:15px;cursor:pointer;line-height:1;padding:2px 5px;border-radius:4px;}' +
-      '.sfsp-close:hover{color:#fff;background:rgba(255,255,255,.08);}' +
-      '@media(max-width:600px){#sfSalePopup{left:10px;right:10px;bottom:10px;max-width:none;min-width:0;}}';
-    document.head.appendChild(s);
-  }
-
-  var existing = document.getElementById('sfSalePopup');
-  if(existing){ clearTimeout(existing._sfspTimer); existing.remove(); }
-
-  var el = document.createElement('div');
-  el.id = 'sfSalePopup';
-
-  var revFmt = '\u00a3' + parseFloat(revenue).toLocaleString('en-GB', {minimumFractionDigits:0, maximumFractionDigits:2});
-  var nmHtml = nm > 0 ? '<div class="sfsp-nm">' + nm + ' NM</div>' : '';
-
-  el.innerHTML =
-    '<div class="sfsp-icon">&#128176;</div>' +
-    '<div class="sfsp-body">' +
-      '<div class="sfsp-name">' + _sfEscape(name) + '</div>' +
-      '<div class="sfsp-rev">' + revFmt + '</div>' +
-      nmHtml +
-      '<div class="sfsp-cta">Click to view Sales Feed &#8594;</div>' +
-    '</div>' +
-    '<button class="sfsp-close" title="Dismiss" onclick="event.stopPropagation();' +
-    'var p=this.parentElement;p.classList.add(\'sfsp-out\');setTimeout(function(){try{p.remove()}catch(e){}},350);">&#215;</button>';
-
-  el.addEventListener('click', function(){
-    el.classList.add('sfsp-out');
-    setTimeout(function(){ try{ el.remove(); }catch(e){} }, 350);
-    try{
-      if(typeof _ensureSalesFeedPageExists === 'function') _ensureSalesFeedPageExists();
-      if(typeof showPage === 'function') showPage('salesfeed');
-    }catch(e){}
-  });
-
-  document.body.appendChild(el);
-  requestAnimationFrame(function(){ requestAnimationFrame(function(){ el.classList.add('sfsp-in'); }); });
-
-  el._sfspTimer = setTimeout(function(){
-    if(!el.isConnected) return;
-    el.classList.add('sfsp-out');
-    setTimeout(function(){ try{ el.remove(); }catch(e){} }, 350);
-  }, 7000);
 }
 
 function _sfTrimPosts(){
@@ -20714,14 +20610,30 @@ function startSalesFeedListener(){
   if(!ref) return;
   if(_sfListener){ try{ _sfListener.off(); }catch(e){} }
   _sfListener = ref;
+
+  // 'value' listener — keeps _sfPosts in sync and re-renders the feed page
   ref.on('value', snap=>{
     _sfPosts = snap.val() || {};
     if(document.getElementById('page-salesfeed')?.classList.contains('active')) renderSalesFeed();
   }, err=>console.warn('[salesFeed] listener err', err));
+
+  // 'child_added' listener — fires a popup for ALL connected users when any new sale lands
+  const attachedAt = Date.now();
+  ref.on('child_added', snap=>{
+    const id   = snap.key;
+    const post = snap.val() || {};
+    if(_sfSeenPosts.has(id)) return;   // already shown this session
+    _sfSeenPosts.add(id);
+    const postTime = new Date(post.createdAt || 0).getTime();
+    if(postTime < attachedAt - 3000) return; // skip historical posts replayed on attach
+    if(!_sfPostVisible(post)) return;         // respect division visibility rules
+    try{ _showSalePopup(post.name, post.revenue, post.nm); }catch(e){}
+  }, err=>console.warn('[salesFeed] child_added err', err));
 }
 function stopSalesFeedListener(){
   if(_sfListener){ try{ _sfListener.off(); }catch(e){} _sfListener = null; }
   _sfPosts = {};
+  _sfSeenPosts = new Set();
 }
 
 // ── Division visibility helper ─────────────────────────────────────
@@ -21197,7 +21109,6 @@ if(typeof _startWithRole === 'function'){
       _ensureSalesFeedPageExists();
       startSalesFeedListener();
       startSalesFeedCheerListener();
-      _sfRequestNotifPermission();
     }catch(e){ console.warn('[salesFeed] init', e); }
     return ret;
   };
@@ -21229,7 +21140,6 @@ setTimeout(()=>{
       _ensureSalesFeedPageExists();
       startSalesFeedListener();
       startSalesFeedCheerListener();
-      _sfRequestNotifPermission();
     }
   }catch(e){ console.warn('[salesFeed] restore', e); }
 }, 2000);
