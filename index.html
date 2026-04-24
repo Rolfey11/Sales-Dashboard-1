@@ -21467,24 +21467,29 @@ function renderWeeklyStats(){
   // Get the year/month
   var yr = parseInt(mk.slice(0,4)), mo = parseInt(mk.slice(5,7))-1;
 
-  // Build all Mon–Fri dates in this month grouped by ISO week
+  // Local date formatter — avoids toISOString() UTC shift that moves dates by 1 day in BST
+  function localDS(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+
+  // Build strict Mon–Fri weeks for this month only
+  // Each week contains only the working days (Mon–Fri, non-bank-holiday) that fall within the month
   var weeks = [];
-  var d = new Date(yr, mo, 1);
-  // Walk to first Monday on or before month start
-  while(d.getDay()!==1) d.setDate(d.getDate()-1);
-  while(d <= new Date(yr, mo+1, 0)){
-    var weekStart = new Date(d);
+  // Find the Monday of the week containing the 1st of the month
+  var cursor = new Date(yr, mo, 1);
+  while(cursor.getDay() !== 1) cursor.setDate(cursor.getDate() - 1);
+
+  var monthEnd = new Date(yr, mo + 1, 0); // last day of month
+  while(cursor <= monthEnd){
     var days = [];
-    for(var i=0;i<5;i++){
-      var dd = new Date(d);
-      dd.setDate(d.getDate()+i);
-      if(dd.getMonth()===mo){
-        var ds = dd.toISOString().slice(0,10);
-        if(!isBankHoliday(ds) && dd.getDay()!==0 && dd.getDay()!==6) days.push(ds);
+    for(var i = 0; i < 5; i++){          // Mon=0 … Fri=4
+      var day = new Date(cursor);
+      day.setDate(cursor.getDate() + i);
+      if(day.getMonth() === mo){          // only days inside this month
+        var ds = localDS(day);
+        if(!isBankHoliday(ds)) days.push(ds);
       }
     }
-    if(days.length) weeks.push({start:new Date(weekStart), days:days});
-    d.setDate(d.getDate()+7);
+    if(days.length) weeks.push({ start: new Date(cursor), days: days });
+    cursor.setDate(cursor.getDate() + 7);
   }
 
   // Get teams
