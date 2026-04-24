@@ -1859,25 +1859,6 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <div class="nav-brand">JG <span style="color:var(--accent)">MI</span></div>
     </div>
     <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;flex-wrap:nowrap;">
-      <!-- Ticket System buttons — shown after login -->
-      <div id="tkNavGroup" style="display:none;align-items:center;gap:6px;flex-shrink:0;">
-        <button id="tkRaiseBtn" onclick="openRaiseTicket()"
-          style="background:linear-gradient(135deg,#f5a623,#e8850a);color:#fff;border:none;
-          border-radius:16px;padding:4px 11px;font-size:11px;font-weight:700;
-          letter-spacing:.04em;cursor:pointer;font-family:var(--fm);white-space:nowrap;
-          box-shadow:0 1px 6px rgba(245,166,35,.35);transition:filter .15s;">
-          🎫 Raise Ticket
-        </button>
-        <button id="tkInboxBtn" onclick="openTicketInbox()"
-          title="Ticket Inbox"
-          style="display:none;position:relative;background:none;border:none;cursor:pointer;
-          font-size:18px;padding:3px 5px;line-height:1;">
-          📬<span id="tkInboxBadge"
-            style="display:none;position:absolute;top:0;right:0;background:#f5365c;
-            color:#fff;font-size:9px;font-weight:700;border-radius:10px;padding:1px 5px;
-            font-family:var(--fm);line-height:1.4;min-width:16px;text-align:center;"></span>
-        </button>
-      </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
         <span style="font-size:10px;font-weight:600;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap">Month</span>
         <select id="globalMonthSel" onchange="setGlobalMonth()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:4px 8px;font-size:12px;font-family:var(--fm);color:var(--text);outline:none;cursor:pointer;min-width:130px;"></select>
@@ -21253,17 +21234,29 @@ if(typeof logoutUser === 'function'){
   };
 }
 
-// ── Kick-start on session restore (parallel to Kudos pattern) ─────
-setTimeout(()=>{
-  try{
-    if(typeof _currentUser !== 'undefined' && _currentUser){
+// ── Kick-start on session restore ─────────────────────────────────
+// On page refresh _startWithRole fires BEFORE this module loads, so the hook
+// above never catches it. Fix: check synchronously at module-load time.
+(function(){
+  function _sfInit(){
+    try{
       _ensureSalesFeedPageExists();
       startSalesFeedListener();
       startSalesFeedCheerListener();
       _sfRequestNotifPermission();
-    }
-  }catch(e){ console.warn('[salesFeed] restore', e); }
-}, 2000);
+    }catch(e){ console.warn('[salesFeed] init', e); }
+  }
+  if(typeof _currentUser !== 'undefined' && _currentUser){
+    // User already restored from sessionStorage — init right now
+    _sfInit();
+  } else {
+    // Fresh login path — _startWithRole hook handles it, but keep a short
+    // safety-net (100ms) in case of any edge-case ordering
+    setTimeout(function(){
+      if(typeof _currentUser !== 'undefined' && _currentUser) _sfInit();
+    }, 100);
+  }
+})();
 
 // Expose for onclick handlers
 window.toggleSalesFeedReaction = toggleSalesFeedReaction;
@@ -21288,212 +21281,103 @@ var _tkListener = null;
 var _tkOpenId   = null;
 var _tkInboxTab = 'open';
 
-// ── Styles ────────────────────────────────────────────────────────
 function _tkStyles(){
   if(document.getElementById('tkStyles')) return;
-  var s = document.createElement('style');
-  s.id = 'tkStyles';
-  s.textContent =
-    '#tkRaiseBtn:hover{filter:brightness(1.12);}' +
-    '#tkRaiseModal,#tkInboxModal,#tkThreadModal{display:none;position:fixed;inset:0;' +
-    'z-index:9995;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);' +
-    'align-items:center;justify-content:center;}' +
-    '#tkRaiseModal.open,#tkInboxModal.open,#tkThreadModal.open{display:flex;}' +
-    '.tk-modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;' +
-    'width:560px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column;' +
-    'box-shadow:0 20px 60px rgba(0,0,0,.5);overflow:hidden;}' +
-    '.tk-modal-hd{padding:16px 20px 12px;border-bottom:1px solid var(--border);' +
-    'display:flex;align-items:center;gap:10px;flex-shrink:0;}' +
-    '.tk-modal-hd h3{margin:0;font-size:15px;font-weight:800;flex:1;}' +
-    '.tk-modal-body{flex:1;overflow-y:auto;padding:16px 18px;}' +
-    '.tk-modal-ft{padding:12px 18px;border-top:1px solid var(--border);' +
-    'display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;}' +
-    '.tk-lbl{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;' +
-    'text-transform:uppercase;font-family:var(--fm);margin-bottom:6px;}' +
-    '.tk-ta{width:100%;background:var(--surface2);border:1px solid var(--border2);' +
-    'border-radius:10px;padding:10px 13px;font-size:13px;font-family:var(--fh);' +
-    'color:var(--text);outline:none;resize:none;transition:border-color .2s;' +
-    'line-height:1.5;box-sizing:border-box;}' +
-    '.tk-ta:focus{border-color:var(--accent);}' +
-    '.tk-card{background:var(--surface2);border:1px solid var(--border);' +
-    'border-radius:12px;padding:13px 15px;margin-bottom:9px;cursor:pointer;' +
-    'transition:border-color .15s;}' +
-    '.tk-card:hover{border-color:var(--accent);}' +
-    '.tk-card.tk-unread{border-left:3px solid var(--accent);}' +
-    '.tk-pill{font-size:10px;font-weight:700;font-family:var(--fm);' +
-    'padding:2px 9px;border-radius:10px;white-space:nowrap;flex-shrink:0;}' +
-    '.tk-open{background:rgba(245,54,92,.15);color:#f5365c;}' +
-    '.tk-inprog{background:rgba(251,184,58,.15);color:#fbb83a;}' +
-    '.tk-resolved{background:rgba(45,206,137,.15);color:#2dce89;}' +
-    '.tk-thread-wrap{display:flex;flex-direction:column;gap:10px;margin-bottom:14px;}' +
-    '.tk-bubble{max-width:82%;padding:10px 13px;border-radius:12px;font-size:13px;line-height:1.5;}' +
-    '.tk-bubble-them{background:var(--surface2);border:1px solid var(--border);' +
-    'align-self:flex-start;border-bottom-left-radius:4px;}' +
-    '.tk-bubble-me{background:var(--accent);color:#fff;align-self:flex-end;border-bottom-right-radius:4px;}' +
-    '.tk-bubble-meta{font-size:10px;opacity:.65;margin-top:3px;font-family:var(--fm);}' +
-    '.tk-tabs{display:flex;gap:4px;margin-bottom:12px;}' +
-    '.tk-tab-btn{flex:1;padding:7px;text-align:center;font-size:11px;font-weight:700;' +
-    'font-family:var(--fm);border:1px solid var(--border);border-radius:8px;' +
-    'cursor:pointer;color:var(--text2);background:var(--surface2);}' +
+  var s=document.createElement('style');
+  s.id='tkStyles';
+  s.textContent=
+    '#tkRaiseBtn:hover{filter:brightness(1.12);}'+
+    '#tkRaiseModal,#tkInboxModal,#tkThreadModal{display:none;position:fixed;inset:0;'+
+    'z-index:9995;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);'+
+    'align-items:center;justify-content:center;}'+
+    '#tkRaiseModal.open,#tkInboxModal.open,#tkThreadModal.open{display:flex;}'+
+    '.tk-modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;'+
+    'width:560px;max-width:96vw;max-height:90vh;display:flex;flex-direction:column;'+
+    'box-shadow:0 20px 60px rgba(0,0,0,.5);overflow:hidden;}'+
+    '.tk-modal-hd{padding:16px 20px 12px;border-bottom:1px solid var(--border);'+
+    'display:flex;align-items:center;gap:10px;flex-shrink:0;}'+
+    '.tk-modal-hd h3{margin:0;font-size:15px;font-weight:800;flex:1;}'+
+    '.tk-modal-body{flex:1;overflow-y:auto;padding:16px 18px;}'+
+    '.tk-modal-ft{padding:12px 18px;border-top:1px solid var(--border);'+
+    'display:flex;gap:8px;justify-content:flex-end;flex-shrink:0;}'+
+    '.tk-lbl{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;'+
+    'text-transform:uppercase;font-family:var(--fm);margin-bottom:6px;}'+
+    '.tk-ta{width:100%;background:var(--surface2);border:1px solid var(--border2);'+
+    'border-radius:10px;padding:10px 13px;font-size:13px;font-family:var(--fh);'+
+    'color:var(--text);outline:none;resize:none;transition:border-color .2s;'+
+    'line-height:1.5;box-sizing:border-box;}'+
+    '.tk-ta:focus{border-color:var(--accent);}'+
+    '.tk-card{background:var(--surface2);border:1px solid var(--border);'+
+    'border-radius:12px;padding:13px 15px;margin-bottom:9px;cursor:pointer;transition:border-color .15s;}'+
+    '.tk-card:hover{border-color:var(--accent);}'+
+    '.tk-card.tk-unread{border-left:3px solid var(--accent);}'+
+    '.tk-pill{font-size:10px;font-weight:700;font-family:var(--fm);padding:2px 9px;border-radius:10px;white-space:nowrap;flex-shrink:0;}'+
+    '.tk-open{background:rgba(245,54,92,.15);color:#f5365c;}'+
+    '.tk-inprog{background:rgba(251,184,58,.15);color:#fbb83a;}'+
+    '.tk-resolved{background:rgba(45,206,137,.15);color:#2dce89;}'+
+    '.tk-thread-wrap{display:flex;flex-direction:column;gap:10px;margin-bottom:14px;}'+
+    '.tk-bubble{max-width:82%;padding:10px 13px;border-radius:12px;font-size:13px;line-height:1.5;}'+
+    '.tk-bubble-them{background:var(--surface2);border:1px solid var(--border);align-self:flex-start;border-bottom-left-radius:4px;}'+
+    '.tk-bubble-me{background:var(--accent);color:#fff;align-self:flex-end;border-bottom-right-radius:4px;}'+
+    '.tk-bubble-meta{font-size:10px;opacity:.65;margin-top:3px;font-family:var(--fm);}'+
+    '.tk-tabs{display:flex;gap:4px;margin-bottom:12px;}'+
+    '.tk-tab-btn{flex:1;padding:7px;text-align:center;font-size:11px;font-weight:700;'+
+    'font-family:var(--fm);border:1px solid var(--border);border-radius:8px;'+
+    'cursor:pointer;color:var(--text2);background:var(--surface2);}'+
     '.tk-tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}';
   document.head.appendChild(s);
 }
 
-// ── Helpers ───────────────────────────────────────────────────────
-function _tkEsc(s){ return String(s||'').replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]);}); }
-function _tkFmt(iso){ return new Date(iso).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); }
-function _tkElapsed(a,b){
-  var ms=new Date(b||new Date())-new Date(a);
-  if(ms<0) return '—';
-  var m=Math.floor(ms/60000),h=Math.floor(m/60),d=Math.floor(h/24);
-  if(d>0) return d+'d '+(h%24)+'h';
-  if(h>0) return h+'h '+(m%60)+'m';
-  return m+'m';
-}
-function _tkPill(s){
-  if(s==='resolved')   return '<span class="tk-pill tk-resolved">✓ Resolved</span>';
-  if(s==='inprogress') return '<span class="tk-pill tk-inprog">⚙ In Progress</span>';
-  return '<span class="tk-pill tk-open">● Open</span>';
-}
-function _tkCatIcon(c){ return ({bug:'🐛',improvement:'💡',question:'❓',other:'📋'})[c]||'📋'; }
+function _tkEsc(s){return String(s||'').replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]);});}
+function _tkFmt(iso){return new Date(iso).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}
+function _tkElapsed(a,b){var ms=new Date(b||new Date())-new Date(a);if(ms<0)return '—';var m=Math.floor(ms/60000),h=Math.floor(m/60),d=Math.floor(h/24);if(d>0)return d+'d '+(h%24)+'h';if(h>0)return h+'h '+(m%60)+'m';return m+'m';}
+function _tkPill(s){if(s==='resolved')return '<span class="tk-pill tk-resolved">✓ Resolved</span>';if(s==='inprogress')return '<span class="tk-pill tk-inprog">⚙ In Progress</span>';return '<span class="tk-pill tk-open">● Open</span>';}
+function _tkCatIcon(c){return ({bug:'🐛',improvement:'💡',question:'❓',other:'📋'})[c]||'📋';}
 
-// ── Firebase listener ─────────────────────────────────────────────
 function startTicketListener(){
-  var ref=tkRef(); if(!ref) return;
-  if(_tkListener){ try{_tkListener.off();}catch(e){} }
+  var ref=tkRef();if(!ref)return;
+  if(_tkListener){try{_tkListener.off();}catch(e){}}
   _tkListener=ref;
   ref.on('value',function(snap){
     _tkAll=snap.val()||{};
     _tkUpdateBadge();
-    var ib=document.getElementById('tkInboxModal');
-    if(ib&&ib.classList.contains('open')) renderTicketInbox();
-    var tp=document.getElementById('page-tickets');
-    if(tp&&tp.classList.contains('active')) renderTicketsPage();
-    var tm=document.getElementById('tkThreadModal');
-    if(_tkOpenId&&tm&&tm.classList.contains('open')) _tkRenderThread(_tkOpenId);
-  },function(e){ console.warn('[tickets]',e); });
+    var ib=document.getElementById('tkInboxModal');if(ib&&ib.classList.contains('open'))renderTicketInbox();
+    var tp=document.getElementById('page-tickets');if(tp&&tp.classList.contains('active'))renderTicketsPage();
+    var tm=document.getElementById('tkThreadModal');if(_tkOpenId&&tm&&tm.classList.contains('open'))_tkRenderThread(_tkOpenId);
+  },function(e){console.warn('[tickets]',e);});
 }
-function stopTicketListener(){
-  if(_tkListener){ try{_tkListener.off();}catch(e){} _tkListener=null; }
-}
+function stopTicketListener(){if(_tkListener){try{_tkListener.off();}catch(e){}_tkListener=null;}}
 
-// ── Badge ─────────────────────────────────────────────────────────
 function _tkUpdateBadge(){
   var role=(_currentUser&&_currentUser.role)||'';
   var me=(_currentUser&&_currentUser.name)||'';
   var ibtn=document.getElementById('tkInboxBtn');
   var bdg=document.getElementById('tkInboxBadge');
-  if(!ibtn||!bdg) return;
+  if(!ibtn||!bdg)return;
   if(role==='master'||role==='smt'){
     ibtn.style.display='block';
-    var newOpen=Object.values(_tkAll).filter(function(t){
-      var reps=Object.values(t.replies||{});
-      return t.status==='open'&&!reps.some(function(r){return r.fromRole==='master'||r.fromRole==='smt';});
-    }).length;
-    var newRep=Object.values(_tkAll).filter(function(t){
-      return Object.values(t.replies||{}).some(function(r){return r.from!==me&&!r.readByMaster;});
-    }).length;
+    var newOpen=Object.values(_tkAll).filter(function(t){var r=Object.values(t.replies||{});return t.status==='open'&&!r.some(function(x){return x.fromRole==='master'||x.fromRole==='smt';});}).length;
+    var newRep=Object.values(_tkAll).filter(function(t){return Object.values(t.replies||{}).some(function(r){return r.from!==me&&!r.readByMaster;});}).length;
     var total=newOpen+newRep;
-    if(total>0){bdg.style.display='';bdg.textContent=total>9?'9+':String(total);}
-    else{bdg.style.display='none';}
-  } else {
-    ibtn.style.display='none';
-  }
+    if(total>0){bdg.style.display='';bdg.textContent=total>9?'9+':String(total);}else{bdg.style.display='none';}
+  }else{ibtn.style.display='none';}
 }
 
-// ── Inject modals only (buttons already live in nav HTML) ─────────
 function _tkInjectModals(){
-  if(document.getElementById('tkRaiseModal')) return;
+  if(document.getElementById('tkRaiseModal'))return;
   _tkStyles();
-
-  // Raise modal
-  var rm=document.createElement('div');
-  rm.id='tkRaiseModal';
-  rm.innerHTML=
-    '<div class="tk-modal" style="width:520px;">'+
-      '<div class="tk-modal-hd">'+
-        '<span style="font-size:20px">🎫</span>'+
-        '<h3>Raise a Ticket</h3>'+
-        '<button onclick="closeRaiseTicket()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text3);margin-left:auto;">✕</button>'+
-      '</div>'+
-      '<div class="tk-modal-body">'+
-        '<div style="background:rgba(94,156,245,.07);border:1px solid rgba(94,156,245,.2);border-radius:10px;padding:11px 14px;margin-bottom:16px;font-size:12px;color:var(--text2);line-height:1.5;">'+
-          'Report a dashboard issue or suggest an improvement. A master will respond directly to you.'+
-        '</div>'+
-        '<div style="margin-bottom:14px;">'+
-          '<div class="tk-lbl">Category</div>'+
-          '<div style="display:flex;gap:8px;flex-wrap:wrap;">'+
-            '<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;padding:5px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);">'+
-              '<input type="radio" name="tkCat" value="bug"> 🐛 Bug / Error</label>'+
-            '<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;padding:5px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);">'+
-              '<input type="radio" name="tkCat" value="improvement"> 💡 Improvement</label>'+
-            '<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;padding:5px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);">'+
-              '<input type="radio" name="tkCat" value="question"> ❓ Question</label>'+
-            '<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;padding:5px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);">'+
-              '<input type="radio" name="tkCat" value="other" checked> 📋 Other</label>'+
-          '</div>'+
-        '</div>'+
-        '<div style="margin-bottom:14px;">'+
-          '<div class="tk-lbl">Describe the issue *</div>'+
-          '<textarea id="tkDesc" class="tk-ta" rows="4" placeholder="Please describe the issue in as much detail as possible…" maxlength="2000" oninput="document.getElementById(\'tkDescN\').textContent=this.value.length"></textarea>'+
-          '<div style="font-size:10px;color:var(--text3);font-family:var(--fm);text-align:right;margin-top:2px;"><span id="tkDescN">0</span>/2000</div>'+
-        '</div>'+
-        '<div>'+
-          '<div class="tk-lbl">What solution is required?</div>'+
-          '<textarea id="tkSol" class="tk-ta" rows="3" placeholder="What would you like to happen?…" maxlength="1000"></textarea>'+
-        '</div>'+
-      '</div>'+
-      '<div class="tk-modal-ft">'+
-        '<button class="btn btn-s" onclick="closeRaiseTicket()">Cancel</button>'+
-        '<button class="btn" onclick="submitTicket()" style="background:linear-gradient(135deg,#f5a623,#e8850a);color:#fff;">🎫 Submit Ticket</button>'+
-      '</div>'+
-    '</div>';
+  var rm=document.createElement('div');rm.id='tkRaiseModal';
+  rm.innerHTML='<div class="tk-modal" style="width:520px;"><div class="tk-modal-hd"><span style="font-size:20px">🎫</span><h3>Raise a Ticket</h3><button onclick="closeRaiseTicket()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text3);margin-left:auto;">✕</button></div><div class="tk-modal-body"><div style="background:rgba(94,156,245,.07);border:1px solid rgba(94,156,245,.2);border-radius:10px;padding:11px 14px;margin-bottom:16px;font-size:12px;color:var(--text2);line-height:1.5;">Report a dashboard issue or suggest an improvement. A master will respond directly to you.</div><div style="margin-bottom:14px;"><div class="tk-lbl">Category</div><div style="display:flex;gap:8px;flex-wrap:wrap;"><label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;padding:5px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);"><input type="radio" name="tkCat" value="bug"> 🐛 Bug / Error</label><label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;padding:5px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);"><input type="radio" name="tkCat" value="improvement"> 💡 Improvement</label><label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;padding:5px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);"><input type="radio" name="tkCat" value="question"> ❓ Question</label><label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;padding:5px 11px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);"><input type="radio" name="tkCat" value="other" checked> 📋 Other</label></div></div><div style="margin-bottom:14px;"><div class="tk-lbl">Describe the issue *</div><textarea id="tkDesc" class="tk-ta" rows="4" placeholder="Please describe the issue in as much detail as possible…" maxlength="2000" oninput="document.getElementById(\'tkDescN\').textContent=this.value.length"></textarea><div style="font-size:10px;color:var(--text3);font-family:var(--fm);text-align:right;margin-top:2px;"><span id="tkDescN">0</span>/2000</div></div><div><div class="tk-lbl">What solution is required?</div><textarea id="tkSol" class="tk-ta" rows="3" placeholder="What would you like to happen?…" maxlength="1000"></textarea></div></div><div class="tk-modal-ft"><button class="btn btn-s" onclick="closeRaiseTicket()">Cancel</button><button class="btn" onclick="submitTicket()" style="background:linear-gradient(135deg,#f5a623,#e8850a);color:#fff;">🎫 Submit Ticket</button></div></div>';
   document.body.appendChild(rm);
-
-  // Inbox modal
-  var im=document.createElement('div');
-  im.id='tkInboxModal';
-  im.innerHTML=
-    '<div class="tk-modal" style="width:640px;">'+
-      '<div class="tk-modal-hd">'+
-        '<span style="font-size:20px">📬</span>'+
-        '<h3>Ticket Inbox</h3>'+
-        '<button onclick="closeTicketInbox()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text3);margin-left:auto;">✕</button>'+
-      '</div>'+
-      '<div class="tk-modal-body" id="tkInboxBody"></div>'+
-    '</div>';
+  var im=document.createElement('div');im.id='tkInboxModal';
+  im.innerHTML='<div class="tk-modal" style="width:640px;"><div class="tk-modal-hd"><span style="font-size:20px">📬</span><h3>Ticket Inbox</h3><button onclick="closeTicketInbox()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text3);margin-left:auto;">✕</button></div><div class="tk-modal-body" id="tkInboxBody"></div></div>';
   document.body.appendChild(im);
-
-  // Thread modal
-  var tm=document.createElement('div');
-  tm.id='tkThreadModal';
-  tm.innerHTML=
-    '<div class="tk-modal" style="width:580px;">'+
-      '<div class="tk-modal-hd">'+
-        '<span style="font-size:18px">🎫</span>'+
-        '<h3 id="tkThdTitle" style="font-size:13px;">Ticket</h3>'+
-        '<span id="tkThdStatus" style="margin-left:auto;flex-shrink:0;"></span>'+
-        '<button onclick="closeTicketThread()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text3);margin-left:8px;">✕</button>'+
-      '</div>'+
-      '<div class="tk-modal-body" id="tkThdBody"></div>'+
-      '<div class="tk-modal-ft" style="flex-direction:column;gap:8px;align-items:stretch;">'+
-        '<textarea id="tkReplyTa" class="tk-ta" rows="2" placeholder="Type a reply…" maxlength="1000"></textarea>'+
-        '<div id="tkReplyBtns" style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;"></div>'+
-      '</div>'+
-    '</div>';
+  var tm=document.createElement('div');tm.id='tkThreadModal';
+  tm.innerHTML='<div class="tk-modal" style="width:580px;"><div class="tk-modal-hd"><span style="font-size:18px">🎫</span><h3 id="tkThdTitle" style="font-size:13px;">Ticket</h3><span id="tkThdStatus" style="margin-left:auto;flex-shrink:0;"></span><button onclick="closeTicketThread()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--text3);margin-left:8px;">✕</button></div><div class="tk-modal-body" id="tkThdBody"></div><div class="tk-modal-ft" style="flex-direction:column;gap:8px;align-items:stretch;"><textarea id="tkReplyTa" class="tk-ta" rows="2" placeholder="Type a reply…" maxlength="1000"></textarea><div id="tkReplyBtns" style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;"></div></div></div>';
   document.body.appendChild(tm);
 }
 
-// ── Raise ticket ──────────────────────────────────────────────────
-function openRaiseTicket(){
-  _tkInjectModals();
-  document.getElementById('tkDesc').value='';
-  document.getElementById('tkSol').value='';
-  document.getElementById('tkDescN').textContent='0';
-  document.querySelectorAll('input[name="tkCat"]').forEach(function(r){r.checked=r.value==='other';});
-  document.getElementById('tkRaiseModal').classList.add('open');
-  setTimeout(function(){var d=document.getElementById('tkDesc');if(d)d.focus();},150);
-}
+function openRaiseTicket(){_tkInjectModals();document.getElementById('tkDesc').value='';document.getElementById('tkSol').value='';document.getElementById('tkDescN').textContent='0';document.querySelectorAll('input[name="tkCat"]').forEach(function(r){r.checked=r.value==='other';});document.getElementById('tkRaiseModal').classList.add('open');setTimeout(function(){var d=document.getElementById('tkDesc');if(d)d.focus();},150);}
 function closeRaiseTicket(){document.getElementById('tkRaiseModal').classList.remove('open');}
 
 function submitTicket(){
@@ -21502,23 +21386,13 @@ function submitTicket(){
   var catEl=document.querySelector('input[name="tkCat"]:checked');
   var cat=catEl?catEl.value:'other';
   if(!desc){showToast('Please describe the issue first','err');return;}
-  var ref=tkRef();
-  if(!ref){showToast('Not connected','err');return;}
+  var ref=tkRef();if(!ref){showToast('Not connected','err');return;}
   var id='tk_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-  ref.child(id).set({
-    id:id,status:'open',
-    raisedBy:(_currentUser&&_currentUser.name)||'Unknown',
-    raisedRole:(_currentUser&&_currentUser.role)||'consultant',
-    divKey:_currentDivKey||'branch',
-    category:cat,description:desc,solution:sol,
-    createdAt:new Date().toISOString(),resolvedAt:null,replies:{}
-  }).then(function(){
-    closeRaiseTicket();
-    showToast('Ticket submitted ✓ A master will respond shortly 🎫');
-  }).catch(function(){showToast('Failed to submit ticket','err');});
+  ref.child(id).set({id:id,status:'open',raisedBy:(_currentUser&&_currentUser.name)||'Unknown',raisedRole:(_currentUser&&_currentUser.role)||'consultant',divKey:_currentDivKey||'branch',category:cat,description:desc,solution:sol,createdAt:new Date().toISOString(),resolvedAt:null,replies:{}})
+    .then(function(){closeRaiseTicket();showToast('Ticket submitted ✓ A master will respond shortly 🎫');})
+    .catch(function(){showToast('Failed to submit ticket','err');});
 }
 
-// ── Inbox ─────────────────────────────────────────────────────────
 function openTicketInbox(){_tkInjectModals();document.getElementById('tkInboxModal').classList.add('open');renderTicketInbox();}
 function closeTicketInbox(){document.getElementById('tkInboxModal').classList.remove('open');}
 
@@ -21530,226 +21404,75 @@ function renderTicketInbox(tab){
   var openList=all.filter(function(t){return t.status!=='resolved';});
   var resList=all.filter(function(t){return t.status==='resolved';});
   var list=_tkInboxTab==='open'?openList:resList;
-
-  var html=
-    '<div class="tk-tabs">'+
-      '<div class="tk-tab-btn'+(_tkInboxTab==='open'?' active':'')+'" onclick="renderTicketInbox(\'open\')">'+
-        'Open / In Progress <span style="background:rgba(245,54,92,.2);color:#f5365c;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:3px;">'+openList.length+'</span>'+
-      '</div>'+
-      '<div class="tk-tab-btn'+(_tkInboxTab==='resolved'?' active':'')+'" onclick="renderTicketInbox(\'resolved\')">'+
-        'Resolved <span style="background:rgba(45,206,137,.15);color:#2dce89;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:3px;">'+resList.length+'</span>'+
-      '</div>'+
-    '</div>';
-
-  if(list.length===0){
-    html+='<div style="text-align:center;padding:36px 16px;color:var(--text3);font-family:var(--fm);font-size:13px;">'+(_tkInboxTab==='open'?'🎉 No open tickets!':'No resolved tickets yet.')+'</div>';
-  } else {
-    list.forEach(function(t){
-      var reps=Object.values(t.replies||{});
-      var hasNew=t.status==='open'&&!reps.some(function(r){return r.fromRole==='master'||r.fromRole==='smt';});
-      var hasRep=reps.some(function(r){return r.from!==me&&!r.readByMaster;});
-      var unread=hasNew||hasRep;
-      var timeStr=t.resolvedAt?'⏱ Fixed in '+_tkElapsed(t.createdAt,t.resolvedAt):'⏱ Open '+_tkElapsed(t.createdAt,null);
-      var desc=_tkEsc((t.description||'').slice(0,90))+((t.description||'').length>90?'…':'');
-      html+=
-        '<div class="tk-card'+(unread?' tk-unread':'')+'" onclick="openTicketThread(\''+t.id+'\')">'+
-          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">'+
-            '<div style="min-width:0;flex:1;">'+
-              '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">'+
-                _tkCatIcon(t.category)+
-                ' <span style="font-size:13px;font-weight:700;">'+_tkEsc(t.raisedBy)+'</span>'+
-                (unread?'<span style="width:7px;height:7px;background:var(--accent);border-radius:50%;display:inline-block;"></span>':'')+
-              '</div>'+
-              '<div style="font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+desc+'</div>'+
-              '<div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:4px;display:flex;gap:10px;">'+
-                '<span>'+_tkFmt(t.createdAt)+'</span><span>'+timeStr+'</span>'+
-                (reps.length?'<span>💬 '+reps.length+'</span>':'')+
-              '</div>'+
-            '</div>'+
-            _tkPill(t.status)+
-          '</div>'+
-        '</div>';
-    });
-  }
+  var html='<div class="tk-tabs"><div class="tk-tab-btn'+(_tkInboxTab==='open'?' active':'')+'" onclick="renderTicketInbox(\'open\')">Open / In Progress <span style="background:rgba(245,54,92,.2);color:#f5365c;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:3px;">'+openList.length+'</span></div><div class="tk-tab-btn'+(_tkInboxTab==='resolved'?' active':'')+'" onclick="renderTicketInbox(\'resolved\')">Resolved <span style="background:rgba(45,206,137,.15);color:#2dce89;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:3px;">'+resList.length+'</span></div></div>';
+  if(list.length===0){html+='<div style="text-align:center;padding:36px 16px;color:var(--text3);font-family:var(--fm);font-size:13px;">'+(_tkInboxTab==='open'?'🎉 No open tickets!':'No resolved tickets yet.')+'</div>';}
+  else{list.forEach(function(t){var reps=Object.values(t.replies||{});var hasNew=t.status==='open'&&!reps.some(function(r){return r.fromRole==='master'||r.fromRole==='smt';});var hasRep=reps.some(function(r){return r.from!==me&&!r.readByMaster;});var unread=hasNew||hasRep;var timeStr=t.resolvedAt?'⏱ Fixed in '+_tkElapsed(t.createdAt,t.resolvedAt):'⏱ Open '+_tkElapsed(t.createdAt,null);var desc=_tkEsc((t.description||'').slice(0,90))+((t.description||'').length>90?'…':'');html+='<div class="tk-card'+(unread?' tk-unread':'')+'" onclick="openTicketThread(\''+t.id+'\')"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;"><div style="min-width:0;flex:1;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">'+_tkCatIcon(t.category)+' <span style="font-size:13px;font-weight:700;">'+_tkEsc(t.raisedBy)+'</span>'+(unread?'<span style="width:7px;height:7px;background:var(--accent);border-radius:50%;display:inline-block;"></span>':'')+'</div><div style="font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+desc+'</div><div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:4px;display:flex;gap:10px;"><span>'+_tkFmt(t.createdAt)+'</span><span>'+timeStr+'</span>'+(reps.length?'<span>💬 '+reps.length+'</span>':'')+'</div></div>'+_tkPill(t.status)+'</div></div>';});}
   body.innerHTML=html;
 }
 
-// ── Thread ────────────────────────────────────────────────────────
 function openTicketThread(id){
-  _tkInjectModals();
-  _tkOpenId=id;
+  _tkInjectModals();_tkOpenId=id;
   var t=_tkAll[id],me=(_currentUser&&_currentUser.name)||'',ref=tkRef();
-  if(t&&ref){
-    Object.entries(t.replies||{}).forEach(function(pair){
-      var rid=pair[0],r=pair[1];
-      if(r.from!==me&&!r.readByMaster)ref.child(id+'/replies/'+rid+'/readByMaster').set(true);
-    });
-  }
-  _tkRenderThread(id);
-  document.getElementById('tkThreadModal').classList.add('open');
+  if(t&&ref){Object.entries(t.replies||{}).forEach(function(pair){var rid=pair[0],r=pair[1];if(r.from!==me&&!r.readByMaster)ref.child(id+'/replies/'+rid+'/readByMaster').set(true);});}
+  _tkRenderThread(id);document.getElementById('tkThreadModal').classList.add('open');
 }
 function closeTicketThread(){document.getElementById('tkThreadModal').classList.remove('open');_tkOpenId=null;}
 
 function _tkRenderThread(id){
   var t=_tkAll[id];if(!t)return;
-  var me=(_currentUser&&_currentUser.name)||'';
-  var role=(_currentUser&&_currentUser.role)||'';
-  var master=role==='master'||role==='smt';
+  var me=(_currentUser&&_currentUser.name)||'',role=(_currentUser&&_currentUser.role)||'',master=role==='master'||role==='smt';
   var reps=Object.values(t.replies||{}).sort(function(a,b){return a.createdAt.localeCompare(b.createdAt);});
   var elapsed=t.resolvedAt?'Resolved in '+_tkElapsed(t.createdAt,t.resolvedAt):'Open for '+_tkElapsed(t.createdAt,null);
-
   document.getElementById('tkThdTitle').textContent=_tkCatIcon(t.category)+' '+t.raisedBy+' — '+(t.category||'ticket');
   document.getElementById('tkThdStatus').innerHTML=_tkPill(t.status);
-
-  var body=
-    '<div style="display:flex;align-items:center;gap:8px;font-family:var(--fm);font-size:11px;color:var(--text3);padding:8px 12px;background:var(--surface2);border-radius:8px;margin-bottom:14px;">'+
-      '<span>🕐</span><span>'+elapsed+'</span>'+
-      '<span style="margin-left:auto;">Raised '+_tkFmt(t.createdAt)+'</span>'+
-    '</div>'+
-    '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:13px 15px;margin-bottom:14px;">'+
-      '<div style="font-size:10px;font-weight:700;color:var(--accent);letter-spacing:.07em;text-transform:uppercase;font-family:var(--fm);margin-bottom:8px;">Original Ticket</div>'+
-      '<div style="margin-bottom:'+(t.solution?'10px':'0')+';">'+
-        '<div class="tk-lbl">Issue</div>'+
-        '<div style="font-size:13px;line-height:1.6;">'+_tkEsc(t.description)+'</div>'+
-      '</div>'+
-      (t.solution?'<div><div class="tk-lbl">Solution Required</div><div style="font-size:13px;line-height:1.6;">'+_tkEsc(t.solution)+'</div></div>':'')+
-    '</div>';
-
-  if(reps.length){
-    body+='<div class="tk-lbl" style="margin-bottom:8px;">Conversation ('+reps.length+')</div>';
-    body+='<div class="tk-thread-wrap">';
-    reps.forEach(function(r){
-      var mine=r.from===me;
-      body+=
-        '<div style="display:flex;flex-direction:column;align-items:'+(mine?'flex-end':'flex-start')+'">'+
-          '<div class="tk-bubble '+(mine?'tk-bubble-me':'tk-bubble-them')+'">'+_tkEsc(r.message)+
-            '<div class="tk-bubble-meta">'+_tkEsc(r.from)+' · '+_tkFmt(r.createdAt)+'</div>'+
-          '</div>'+
-        '</div>';
-    });
-    body+='</div>';
-  }
+  var body='<div style="display:flex;align-items:center;gap:8px;font-family:var(--fm);font-size:11px;color:var(--text3);padding:8px 12px;background:var(--surface2);border-radius:8px;margin-bottom:14px;"><span>🕐</span><span>'+elapsed+'</span><span style="margin-left:auto;">Raised '+_tkFmt(t.createdAt)+'</span></div><div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:13px 15px;margin-bottom:14px;"><div style="font-size:10px;font-weight:700;color:var(--accent);letter-spacing:.07em;text-transform:uppercase;font-family:var(--fm);margin-bottom:8px;">Original Ticket</div><div style="margin-bottom:'+(t.solution?'10px':'0')+'"><div class="tk-lbl">Issue</div><div style="font-size:13px;line-height:1.6;">'+_tkEsc(t.description)+'</div></div>'+(t.solution?'<div><div class="tk-lbl">Solution Required</div><div style="font-size:13px;line-height:1.6;">'+_tkEsc(t.solution)+'</div></div>':'')+'</div>';
+  if(reps.length){body+='<div class="tk-lbl" style="margin-bottom:8px;">Conversation ('+reps.length+')</div><div class="tk-thread-wrap">';reps.forEach(function(r){var mine=r.from===me;body+='<div style="display:flex;flex-direction:column;align-items:'+(mine?'flex-end':'flex-start')+'"><div class="tk-bubble '+(mine?'tk-bubble-me':'tk-bubble-them')+'">'+_tkEsc(r.message)+'<div class="tk-bubble-meta">'+_tkEsc(r.from)+' · '+_tkFmt(r.createdAt)+'</div></div></div>';});body+='</div>';}
   document.getElementById('tkThdBody').innerHTML=body;
   document.getElementById('tkReplyTa').value='';
-
   var btns='<button class="btn btn-p" onclick="submitTicketReply(\''+id+'\')">Send Reply</button>';
-  if(master&&t.status!=='resolved') btns+='<button class="btn" onclick="resolveTicket(\''+id+'\')" style="background:linear-gradient(135deg,var(--green),#1a9955);color:#fff;">✓ Resolved</button>';
-  if(master&&t.status==='resolved') btns+='<button class="btn btn-s" onclick="reopenTicket(\''+id+'\')">↩ Reopen</button>';
-  if(master&&t.status==='open')     btns='<button class="btn btn-s" onclick="setTicketStatus(\''+id+'\',\'inprogress\')" style="margin-right:auto;">⚙ In Progress</button>'+btns;
-  if(master&&t.status==='inprogress') btns='<button class="btn btn-s" onclick="setTicketStatus(\''+id+'\',\'open\')" style="margin-right:auto;">↩ Mark Open</button>'+btns;
+  if(master&&t.status!=='resolved')btns+='<button class="btn" onclick="resolveTicket(\''+id+'\')" style="background:linear-gradient(135deg,var(--green),#1a9955);color:#fff;">✓ Resolved</button>';
+  if(master&&t.status==='resolved')btns+='<button class="btn btn-s" onclick="reopenTicket(\''+id+'\')">↩ Reopen</button>';
+  if(master&&t.status==='open')btns='<button class="btn btn-s" onclick="setTicketStatus(\''+id+'\',\'inprogress\')" style="margin-right:auto;">⚙ In Progress</button>'+btns;
+  if(master&&t.status==='inprogress')btns='<button class="btn btn-s" onclick="setTicketStatus(\''+id+'\',\'open\')" style="margin-right:auto;">↩ Mark Open</button>'+btns;
   document.getElementById('tkReplyBtns').innerHTML=btns;
-
-  setTimeout(function(){
-    var tw=document.querySelector('.tk-thread-wrap');
-    if(tw&&tw.lastElementChild)tw.lastElementChild.scrollIntoView({behavior:'smooth'});
-  },80);
+  setTimeout(function(){var tw=document.querySelector('.tk-thread-wrap');if(tw&&tw.lastElementChild)tw.lastElementChild.scrollIntoView({behavior:'smooth'});},80);
 }
 
 function submitTicketReply(id){
-  var text=document.getElementById('tkReplyTa').value.trim();
-  if(!text){showToast('Please type a message','err');return;}
+  var text=document.getElementById('tkReplyTa').value.trim();if(!text){showToast('Please type a message','err');return;}
   var ref=tkRef();if(!ref){showToast('Not connected','err');return;}
   var rid='r_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
-  var role=(_currentUser&&_currentUser.role)||'';
-  var isMaster=role==='master'||role==='smt';
-  ref.child(id+'/replies/'+rid).set({
-    id:rid,from:(_currentUser&&_currentUser.name)||'Unknown',
-    fromRole:role,message:text,
-    createdAt:new Date().toISOString(),readByMaster:isMaster
-  }).then(function(){
-    document.getElementById('tkReplyTa').value='';
-    var t=_tkAll[id];
-    if(t&&t.status==='open'&&isMaster)ref.child(id+'/status').set('inprogress');
-  }).catch(function(){showToast('Failed to send reply','err');});
+  var role=(_currentUser&&_currentUser.role)||'',isMaster=role==='master'||role==='smt';
+  ref.child(id+'/replies/'+rid).set({id:rid,from:(_currentUser&&_currentUser.name)||'Unknown',fromRole:role,message:text,createdAt:new Date().toISOString(),readByMaster:isMaster})
+    .then(function(){document.getElementById('tkReplyTa').value='';var t=_tkAll[id];if(t&&t.status==='open'&&isMaster)ref.child(id+'/status').set('inprogress');})
+    .catch(function(){showToast('Failed to send reply','err');});
 }
 
 function resolveTicket(id){var ref=tkRef();if(!ref)return;ref.child(id).update({status:'resolved',resolvedAt:new Date().toISOString()}).then(function(){showToast('Ticket resolved ✓');}).catch(function(){showToast('Failed','err');});}
 function reopenTicket(id){var ref=tkRef();if(!ref)return;ref.child(id).update({status:'open',resolvedAt:null}).then(function(){showToast('Ticket reopened');}).catch(function(){showToast('Failed','err');});}
 function setTicketStatus(id,status){var ref=tkRef();if(!ref)return;ref.child(id+'/status').set(status).catch(function(){showToast('Failed','err');});}
 
-// ── My Tickets page ───────────────────────────────────────────────
 function renderTicketsPage(){
   var page=document.getElementById('page-tickets');if(!page)return;
-  var me=(_currentUser&&_currentUser.name)||'';
-  var role=(_currentUser&&_currentUser.role)||'';
-  var isMaster=role==='master'||role==='smt';
-  var list=Object.values(_tkAll)
-    .filter(function(t){return isMaster||t.raisedBy===me;})
-    .sort(function(a,b){return b.createdAt.localeCompare(a.createdAt);});
-
-  var html=
-    '<div style="max-width:700px;margin:0 auto;padding:20px 16px;">'+
-      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;">'+
-        '<div>'+
-          '<h2 style="margin:0;font-size:18px;font-weight:800;">🎫 '+(isMaster?'All Tickets':'My Tickets')+'</h2>'+
-          '<div style="font-size:12px;color:var(--text3);font-family:var(--fm);margin-top:2px;">'+list.length+' ticket'+(list.length!==1?'s':'')+' total</div>'+
-        '</div>'+
-        '<button class="btn" onclick="openRaiseTicket()" style="font-size:12px;background:linear-gradient(135deg,#f5a623,#e8850a);color:#fff;">+ Raise New Ticket</button>'+
-      '</div>';
-
-  if(list.length===0){
-    html+=
-      '<div style="text-align:center;padding:40px 20px;color:var(--text3);font-family:var(--fm);">'+
-        '<div style="font-size:38px;margin-bottom:10px;">🎫</div>'+
-        '<div style="font-weight:700;margin-bottom:6px;">No tickets yet</div>'+
-        '<div>Use the Raise Ticket button in the top navigation to report an issue or suggestion.</div>'+
-      '</div>';
-  } else {
-    list.forEach(function(t){
-      var reps=Object.values(t.replies||{});
-      var myUnread=reps.filter(function(r){return r.from!==me&&!r.readByMaster;}).length;
-      var elapsed=t.resolvedAt?'✓ Resolved in '+_tkElapsed(t.createdAt,t.resolvedAt):'Open for '+_tkElapsed(t.createdAt,null);
-      var desc=_tkEsc((t.description||'').slice(0,100))+((t.description||'').length>100?'…':'');
-      html+=
-        '<div class="tk-card'+(myUnread?' tk-unread':'')+'" onclick="openTicketThread(\''+t.id+'\')">'+
-          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">'+
-            '<div style="min-width:0;flex:1;">'+
-              '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">'+
-                '<span>'+_tkCatIcon(t.category)+'</span>'+
-                '<span style="font-size:13px;font-weight:700;">'+_tkEsc(t.raisedBy)+'</span>'+
-                (myUnread?'<span style="background:var(--accent);color:#fff;font-size:9px;font-weight:700;padding:1px 7px;border-radius:10px;font-family:var(--fm);">'+myUnread+' new</span>':'')+
-              '</div>'+
-              '<div style="font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+desc+'</div>'+
-              '<div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:4px;display:flex;gap:10px;flex-wrap:wrap;">'+
-                '<span>📅 '+_tkFmt(t.createdAt)+'</span>'+
-                '<span>⏱ '+elapsed+'</span>'+
-                (reps.length?'<span>💬 '+reps.length+'</span>':'')+
-              '</div>'+
-            '</div>'+
-            _tkPill(t.status)+
-          '</div>'+
-        '</div>';
-    });
-  }
-  html+='</div>';
-  page.innerHTML=html;
+  var me=(_currentUser&&_currentUser.name)||'',role=(_currentUser&&_currentUser.role)||'',isMaster=role==='master'||role==='smt';
+  var list=Object.values(_tkAll).filter(function(t){return isMaster||t.raisedBy===me;}).sort(function(a,b){return b.createdAt.localeCompare(a.createdAt);});
+  var html='<div style="max-width:700px;margin:0 auto;padding:20px 16px;"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;"><div><h2 style="margin:0;font-size:18px;font-weight:800;">🎫 '+(isMaster?'All Tickets':'My Tickets')+'</h2><div style="font-size:12px;color:var(--text3);font-family:var(--fm);margin-top:2px;">'+list.length+' ticket'+(list.length!==1?'s':'')+' total</div></div><button class="btn" onclick="openRaiseTicket()" style="font-size:12px;background:linear-gradient(135deg,#f5a623,#e8850a);color:#fff;">+ Raise New Ticket</button></div>';
+  if(list.length===0){html+='<div style="text-align:center;padding:40px 20px;color:var(--text3);font-family:var(--fm);"><div style="font-size:38px;margin-bottom:10px;">🎫</div><div style="font-weight:700;margin-bottom:6px;">No tickets yet</div><div>Use the Raise Ticket button in the top navigation.</div></div>';}
+  else{list.forEach(function(t){var reps=Object.values(t.replies||{});var myUnread=reps.filter(function(r){return r.from!==me&&!r.readByMaster;}).length;var elapsed=t.resolvedAt?'✓ Resolved in '+_tkElapsed(t.createdAt,t.resolvedAt):'Open for '+_tkElapsed(t.createdAt,null);var desc=_tkEsc((t.description||'').slice(0,100))+((t.description||'').length>100?'…':'');html+='<div class="tk-card'+(myUnread?' tk-unread':'')+'" onclick="openTicketThread(\''+t.id+'\')"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;"><div style="min-width:0;flex:1;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;"><span>'+_tkCatIcon(t.category)+'</span><span style="font-size:13px;font-weight:700;">'+_tkEsc(t.raisedBy)+'</span>'+(myUnread?'<span style="background:var(--accent);color:#fff;font-size:9px;font-weight:700;padding:1px 7px;border-radius:10px;font-family:var(--fm);">'+myUnread+' new</span>':'')+'</div><div style="font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+desc+'</div><div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:4px;display:flex;gap:10px;flex-wrap:wrap;"><span>📅 '+_tkFmt(t.createdAt)+'</span><span>⏱ '+elapsed+'</span>'+(reps.length?'<span>💬 '+reps.length+'</span>':'')+'</div></div>'+_tkPill(t.status)+'</div></div>';});}
+  html+='</div>';page.innerHTML=html;
 }
 
 function _tkEnsurePageExists(){
   if(document.getElementById('page-tickets'))return;
-  var p=document.createElement('div');
-  p.id='page-tickets';p.className='page';
-  document.body.appendChild(p);
+  var p=document.createElement('div');p.id='page-tickets';p.className='page';document.body.appendChild(p);
   var tabs=document.querySelector('.nav-tabs');
-  if(tabs&&!document.getElementById('tkNavTab')){
-    var t=document.createElement('button');
-    t.className='nav-tab';t.id='tkNavTab';t.textContent='🎫 My Tickets';
-    t.onclick=function(){showPage('tickets');renderTicketsPage();};
-    tabs.appendChild(t);
-  }
+  if(tabs&&!document.getElementById('tkNavTab')){var t=document.createElement('button');t.className='nav-tab';t.id='tkNavTab';t.textContent='🎫 My Tickets';t.onclick=function(){showPage('tickets');renderTicketsPage();};tabs.appendChild(t);}
 }
 
-// ── Init ──────────────────────────────────────────────────────────
-function _tkShow(){
-  var g=document.getElementById('tkNavGroup');
-  if(g) g.style.display='flex';
-  _tkUpdateBadge();
-}
-function _tkHide(){
-  var g=document.getElementById('tkNavGroup');
-  if(g) g.style.display='none';
-}
+function _tkShow(){var g=document.getElementById('tkNavGroup');if(g)g.style.display='flex';_tkUpdateBadge();}
+function _tkHide(){var g=document.getElementById('tkNavGroup');if(g)g.style.display='none';}
 
+// ── Init — same instant-restore pattern as Sales Feed fix above ────
 if(typeof _startWithRole==='function'){
   var _origStart_tk=_startWithRole;
   _startWithRole=function(){
@@ -21759,7 +21482,6 @@ if(typeof _startWithRole==='function'){
     return ret;
   };
 }
-
 if(typeof logoutUser==='function'){
   var _origLogout_tk=logoutUser;
   logoutUser=function(){
@@ -21769,13 +21491,18 @@ if(typeof logoutUser==='function'){
   };
 }
 
-setTimeout(function(){
-  try{
-    if(typeof _currentUser!=='undefined'&&_currentUser){
-      _tkInjectModals();_tkEnsurePageExists();startTicketListener();_tkShow();
-    }
-  }catch(e){console.warn('[tickets] restore',e);}
-},2500);
+// Instant session restore — no timeout needed
+(function(){
+  function _tkInit(){
+    try{_tkInjectModals();_tkEnsurePageExists();startTicketListener();_tkShow();}
+    catch(e){console.warn('[tickets] restore',e);}
+  }
+  if(typeof _currentUser!=='undefined'&&_currentUser){
+    _tkInit();
+  } else {
+    setTimeout(function(){if(typeof _currentUser!=='undefined'&&_currentUser)_tkInit();},100);
+  }
+})();
 
 window.openRaiseTicket=openRaiseTicket;window.closeRaiseTicket=closeRaiseTicket;
 window.submitTicket=submitTicket;window.openTicketInbox=openTicketInbox;
