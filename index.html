@@ -1832,6 +1832,12 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <button class="sidebar-item" id="sbItem-daybyday" onclick="sidebarNav('daybyday')">
         <span class="sidebar-item-icon">📆</span>Day by Day
       </button>
+      <button class="sidebar-item" id="sbItem-globalsearch" onclick="sidebarNav('globalsearch')">
+        <span class="sidebar-item-icon">🔍</span>Global Search
+      </button>
+      <button class="sidebar-item" id="sbItem-weeklystats" onclick="sidebarNav('weeklystats')">
+        <span class="sidebar-item-icon">📊</span>Weekly Stats
+      </button>
     </div>
 
     <!-- HOLIDAY -->
@@ -1859,7 +1865,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <div class="nav-brand">JG <span style="color:var(--accent)">MI</span></div>
     </div>
     <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;flex-wrap:nowrap;">
-      <!-- Ticket buttons — shown after login via JS -->
+      <!-- Ticket buttons — shown after login -->
       <div id="tkNavGroup" style="display:none;align-items:center;gap:6px;flex-shrink:0;">
         <button id="tkRaiseBtn" onclick="openRaiseTicket()"
           style="background:linear-gradient(135deg,#f5a623,#e8850a);color:#fff;border:none;
@@ -3927,7 +3933,8 @@ const ROLE_ACCESS = {
   smt:        null, // all tabs — Senior Management Team
   manager:    ['dashboard','biz','teams','summary','entry','monthlysummary','leaderboard',
                'history','daybyday','holiday','settings','manageroverview','staffperf','calloutcomes',
-               'consultantdaily','remedialmanager','bonuscalc','dailysend','compliance'],
+               'consultantdaily','remedialmanager','bonuscalc','dailysend','compliance',
+               'globalsearch','weeklystats'],
   compliance: ['compliance','calloutcomes','remedialmanager'],
   consultant: ['consultantdaily','teams','calloutcomes','holiday','bonuscalc']
 };
@@ -3971,6 +3978,8 @@ function applyRoleVisibility(){
     'sbItem-consultantdaily': 'consultantdaily',
     'sbItem-bonuscalc':       'bonuscalc',
     'sbItem-holiday':         'holiday',
+    'sbItem-globalsearch':    'globalsearch',
+    'sbItem-weeklystats':     'weeklystats',
   };
   Object.entries(sidebarPageMap).forEach(([elId, page])=>{
     const el = document.getElementById(elId);
@@ -7402,6 +7411,8 @@ function showPage(id){
   if(id==='remedialmanager'){ loadRemedials(); renderMgrRemPage(); }
   if(id==='consultantdaily'){ populateAllSelects(); renderConsultantDaily(); }
   if(id==='bonuscalc'){ if(typeof bcInit==='function') bcInit(); }
+  if(id==='globalsearch'){ renderGlobalSearch(); }
+  if(id==='weeklystats'){ renderWeeklyStats(); }
 }
 
 // ── SIDEBAR ────────────────────────────────────────────────────────
@@ -16353,30 +16364,42 @@ function _renderNotifList(){
       ${e.notes ? `<div style="font-size:11px;color:var(--text2);margin-top:4px;font-style:italic;">"${e.notes}"</div>` : ''}
     </div>`;
 
-  const renderMsgCard = m => `
+  const renderMsgCard = m => {
+    const isHol = m.type==='holiday_review';
+    const isTkt = m.type==='ticket_reply';
+    const holApproved = isHol && m.message && m.message.includes('approved');
+    const cardIcon = isTkt ? '🎫' : isHol ? (holApproved?'✅':'❌') : (m.read?'💌':'🎉');
+    const dotCol   = isTkt ? 'var(--accent)' : isHol ? (holApproved?'var(--green)':'var(--red)') : 'var(--green)';
+    const titleTxt = isTkt ? '🎫 Ticket Reply'
+      : isHol ? (holApproved?'✅ Holiday Approved':'❌ Holiday Declined')
+      : (m.read?'Message from':'✨ New message from');
+    const titleCol = isTkt ? 'var(--accent)' : isHol ? (holApproved?'var(--green)':'var(--red)') : (m.read?'var(--text2)':'var(--text)');
+    const ctaTxt   = isTkt ? 'View ticket thread →' : isHol ? (m.read?'View →':'Tap to view →') : (m.read?'View again →':'Click to view 🎊');
+    const ctaCol   = isTkt ? 'var(--accent)' : isHol ? dotCol : 'var(--green)';
+    return `
     <div class="msg-notif-card${m.read?' read':''}" onclick="viewCongratulationsMessage('${m.id}')">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-        <span style="font-size:22px;line-height:1">${m.read?'💌':'🎉'}</span>
+        <span style="font-size:22px;line-height:1">${cardIcon}</span>
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:700;color:${m.read?'var(--text2)':'var(--text)'}">
-            ${m.read?'Message from':'✨ New message from'} <span style="color:var(--green)">${m.from||'Manager'}</span>
+          <div style="font-size:13px;font-weight:700;color:${titleCol}">
+            ${titleTxt}${(!isHol&&!isTkt)?' <span style="color:var(--green)">'+(m.from||'Manager')+'</span>':''}
           </div>
           <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:1px">
             ${new Date(m.createdAt).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}
-            ${m.crmRef?' · '+m.crmRef:''}
+            ${isTkt&&m.from?' · From '+m.from:''}
+            ${(!isTkt&&!isHol&&m.crmRef)?' · '+m.crmRef:''}
           </div>
         </div>
-        ${!m.read?'<span style="width:8px;height:8px;background:var(--green);border-radius:50%;flex-shrink:0;box-shadow:0 0 6px rgba(45,206,137,.7)"></span>':''}
+        ${!m.read?`<span style="width:8px;height:8px;background:${dotCol};border-radius:50%;flex-shrink:0;box-shadow:0 0 6px ${dotCol}44"></span>`:''}
       </div>
       <div style="font-size:12px;color:var(--text2);font-family:var(--fm);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;padding-left:32px">
-        "${m.message?.slice(0,80)||''}${m.message?.length>80?'…':''}"
+        "${m.message?.slice(0,80)||''}${(m.message?.length||0)>80?'…':''}"
       </div>
       <div style="padding-left:32px;margin-top:8px">
-        <span style="font-size:11px;font-weight:700;color:var(--green);text-decoration:underline;cursor:pointer">
-          ${m.read?'View again →':'Click to view 🎊'}
-        </span>
+        <span style="font-size:11px;font-weight:700;color:${ctaCol};text-decoration:underline;cursor:pointer">${ctaTxt}</span>
       </div>
     </div>`;
+  };
 
   let html = '';
 
@@ -16561,7 +16584,39 @@ function viewCongratulationsMessage(msgId){
       .catch(()=>{});
   }
 
-  // Fill celebration screen
+  // ── Ticket reply — open My Tickets page directly ──────────────────
+  if(m.type === 'ticket_reply'){
+    if(typeof showPage==='function') showPage('tickets');
+    if(typeof renderTicketsPage==='function') renderTicketsPage();
+    // Open the thread directly if we have the ticketId
+    if(m.ticketId && typeof openTicketThread==='function'){
+      setTimeout(()=>openTicketThread(m.ticketId), 300);
+    }
+    return;
+  }
+
+  // ── Holiday review — simple info modal ────────────────────────────
+  if(m.type === 'holiday_review'){
+    const approved = m.message && m.message.includes('approved');
+    const icon     = approved ? '✅' : '❌';
+    const colour   = approved ? 'var(--green)' : 'var(--red)';
+    const title    = approved ? 'Holiday Approved' : 'Holiday Declined';
+    document.getElementById('sendMsgBody').innerHTML = `
+      <div style="text-align:center;padding:10px 0 18px">
+        <div style="font-size:52px;line-height:1;margin-bottom:12px">${icon}</div>
+        <div style="font-size:18px;font-weight:800;color:${colour};margin-bottom:10px">${title}</div>
+        <div style="font-size:14px;color:var(--text2);line-height:1.6;max-width:340px;margin:0 auto">${m.message||''}</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:12px">From ${m.from||'Manager'}</div>
+      </div>`;
+    const modal = document.getElementById('sendMsgModal');
+    const btns  = modal.querySelector('.modal-btns');
+    if(btns) btns.innerHTML = `<button class="btn btn-p" onclick="document.getElementById('sendMsgModal').classList.remove('open')" style="min-width:120px">OK</button>`;
+    modal.querySelector('.modal-title').textContent = title;
+    modal.classList.add('open');
+    return;
+  }
+
+  // ── Congratulations — full celebration screen with confetti ───────
   document.getElementById('celebMessage').textContent  = m.message||'Great work!';
   document.getElementById('celebFrom').textContent     = m.from||'Your Manager';
   const callInfo = [
@@ -16570,12 +16625,8 @@ function viewCongratulationsMessage(msgId){
     m.outcome ? _outcomeLabel(m.outcome) : ''
   ].filter(Boolean).join('  ·  ');
   document.getElementById('celebCallInfo').textContent = callInfo;
-
-  // Show overlay
   const overlay = document.getElementById('celebrationOverlay');
   overlay.classList.add('show');
-
-  // Launch confetti & stars
   _launchConfetti();
   _launchStars();
 }
@@ -21253,19 +21304,17 @@ if(typeof logoutUser === 'function'){
   };
 }
 
-// ── Session restore — init immediately if user already set ─────────
-(function(){
-  function _sfInit(){
-    try{
+// ── Kick-start on session restore (parallel to Kudos pattern) ─────
+setTimeout(()=>{
+  try{
+    if(typeof _currentUser !== 'undefined' && _currentUser){
       _ensureSalesFeedPageExists();
       startSalesFeedListener();
       startSalesFeedCheerListener();
       _sfRequestNotifPermission();
-    }catch(e){ console.warn('[salesFeed] restore', e); }
-  }
-  if(typeof _currentUser !== 'undefined' && _currentUser){ _sfInit(); }
-  else{ setTimeout(function(){ if(typeof _currentUser!=='undefined'&&_currentUser) _sfInit(); }, 100); }
-})();
+    }
+  }catch(e){ console.warn('[salesFeed] restore', e); }
+}, 2000);
 
 // Expose for onclick handlers
 window.toggleSalesFeedReaction = toggleSalesFeedReaction;
@@ -21274,6 +21323,322 @@ window.renderSalesFeed         = renderSalesFeed;
 window._sfPostSale             = _sfPostSale;   // direct posting hook for save/approve paths
 
 })(); // end Sales Feed module
+
+
+// ═══════════════════════════════════════════════════════════════════
+// GLOBAL SEARCH
+// ═══════════════════════════════════════════════════════════════════
+function renderGlobalSearch(){
+  var page = document.getElementById('page-globalsearch');
+  if(!page) return;
+  page.innerHTML =
+    '<div style="max-width:800px;margin:0 auto;padding:24px 16px;">' +
+      '<h2 style="margin:0 0 6px;font-size:20px;font-weight:800;">🔍 Global Search</h2>' +
+      '<div style="font-size:12px;color:var(--text3);font-family:var(--fm);margin-bottom:20px;">Search across consultants, entries, CRM references and tickets</div>' +
+      '<div style="position:relative;margin-bottom:24px;">' +
+        '<input id="gsInput" type="text" placeholder="Search by name, date (YYYY-MM-DD), CRM ref, or keyword…"' +
+          ' style="width:100%;background:var(--surface2);border:1.5px solid var(--border2);border-radius:12px;' +
+          'padding:14px 50px 14px 18px;font-size:15px;font-family:var(--fh);color:var(--text);' +
+          'outline:none;box-sizing:border-box;transition:border-color .2s;"' +
+          ' oninput="gsRunSearch()" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'var(--border2)\'">' +
+        '<span style="position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:20px;pointer-events:none;">🔍</span>' +
+      '</div>' +
+      '<div id="gsResults"><div style="text-align:center;padding:40px;color:var(--text3);font-family:var(--fm);font-size:13px;">Start typing to search…</div></div>' +
+    '</div>';
+  setTimeout(function(){ var el=document.getElementById('gsInput'); if(el) el.focus(); }, 150);
+}
+
+function gsRunSearch(){
+  var q = (document.getElementById('gsInput').value||'').trim().toLowerCase();
+  var out = document.getElementById('gsResults');
+  if(!q || q.length < 2){
+    out.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3);font-family:var(--fm);font-size:13px;">Type at least 2 characters…</div>';
+    return;
+  }
+
+  var mk = APP.activeMonth;
+  var results = [];
+
+  // ── Search consultants ───────────────────────────────────────────
+  (APP.people||[]).forEach(function(p){
+    if(p.name.toLowerCase().includes(q)){
+      results.push({
+        type:'person', icon:'👤', label:p.name,
+        sub:'Consultant · '+p.role+' · '+p.divKey,
+        action:'showPage(\'person\'); renderPersonPage && renderPersonPage(\''+p.name.replace(/'/g,"\\'")+'\')',
+        highlight: p.name
+      });
+    }
+  });
+
+  // ── Search entries (all months) ──────────────────────────────────
+  var entryHits = [];
+  Object.keys(APP.months||{}).forEach(function(monthKey){
+    var entries = getEntries(monthKey);
+    entries.forEach(function(e){
+      var matched = false;
+      var matchReason = '';
+      if(e.name && e.name.toLowerCase().includes(q)){ matched=true; matchReason='Name match'; }
+      if(e.date && e.date.includes(q)){ matched=true; matchReason='Date: '+e.date; }
+      // Search CRM refs in deals
+      var deals = e.deals || [];
+      if(!Array.isArray(deals)) deals = Object.values(deals);
+      deals.forEach(function(d){
+        if(d.swiftRef && d.swiftRef.toLowerCase().includes(q)){ matched=true; matchReason='CRM: '+d.swiftRef; }
+      });
+      if(matched && entryHits.length < 30){
+        entryHits.push({
+          type:'entry', icon:'💰', label:e.name+' — '+e.date,
+          sub:(matchReason||'Entry')+' · £'+parseFloat(e.revenue||0).toLocaleString()+' · '+monthKey,
+          action:'showPage(\'entry\'); document.getElementById(\'entryDate\') && (document.getElementById(\'entryDate\').value=\''+e.date+'\') && buildEntryRows && buildEntryRows()',
+          highlight: e.name
+        });
+      }
+    });
+  });
+  results = results.concat(entryHits);
+
+  // ── Search tickets ───────────────────────────────────────────────
+  if(typeof _tkAll !== 'undefined'){
+    Object.values(_tkAll).forEach(function(t){
+      var matched = false;
+      if(t.description && t.description.toLowerCase().includes(q)) matched=true;
+      if(t.raisedBy && t.raisedBy.toLowerCase().includes(q)) matched=true;
+      if(t.solution && t.solution.toLowerCase().includes(q)) matched=true;
+      var reps = Object.values(t.replies||{});
+      reps.forEach(function(r){ if(r.message && r.message.toLowerCase().includes(q)) matched=true; });
+      if(matched){
+        results.push({
+          type:'ticket', icon:'🎫', label:'Ticket — '+t.raisedBy,
+          sub:(t.status==='resolved'?'✓ Resolved':'● Open')+' · '+(t.category||'other')+' · '+new Date(t.createdAt).toLocaleDateString('en-GB'),
+          action:'openTicketThread && openTicketThread(\''+t.id+'\')',
+          highlight: t.raisedBy
+        });
+      }
+    });
+  }
+
+  // ── Render results ───────────────────────────────────────────────
+  if(!results.length){
+    out.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text3);font-family:var(--fm);font-size:13px;">No results found for "<strong>'+q+'</strong>"</div>';
+    return;
+  }
+
+  var groups = {person:[], entry:[], ticket:[]};
+  results.forEach(function(r){ (groups[r.type]||[]).push(r); });
+  var groupLabels = {person:'👤 Consultants', entry:'💰 Entries & CRM Refs', ticket:'🎫 Tickets'};
+  var html = '<div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:12px;">'+results.length+' result'+(results.length!==1?'s':'')+' for "'+q+'"</div>';
+
+  ['person','entry','ticket'].forEach(function(type){
+    var items = groups[type];
+    if(!items||!items.length) return;
+    html += '<div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;font-family:var(--fm);margin:16px 0 8px;">'+groupLabels[type]+' ('+items.length+')</div>';
+    items.slice(0,20).forEach(function(r){
+      html +=
+        '<div onclick="closeSidebar();'+r.action+'" style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:13px 16px;margin-bottom:8px;cursor:pointer;transition:border-color .15s,transform .1s;display:flex;align-items:center;gap:14px;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.transform=\'translateX(3px)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'\'">'+
+          '<span style="font-size:22px;flex-shrink:0">'+r.icon+'</span>'+
+          '<div style="min-width:0;flex:1;">'+
+            '<div style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+r.label+'</div>'+
+            '<div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+r.sub+'</div>'+
+          '</div>'+
+          '<span style="color:var(--text3);font-size:14px;flex-shrink:0;">→</span>'+
+        '</div>';
+    });
+    if(items.length > 20){
+      html += '<div style="font-size:11px;color:var(--text3);font-family:var(--fm);text-align:center;padding:6px;">…and '+(items.length-20)+' more. Refine your search.</div>';
+    }
+  });
+  out.innerHTML = html;
+}
+window.gsRunSearch = gsRunSearch;
+
+
+// ═══════════════════════════════════════════════════════════════════
+// WEEKLY STATS
+// ═══════════════════════════════════════════════════════════════════
+function renderWeeklyStats(){
+  var page = document.getElementById('page-weeklystats');
+  if(!page) return;
+
+  var mk   = APP.activeMonth;
+  var role = (_currentUser&&_currentUser.role)||'';
+  var entries = getEntries(mk);
+
+  // Get the year/month
+  var yr = parseInt(mk.slice(0,4)), mo = parseInt(mk.slice(5,7))-1;
+
+  // Build all Mon–Fri dates in this month grouped by ISO week
+  var weeks = [];
+  var d = new Date(yr, mo, 1);
+  // Walk to first Monday on or before month start
+  while(d.getDay()!==1) d.setDate(d.getDate()-1);
+  while(d <= new Date(yr, mo+1, 0)){
+    var weekStart = new Date(d);
+    var days = [];
+    for(var i=0;i<5;i++){
+      var dd = new Date(d);
+      dd.setDate(d.getDate()+i);
+      if(dd.getMonth()===mo){
+        var ds = dd.toISOString().slice(0,10);
+        if(!isBankHoliday(ds) && dd.getDay()!==0 && dd.getDay()!==6) days.push(ds);
+      }
+    }
+    if(days.length) weeks.push({start:new Date(weekStart), days:days});
+    d.setDate(d.getDate()+7);
+  }
+
+  // Get teams
+  var teams = APP.teams||{};
+  var teamKeys = Object.keys(teams).filter(function(k){ return teams[k]&&teams[k].length; });
+  var allPeople = (APP.people||[]).filter(function(p){ return personTargetForMonth(p,mk)>0; });
+
+  // Build monthly targets per person
+  var monthlyTargets = {};
+  allPeople.forEach(function(p){ monthlyTargets[p.name] = personTarget(p)||0; });
+
+  // Calculate weekly pro-rata target: (weekWorkingDays / monthWorkingDays) * monthTarget
+  var totalWorkDays = 0;
+  weeks.forEach(function(w){ totalWorkDays += w.days.length; });
+  if(!totalWorkDays) totalWorkDays = 1;
+
+  var fmtRev = function(v){ return '£'+Math.round(v).toLocaleString(); };
+  var fmtPct = function(v,t){ if(!t) return '—'; var p=Math.round(v/t*100); return p+'%'; };
+
+  var html =
+    '<div style="max-width:900px;margin:0 auto;padding:20px 16px;">'+
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:10px;">'+
+      '<div>'+
+        '<h2 style="margin:0;font-size:20px;font-weight:800;">📊 Weekly Stats</h2>'+
+        '<div style="font-size:12px;color:var(--text3);font-family:var(--fm);margin-top:2px;">'+mk+' · '+weeks.length+' weeks · '+totalWorkDays+' working days</div>'+
+      '</div>'+
+      '<div style="display:flex;align-items:center;gap:8px;">'+
+        '<span style="font-size:10px;font-weight:600;color:var(--text3);font-family:var(--fm);text-transform:uppercase;letter-spacing:.06em;">Month</span>'+
+        '<select id="wsMonthSel" onchange="renderWeeklyStats()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:4px 8px;font-size:12px;font-family:var(--fm);color:var(--text);outline:none;cursor:pointer;">'+
+          (function(){
+            var opts=''; var mks=Object.keys(APP.months||{}).sort().reverse();
+            mks.forEach(function(m){ opts+='<option value="'+m+'"'+(m===mk?' selected':'')+'>'+m+'</option>'; });
+            return opts;
+          })()+
+        '</select>'+
+      '</div>'+
+    '</div>';
+
+  // Week summary row (totals across whole team per week)
+  html += '<div style="display:grid;grid-template-columns:repeat('+weeks.length+',1fr);gap:8px;margin:18px 0;">';
+  weeks.forEach(function(w){
+    var wRev=0, wNm=0;
+    entries.forEach(function(e){ if(w.days.indexOf(e.date)!==-1){ wRev+=e.revenue||0; wNm+=e.nm||0; } });
+    var wTarget = allPeople.reduce(function(s,p){ return s+(monthlyTargets[p.name]||0)*w.days.length/totalWorkDays; },0);
+    var pct = wTarget>0 ? Math.round(wRev/wTarget*100) : 0;
+    var col = pct>=100?'var(--green)':pct>=75?'var(--amber)':'var(--red)';
+    var startLbl = w.days[0].slice(5).replace('-','/');
+    var endLbl   = w.days[w.days.length-1].slice(5).replace('-','/');
+    html +=
+      '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:13px 14px;text-align:center;">'+
+        '<div style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);margin-bottom:6px;">'+startLbl+' – '+endLbl+'</div>'+
+        '<div style="font-size:17px;font-weight:800;color:var(--green);">'+fmtRev(wRev)+'</div>'+
+        '<div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin:2px 0;">'+wNm+' NM</div>'+
+        '<div style="font-size:12px;font-weight:700;color:'+col+';">'+pct+'% of target</div>'+
+        '<div style="margin-top:7px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;">'+
+          '<div style="height:100%;width:'+Math.min(pct,100)+'%;background:'+col+';border-radius:2px;transition:width .4s;"></div>'+
+        '</div>'+
+      '</div>';
+  });
+  html += '</div>';
+
+  // Per-team breakdown
+  var renderGroup = function(label, people, icon){
+    if(!people.length) return '';
+    var s = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:16px;overflow:hidden;">'+
+      '<div style="padding:14px 18px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">'+
+        '<span style="font-size:16px">'+icon+'</span>'+
+        '<span style="font-size:14px;font-weight:800;">'+label+'</span>'+
+        '<span style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-left:4px;">('+people.length+')</span>'+
+      '</div>'+
+      '<div style="overflow-x:auto;">'+
+      '<table style="width:100%;border-collapse:collapse;font-size:12px;">'+
+      '<thead><tr style="background:var(--surface2);">'+
+        '<th style="padding:10px 14px;text-align:left;font-family:var(--fm);font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);white-space:nowrap;border-bottom:1px solid var(--border);">Consultant</th>';
+    weeks.forEach(function(w){
+      var lbl = w.days[0].slice(5).replace('-','/')+'–'+w.days[w.days.length-1].slice(5).replace('-','/');
+      s += '<th style="padding:10px 10px;text-align:center;font-family:var(--fm);font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);white-space:nowrap;border-bottom:1px solid var(--border);">'+lbl+'</th>';
+    });
+    s += '<th style="padding:10px 14px;text-align:right;font-family:var(--fm);font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);white-space:nowrap;border-bottom:1px solid var(--border);">MTD Total</th></tr></thead><tbody>';
+
+    people.forEach(function(p){
+      var personEntries = entries.filter(function(e){ return e.name===p.name; });
+      var mtdRev = personEntries.reduce(function(s,e){ return s+(e.revenue||0); },0);
+      var mtdNm  = personEntries.reduce(function(s,e){ return s+(e.nm||0); },0);
+      var mTarget = monthlyTargets[p.name]||0;
+      var mtdPct = mTarget>0?Math.round(mtdRev/mTarget*100):0;
+      var mtdCol = mtdPct>=100?'var(--green)':mtdPct>=75?'var(--amber)':'var(--red)';
+      s += '<tr style="border-bottom:1px solid var(--border);" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'\'">'+
+        '<td style="padding:11px 14px;font-weight:700;white-space:nowrap;">'+p.name+'</td>';
+      weeks.forEach(function(w){
+        var wEntries = personEntries.filter(function(e){ return w.days.indexOf(e.date)!==-1; });
+        var wRev = wEntries.reduce(function(s,e){ return s+(e.revenue||0); },0);
+        var wNm  = wEntries.reduce(function(s,e){ return s+(e.nm||0); },0);
+        var wTarget = mTarget * w.days.length / totalWorkDays;
+        var wpct = wTarget>0?Math.round(wRev/wTarget*100):0;
+        var wCol = wpct>=100?'var(--green)':wpct>=75?'var(--amber)':wRev>0?'var(--red)':'var(--text3)';
+        s += '<td style="padding:11px 10px;text-align:center;">'+
+          (wRev>0 ?
+            '<div style="font-weight:700;color:var(--text);">'+fmtRev(wRev)+'</div>'+
+            '<div style="font-size:10px;color:var(--text3);font-family:var(--fm);">'+(wNm>0?wNm+' NM · ':'')+'<span style="color:'+wCol+'">'+wpct+'%</span></div>'
+            : '<span style="color:var(--text3);font-size:11px;">—</span>')+
+        '</td>';
+      });
+      s += '<td style="padding:11px 14px;text-align:right;">'+
+        '<div style="font-weight:800;color:'+mtdCol+';">'+fmtRev(mtdRev)+'</div>'+
+        '<div style="font-size:10px;color:var(--text3);font-family:var(--fm);">'+(mtdNm>0?mtdNm+' NM · ':'')+mtdPct+'%</div>'+
+      '</td></tr>';
+    });
+    // Team totals row
+    var tRev = people.reduce(function(s,p){ return s+entries.filter(function(e){return e.name===p.name;}).reduce(function(ss,e){return ss+(e.revenue||0);},0); },0);
+    var tNm  = people.reduce(function(s,p){ return s+entries.filter(function(e){return e.name===p.name;}).reduce(function(ss,e){return ss+(e.nm||0);},0); },0);
+    var tTgt = people.reduce(function(s,p){ return s+(monthlyTargets[p.name]||0); },0);
+    var tPct = tTgt>0?Math.round(tRev/tTgt*100):0;
+    var tCol = tPct>=100?'var(--green)':tPct>=75?'var(--amber)':'var(--red)';
+    s += '<tr style="background:var(--surface2);font-weight:700;border-top:2px solid var(--border);">'+
+      '<td style="padding:11px 14px;font-family:var(--fm);font-size:11px;text-transform:uppercase;letter-spacing:.06em;">TEAM TOTAL</td>';
+    weeks.forEach(function(w){
+      var wRev = people.reduce(function(s,p){ return s+entries.filter(function(e){return e.name===p.name&&w.days.indexOf(e.date)!==-1;}).reduce(function(ss,e){return ss+(e.revenue||0);},0); },0);
+      var wNm  = people.reduce(function(s,p){ return s+entries.filter(function(e){return e.name===p.name&&w.days.indexOf(e.date)!==-1;}).reduce(function(ss,e){return ss+(e.nm||0);},0); },0);
+      var wTgt = tTgt * w.days.length / totalWorkDays;
+      var wp   = wTgt>0?Math.round(wRev/wTgt*100):0;
+      var wc   = wp>=100?'var(--green)':wp>=75?'var(--amber)':wRev>0?'var(--red)':'var(--text3)';
+      s += '<td style="padding:11px 10px;text-align:center;">'+
+        (wRev>0 ? '<div style="font-weight:800;">'+fmtRev(wRev)+'</div><div style="font-size:10px;color:'+wc+';font-family:var(--fm);">'+(wNm>0?wNm+' NM · ':'')+wp+'%</div>' : '<span style="color:var(--text3);">—</span>')+
+      '</td>';
+    });
+    s += '<td style="padding:11px 14px;text-align:right;"><div style="font-weight:800;color:'+tCol+';">'+fmtRev(tRev)+'</div><div style="font-size:10px;color:var(--text3);font-family:var(--fm);">'+(tNm>0?tNm+' NM · ':'')+tPct+'%</div></td></tr>';
+    s += '</tbody></table></div></div>';
+    return s;
+  };
+
+  // Render each team, then ungrouped
+  var teamsHtml = '';
+  var groupedNames = new Set();
+  teamKeys.forEach(function(tk){
+    var members = (teams[tk]||[]).filter(function(name){ return allPeople.some(function(p){ return p.name===name; }); });
+    if(!members.length) return;
+    var people = members.map(function(name){ return allPeople.find(function(p){ return p.name===name; }); }).filter(Boolean);
+    people.forEach(function(p){ groupedNames.add(p.name); });
+    teamsHtml += renderGroup(tk, people, '👥');
+  });
+  var ungrouped = allPeople.filter(function(p){ return !groupedNames.has(p.name); });
+  if(ungrouped.length) teamsHtml += renderGroup('No Team Assigned', ungrouped, '🧑');
+  if(!teamsHtml) teamsHtml = renderGroup('All Consultants', allPeople, '👥');
+
+  html += teamsHtml + '</div>';
+  page.innerHTML = html;
+
+  // Wire month selector
+  var sel = document.getElementById('wsMonthSel');
+  if(sel) sel.onchange = function(){ APP.activeMonth = this.value; renderWeeklyStats(); };
+}
+window.renderWeeklyStats = renderWeeklyStats;
+window.renderGlobalSearch = renderGlobalSearch;
 
 
 // ═══════════════════════════════════════════════════════════════════
@@ -21418,15 +21783,44 @@ function _tkRenderThread(id){
   document.getElementById('tkReplyBtns').innerHTML=btns;
   setTimeout(function(){var tw=document.querySelector('.tk-thread-wrap');if(tw&&tw.lastElementChild)tw.lastElementChild.scrollIntoView({behavior:'smooth'});},80);
 }
+
 function submitTicketReply(id){
   var text=document.getElementById('tkReplyTa').value.trim();if(!text){showToast('Please type a message','err');return;}
   var ref=tkRef();if(!ref){showToast('Not connected','err');return;}
   var rid='r_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
   var role=(_currentUser&&_currentUser.role)||'',isMaster=role==='master'||role==='smt';
-  ref.child(id+'/replies/'+rid).set({id:rid,from:(_currentUser&&_currentUser.name)||'Unknown',fromRole:role,message:text,createdAt:new Date().toISOString(),readByMaster:isMaster})
-    .then(function(){document.getElementById('tkReplyTa').value='';var t=_tkAll[id];if(t&&t.status==='open'&&isMaster)ref.child(id+'/status').set('inprogress');})
+  var senderName=(_currentUser&&_currentUser.name)||'Unknown';
+  var t=_tkAll[id];
+  ref.child(id+'/replies/'+rid).set({id:rid,from:senderName,fromRole:role,message:text,createdAt:new Date().toISOString(),readByMaster:isMaster})
+    .then(function(){
+      document.getElementById('tkReplyTa').value='';
+      if(t&&t.status==='open'&&isMaster) ref.child(id+'/status').set('inprogress');
+      // ── Notify the other party via the messages system ────────────
+      // If master replied → notify the original ticket raiser
+      // If consultant replied → notify masters (via badge only; no inbox message needed)
+      if(isMaster && t && t.raisedBy && t.raisedBy!==senderName){
+        var msgRef=typeof _msgsRef==='function'?_msgsRef():null;
+        if(msgRef){
+          var mid='msg_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+          msgRef.child(mid).set({
+            id:mid,
+            to:t.raisedBy,
+            from:senderName,
+            fromRole:role,
+            message:text,
+            type:'ticket_reply',
+            ticketId:id,
+            ticketDesc:(t.description||'').slice(0,80),
+            read:false,
+            createdAt:new Date().toISOString(),
+            divKey:_currentDivKey||'branch'
+          }).catch(function(){});
+        }
+      }
+    })
     .catch(function(){showToast('Failed to send reply','err');});
 }
+
 function resolveTicket(id){var ref=tkRef();if(!ref)return;ref.child(id).update({status:'resolved',resolvedAt:new Date().toISOString()}).then(function(){showToast('Ticket resolved ✓');}).catch(function(){showToast('Failed','err');});}
 function reopenTicket(id){var ref=tkRef();if(!ref)return;ref.child(id).update({status:'open',resolvedAt:null}).then(function(){showToast('Ticket reopened');}).catch(function(){showToast('Failed','err');});}
 function setTicketStatus(id,st){var ref=tkRef();if(!ref)return;ref.child(id+'/status').set(st).catch(function(){showToast('Failed','err');});}
@@ -21460,7 +21854,6 @@ if(typeof logoutUser==='function'){
   logoutUser=function(){try{stopTicketListener();}catch(e){}try{_tkHide();}catch(e){}return _origLogout_tk.apply(this,arguments);};
 }
 
-// Instant session restore — no timeout
 (function(){
   function _tkInit(){try{_tkInjectModals();_tkEnsurePageExists();startTicketListener();_tkShow();}catch(e){console.warn('[tickets] restore',e);}}
   if(typeof _currentUser!=='undefined'&&_currentUser){_tkInit();}
@@ -21471,11 +21864,17 @@ window.openRaiseTicket=openRaiseTicket;window.closeRaiseTicket=closeRaiseTicket;
 window.openTicketInbox=openTicketInbox;window.closeTicketInbox=closeTicketInbox;window.renderTicketInbox=renderTicketInbox;
 window.openTicketThread=openTicketThread;window.closeTicketThread=closeTicketThread;window.submitTicketReply=submitTicketReply;
 window.resolveTicket=resolveTicket;window.reopenTicket=reopenTicket;window.setTicketStatus=setTicketStatus;window.renderTicketsPage=renderTicketsPage;
+window._tkAll=_tkAll;
 
 })(); // end Ticket System module
 
 
 </script>
+
+<!-- Global Search page -->
+<div class="page" id="page-globalsearch"></div>
+<!-- Weekly Stats page -->
+<div class="page" id="page-weeklystats"></div>
 
 </body>
 </html>
