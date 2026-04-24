@@ -4552,6 +4552,9 @@ let APP = {
 
 // ── month key helpers ──────────────────────────────────────────────
 function monthLabel(k){
+  const [y,m]=k.split('-');
+  return new Date(y,m-1,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+}
 // ── Global date helpers — always DD/MM/YYYY ─────────────────────────
 // _fmtD   : full date          → "05/01/2025"
 // _fmtDS  : short (no year)   → "05/01"
@@ -4601,9 +4604,6 @@ function _fmtWDL(d){
 window._fmtD=_fmtD; window._fmtDS=_fmtDS; window._fmtDT=_fmtDT; window._fmtDTS=_fmtDTS;
 window._fmtWD=_fmtWD; window._fmtWDY=_fmtWDY; window._fmtWDL=_fmtWDL;
 // ── End date helpers ────────────────────────────────────────────────
-  const [y,m]=k.split('-');
-  return new Date(y,m-1,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
-}
 function allMonthKeys(){
   const keys=Object.keys(APP.months);
   if(!keys.includes(APP.activeMonth)) keys.push(APP.activeMonth);
@@ -17998,7 +17998,7 @@ const _presenceRef = () => _dbRef
   ? _db.ref((DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey+'/presence')
   : null;
 
-let _presenceData  = {};
+var _presenceData  = {};
 let _presenceListener = null;
 let _myPresenceRef = null;
 
