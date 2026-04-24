@@ -4552,6 +4552,55 @@ let APP = {
 
 // ── month key helpers ──────────────────────────────────────────────
 function monthLabel(k){
+// ── Global date helpers — always DD/MM/YYYY ─────────────────────────
+// _fmtD   : full date          → "05/01/2025"
+// _fmtDS  : short (no year)   → "05/01"
+// _fmtDT  : date + time       → "05/01/2025 14:30"
+// _fmtDTS : short + time      → "05/01 14:30"
+// _fmtWD  : weekday short     → "Mon 05/01"
+// _fmtWDY : weekday + year    → "Mon 05/01/2025"
+// _fmtWDL : weekday long+year → "Monday 05/01/2025"
+function _fmtD(d){
+  var dt=(d instanceof Date)?d:new Date(typeof d==='string'&&d.length===10?d+'T12:00:00':d);
+  if(isNaN(dt))return String(d||'—');
+  return String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0')+'/'+dt.getFullYear();
+}
+function _fmtDS(d){
+  var dt=(d instanceof Date)?d:new Date(typeof d==='string'&&d.length===10?d+'T12:00:00':d);
+  if(isNaN(dt))return String(d||'—');
+  return String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0');
+}
+function _fmtDT(d){
+  var dt=(d instanceof Date)?d:new Date(d);
+  if(isNaN(dt))return String(d||'—');
+  return String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0')+'/'+dt.getFullYear()+' '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
+}
+function _fmtDTS(d){
+  var dt=(d instanceof Date)?d:new Date(d);
+  if(isNaN(dt))return String(d||'—');
+  return String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0')+' '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
+}
+var _WD_SHORT=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+var _WD_LONG=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+function _fmtWD(d){
+  var dt=(d instanceof Date)?d:new Date(typeof d==='string'&&d.length===10?d+'T12:00:00':d);
+  if(isNaN(dt))return String(d||'—');
+  return _WD_SHORT[dt.getDay()]+' '+String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0');
+}
+function _fmtWDY(d){
+  var dt=(d instanceof Date)?d:new Date(typeof d==='string'&&d.length===10?d+'T12:00:00':d);
+  if(isNaN(dt))return String(d||'—');
+  return _WD_SHORT[dt.getDay()]+' '+String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0')+'/'+dt.getFullYear();
+}
+function _fmtWDL(d){
+  var dt=(d instanceof Date)?d:new Date(typeof d==='string'&&d.length===10?d+'T12:00:00':d);
+  if(isNaN(dt))return String(d||'—');
+  return _WD_LONG[dt.getDay()]+' '+String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0')+'/'+dt.getFullYear();
+}
+// Also expose globally so modules can use them
+window._fmtD=_fmtD; window._fmtDS=_fmtDS; window._fmtDT=_fmtDT; window._fmtDTS=_fmtDTS;
+window._fmtWD=_fmtWD; window._fmtWDY=_fmtWDY; window._fmtWDL=_fmtWDL;
+// ── End date helpers ────────────────────────────────────────────────
   const [y,m]=k.split('-');
   return new Date(y,m-1,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'});
 }
@@ -5252,7 +5301,7 @@ function holCellClick(el){
 }
 
 function _dateFmt(ds){
-  return new Date(ds+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  return _fmtWDL(ds+'T12:00:00');
 }
 
 function _showBookingStep1(name, ds, existing){
@@ -6310,7 +6359,7 @@ function renderDashboard(){
     const diffCls     = diff>=0?'var(--green)':'var(--red)';
     const nmDiffCls   = nmDiff>=0?'var(--green)':'var(--red)';
     const mtdDiffCls  = mtdDiff>=0?'var(--green)':'var(--red)';
-    const dateLabel   = new Date(ds).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+    const dateLabel   = _fmtWD(ds);
 
     dashTableRows += `<tr style="border-bottom:1px solid var(--border);font-size:12px;font-family:var(--fm);">
       <td style="padding:8px 14px;color:var(--text2);white-space:nowrap">${dateLabel}</td>
@@ -6422,7 +6471,7 @@ function buildEntryRows(){
   const dayRev = dayEntries.reduce((s,e)=>s+(e.revenue||0),0);
   const dayNM  = dayEntries.reduce((s,e)=>s+(e.nm||0),0);
   document.getElementById('entrySummary').innerHTML =
-    `Date: <b>${date||'—'}</b><br>Day rev: £${Math.round(dayRev).toLocaleString()}<br>Day NM: ${dayNM}<br>Entries: ${dayEntries.length}`;
+    `Date: <b>${date?_fmtD(date):'—'}</b><br>Day rev: £${Math.round(dayRev).toLocaleString()}<br>Day NM: ${dayNM}<br>Entries: ${dayEntries.length}`;
 }
 
 
@@ -6659,7 +6708,7 @@ function renderHistory(resetPage){
           : '';
         html.push(`<div class="hist-row${isFirst?' group-first':''}">
           <div style="line-height:1.4">
-            ${isFirst?`<span style="color:var(--text2)">${e.date.slice(5).replace('-','/')}</span>`:'<span style="color:var(--text3);font-size:10px">↳</span>'}
+            ${isFirst?`<span style="color:var(--text2)">${_fmtDS(e.date)}</span>`:'<span style="color:var(--text3);font-size:10px">↳</span>'}
             ${timeStr?`<div style="font-size:10px;color:var(--text3)">${timeStr}</div>`:''}
           </div>
           <div>${isFirst?`<span style="font-weight:600">${e.name}</span>`:`<span style="color:var(--text3);font-size:11px">${e.name}</span>`}</div>
@@ -7932,7 +7981,7 @@ document.addEventListener('keydown', function(e){
 function renderDailySend(){
   populateAllSelects();
   const mk = document.getElementById('dsMonth')?.value || APP.activeMonth;
-  document.getElementById('ds-sub').textContent = monthLabel(mk) + ' · ' + new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('ds-sub').textContent = monthLabel(mk) + ' · ' + _fmtWDL();
   const content = document.getElementById('dsContent');
   content.innerHTML = `<div class="empty"><div style="font-size:20px;margin-bottom:8px">⏳</div><div>Loading division data…</div></div>`;
 
@@ -8204,7 +8253,7 @@ function renderDailySend(){
     const elapsedDates = allWD.slice(0, elapsedWD);
     const xLabels = elapsedDates.map(ds => {
       const d = new Date(ds);
-      return d.toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+      return d.toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'});
     });
     // On-track line: linear % for each elapsed day
     const onTrackLine = elapsedDates.map((_,i) => parseFloat(((i+1)/totalWD*100).toFixed(1)));
@@ -8832,7 +8881,7 @@ function renderSpTable(){
       { icon:'📉', label:'Lowest Month', val: _worstMo ? SP_MONTH_NAMES[_worstMo.idx] : '—',
         sub: _worstMo ? '£'+Math.round(_worstMo.actual).toLocaleString()+(_worstMo.pct!==null?' · '+_worstMo.pct+'%':'') : '' },
       { icon:'💰', label:'Best Single Day', val: _bestDay.ds ? '£'+Math.round(_bestDay.rev).toLocaleString() : '—',
-        sub: _bestDay.ds ? (new Date(_bestDay.ds)).toLocaleDateString('en-GB',{day:'numeric',month:'short'})+(_bestDay.name?' · '+_bestDay.name:'') : '' },
+        sub: _bestDay.ds ? (new Date(_bestDay.ds)).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'})+(_bestDay.name?' · '+_bestDay.name:'') : '' },
       { icon:'🎯', label:'Consistency', val: _consistPct!==null?_consistPct+'%':'—',
         sub: _totalWorked>0?_totalHits+' sales days / '+_totalWorked+' worked':'' },
       { icon:'📊', label:'Months Above Target', val: _aboveTgt+' / '+(allMonthlyData.filter(r=>r.pct!==null).length),
@@ -9391,7 +9440,7 @@ function _openAssessmentPDF(d){
     <div class="hdr">
       <div>
         <div class="hdr-title">🛡 Compliance Assessment</div>
-        <div class="hdr-sub">Submitted ${new Date(d.submittedAt||Date.now()).toLocaleString('en-GB')} · ${(d.team||d.teamKey||'').toUpperCase()}</div>
+        <div class="hdr-sub">Submitted ${_fmtDT(d.submittedAt||Date.now())} · ${(d.team||d.teamKey||'').toUpperCase()}</div>
       </div>
       <div class="outcome-pill">${outLabel(d.initialOutcome)}</div>
     </div>
@@ -9636,7 +9685,7 @@ function _refreshMtdSummary(){
     const d=new Date(ds+'T12:00:00'), day=d.getDay()||7;
     const mon=new Date(d); mon.setDate(d.getDate()-day+1);
     const wk=_localDateStr(mon);
-    if(!weekMap[wk]) weekMap[wk]={label:'W/C '+mon.toLocaleDateString('en-GB',{day:'numeric',month:'short'}),total:0,fair:0,fwl:0,unfair:0};
+    if(!weekMap[wk]) weekMap[wk]={label:'W/C '+mon.toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'}),total:0,fair:0,fwl:0,unfair:0};
     const b=byDate[ds]||{total:0,fair:0,fwl:0,unfair:0};
     weekMap[wk].total+=b.total; weekMap[wk].fair+=b.fair; weekMap[wk].fwl+=b.fwl; weekMap[wk].unfair+=b.unfair;
   });
@@ -9848,7 +9897,7 @@ function exportComplianceCSV(){
     csv += [d.dateObs,d.colleague,d.team,d.assessor,d.brand,d.leadSource,d.fmpRef,d.level,d.duration,
       d.initialOutcome,d.regCompliant,d.procCompliant,d.outcomeRationale,d.regFailRationale,
       ...allItems.map(i=>(d.items||{})[i.num]||''),
-      d.transcriptNotes, new Date(d.submittedAt).toLocaleString('en-GB')
+      d.transcriptNotes, _fmtDT(d.submittedAt)
     ].map(esc).join(',')+'\n';
   });
   const a=document.createElement('a');
@@ -10355,7 +10404,7 @@ function openReviewModal(id){
   document.getElementById('reviewModalBody').innerHTML = `
     <div style="background:var(--surface2);border-radius:8px;padding:14px;margin-bottom:16px;">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-family:var(--fm);font-size:13px;">
-        <div><div class="field-lbl">Date</div><div style="font-weight:700">${e.date}</div></div>
+        <div><div class="field-lbl">Date</div><div style="font-weight:700">${_fmtD(e.date)}</div></div>
         <div><div class="field-lbl">Submitted</div><div>${new Date(e.submittedAt).toLocaleString('en-GB')}</div></div>
         <div><div class="field-lbl">Revenue</div><div style="font-weight:700;color:var(--green)">£${parseFloat(e.revenue||0).toLocaleString()}</div></div>
         <div><div class="field-lbl">Needs Met</div><div style="font-weight:700">${e.nm||0}</div></div>
@@ -11023,7 +11072,7 @@ function openPlpModal(consultantName, mk){
   const dateOpts = entryDates.length
     ? entryDates.map(ds=>{
         const ent = mine.find(e=>e.date===ds);
-        return `<option value="${ds}">${new Date(ds+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})} — £${parseFloat(ent.revenue||0).toLocaleString()} / ${ent.nm||0} NM</option>`;
+        return `<option value="${ds}">${_fmtWD(ds+'T12:00:00')} — £${parseFloat(ent.revenue||0).toLocaleString()} / ${ent.nm||0} NM</option>`;
       }).join('')
     : `<option value="${today}">${today}</option>`;
 
@@ -11421,7 +11470,7 @@ function renderManagerOverview(){
       });
     });
     const todayPeople = Object.values(todayMap).sort((a,b)=>b.rev-a.rev);
-    const todayDateLabel = new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'});
+    const todayDateLabel = _fmtWD();
 
     const todayRows = todayPeople.length ? todayPeople.map((p,i)=>{
       const rankCol = i===0?'#fbb83a':i===1?'#9aa5b4':i===2?'#c97d44':'var(--text3)';
@@ -11640,7 +11689,7 @@ function generateMOCommentary() {
   const grandTotal     = divSummaries.reduce((s,d) => s+d.stats.length, 0);
 
   const prevDayLabel = prevDay
-    ? new Date(prevDay+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+    ? _fmtWDL(prevDay+'T12:00:00')
     : 'Previous working day';
   const mthLabel = monthLabel(mk);
 
@@ -12256,7 +12305,7 @@ function renderTeamDashboard(container, teamKey){
     const nmMtdDiff  = cumNmActual - cumNmRR;
     const nmMtdDiffCls = nmMtdDiff>=0?'var(--green)':'var(--red)';
 
-    const dateLabel = new Date(ds).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+    const dateLabel = _fmtWD(ds);
     tableRows += `<tr style="border-bottom:1px solid var(--border);font-size:12px;font-family:var(--fm);">
       <td style="padding:8px 14px;color:var(--text2);white-space:nowrap">${dateLabel}</td>
       <td style="padding:8px 14px;text-align:right;color:${dayActual>0?'var(--text)':'var(--text3)'};font-weight:600">£${Math.round(dayActual).toLocaleString()}</td>
@@ -12516,7 +12565,7 @@ function renderDbdOverallGrid(){
     const borderStyle = isToday ? 'border-top:2px solid var(--accent);border-bottom:2px solid var(--accent);' : '';
     html += `<tr style="${rowBg}${borderStyle}">`;
 
-    const dateLabel = new Date(ds).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+    const dateLabel = _fmtWD(ds);
     if(isWE){
       html += `<td class="dbd-td name-col" style="color:var(--text3);cursor:default;font-size:14px;background:#1e2330">${dateLabel}</td>`;
     } else if(isBH){
@@ -12681,7 +12730,7 @@ function renderDbdTeamGrid(teamKey){
     html += `<tr style="${rowBg}${borderStyle}">`;
 
     // Date label cell
-    const dateLabel = new Date(ds).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+    const dateLabel = _fmtWD(ds);
     if(isWE){
       html += `<td class="dbd-td name-col" style="color:var(--text3);cursor:default;font-size:14px;background:#1e2330">${dateLabel}</td>`;
     } else if(isBH){
@@ -13006,7 +13055,7 @@ function renderPersonTracker(name){
     const mDiff    = cumRev - cumTgt;
     const mDiffCls = mDiff>=0?'var(--green)':'var(--red)';
     const isToday  = ds===today;
-    const dayName  = new Date(ds).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+    const dayName  = _fmtWD(ds);
     const safeName = name.replace(/'/g,"\\'");
 
     let rowNote = '';
@@ -13253,7 +13302,7 @@ function _renderSumOverview(){
         </div>
       </div>
       ${s.bestDay?`<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:11px;color:var(--text3);font-family:var(--fm)">
-        Best day: <span style="color:var(--text)">${s.bestDay.date}</span> · <span style="color:var(--green)">£${Math.round(s.bestDay.revenue).toLocaleString()}</span>
+        Best day: <span style="color:var(--text)">${_fmtD(s.bestDay.date)}</span> · <span style="color:var(--green)">£${Math.round(s.bestDay.revenue).toLocaleString()}</span>
       </div>`:''}
     </div>`;
   });
@@ -13591,7 +13640,7 @@ function _renderSumTrends(){
   }
   if(bestEver){
     insightCards.push({ icon:'⚡', color:'var(--green)', title:'All-Time Best Single Day',
-      body:`<span class="insight-highlight">£${Math.round(bestEver.revenue||0).toLocaleString()}</span> by <span class="insight-highlight">${bestEver.name}</span> on ${bestEver.date}.` });
+      body:`<span class="insight-highlight">£${Math.round(bestEver.revenue||0).toLocaleString()}</span> by <span class="insight-highlight">${bestEver.name}</span> on ${_fmtD(bestEver.date)}.` });
   }
   if(dowData.find(x=>x.d===1) && dowData.find(x=>x.d===5)){
     const mon = dowData.find(x=>x.d===1), fri = dowData.find(x=>x.d===5);
@@ -13741,7 +13790,7 @@ function _renderSumTrends(){
             <td class="sum-td">${pctBadge(Math.round(s.avgPct),'%')}</td>
             <td class="sum-td">${s.hitMonths} / ${s.totalMonths}</td>
             <td class="sum-td">${s.bestMonth?monthLabel(s.bestMonth.mk).split(' ')[0]+' · £'+Math.round(s.bestMonth.revMTD).toLocaleString():'—'}</td>
-            <td class="sum-td">${s.bestSingle?'£'+Math.round(s.bestSingle.revenue||0).toLocaleString()+' · '+s.bestSingle.date:'—'}</td>
+            <td class="sum-td">${s.bestSingle?'£'+Math.round(s.bestSingle.revenue||0).toLocaleString()+' · '+_fmtD(s.bestSingle.date):'—'}</td>
             <td class="sum-td" style="color:var(--accent)">${s.bestDow&&s.bestDow.avg>0?s.bestDow.name+' (£'+s.bestDow.avg.toLocaleString()+' avg)':'—'}</td>
             <td class="sum-td" style="color:var(--amber)">${s.longestStreak} day${s.longestStreak!==1?'s':''}</td>
           </tr>`).join('')}
@@ -14073,7 +14122,7 @@ function renderPersonProfile(name){
     const pctCls   = pct>=100?'var(--green)':pct>=75?'var(--amber)':'var(--red)';
     const nmDiff   = cumNm - cumNmTgt;
     const isToday  = ds===today;
-    const dayName  = new Date(ds).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+    const dayName  = _fmtWD(ds);
     const safeName = name.replace(/'/g,"\\'");
 
     let statusBadge = '';
@@ -14529,7 +14578,7 @@ function generateMonthlyReport(){
     <div>
       <div style="font-size:24px;font-weight:700;letter-spacing:.04em;">JG MI</div>
       <div style="font-size:16px;font-weight:700;margin-top:4px;">Monthly Performance Report</div>
-      <div style="opacity:.8;margin-top:4px;font-size:12px;">${monthLabel(mk)} · ${div.label} · Generated ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div>
+      <div style="opacity:.8;margin-top:4px;font-size:12px;">${monthLabel(mk)} · ${div.label} · Generated ${_fmtWDL()}</div>
     </div>
     <div style="text-align:right;font-size:12px;opacity:.85;">
       <div>Working days: ${allWD}</div>
@@ -14616,7 +14665,7 @@ function generateMonthlyReport(){
 
 // ─── INIT ──────────────────────────────────────────────────────────
 document.getElementById('navDate').textContent =
-  new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+  _fmtWDY();
 
 function _applyDefaults(){
   if(!APP.months)        APP.months = {};
@@ -15833,7 +15882,7 @@ function openRemDetailModal(remId){
     </div>`:''}
 
     <!-- Completion timestamp -->
-    ${r.completedAt?`<div style="font-size:11px;font-family:var(--fm);color:var(--text3);margin-top:8px;text-align:right">Completed: ${new Date(r.completedAt).toLocaleString('en-GB')}</div>`:''}
+    ${r.completedAt?`<div style="font-size:11px;font-family:var(--fm);color:var(--text3);margin-top:8px;text-align:right">Completed: ${_fmtDT(r.completedAt)}</div>`:''}
   `;
 
   // Footer action buttons depending on role & status
@@ -16231,7 +16280,7 @@ function exportRemedialsCSV(){
 // ── Date formatter ───────────────────────────────────────────────
 function _fmtDate(ds){
   if(!ds) return '—';
-  try{ return new Date(ds+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }
+  try{ return _fmtD(ds+'T00:00:00'); }
   catch(e){ return ds; }
 }
 
@@ -16350,7 +16399,7 @@ function _renderNotifList(){
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px;">
         <div>
           <div style="font-size:13px;font-weight:700">${e.consultantName}</div>
-          <div style="font-size:11px;color:var(--text3);font-family:var(--fm);">${e.date} · ${new Date(e.submittedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--fm);">${_fmtD(e.date)} · ${new Date(e.submittedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</div>
         </div>
         <span style="font-size:11px;font-weight:700;color:${statusCol(e.status)};white-space:nowrap;">${statusLbl(e.status)}</span>
       </div>
@@ -16385,7 +16434,7 @@ function _renderNotifList(){
             ${titleTxt}${(!isHol&&!isTkt)?' <span style="color:var(--green)">'+(m.from||'Manager')+'</span>':''}
           </div>
           <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:1px">
-            ${new Date(m.createdAt).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}
+            ${_fmtDTS(m.createdAt)}
             ${isTkt&&m.from?' · From '+m.from:''}
             ${(!isTkt&&!isHol&&m.crmRef)?' · '+m.crmRef:''}
           </div>
@@ -16461,7 +16510,7 @@ function _renderNotifList(){
               <span style="font-size:16px">${r.status==='pending'?'⏳':r.status==='approved'?'✅':'❌'}</span>
               <div>
                 <div style="font-size:12px;font-weight:700">${role==='consultant'?'Your holiday request':r.colleague+' — Holiday Request'}</div>
-                <div style="font-size:10px;color:var(--text3);font-family:var(--fm)">${r.totalHours}h · ${r.dates?.length||1} day(s) · ${new Date(r.createdAt).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</div>
+                <div style="font-size:10px;color:var(--text3);font-family:var(--fm)">${r.totalHours}h · ${r.dates?.length||1} day(s) · ${_fmtDS(r.createdAt)}</div>
               </div>
             </div>
             ${role!=='consultant'?'<div style="font-size:11px;color:var(--amber);font-weight:700;text-align:right">Tap to review →</div>':''}
@@ -17339,7 +17388,7 @@ function _renderReqCard(r, isMgr){
   const statusLabel = r.status==='pending'?'Pending Approval':r.status==='approved'?'Approved':'Declined';
   const datesFmt    = r.dates ? r.dates.map(d=>d.ds).join(', ') : (r.dateStr||'');
   const typeDef     = (ABS_TYPES||{})[r.type]||{label:r.type||'Holiday'};
-  const createdFmt  = new Date(r.createdAt).toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const createdFmt  = _fmtDT(r.createdAt);
 
   return `<div class="hr-req-card ${r.status}" onclick="${isMgr?`openHolReviewModal('${r.id}')`:`openConsultantReqView('${r.id}')`}">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap">
@@ -17664,7 +17713,7 @@ function openConsultantReqView(reqId){
       ${r.notes?`<div style="margin-top:8px;font-size:12px;color:var(--text3);font-family:var(--fm);font-style:italic">"${r.notes}"</div>`:''}
     </div>
     ${r.reviewedBy?`<div style="font-size:12px;font-family:var(--fm);color:var(--text2)">
-      Reviewed by <strong>${r.reviewedBy}</strong> on ${new Date(r.reviewedAt).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}
+      Reviewed by <strong>${r.reviewedBy}</strong> on ${_fmtDTS(r.reviewedAt)}
       ${r.reviewNotes?`<br><em>"${r.reviewNotes}"</em>`:''}
     </div>`:''}
   `;
@@ -17740,7 +17789,7 @@ function openHolReviewModal(reqId){
         onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border2)'"></textarea>
     </div>`:
     `<div style="font-size:12px;font-family:var(--fm);color:var(--text2)">
-      Reviewed by <strong>${r.reviewedBy}</strong> on ${r.reviewedAt?new Date(r.reviewedAt).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'—'}
+      Reviewed by <strong>${r.reviewedBy}</strong> on ${r.reviewedAt?_fmtDTS(r.reviewedAt):'—'}
       ${r.reviewNotes?`<br><em>"${r.reviewNotes}"</em>`:''}
     </div>`}
   `;
@@ -18243,7 +18292,7 @@ function showMidMonthCinematic(mk){
     });
     const dayAct = dayRevMap[ds]||0;
     cumActual += dayAct; cumRR += dayRR;
-    const lbl = new Date(ds).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+    const lbl = _fmtDS(ds);
     dailyLabels.push(lbl);
     dailyActual.push(Math.round(dayAct));
     dailyCumActual.push(Math.round(cumActual));
@@ -18252,7 +18301,7 @@ function showMidMonthCinematic(mk){
 
   // Best single day
   const bestDay    = Object.entries(dayRevMap).sort((a,b)=>b[1]-a[1])[0];
-  const bestDayStr = bestDay ? new Date(bestDay[0]).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'}) : '—';
+  const bestDayStr = bestDay ? _fmtWD(bestDay[0]) : '—';
   const bestDayVal = bestDay ? bestDay[1] : 0;
   const activeDays = Object.keys(dayRevMap).filter(d=>dayRevMap[d]>0).length;
   const avgDayRev  = activeDays>0 ? Math.round(totalRev/activeDays) : 0;
@@ -18299,7 +18348,7 @@ function showMidMonthCinematic(mk){
   };
 
   // ── Scene 0: Snapshot ────────────────────────────────────────────
-  document.getElementById('mmEyebrow0').textContent = mLabel + ' · Snapshot as of ' + new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+  document.getElementById('mmEyebrow0').textContent = mLabel + ' · Snapshot as of ' + _fmtDS();
   const bigEl = document.getElementById('mmBigNum0');
   bigEl.className = 'mmcin-big-num'+(pct>=100?' ':pct>=75?' amber':' red');
   bigEl.textContent = '£0';
@@ -19019,7 +19068,7 @@ function renderTodayFocusCard(mk, myName, data){
       <span style="font-size:20px">☀️</span>
       <div>
         <div style="font-size:15px;font-weight:800">${greeting}, ${myName.split(' ')[0]}</div>
-        <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">${_fmtWD()}</div>
       </div>
     </div>
     <div class="focus-grid">
@@ -20312,7 +20361,7 @@ function bkpRenderList(){
       const dates = Object.keys(byDate).sort().reverse();
       list.innerHTML = dates.map(date=>{
         const snaps = byDate[date];
-        const dateLabel = new Date(date+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'long',year:'numeric'});
+        const dateLabel = new Date(date+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'2-digit',year:'numeric'});
         const rows = snaps.map(s=>{
           const time    = new Date(s.timestamp).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
           const sizeKB  = Math.round(JSON.stringify(s.data).length/1024);
@@ -20358,7 +20407,7 @@ function _bkpUpdateStatusBar(){
       const sEl = document.getElementById('bkpSize');
       const dEl = document.getElementById('bkpDivLabel');
       if(cEl) cEl.textContent = count+' snapshot'+(count===1?'':'s');
-      if(tEl) tEl.textContent = last ? new Date(last.timestamp).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '—';
+      if(tEl) tEl.textContent = last ? _fmtDTS(last.timestamp) : '—';
       if(sEl) sEl.textContent = sizeMB+' MB';
       if(dEl) dEl.textContent = last ? (DIVISIONS[last.divKey]?.label||last.divKey||'') : '';
     };
@@ -20412,7 +20461,7 @@ function bkpRestoreFromSnapshot(id){
     req.onsuccess = e=>{
       const snap = e.target.result;
       if(!snap){ showToast('Snapshot not found','err'); return; }
-      const time = new Date(snap.timestamp).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+      const time = _fmtDTS(snap.timestamp);
       if(!confirm(`⚠️ Restore to snapshot from ${time}?\n\nThis will OVERWRITE all current data in Firebase. Make sure you've exported your current data first if needed.`)) return;
       if(!confirm('Are you absolutely sure? All changes since this snapshot will be lost.')) return;
       _bkpDoRestore(snap.data);
@@ -20619,7 +20668,7 @@ function _sfTimeAgo(iso){
   if(diffH < 24) return diffH+'h ago';
   const diffD = Math.floor(diffH/24);
   if(diffD < 7) return diffD+'d ago';
-  return new Date(iso).toLocaleDateString('en-GB', {day:'numeric', month:'short'});
+  return new Date(iso).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'});
 }
 
 // ── Post to feed (called from _onEntrySaved hook) ───────────────────
@@ -21536,8 +21585,8 @@ function renderWeeklyStats(){
     var wTarget = allPeople.reduce(function(s,p){ return s+(monthlyTargets[p.name]||0)*w.days.length/totalWorkDays; },0);
     var pct = wTarget>0 ? Math.round(wRev/wTarget*100) : 0;
     var col = pct>=100?'var(--green)':pct>=75?'var(--amber)':'var(--red)';
-    var startLbl = w.days[0].slice(5).replace('-','/');
-    var endLbl   = w.days[w.days.length-1].slice(5).replace('-','/');
+    var startLbl = _fmtDS(w.days[0]);
+    var endLbl   = _fmtDS(w.days[w.days.length-1]);
     html +=
       '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:13px 14px;text-align:center;">'+
         '<div style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);margin-bottom:6px;">'+startLbl+' – '+endLbl+'</div>'+
@@ -21565,7 +21614,7 @@ function renderWeeklyStats(){
       '<thead><tr style="background:var(--surface2);">'+
         '<th style="padding:10px 14px;text-align:left;font-family:var(--fm);font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);white-space:nowrap;border-bottom:1px solid var(--border);">Consultant</th>';
     weeks.forEach(function(w){
-      var lbl = w.days[0].slice(5).replace('-','/')+'–'+w.days[w.days.length-1].slice(5).replace('-','/');
+      var lbl = _fmtDS(w.days[0])+'–'+_fmtDS(w.days[w.days.length-1]);
       s += '<th style="padding:10px 10px;text-align:center;font-family:var(--fm);font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);white-space:nowrap;border-bottom:1px solid var(--border);">'+lbl+'</th>';
     });
     s += '<th style="padding:10px 14px;text-align:right;font-family:var(--fm);font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);white-space:nowrap;border-bottom:1px solid var(--border);">MTD Total</th></tr></thead><tbody>';
@@ -21689,7 +21738,7 @@ function _tkStyles(){
 }
 
 function _tkEsc(s){return String(s||'').replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]);});}
-function _tkFmt(iso){return new Date(iso).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});}
+function _tkFmt(iso){return _fmtDTS(iso);}
 function _tkElapsed(a,b){var ms=new Date(b||new Date())-new Date(a);if(ms<0)return'—';var m=Math.floor(ms/60000),h=Math.floor(m/60),d=Math.floor(h/24);if(d>0)return d+'d '+(h%24)+'h';if(h>0)return h+'h '+(m%60)+'m';return m+'m';}
 function _tkPill(s){if(s==='resolved')return'<span class="tk-pill tk-resolved">✓ Resolved</span>';if(s==='inprogress')return'<span class="tk-pill tk-inprog">⚙ In Progress</span>';return'<span class="tk-pill tk-open">● Open</span>';}
 function _tkCatIcon(c){return({bug:'🐛',improvement:'💡',question:'❓',other:'📋'})[c]||'📋';}
