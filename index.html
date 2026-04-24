@@ -16257,8 +16257,8 @@ function _updateNotifBadgeWithMsgs(){
     pendingCount = Object.values(_pendingEntries).filter(e=>e.status==='pending').length;
   }
 
-  // Unread messages (consultants only see messages to them)
-  const unreadMsgs = Object.values(_msgsAll).filter(m=>!m.read).length;
+  // Unread messages — only count messages addressed TO this user (not oversight messages)
+  const unreadMsgs = Object.values(_msgsAll).filter(m=>!m.read && m.to===me).length;
 
   // Holiday request count
   let holReqCount = 0;
@@ -16297,8 +16297,10 @@ function _renderNotifList(){
   const me    = _currentUser?.name||'';
 
   // ── Messages section ──────────────────────────────────────────────
+  // Only show messages addressed TO the current user — masters sending
+  // congrats to consultants should not see those in their own notif panel
   const myMsgs = Object.values(_msgsAll)
-    .filter(m=>role==='master'||(m.to===me))
+    .filter(m => m.to === me)
     .sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
 
   // ── Pending entries section (original logic) ──────────────────────
@@ -16334,30 +16336,45 @@ function _renderNotifList(){
       ${e.notes ? `<div style="font-size:11px;color:var(--text2);margin-top:4px;font-style:italic;">"${e.notes}"</div>` : ''}
     </div>`;
 
-  const renderMsgCard = m => `
+  const renderMsgCard = m => {
+    const isHol      = m.type === 'holiday_review';
+    const holApproved = isHol && m.message && m.message.includes('approved');
+    const cardIcon   = isHol ? (holApproved ? '✅' : '❌') : (m.read ? '💌' : '🎉');
+    const dotColour  = isHol ? (holApproved ? 'var(--green)' : 'var(--red)') : 'var(--green)';
+    const dotGlow    = isHol ? (holApproved ? 'rgba(45,206,137,.7)' : 'rgba(245,54,92,.7)') : 'rgba(45,206,137,.7)';
+    const titleText  = isHol
+      ? (holApproved ? '✅ Holiday Approved' : '❌ Holiday Declined')
+      : (m.read ? 'Message from' : '✨ New message from');
+    const titleColour = isHol ? (holApproved ? 'var(--green)' : 'var(--red)') : (m.read ? 'var(--text2)' : 'var(--text)');
+    const ctaText    = isHol
+      ? (m.read ? 'View →' : 'Tap to view →')
+      : (m.read ? 'View again →' : 'Click to view 🎊');
+    const ctaColour  = isHol ? dotColour : 'var(--green)';
+    return `
     <div class="msg-notif-card${m.read?' read':''}" onclick="viewCongratulationsMessage('${m.id}')">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-        <span style="font-size:22px;line-height:1">${m.read?'💌':'🎉'}</span>
+        <span style="font-size:22px;line-height:1">${cardIcon}</span>
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:700;color:${m.read?'var(--text2)':'var(--text)'}">
-            ${m.read?'Message from':'✨ New message from'} <span style="color:var(--green)">${m.from||'Manager'}</span>
+          <div style="font-size:13px;font-weight:700;color:${titleColour}">
+            ${titleText}${!isHol?' <span style="color:var(--green)">'+(m.from||'Manager')+'</span>':''}
           </div>
           <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:1px">
             ${new Date(m.createdAt).toLocaleString('en-GB',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}
-            ${m.crmRef?' · '+m.crmRef:''}
+            ${!isHol&&m.crmRef?' · '+m.crmRef:''}
           </div>
         </div>
-        ${!m.read?'<span style="width:8px;height:8px;background:var(--green);border-radius:50%;flex-shrink:0;box-shadow:0 0 6px rgba(45,206,137,.7)"></span>':''}
+        ${!m.read?`<span style="width:8px;height:8px;background:${dotColour};border-radius:50%;flex-shrink:0;box-shadow:0 0 6px ${dotGlow}"></span>`:''}
       </div>
       <div style="font-size:12px;color:var(--text2);font-family:var(--fm);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;padding-left:32px">
-        "${m.message?.slice(0,80)||''}${m.message?.length>80?'…':''}"
+        "${m.message?.slice(0,80)||''}${(m.message?.length||0)>80?'…':''}"
       </div>
       <div style="padding-left:32px;margin-top:8px">
-        <span style="font-size:11px;font-weight:700;color:var(--green);text-decoration:underline;cursor:pointer">
-          ${m.read?'View again →':'Click to view 🎊'}
+        <span style="font-size:11px;font-weight:700;color:${ctaColour};text-decoration:underline;cursor:pointer">
+          ${ctaText}
         </span>
       </div>
     </div>`;
+  };
 
   let html = '';
 
@@ -16486,7 +16503,13 @@ function openSendMessageModal(assessmentId, colleagueEnc, outcomeEnc, dateEnc, c
       <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:4px">Tip: Be specific — mention something great they actually did. It means more!</div>
     </div>`;
 
-  document.getElementById('sendMsgModal').classList.add('open');
+  const modal = document.getElementById('sendMsgModal');
+  modal.querySelector('.modal-title').textContent = '🎉 Send Congratulations Message';
+  const btns = modal.querySelector('.modal-btns');
+  if(btns) btns.innerHTML = `
+    <button class="btn btn-s" onclick="document.getElementById('sendMsgModal').classList.remove('open')">Cancel</button>
+    <button class="btn" onclick="submitCongratulation()" style="background:linear-gradient(135deg,var(--green),#1a9955);color:#fff;box-shadow:0 2px 12px rgba(45,206,137,.35);">🎉 Send Message</button>`;
+  modal.classList.add('open');
   setTimeout(()=>document.getElementById('msgText')?.focus(), 200);
 }
 
@@ -16542,7 +16565,31 @@ function viewCongratulationsMessage(msgId){
       .catch(()=>{});
   }
 
-  // Fill celebration screen
+  // ── Holiday review messages: show a simple info modal, no confetti ──
+  if(m.type === 'holiday_review'){
+    const approved = m.message && m.message.includes('approved');
+    const icon     = approved ? '✅' : '❌';
+    const colour   = approved ? 'var(--green)' : 'var(--red)';
+    const title    = approved ? 'Holiday Approved' : 'Holiday Declined';
+
+    // Reuse sendMsgModal as a read-only info popup
+    document.getElementById('sendMsgBody').innerHTML = `
+      <div style="text-align:center;padding:10px 0 18px">
+        <div style="font-size:52px;line-height:1;margin-bottom:12px">${icon}</div>
+        <div style="font-size:18px;font-weight:800;color:${colour};margin-bottom:10px">${title}</div>
+        <div style="font-size:14px;color:var(--text2);line-height:1.6;max-width:340px;margin:0 auto">${m.message||''}</div>
+        <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:12px">From ${m.from||'Manager'}</div>
+      </div>`;
+    // Swap the modal footer to just a close button
+    const modal = document.getElementById('sendMsgModal');
+    const btns  = modal.querySelector('.modal-btns');
+    if(btns) btns.innerHTML = `<button class="btn btn-p" onclick="document.getElementById('sendMsgModal').classList.remove('open')" style="min-width:120px">OK</button>`;
+    modal.querySelector('.modal-title').textContent = title;
+    modal.classList.add('open');
+    return;
+  }
+
+  // ── Congratulations messages: full celebration screen with confetti ──
   document.getElementById('celebMessage').textContent  = m.message||'Great work!';
   document.getElementById('celebFrom').textContent     = m.from||'Your Manager';
   const callInfo = [
@@ -16552,11 +16599,8 @@ function viewCongratulationsMessage(msgId){
   ].filter(Boolean).join('  ·  ');
   document.getElementById('celebCallInfo').textContent = callInfo;
 
-  // Show overlay
   const overlay = document.getElementById('celebrationOverlay');
   overlay.classList.add('show');
-
-  // Launch confetti & stars
   _launchConfetti();
   _launchStars();
 }
