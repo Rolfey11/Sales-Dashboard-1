@@ -8253,7 +8253,7 @@ function renderDailySend(){
     const elapsedDates = allWD.slice(0, elapsedWD);
     const xLabels = elapsedDates.map(ds => {
       const d = new Date(ds);
-      return d.toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'});
+      return _fmtDS(d);
     });
     // On-track line: linear % for each elapsed day
     const onTrackLine = elapsedDates.map((_,i) => parseFloat(((i+1)/totalWD*100).toFixed(1)));
@@ -8881,7 +8881,7 @@ function renderSpTable(){
       { icon:'📉', label:'Lowest Month', val: _worstMo ? SP_MONTH_NAMES[_worstMo.idx] : '—',
         sub: _worstMo ? '£'+Math.round(_worstMo.actual).toLocaleString()+(_worstMo.pct!==null?' · '+_worstMo.pct+'%':'') : '' },
       { icon:'💰', label:'Best Single Day', val: _bestDay.ds ? '£'+Math.round(_bestDay.rev).toLocaleString() : '—',
-        sub: _bestDay.ds ? (new Date(_bestDay.ds)).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'})+(_bestDay.name?' · '+_bestDay.name:'') : '' },
+        sub: _bestDay.ds ? (_fmtDS(_bestDay.ds))+(_bestDay.name?' · '+_bestDay.name:'') : '' },
       { icon:'🎯', label:'Consistency', val: _consistPct!==null?_consistPct+'%':'—',
         sub: _totalWorked>0?_totalHits+' sales days / '+_totalWorked+' worked':'' },
       { icon:'📊', label:'Months Above Target', val: _aboveTgt+' / '+(allMonthlyData.filter(r=>r.pct!==null).length),
@@ -10639,7 +10639,7 @@ function renderConsultantDaily(){
     const statusBadge = pend ? (pend.status==='pending'?'<span style="font-size:9px;font-weight:700;background:rgba(251,184,58,.2);color:var(--amber);padding:2px 7px;border-radius:10px;margin-left:6px">⏳ Pending</span>':
       pend.status==='approved'||pend.status==='amended'?'<span style="font-size:9px;font-weight:700;background:rgba(45,206,137,.2);color:var(--green);padding:2px 7px;border-radius:10px;margin-left:6px">✓ Approved</span>':
       '<span style="font-size:9px;font-weight:700;background:rgba(245,54,92,.2);color:var(--red);padding:2px 7px;border-radius:10px;margin-left:6px">✕ Declined</span>') : '';
-    const dayLabel = new Date(ds).toLocaleDateString('en-GB',{weekday:'short',day:'numeric'});
+    const dayLabel = _fmtWD(ds);
     const isManagerRole = (role==='manager'||role==='master'||role==='smt');
     // Normalise deals: if no deals array, synthesise from entry totals so legacy
     // entries show the + button and expand just like properly-tracked ones.
@@ -13987,7 +13987,7 @@ function exportHistoryCSV(){
     const deals = _normE(e.deals);
     if(deals.length){
       deals.forEach(d=>{
-        const t = d.time ? new Date(d.time).toLocaleString('en-GB') : '';
+        const t = d.time ? _fmtDT(d.time) : '';
         rows.push([monthLabel(mk),e.date,t,e.name,d.rev||0,d.nm||0,d.swiftRef||'',d.enteredBy||'',d.authBy||'']);
       });
     } else {
@@ -14665,7 +14665,7 @@ function generateMonthlyReport(){
 
 // ─── INIT ──────────────────────────────────────────────────────────
 document.getElementById('navDate').textContent =
-  _fmtWDY();
+  _fmtWDY(new Date());
 
 function _applyDefaults(){
   if(!APP.months)        APP.months = {};
@@ -16409,7 +16409,7 @@ function _renderNotifList(){
         <div><div style="color:var(--text3);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em">SWIFT Ref</div><div style="font-weight:600">${e.swiftRef||'—'}</div></div>
       </div>
       ${e.status==='pending'&&(role==='manager'||role==='master'||role==='smt') ? `<button class="btn btn-p" onclick="openReviewModal('${e.id}')" style="width:100%;font-size:12px;padding:7px">Review →</button>` : ''}
-      ${e.status!=='pending' ? `<div style="font-size:11px;color:var(--text3);font-family:var(--fm);">Reviewed by ${e.reviewedBy||'—'} · ${e.reviewedAt ? new Date(e.reviewedAt).toLocaleDateString('en-GB') : ''}</div>` : ''}
+      ${e.status!=='pending' ? `<div style="font-size:11px;color:var(--text3);font-family:var(--fm);">Reviewed by ${e.reviewedBy||'—'} · ${e.reviewedAt ? _fmtD(e.reviewedAt) : ''}</div>` : ''}
       ${e.notes ? `<div style="font-size:11px;color:var(--text2);margin-top:4px;font-style:italic;">"${e.notes}"</div>` : ''}
     </div>`;
 
@@ -20481,7 +20481,7 @@ function bkpImportFileSettings(input){
       const data   = parsed.data || parsed;
       if(!data.people && !data.months){ showToast('Invalid backup file','err'); return; }
       const meta    = parsed._meta || {};
-      const timeStr = meta.snapshotTime ? new Date(meta.snapshotTime).toLocaleString('en-GB') : 'unknown time';
+      const timeStr = meta.snapshotTime ? _fmtDT(meta.snapshotTime) : 'unknown time';
       if(!confirm(`Restore backup from ${timeStr}?\n\nThis will OVERWRITE all current Firebase data. Export your current data first if needed.`)) return;
       if(!confirm('Confirm: overwrite all current data with this backup?')) return;
       _bkpDoRestore(data);
@@ -20668,7 +20668,7 @@ function _sfTimeAgo(iso){
   if(diffH < 24) return diffH+'h ago';
   const diffD = Math.floor(diffH/24);
   if(diffD < 7) return diffD+'d ago';
-  return new Date(iso).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit'});
+  return _fmtDS(iso);
 }
 
 // ── Post to feed (called from _onEntrySaved hook) ───────────────────
@@ -21459,7 +21459,7 @@ function gsRunSearch(){
       if(matched){
         results.push({
           type:'ticket', icon:'🎫', label:'Ticket — '+t.raisedBy,
-          sub:(t.status==='resolved'?'✓ Resolved':'● Open')+' · '+(t.category||'other')+' · '+new Date(t.createdAt).toLocaleDateString('en-GB'),
+          sub:(t.status==='resolved'?'✓ Resolved':'● Open')+' · '+(t.category||'other')+' · '+_fmtD(t.createdAt),
           action:'openTicketThread && openTicketThread(\''+t.id+'\')',
           highlight: t.raisedBy
         });
