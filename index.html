@@ -14923,8 +14923,8 @@ function _renderUsersTable(){
                 <button class="btn btn-s" onclick="editUserPin('${u.id}','${u.name}')" style="font-size:10px;padding:3px 8px">Edit</button>
               </div>
             </td>
-            <td style="padding:9px 12px;">
-              <button class="btn btn-d" onclick="deleteUser('${u.id}','${u.name}')" style="font-size:11px;padding:4px 10px;">Remove</button>
+            <td style="padding:9px 12px;" id="actioncell_${u.id}">
+              <button class="btn btn-d" onclick="confirmRemoveUser('${u.id}')" style="font-size:11px;padding:4px 10px;">Remove</button>
             </td>
           </tr>`;
         }).join('')}
@@ -14996,6 +14996,30 @@ function editUserPin(uid, name){
     .catch(()=>showToast('Save failed','err'));
 }
 
+function confirmRemoveUser(uid){
+  if(uid === _currentUser?.id){ showToast("You cannot delete your own account.",'err'); return; }
+  var user = _allUsers[uid];
+  if(!user) return;
+  var cell = document.getElementById('actioncell_'+uid);
+  if(!cell) return;
+  // Replace button with inline confirm row
+  cell.innerHTML =
+    '<span style="font-size:11px;color:var(--text2);font-family:var(--fm);margin-right:6px;">Remove ' + user.name + '?</span>' +
+    '<button class="btn btn-d" onclick="deleteUser(''+uid+'')" style="font-size:11px;padding:3px 8px;margin-right:4px;">Yes, remove</button>' +
+    '<button class="btn btn-s" onclick="_renderUsersTable()" style="font-size:11px;padding:3px 8px;">Cancel</button>';
+}
+
+function deleteUser(uid){
+  var user = _allUsers[uid];
+  if(!user){ showToast('User not found','err'); return; }
+  var name = user.name;
+  var ref = _usersDbRef();
+  if(!ref){ showToast('Not connected','err'); return; }
+  ref.child(uid).remove()
+    .then(function(){ delete _allUsers[uid]; _renderUsersTable(); showToast(name+' removed'); })
+    .catch(function(){ showToast('Delete failed — check Firebase permissions','err'); });
+}
+
 function editUserName(uid){
   var user = _allUsers[uid];
   if(!user){ showToast('User not found','err'); return; }
@@ -15005,39 +15029,26 @@ function editUserName(uid){
   var trimmed = newName.trim();
   if(!trimmed){ alert('Name cannot be empty.'); return; }
   if(trimmed === currentName) return;
-  // Update local cache
   user.name = trimmed;
-  // Update in Firebase
   var ref = _usersDbRef();
   if(!ref){ showToast('Not connected','err'); return; }
   ref.child(uid).update({name: trimmed})
     .then(function(){
-      // Keep APP.people in sync so consultant sync doesn't re-create old name as a duplicate
       if(typeof APP !== 'undefined' && Array.isArray(APP.people)){
         var p = APP.people.find(function(x){ return x.name === currentName; });
         if(p){ p.name = trimmed; try{ saveApp(); }catch(e){} }
       }
-      // Update live session if this is the current user
       if(_currentUser && _currentUser.id === uid){
         _currentUser.name = trimmed;
         sessionStorage.setItem('pd_user', JSON.stringify(_currentUser));
         var badge = document.getElementById('userRoleBadge');
         if(badge) badge.textContent = trimmed + ' · ' + (ROLE_LABELS[_currentUser.role] || '');
       }
-      // Update the name span in the table without full re-render
       var span = document.getElementById('uname_' + uid);
       if(span) span.textContent = trimmed;
       showToast('Renamed to ' + trimmed);
     })
     .catch(function(){ user.name = currentName; showToast('Rename failed','err'); });
-}
-
-function deleteUser(uid, name){
-  if(uid === _currentUser?.id){ showToast("You cannot delete your own account.",'err'); return; }
-  if(!confirm(`Remove user "${name}"? They will no longer be able to log in.`)) return;
-  _usersDbRef()?.child(uid).remove()
-    .then(()=>{ delete _allUsers[uid]; _renderUsersTable(); showToast(`${name} removed`); })
-    .catch(()=>showToast('Delete failed','err'));
 }
 
 function openAddUserModal(){
