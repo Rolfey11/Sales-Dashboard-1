@@ -21404,17 +21404,25 @@ if(typeof logoutUser === 'function'){
   };
 }
 
-// ── Kick-start on session restore (parallel to Kudos pattern) ─────
-setTimeout(()=>{
-  try{
-    if(typeof _currentUser !== 'undefined' && _currentUser){
-      _ensureSalesFeedPageExists();
-      startSalesFeedListener();
-      startSalesFeedCheerListener();
-      _sfRequestNotifPermission();
-    }
-  }catch(e){ console.warn('[salesFeed] restore', e); }
-}, 2000);
+// ── Kick-start on session restore ────────────────────────────────
+// Try immediately, then at 100 ms, then at 500 ms as a safety net.
+(function _sfRestore(){
+  function _sfTryInit(){
+    try{
+      if(typeof _currentUser !== 'undefined' && _currentUser){
+        _ensureSalesFeedPageExists();
+        startSalesFeedListener();
+        startSalesFeedCheerListener();
+        _sfRequestNotifPermission();
+        return true;
+      }
+    }catch(e){ console.warn('[salesFeed] restore', e); }
+    return false;
+  }
+  if(!_sfTryInit()){
+    setTimeout(()=>{ if(!_sfTryInit()) setTimeout(_sfTryInit, 400); }, 100);
+  }
+})();
 
 // Expose for onclick handlers
 window.toggleSalesFeedReaction = toggleSalesFeedReaction;
