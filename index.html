@@ -15005,7 +15005,7 @@ function confirmRemoveUser(uid){
   // Replace button with inline confirm row
   cell.innerHTML =
     '<span style="font-size:11px;color:var(--text2);font-family:var(--fm);margin-right:6px;">Remove ' + user.name + '?</span>' +
-    '<button class="btn btn-d" onclick="deleteUser(''+uid+'')" style="font-size:11px;padding:3px 8px;margin-right:4px;">Yes, remove</button>' +
+    '<button class="btn btn-d" data-uid="'+uid+'" onclick="deleteUser(this.dataset.uid)" style="font-size:11px;padding:3px 8px;margin-right:4px;">Yes, remove</button>' +
     '<button class="btn btn-s" onclick="_renderUsersTable()" style="font-size:11px;padding:3px 8px;">Cancel</button>';
 }
 
