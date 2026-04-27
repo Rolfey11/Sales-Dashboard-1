@@ -15000,25 +15000,27 @@ function editUserPin(uid, name){
 
 function editUserName(uid, currentName){
   const newName = prompt(`Rename "${currentName}" to:`, currentName);
-  if(newName === null) return; // cancelled
+  if(newName === null) return;
   const trimmed = newName.trim();
-  if(!trimmed){ alert('Name cannot be empty.'); return; }
-  if(trimmed === currentName) return; // no change
+  if(!trimmed){ alert("Name cannot be empty."); return; }
+  if(trimmed === currentName) return;
   _allUsers[uid].name = trimmed;
   _usersDbRef()?.child(uid).update({name: trimmed})
     .then(()=>{
       showToast(`Renamed to ${trimmed}`);
-      // If this is the currently logged-in user, update live session
+      if(typeof APP !== "undefined" && Array.isArray(APP.people)){
+        const person = APP.people.find(p => p.name === currentName);
+        if(person){ person.name = trimmed; try{ saveApp(); }catch(e){} }
+      }
       if(_currentUser && _currentUser.id === uid){
         _currentUser.name = trimmed;
-        sessionStorage.setItem('pd_user', JSON.stringify(_currentUser));
-        // Update nav badge
-        const badge = document.getElementById('userRoleBadge');
-        if(badge) badge.textContent = `${trimmed} · ${ROLE_LABELS[_currentUser.role]||''}`;
+        sessionStorage.setItem("pd_user", JSON.stringify(_currentUser));
+        const badge = document.getElementById("userRoleBadge");
+        if(badge) badge.textContent = `${trimmed} · ${ROLE_LABELS[_currentUser.role]||""}`;
       }
       _renderUsersTable();
     })
-    .catch(()=>showToast('Rename failed','err'));
+    .catch(()=>showToast("Rename failed","err"));
 }
 
 function deleteUser(uid, name){
