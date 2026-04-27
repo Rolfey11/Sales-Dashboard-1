@@ -14891,15 +14891,8 @@ function _renderUsersTable(){
           const isSenior = !!u.isSenior;
           return `<tr style="border-bottom:1px solid var(--border)">
             <td style="padding:9px 12px;font-weight:600;font-size:13px">
-              <input type="text"
-                data-uid="${u.id}"
-                data-orig="${u.name.replace(/"/g,'&quot;')}"
-                value="${u.name.replace(/"/g,'&quot;')}"
-                onblur="saveUserName(this)"
-                onkeydown="if(event.key==='Enter'){this.blur();}"
-                style="font-weight:600;font-size:13px;color:var(--text);background:transparent;border:none;border-bottom:1px dashed var(--border2);outline:none;width:100%;padding:1px 2px;font-family:var(--fh);cursor:text;"
-                title="Click to rename"
-              />
+              <span id="uname_${u.id}">${u.name}</span>
+              <button class="btn btn-s" onclick="editUserName('${u.id}')" style="font-size:10px;padding:2px 6px;margin-left:6px;opacity:.6;" title="Rename">✏️</button>
               <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:1px">${u.divKey?(DIVISIONS[u.divKey]?.label||u.divKey):'—'}</div>
             </td>
             <td style="padding:9px 12px;">
@@ -15003,32 +14996,40 @@ function editUserPin(uid, name){
     .catch(()=>showToast('Save failed','err'));
 }
 
-function saveUserName(input){
-  var uid = input.dataset.uid;
-  var orig = input.dataset.orig;
-  var trimmed = input.value.trim();
-  if(!trimmed){ input.value = orig; showToast('Name cannot be empty','err'); return; }
-  if(trimmed === orig) return;
-  if(!_allUsers[uid]){ input.value = orig; return; }
-  _allUsers[uid].name = trimmed;
-  input.dataset.orig = trimmed;
-  _usersDbRef()&&_usersDbRef().child(uid).update({name: trimmed})
+function editUserName(uid){
+  var user = _allUsers[uid];
+  if(!user){ showToast('User not found','err'); return; }
+  var currentName = user.name;
+  var newName = prompt('Rename "' + currentName + '" to:', currentName);
+  if(newName === null) return;
+  var trimmed = newName.trim();
+  if(!trimmed){ alert('Name cannot be empty.'); return; }
+  if(trimmed === currentName) return;
+  // Update local cache
+  user.name = trimmed;
+  // Update in Firebase
+  var ref = _usersDbRef();
+  if(!ref){ showToast('Not connected','err'); return; }
+  ref.child(uid).update({name: trimmed})
     .then(function(){
-      showToast('Name updated to '+trimmed);
-      // Keep APP.people in sync so the consultant sync doesn't re-create the old name
-      if(typeof APP!=='undefined'&&Array.isArray(APP.people)){
-        var p=APP.people.find(function(x){return x.name===orig;});
-        if(p){p.name=trimmed;try{saveApp();}catch(e){}}
+      // Keep APP.people in sync so consultant sync doesn't re-create old name as a duplicate
+      if(typeof APP !== 'undefined' && Array.isArray(APP.people)){
+        var p = APP.people.find(function(x){ return x.name === currentName; });
+        if(p){ p.name = trimmed; try{ saveApp(); }catch(e){} }
       }
-      // Update current session if this is the logged-in user
-      if(_currentUser&&_currentUser.id===uid){
-        _currentUser.name=trimmed;
-        sessionStorage.setItem('pd_user',JSON.stringify(_currentUser));
-        var badge=document.getElementById('userRoleBadge');
-        if(badge)badge.textContent=trimmed+' · '+(ROLE_LABELS[_currentUser.role]||'');
+      // Update live session if this is the current user
+      if(_currentUser && _currentUser.id === uid){
+        _currentUser.name = trimmed;
+        sessionStorage.setItem('pd_user', JSON.stringify(_currentUser));
+        var badge = document.getElementById('userRoleBadge');
+        if(badge) badge.textContent = trimmed + ' · ' + (ROLE_LABELS[_currentUser.role] || '');
       }
+      // Update the name span in the table without full re-render
+      var span = document.getElementById('uname_' + uid);
+      if(span) span.textContent = trimmed;
+      showToast('Renamed to ' + trimmed);
     })
-    .catch(function(){input.value=orig;input.dataset.orig=orig;if(_allUsers[uid])_allUsers[uid].name=orig;showToast('Rename failed','err');});
+    .catch(function(){ user.name = currentName; showToast('Rename failed','err'); });
 }
 
 function deleteUser(uid, name){
