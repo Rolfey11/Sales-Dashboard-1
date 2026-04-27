@@ -6024,8 +6024,10 @@ function renderDashCharts(mk){
 // Returns { copRev, copNm, cumActual, cumNmActual }
 // ═══════════════════════════════════════════════════════════════════
 function calcTeamCOP(mk, memberNames, teamKey){
+  memberNames = [...new Set(memberNames)]; // dedupe in case of prior bad renames
   const entries    = getEntries(mk);
-  const teamPeople = APP.people.filter(p=>memberNames.includes(p.name));
+  const seenNames  = new Set();
+  const teamPeople = APP.people.filter(p=>{ if(!memberNames.includes(p.name)||seenNames.has(p.name)) return false; seenNames.add(p.name); return true; });
   const memberRPDs = teamPeople.map(p=>({ name:p.name, rpd:(getPersonForMonth(p,mk).riskPerDay||0) }));
   const today2     = _localDateStr(new Date());
   const wdDates    = workingDatesInMonth(mk).filter(ds=>ds<=today2);
@@ -6189,7 +6191,7 @@ function renderDashboard(){
     let totalTodayRev=0, totalTodayNM=0, totalTodayRevRR=0, totalTodayNmRR=0;
 
     const teamCards = teamDefs.map(({key,label})=>{
-      const members = (APP.teams&&APP.teams[key])||[];
+      const members = [...new Set((APP.teams&&APP.teams[key])||[])]; // dedupe
       const ts = stats.filter(s=>members.includes(s.name)&&s.target>0);
 
       // ── Today's performance ──────────────────────────────────────
@@ -12239,7 +12241,7 @@ function toggleTeamMember(teamKey, name, checked){
 function renderTeamDashboard(container, teamKey){
   if(!APP.teams) APP.teams={g:[],james:[],damo:[]};
   const mk      = document.getElementById('teamsMonth').value || APP.activeMonth;
-  const members = (APP.teams[teamKey]||[]);
+  const members = [...new Set(APP.teams[teamKey]||[])]; // dedupe in case of prior bad renames
   const color   = TEAM_COLORS[teamKey];
   const label   = TEAM_LABELS[teamKey];
 
@@ -12248,9 +12250,10 @@ function renderTeamDashboard(container, teamKey){
     return;
   }
 
-  const teamPeople = APP.people.filter(p=>members.includes(p.name));
+  const _seenTP = new Set();
+  const teamPeople = APP.people.filter(p=>{ if(!members.includes(p.name)||_seenTP.has(p.name)) return false; _seenTP.add(p.name); return true; });
   const entries    = getEntries(mk);
-  const stats      = calcStats(mk).filter(s=>members.includes(s.name));
+  const stats      = calcStats(mk).filter(s=>{ if(!members.includes(s.name)) return false; return true; }).filter((s,i,a)=>a.findIndex(x=>x.name===s.name)===i);
   const teamRevMTD = stats.reduce((s,p)=>s+p.revMTD,0);
   const teamNmMTD  = stats.reduce((s,p)=>s+p.nmMTD,0);
   const teamTgt    = stats.reduce((s,p)=>s+p.target,0);
@@ -15115,11 +15118,15 @@ function editUserName(uid){
     }
   });
 
-  // 11. Teams — APP.teams[key] = [names]
+  // 11. Teams — APP.teams[key] = [names], deduplicated
   Object.keys(APP.teams||{}).forEach(function(key){
     var list = APP.teams[key]||[];
     if(list.includes(oldName)){
-      updates[divDbKey + '/teams/' + key] = list.map(function(n){ return n===oldName?trimmed:n; });
+      var renamed = list.map(function(n){ return n===oldName?trimmed:n; });
+      // Remove duplicates that may have built up from prior rename attempts
+      var seen = {};
+      renamed = renamed.filter(function(n){ if(seen[n]) return false; seen[n]=true; return true; });
+      updates[divDbKey + '/teams/' + key] = renamed;
     }
   });
 
