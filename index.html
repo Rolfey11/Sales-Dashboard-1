@@ -3740,9 +3740,30 @@ function bcRecalc(){
     </div>
     <div style="display:flex;gap:8px;align-items:center">
       <select id="moMonth" onchange="renderManagerOverview()" style="width:180px"></select>
+      <button class="btn btn-s" onclick="openManagerDigest()" style="font-size:12px;padding:6px 14px;display:flex;align-items:center;gap:5px;" title="Generate printable weekly digest">📋 Weekly Digest</button>
     </div>
   </div>
   <div id="moContent"><div class="empty"><div class="empty-icon">📊</div><div>Loading division data…</div></div></div>
+</div>
+
+<!-- MANAGER WEEKLY DIGEST MODAL -->
+<div id="moDigestModal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.55);overflow-y:auto;padding:32px 16px;" onclick="if(event.target===this)closeManagerDigest()">
+  <div style="max-width:900px;margin:0 auto;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 22px;background:var(--surface2);border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:18px">📋</span>
+        <div>
+          <div style="font-size:14px;font-weight:700;">Manager Weekly Digest</div>
+          <div id="mdSubtitle" style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-top:1px;"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-s" onclick="printManagerDigest()" style="font-size:12px;padding:5px 13px;">🖨 Print / Save PDF</button>
+        <button onclick="closeManagerDigest()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text3);line-height:1;padding:4px;">✕</button>
+      </div>
+    </div>
+    <div id="mdContent" style="padding:24px 26px;"></div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -9444,7 +9465,13 @@ function _openAssessmentPDF(d){
       .scores-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
       table{width:100%;border-collapse:collapse;}
       .no-print{text-align:center;margin-top:24px;padding:16px;background:#fff;border-radius:10px;}
-      @media print{
+      
+/* Manager Digest print styles */
+#moDigestModal { position:static !important; background:none !important; padding:0 !important; display:block !important; }
+#moDigestModal > div { box-shadow:none !important; border:none !important; max-width:100% !important; }
+.md-no-print { display:none !important; }
+.md-print-break { page-break-before:always; }
+@media print{
         body{padding:10px;background:#fff;}
         .no-print{display:none;}
         .hdr{border-radius:0;}
@@ -11622,6 +11649,305 @@ function renderManagerOverview(){
         <span style="color:var(--accent)">CURRENT</span> = your active division &nbsp;·&nbsp;
         Data refreshed each time you open this tab
       </div>`;
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MANAGER WEEKLY DIGEST
+// ═══════════════════════════════════════════════════════════════════
+
+function openManagerDigest(){
+  if(!_moLastData){
+    showToast('Load Manager Overview first to generate the digest','err');
+    return;
+  }
+  renderManagerDigest();
+  document.getElementById('moDigestModal').style.display='block';
+  document.body.style.overflow='hidden';
+}
+
+function closeManagerDigest(){
+  document.getElementById('moDigestModal').style.display='none';
+  document.body.style.overflow='';
+}
+
+function printManagerDigest(){
+  window.print();
+}
+
+function renderManagerDigest(){
+  const { divSummaries, results, mk } = _moLastData;
+  const now = new Date();
+  const generatedStr = now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+    + ' at ' + now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+
+  document.getElementById('mdSubtitle').textContent = monthLabel(mk) + ' · Generated ' + generatedStr;
+
+  // ── Grand totals ──────────────────────────────────────────────────
+  const grandRev    = divSummaries.reduce((s,d)=>s+d.totRev,0);
+  const grandTgt    = divSummaries.reduce((s,d)=>s+d.totTgt,0);
+  const grandNm     = divSummaries.reduce((s,d)=>s+d.totNm,0);
+  const grandNmTgt  = divSummaries.reduce((s,d)=>s+d.totNmTgt,0);
+  const grandCopRev = divSummaries.reduce((s,d)=>s+d.copRev,0);
+  const grandCopNm  = divSummaries.reduce((s,d)=>s+d.copNm,0);
+  const grandPct    = grandTgt>0?Math.round(grandRev/grandTgt*100):0;
+  const allPeople   = divSummaries.flatMap(d=>
+    d.stats.map(p=>({...p,divKey:d.key,divLabel:d.div.label,divIcon:d.div.icon,divData:results.find(r=>r.key===d.key)?.data}))
+  ).sort((a,b)=>b.revPct-a.revPct);
+
+  // ── Working days remaining ────────────────────────────────────────
+  const today     = _localDateStr(new Date());
+  const wdAll     = workingDatesInMonth(mk);
+  const wdPast    = wdAll.filter(ds=>ds<=today).length;
+  const wdLeft    = wdAll.filter(ds=>ds>today).length;
+  const isCurrentMonth = mk === todayKey();
+
+  // ── Early warnings: behind pace + ≤10 days left ───────────────────
+  const warnings = [];
+  if(isCurrentMonth && wdLeft<=10 && wdLeft>0){
+    allPeople.forEach(p=>{
+      if(!p.target) return;
+      const paceNeeded = p.target;
+      const currentPace = wdPast>0 ? (p.revMTD/wdPast)*wdAll.length : 0;
+      const projectedEnd = p.revMTD + (wdLeft * (wdPast>0?p.revMTD/wdPast:0));
+      const shortfall = p.target - projectedEnd;
+      const behindPct = paceNeeded>0 ? ((paceNeeded - projectedEnd)/paceNeeded*100) : 0;
+      if(behindPct >= 20){
+        warnings.push({
+          name: p.name, divIcon: p.divIcon, divLabel: p.divLabel,
+          revMTD: p.revMTD, target: p.target, revPct: p.revPct,
+          projected: Math.round(projectedEnd),
+          shortfall: Math.round(shortfall),
+          behindPct: Math.round(behindPct)
+        });
+      }
+    });
+    warnings.sort((a,b)=>b.behindPct-a.behindPct);
+  }
+
+  // ── Holiday coverage this week ────────────────────────────────────
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - now.getDay() + (now.getDay()===0?-6:1));
+  const weekDates = [];
+  for(let i=0;i<5;i++){
+    const d=new Date(weekStart); d.setDate(weekStart.getDate()+i);
+    weekDates.push(_localDateStr(d));
+  }
+  const offThisWeek = [];
+  results.forEach(({key,data})=>{
+    const div = DIVISIONS[key];
+    const mh  = (data.holidays||{})[mk]||{};
+    const ms  = (data.sickness||{})[mk]||{};
+    (data.people||[]).forEach(p=>{
+      const hDates = (mh[p.name]||[]).filter(d=>weekDates.includes(d));
+      const sDates = (ms[p.name]||[]).filter(d=>weekDates.includes(d));
+      if(hDates.length) offThisWeek.push({name:p.name,divIcon:div.icon,divLabel:div.label,dates:hDates,type:'Holiday'});
+      if(sDates.length) offThisWeek.push({name:p.name,divIcon:div.icon,divLabel:div.label,dates:sDates,type:'Sickness'});
+    });
+  });
+  const weekLabel = weekDates[0] && weekDates[4]
+    ? new Date(weekDates[0]).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) + '–' +
+      new Date(weekDates[4]).toLocaleDateString('en-GB',{day:'numeric',month:'short'})
+    : 'This week';
+
+  // ── Compliance: fetch from current division ───────────────────────
+  const compDbKey = (DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey;
+  _db.ref(compDbKey+'/compliance').once('value').then(function(snap){
+    const allRecs   = Object.values(snap.val()||{});
+    const thisMonth = allRecs.filter(r=>(r.dateObs||'').startsWith(mk));
+    const total     = thisMonth.length;
+    const passes    = thisMonth.filter(r=>r.initialOutcome==='Pass').length;
+    const pwd       = thisMonth.filter(r=>r.initialOutcome==='Pass with Development').length;
+    const fails     = thisMonth.filter(r=>r.initialOutcome==='Fail').length;
+    const passRate  = total>0?Math.round((passes/total)*100):null;
+    const passCol   = passRate===null?'var(--text3)':passRate>=90?'var(--green)':passRate>=75?'var(--amber)':'var(--red)';
+
+    // ── Build HTML ────────────────────────────────────────────────────
+    const sectionHead = (icon,title,sub) =>
+      `<div style="display:flex;align-items:center;gap:8px;margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border);">
+        <span style="font-size:15px">${icon}</span>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text);letter-spacing:.02em">${title}</div>
+          ${sub?`<div style="font-size:10px;color:var(--text3);font-family:var(--fm)">${sub}</div>`:''}
+        </div>
+      </div>`;
+
+    const kpiCol = (label,val,sub,col) =>
+      `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
+        <div style="font-size:10px;color:var(--text3);font-family:var(--fm);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px">${label}</div>
+        <div style="font-size:20px;font-weight:700;color:${col||'var(--text)'};font-family:var(--fm)">${val}</div>
+        ${sub?`<div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:2px">${sub}</div>`:''}
+      </div>`;
+
+    const pctCol = grandPct>=100?'var(--green)':grandPct>=75?'var(--amber)':'var(--red)';
+
+    // Section 1 — KPIs
+    const kpiHtml = `
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+        ${kpiCol('Revenue MTD','£'+Math.round(grandRev).toLocaleString(),grandPct+'% of £'+grandTgt.toLocaleString(),pctCol)}
+        ${kpiCol('NM MTD',grandNm,'target: '+grandNmTgt.toFixed(1),'var(--text)')}
+        ${kpiCol('COP Revenue',(grandCopRev>=0?'+':'')+'£'+Math.round(Math.abs(grandCopRev)).toLocaleString(),grandCopRev>=0?'ahead of pace':'behind pace',grandCopRev>=0?'var(--green)':'var(--red)')}
+        ${kpiCol('COP NM',(grandCopNm>=0?'+':'')+grandCopNm.toFixed(1),grandCopNm>=0?'ahead of pace':'behind pace',grandCopNm>=0?'var(--green)':'var(--red)')}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px;">
+        ${kpiCol('Working Days Left',isCurrentMonth?wdLeft:'—',isCurrentMonth?(wdPast+' elapsed this month'):'Historical month','var(--text)')}
+        ${kpiCol('Consultants on Target',allPeople.filter(p=>p.copRev>=0).length+' / '+allPeople.length,'ahead of run rate checkpoint','var(--text)')}
+        ${kpiCol('Divisions Active',divSummaries.filter(d=>d.stats.length>0).length+' / '+divSummaries.length,'with consultant data this month','var(--text)')}
+      </div>`;
+
+    // Section 2 — Division summary
+    const divRows = divSummaries.filter(d=>d.stats.length>0).map(d=>{
+      const pct    = d.totTgt>0?Math.round(d.totRev/d.totTgt*100):0;
+      const copCol = d.copRev>=0?'var(--green)':'var(--red)';
+      const pctCol2= pct>=100?'var(--green)':pct>=75?'var(--amber)':'var(--red)';
+      const barW   = Math.min(pct,100);
+      return `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:9px 12px;font-size:12px;font-weight:700;">${d.div.icon} ${d.div.label}</td>
+        <td style="padding:9px 12px;text-align:right;font-size:12px;color:var(--text2);">£${d.totTgt.toLocaleString()}</td>
+        <td style="padding:9px 12px;text-align:right;font-size:12px;font-weight:700;color:${pctCol2};">£${Math.round(d.totRev).toLocaleString()}</td>
+        <td style="padding:9px 12px;text-align:right;font-size:12px;font-weight:700;color:${pctCol2};">${pct}%</td>
+        <td style="padding:9px 12px;width:120px;">
+          <div style="height:6px;background:var(--surface3);border-radius:3px;overflow:hidden;">
+            <div style="height:100%;width:${barW}%;background:${pctCol2};border-radius:3px;"></div>
+          </div>
+        </td>
+        <td style="padding:9px 12px;text-align:right;font-size:12px;font-weight:700;color:${copCol};">${d.copRev>=0?'+':''}£${Math.round(Math.abs(d.copRev)).toLocaleString()}</td>
+        <td style="padding:9px 12px;text-align:right;font-size:11px;color:var(--text2);">${d.totNm} / ${d.totNmTgt.toFixed(1)}</td>
+        <td style="padding:9px 12px;text-align:right;font-size:11px;color:var(--text2);">${d.hit} / ${d.stats.length}</td>
+      </tr>`;
+    }).join('');
+
+    const divHtml = divRows ? `
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-family:var(--fm);">
+          <thead><tr style="background:var(--surface2);border-bottom:1px solid var(--border);">
+            <th style="padding:8px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;">Division</th>
+            <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;">Target</th>
+            <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;">Rev MTD</th>
+            <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;">%</th>
+            <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;">Progress</th>
+            <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;">COP Rev</th>
+            <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;">NM Act / Tgt</th>
+            <th style="padding:8px 12px;text-align:right;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;">On Target</th>
+          </tr></thead>
+          <tbody>${divRows}</tbody>
+        </table>
+      </div>` : '<div style="color:var(--text3);font-size:12px;font-family:var(--fm);padding:8px 0;">No division data for this month.</div>';
+
+    // Section 3 — Early warnings
+    const warnHtml = (isCurrentMonth && wdLeft<=10) ? (warnings.length>0 ? `
+      <div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:14px 16px;">
+        <div style="font-size:11px;font-weight:700;color:var(--red);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px;">
+          ⚠ ${warnings.length} consultant${warnings.length!==1?'s':''} at risk — ${wdLeft} working day${wdLeft!==1?'s':''} remaining
+        </div>
+        ${warnings.map(w=>`
+          <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(239,68,68,0.1);">
+            <div style="font-size:12px;font-weight:700;min-width:120px;">${w.name}</div>
+            <div style="font-size:11px;color:var(--text3);min-width:90px;">${w.divIcon} ${w.divLabel}</div>
+            <div style="font-size:11px;color:var(--text2);">£${Math.round(w.revMTD).toLocaleString()} of £${w.target.toLocaleString()} (${w.revPct}%)</div>
+            <div style="margin-left:auto;font-size:11px;font-weight:700;color:var(--red);">proj. £${w.projected.toLocaleString()} · ${w.behindPct}% short</div>
+          </div>`).join('')}
+      </div>` : `<div style="background:rgba(45,206,137,0.07);border:1px solid rgba(45,206,137,0.2);border-radius:8px;padding:12px 16px;font-size:12px;color:var(--green);font-weight:700;">✓ No consultants flagged at risk — all within 20% of projected target.</div>`)
+    : `<div style="font-size:12px;color:var(--text3);font-family:var(--fm);">${isCurrentMonth?'More than 10 working days remaining — early warning check not yet active.':'This is a historical month — early warnings not applicable.'}</div>`;
+
+    // Section 4 — Consultant table
+    const consultRows = allPeople.map((p,i)=>{
+      const cop    = p.copRev;
+      const nmDiff = p.nmMTD - p.nmTgt;
+      const pctCol3= p.revPct>=100?'var(--green)':p.revPct>=75?'var(--amber)':'var(--red)';
+      return `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:7px 10px;font-size:11px;color:var(--text3);font-family:var(--fm);">${i+1}</td>
+        <td style="padding:7px 10px;font-size:12px;font-weight:700;">${p.name}</td>
+        <td style="padding:7px 10px;font-size:11px;color:var(--text3);">${p.divIcon} ${p.divLabel}</td>
+        <td style="padding:7px 10px;text-align:right;font-size:12px;font-weight:700;color:${pctCol3};">${p.revPct}%</td>
+        <td style="padding:7px 10px;text-align:right;font-size:12px;color:var(--text2);">£${Math.round(p.revMTD).toLocaleString()}</td>
+        <td style="padding:7px 10px;text-align:right;font-size:12px;color:var(--text2);">£${p.target.toLocaleString()}</td>
+        <td style="padding:7px 10px;text-align:right;font-size:11px;font-weight:700;color:${cop>=0?'var(--green)':'var(--red)'};">${cop>=0?'+':''}£${Math.round(Math.abs(cop)).toLocaleString()}</td>
+        <td style="padding:7px 10px;text-align:right;font-size:11px;">${p.nmMTD}</td>
+        <td style="padding:7px 10px;text-align:right;font-size:11px;font-weight:700;color:${nmDiff>=0?'var(--green)':'var(--red)'};">${nmDiff>=0?'+':''}${Math.abs(nmDiff).toFixed(1)}</td>
+      </tr>`;
+    }).join('');
+
+    const consultHtml = `
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-family:var(--fm);">
+          <thead><tr style="background:var(--surface2);border-bottom:1px solid var(--border);">
+            <th style="padding:7px 10px;text-align:left;font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;">#</th>
+            <th style="padding:7px 10px;text-align:left;font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;">Name</th>
+            <th style="padding:7px 10px;text-align:left;font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;">Division</th>
+            <th style="padding:7px 10px;text-align:right;font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;">% Tgt</th>
+            <th style="padding:7px 10px;text-align:right;font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;">Rev MTD</th>
+            <th style="padding:7px 10px;text-align:right;font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;">Target</th>
+            <th style="padding:7px 10px;text-align:right;font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;">COP Rev</th>
+            <th style="padding:7px 10px;text-align:right;font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;">NM Act</th>
+            <th style="padding:7px 10px;text-align:right;font-size:9px;font-weight:700;color:var(--text3);letter-spacing:.07em;text-transform:uppercase;">NM Diff</th>
+          </tr></thead>
+          <tbody>${consultRows}</tbody>
+        </table>
+      </div>`;
+
+    // Section 5 — Holiday coverage this week
+    const holHtml = offThisWeek.length ? `
+      <div style="display:flex;flex-wrap:wrap;gap:7px;">
+        ${offThisWeek.map(h=>{
+          const col = h.type==='Holiday'?'rgba(94,156,245,0.12)':'rgba(239,68,68,0.1)';
+          const tcol= h.type==='Holiday'?'var(--blue)':'var(--red)';
+          return `<div style="background:${col};border-radius:6px;padding:5px 10px;font-size:11px;">
+            <span style="font-weight:700;color:var(--text);">${h.name}</span>
+            <span style="color:var(--text3);margin:0 3px;">·</span>
+            <span style="color:${tcol};font-weight:600;">${h.type}</span>
+            <span style="color:var(--text3);margin:0 3px;">·</span>
+            <span style="color:var(--text2);font-family:var(--fm);">${h.dates.map(d=>new Date(d).toLocaleDateString('en-GB',{weekday:'short',day:'numeric'})).join(', ')}</span>
+          </div>`;
+        }).join('')}
+      </div>` : `<div style="font-size:12px;color:var(--text3);font-family:var(--fm);">Full team available this week — no holiday or sickness recorded.</div>`;
+
+    // Section 6 — Compliance
+    const compHtml = total>0 ? `
+      <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:28px;font-weight:700;color:${passCol};font-family:var(--fm);">${passRate}%</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--fm);text-transform:uppercase;letter-spacing:.06em;">Pass rate</div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <div style="background:rgba(45,206,137,0.1);border-radius:6px;padding:6px 12px;text-align:center;">
+            <div style="font-size:16px;font-weight:700;color:var(--green);">${passes}</div>
+            <div style="font-size:10px;color:var(--text3);font-family:var(--fm);">Pass</div>
+          </div>
+          <div style="background:rgba(251,184,58,0.1);border-radius:6px;padding:6px 12px;text-align:center;">
+            <div style="font-size:16px;font-weight:700;color:var(--amber);">${pwd}</div>
+            <div style="font-size:10px;color:var(--text3);font-family:var(--fm);">Pass w/ Dev</div>
+          </div>
+          <div style="background:rgba(239,68,68,0.1);border-radius:6px;padding:6px 12px;text-align:center;">
+            <div style="font-size:16px;font-weight:700;color:var(--red);">${fails}</div>
+            <div style="font-size:10px;color:var(--text3);font-family:var(--fm);">Fail</div>
+          </div>
+          <div style="background:var(--surface2);border-radius:6px;padding:6px 12px;text-align:center;">
+            <div style="font-size:16px;font-weight:700;color:var(--text);">${total}</div>
+            <div style="font-size:10px;color:var(--text3);font-family:var(--fm);">Total assessed</div>
+          </div>
+        </div>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-left:auto;">${(DIVISIONS[_currentDivKey]||DIVISIONS.branch).label} division only</div>
+      </div>` : `<div style="font-size:12px;color:var(--text3);font-family:var(--fm);">No compliance assessments recorded this month for the active division.</div>`;
+
+    // ── Assemble ──────────────────────────────────────────────────────
+    const footerNote = `<div style="margin-top:24px;padding-top:12px;border-top:1px solid var(--border);font-size:10px;color:var(--text3);font-family:var(--fm);display:flex;justify-content:space-between;">
+      <span>JG MI · Manager Weekly Digest · ${monthLabel(mk)}</span>
+      <span>Generated ${generatedStr}</span>
+    </div>`;
+
+    document.getElementById('mdContent').innerHTML =
+      kpiHtml +
+      sectionHead('📊','Division summary','Revenue performance by division this month') + divHtml +
+      sectionHead('⚠','Early warnings',isCurrentMonth&&wdLeft<=10?wdLeft+' working days remaining':'Month-end risk flags') + warnHtml +
+      sectionHead('👥','Consultant performance','All consultants sorted by % of target') + consultHtml +
+      sectionHead('📅','Holiday & absence — week of '+weekLabel,'Who is off across all divisions this week') + holHtml +
+      sectionHead('✅','Compliance snapshot',monthLabel(mk)+' · active division') + compHtml +
+      footerNote;
+
+  }).catch(function(){
+    document.getElementById('mdContent').innerHTML =
+      kpiHtml + '<div style="color:var(--red);font-size:12px;margin-top:12px;">Could not load compliance data — check Firebase connection.</div>';
   });
 }
 
