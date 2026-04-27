@@ -15023,34 +15023,149 @@ function deleteUser(uid){
 function editUserName(uid){
   var user = _allUsers[uid];
   if(!user){ showToast('User not found','err'); return; }
-  var currentName = user.name;
-  var newName = prompt('Rename "' + currentName + '" to:', currentName);
+  var oldName = user.name;
+  var newName = prompt('Rename "' + oldName + '" to:', oldName);
   if(newName === null) return;
   var trimmed = newName.trim();
   if(!trimmed){ alert('Name cannot be empty.'); return; }
-  if(trimmed === currentName) return;
-  user.name = trimmed;
-  var ref = _usersDbRef();
-  if(!ref){ showToast('Not connected','err'); return; }
-  ref.child(uid).update({name: trimmed})
+  if(trimmed === oldName) return;
+  if(!_db){ showToast('Not connected','err'); return; }
+
+  var divDbKey = (DIVISIONS[_currentDivKey] || DIVISIONS.branch).dbKey;
+  var updates = {};
+
+  // 1. User account
+  updates['perfDash2/cavendishUsers/' + uid + '/name'] = trimmed;
+
+  // 2. APP.people
+  var idx = (APP.people||[]).findIndex(function(x){ return x.name === oldName; });
+  if(idx !== -1) updates[divDbKey + '/people/' + idx + '/name'] = trimmed;
+
+  // 3. Monthly entries (each entry has a `name` field)
+  Object.keys(APP.months||{}).forEach(function(mk){
+    var entries = (APP.months[mk].entries||[]);
+    var hasMatch = entries.some(function(e){ return e.name === oldName; });
+    if(hasMatch){
+      var updated = entries.map(function(e){
+        return e.name === oldName ? Object.assign({}, e, {name: trimmed}) : e;
+      });
+      updates[divDbKey + '/months/' + mk + '/entries'] = updated;
+    }
+  });
+
+  // 4. Holidays — APP.holidays[mk][name] = [dates]
+  Object.keys(APP.holidays||{}).forEach(function(mk){
+    var mh = APP.holidays[mk]||{};
+    if(mh[oldName] !== undefined){
+      updates[divDbKey + '/holidays/' + mk + '/' + trimmed] = mh[oldName];
+      updates[divDbKey + '/holidays/' + mk + '/' + oldName]  = null;
+    }
+  });
+
+  // 5. Sickness — APP.sickness[mk][name] = [dates]
+  Object.keys(APP.sickness||{}).forEach(function(mk){
+    var ms = APP.sickness[mk]||{};
+    if(ms[oldName] !== undefined){
+      updates[divDbKey + '/sickness/' + mk + '/' + trimmed] = ms[oldName];
+      updates[divDbKey + '/sickness/' + mk + '/' + oldName]  = null;
+    }
+  });
+
+  // 6. Absences — APP.absences[mk][name][date] = {type,hours}
+  Object.keys(APP.absences||{}).forEach(function(mk){
+    var ma = APP.absences[mk]||{};
+    if(ma[oldName] !== undefined){
+      updates[divDbKey + '/absences/' + mk + '/' + trimmed] = ma[oldName];
+      updates[divDbKey + '/absences/' + mk + '/' + oldName]  = null;
+    }
+  });
+
+  // 7. Allowances — APP.allowances[name] = {base, carryOver}
+  if(APP.allowances && APP.allowances[oldName] !== undefined){
+    updates[divDbKey + '/allowances/' + trimmed] = APP.allowances[oldName];
+    updates[divDbKey + '/allowances/' + oldName]  = null;
+  }
+
+  // 8. NM rates — APP.nmRates[name] = value
+  if(APP.nmRates && APP.nmRates[oldName] !== undefined){
+    updates[divDbKey + '/nmRates/' + trimmed] = APP.nmRates[oldName];
+    updates[divDbKey + '/nmRates/' + oldName]  = null;
+  }
+
+  // 9. Month overrides — APP.monthOverrides[mk][name] = {nmPerDay,...}
+  Object.keys(APP.monthOverrides||{}).forEach(function(mk){
+    var mo = APP.monthOverrides[mk]||{};
+    if(mo[oldName] !== undefined){
+      updates[divDbKey + '/monthOverrides/' + mk + '/' + trimmed] = mo[oldName];
+      updates[divDbKey + '/monthOverrides/' + mk + '/' + oldName]  = null;
+    }
+  });
+
+  // 10. Direct reports — APP.directReports[managerName] = [names]
+  //     a) If this person IS a manager, rename their key
+  if(APP.directReports && APP.directReports[oldName] !== undefined){
+    updates[divDbKey + '/directReports/' + trimmed] = APP.directReports[oldName];
+    updates[divDbKey + '/directReports/' + oldName]  = null;
+  }
+  //     b) If this person appears in any manager's list, update it
+  Object.keys(APP.directReports||{}).forEach(function(mgr){
+    var list = APP.directReports[mgr]||[];
+    if(list.includes(oldName)){
+      updates[divDbKey + '/directReports/' + mgr] = list.map(function(n){ return n===oldName?trimmed:n; });
+    }
+  });
+
+  // 11. Teams — APP.teams[key] = [names]
+  Object.keys(APP.teams||{}).forEach(function(key){
+    var list = APP.teams[key]||[];
+    if(list.includes(oldName)){
+      updates[divDbKey + '/teams/' + key] = list.map(function(n){ return n===oldName?trimmed:n; });
+    }
+  });
+
+  // Write everything atomically
+  _db.ref().update(updates)
     .then(function(){
-      if(typeof APP !== 'undefined' && Array.isArray(APP.people)){
-        var p = APP.people.find(function(x){ return x.name === currentName; });
-        if(p){ p.name = trimmed; try{ saveApp(); }catch(e){} }
+      // Mirror all changes into in-memory APP so UI stays consistent
+      user.name = trimmed;
+      if(idx !== -1 && APP.people[idx]) APP.people[idx].name = trimmed;
+
+      Object.keys(APP.months||{}).forEach(function(mk){
+        var entries = APP.months[mk].entries||[];
+        APP.months[mk].entries = entries.map(function(e){ return e.name===oldName?Object.assign({},e,{name:trimmed}):e; });
+      });
+      Object.keys(APP.holidays||{}).forEach(function(mk){
+        if(APP.holidays[mk]&&APP.holidays[mk][oldName]!==undefined){APP.holidays[mk][trimmed]=APP.holidays[mk][oldName];delete APP.holidays[mk][oldName];}
+      });
+      Object.keys(APP.sickness||{}).forEach(function(mk){
+        if(APP.sickness[mk]&&APP.sickness[mk][oldName]!==undefined){APP.sickness[mk][trimmed]=APP.sickness[mk][oldName];delete APP.sickness[mk][oldName];}
+      });
+      Object.keys(APP.absences||{}).forEach(function(mk){
+        if(APP.absences[mk]&&APP.absences[mk][oldName]!==undefined){APP.absences[mk][trimmed]=APP.absences[mk][oldName];delete APP.absences[mk][oldName];}
+      });
+      if(APP.allowances&&APP.allowances[oldName]!==undefined){APP.allowances[trimmed]=APP.allowances[oldName];delete APP.allowances[oldName];}
+      if(APP.nmRates&&APP.nmRates[oldName]!==undefined){APP.nmRates[trimmed]=APP.nmRates[oldName];delete APP.nmRates[oldName];}
+      Object.keys(APP.monthOverrides||{}).forEach(function(mk){
+        if(APP.monthOverrides[mk]&&APP.monthOverrides[mk][oldName]!==undefined){APP.monthOverrides[mk][trimmed]=APP.monthOverrides[mk][oldName];delete APP.monthOverrides[mk][oldName];}
+      });
+      if(APP.directReports){
+        if(APP.directReports[oldName]!==undefined){APP.directReports[trimmed]=APP.directReports[oldName];delete APP.directReports[oldName];}
+        Object.keys(APP.directReports).forEach(function(mgr){var l=APP.directReports[mgr]||[];if(l.includes(oldName))APP.directReports[mgr]=l.map(function(n){return n===oldName?trimmed:n;});});
       }
+      Object.keys(APP.teams||{}).forEach(function(key){var l=APP.teams[key]||[];if(l.includes(oldName))APP.teams[key]=l.map(function(n){return n===oldName?trimmed:n;});});
+
       if(_currentUser && _currentUser.id === uid){
         _currentUser.name = trimmed;
         sessionStorage.setItem('pd_user', JSON.stringify(_currentUser));
         var badge = document.getElementById('userRoleBadge');
-        if(badge) badge.textContent = trimmed + ' · ' + (ROLE_LABELS[_currentUser.role] || '');
+        if(badge) badge.textContent = trimmed + ' \xb7 ' + (ROLE_LABELS[_currentUser.role]||'');
       }
       var span = document.getElementById('uname_' + uid);
       if(span) span.textContent = trimmed;
       showToast('Renamed to ' + trimmed);
     })
-    .catch(function(){ user.name = currentName; showToast('Rename failed','err'); });
+    .catch(function(){ showToast('Rename failed','err'); });
 }
-
 function openAddUserModal(){
   document.getElementById('addUserName').value='';
   document.getElementById('addUserPin').value='';
