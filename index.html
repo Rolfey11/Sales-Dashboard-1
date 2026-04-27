@@ -7764,11 +7764,13 @@ function _mcsRenderGraph(){
   // Build the dataset based on COP (Checkpoint Of Pace) — i.e. where each person
   // is against their run-rate-to-date, NOT their full monthly target. This shows
   // who's pulling ahead / falling behind relative to expected pace.
-  // COP sign convention in calcStats: positive copRev/copNm = ahead.
+  // Use calcTeamCOP per person (same source as the consultant cards table) so the
+  // graph values always match what's shown on the cards.
   // Graph convention: positive bar = "still needs", negative bar = "ahead/surplus".
   // So we negate COP to flip into "needed" terms.
   const rows = stats.map(s=>{
-    const cop   = (_mcsGraphMode==='rev') ? (s.copRev || 0) : (s.copNm || 0);
+    const copData = calcTeamCOP(mk, [s.name]);
+    const cop   = (_mcsGraphMode==='rev') ? (copData.copRev || 0) : (copData.copNm || 0);
     const value = -cop;
     return { name: s.name, value };
   }).sort((a,b)=> b.value - a.value); // biggest "behind" first, most "ahead" last
