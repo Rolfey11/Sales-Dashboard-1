@@ -14891,7 +14891,10 @@ function _renderUsersTable(){
           const isSenior = !!u.isSenior;
           return `<tr style="border-bottom:1px solid var(--border)">
             <td style="padding:9px 12px;font-weight:600;font-size:13px">
-              ${u.name}
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span id="uname_${u.id}">${u.name}</span>
+                <button class="btn btn-s" onclick="editUserName('${u.id}','${u.name.replace(/'/g,"\\\'")}')" style="font-size:10px;padding:2px 7px;opacity:.7" title="Rename user">✏️</button>
+              </div>
               <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:1px">${u.divKey?(DIVISIONS[u.divKey]?.label||u.divKey):'—'}</div>
             </td>
             <td style="padding:9px 12px;">
@@ -14993,6 +14996,29 @@ function editUserPin(uid, name){
   _usersDbRef()?.child(uid).update({pin:newPin})
     .then(()=>{ showToast('PIN updated'); _renderUsersTable(); })
     .catch(()=>showToast('Save failed','err'));
+}
+
+function editUserName(uid, currentName){
+  const newName = prompt(`Rename "${currentName}" to:`, currentName);
+  if(newName === null) return; // cancelled
+  const trimmed = newName.trim();
+  if(!trimmed){ alert('Name cannot be empty.'); return; }
+  if(trimmed === currentName) return; // no change
+  _allUsers[uid].name = trimmed;
+  _usersDbRef()?.child(uid).update({name: trimmed})
+    .then(()=>{
+      showToast(`Renamed to ${trimmed}`);
+      // If this is the currently logged-in user, update live session
+      if(_currentUser && _currentUser.id === uid){
+        _currentUser.name = trimmed;
+        sessionStorage.setItem('pd_user', JSON.stringify(_currentUser));
+        // Update nav badge
+        const badge = document.getElementById('userRoleBadge');
+        if(badge) badge.textContent = `${trimmed} · ${ROLE_LABELS[_currentUser.role]||''}`;
+      }
+      _renderUsersTable();
+    })
+    .catch(()=>showToast('Rename failed','err'));
 }
 
 function deleteUser(uid, name){
