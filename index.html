@@ -25,6 +25,7 @@
   --shadow:0 4px 24px rgba(0,0,0,.35);
   --nav-bg:rgba(11,12,16,0.96);
 }
+@keyframes _bannerBlink{0%,100%{opacity:1}50%{opacity:.35}}
 /* ── THEMES ──────────────────────────────────────────────────────── */
 /* 1. Midnight (default dark) — already in :root */
 
@@ -1933,6 +1934,16 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
     </div>
   </div>
 </nav>
+<!-- Risk Approval Banner — shown to managers/masters when pending entries exist -->
+<div id="approvalBanner" style="display:none;position:sticky;top:0;z-index:8000;width:100%;background:#c0182c;color:#fff;box-shadow:0 3px 12px rgba(192,24,44,.55);">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:100%;padding:10px 18px;">
+    <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+      <span style="font-size:18px;flex-shrink:0;animation:_bannerBlink 1.1s ease-in-out infinite;">🔴</span>
+      <span id="approvalBannerText" style="font-size:13px;font-weight:700;font-family:var(--fh);letter-spacing:.01em;">Risk approval waiting in inbox</span>
+    </div>
+    <button onclick="toggleNotifPanel()" style="background:rgba(255,255,255,0.22);border:1px solid rgba(255,255,255,0.4);color:#fff;font-size:11px;font-weight:700;font-family:var(--fm);padding:5px 14px;border-radius:20px;cursor:pointer;white-space:nowrap;flex-shrink:0;letter-spacing:.04em;transition:background .15s;" onmouseover="this.style.background='rgba(255,255,255,0.35)'" onmouseout="this.style.background='rgba(255,255,255,0.22)'">Open Inbox →</button>
+  </div>
+</div>
 
 <!-- DASHBOARD -->
 <div class="page" id="page-dashboard">
@@ -16367,6 +16378,22 @@ function _updateNotifBadgeWithMsgs(){
     badge.style.display='none';
     badge.style.boxShadow='';
   }
+
+  // ── Approval banner — red sticky bar for managers/masters ─────────
+  const banner   = document.getElementById('approvalBanner');
+  const bannerTx = document.getElementById('approvalBannerText');
+  if(banner){
+    const isMgr = role==='manager'||role==='master'||role==='smt';
+    if(isMgr && pendingCount>0){
+      const noun = pendingCount===1 ? 'approval' : 'approvals';
+      if(bannerTx) bannerTx.textContent = pendingCount===1
+        ? 'Risk approval waiting in inbox'
+        : pendingCount + ' risk ' + noun + ' waiting in inbox';
+      banner.style.display='';
+    } else {
+      banner.style.display='none';
+    }
+  }
 }
 
 // ── Extend _renderNotifList to include messages ─────────────────────
@@ -21073,10 +21100,31 @@ function _showCheerToast(cheeredName, cheererName){
 // Back-compat alias (old code path):
 function _showWellDoneOverlay(cheeredName, cheererName){ _showCheerToast(cheeredName, cheererName); }
 
+// ── Skeleton loader (shown immediately before data arrives) ─────────
+function _sfShowSkeleton(){
+  const wrap = document.getElementById('salesFeedList');
+  if(!wrap || wrap.dataset.sfLoaded === 'true') return;
+  if(!document.getElementById('_sfSkeletonStyle')){
+    const s = document.createElement('style'); s.id = '_sfSkeletonStyle';
+    s.textContent = '@keyframes _sfShimmer{0%{opacity:1}50%{opacity:.45}100%{opacity:1}}';
+    document.head.appendChild(s);
+  }
+  const skCard = () => `<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;margin-bottom:14px;animation:_sfShimmer 1.4s infinite linear;">` +
+    `<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">` +
+    `<div style="width:32px;height:32px;border-radius:50%;background:var(--surface2);flex-shrink:0;"></div>` +
+    `<div style="flex:1;"><div style="height:13px;width:55%;background:var(--surface2);border-radius:6px;margin-bottom:7px;"></div>` +
+    `<div style="height:10px;width:35%;background:var(--surface2);border-radius:6px;"></div></div>` +
+    `<div style="height:10px;width:60px;background:var(--surface2);border-radius:6px;"></div></div>` +
+    `<div style="display:flex;gap:10px;"><div style="height:11px;width:30%;background:var(--surface2);border-radius:6px;"></div>` +
+    `<div style="height:11px;width:20%;background:var(--surface2);border-radius:6px;"></div></div></div>`;
+  wrap.innerHTML = skCard() + skCard() + skCard();
+}
+
 // ── Render the feed page ──────────────────────────────────────────
 function renderSalesFeed(){
   const wrap = document.getElementById('salesFeedList');
   if(!wrap) return;
+  wrap.dataset.sfLoaded = 'true';
   const posts = Object.entries(_sfPosts||{})
     .map(([id, p])=>({id, ...p}))
     .filter(p=>p.name && p.revenue > 0)
@@ -21306,6 +21354,7 @@ if(typeof showPage === 'function'){
     }
     const ret = _origShowPage_sf.apply(this, arguments);
     if(id === 'salesfeed'){
+      try{ _sfShowSkeleton(); }catch(e){}
       setTimeout(()=>{ try{ renderSalesFeed(); }catch(e){ console.warn('[salesFeed] render', e); } }, 50);
     }
     return ret;
