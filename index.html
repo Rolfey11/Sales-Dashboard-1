@@ -3805,16 +3805,11 @@ function bcRecalc(){
 <div class="page" id="page-salesfc">
   <div class="section-head">
     <div>
-      <div class="section-title">Sales FC</div>
-      <div class="section-sub" id="sfcSub">Live match powered by your sales data</div>
+      <div class="section-title">⚽ Sales FC</div>
+      <div class="section-sub">Top scorers · league table · head-to-head duels</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
       <select id="sfcMonth" onchange="renderSalesFC()" style="width:160px;"></select>
-      <select id="sfcMetric" onchange="sfcSetMetric(this.value)" style="width:140px;">
-        <option value="rev">Revenue goals</option>
-        <option value="nm">Needs Met goals</option>
-        <option value="pct">% Target goals</option>
-      </select>
     </div>
   </div>
   <div id="sfcContent" style="min-height:300px;"></div>
@@ -22856,532 +22851,402 @@ window._tkAll=_tkAll;
 
 
 // ═══════════════════════════════════════════════════════════════════
-// SALES FC — Football game powered by real sales data
+// SALES FC — Football-themed leaderboards & season tables
 // ═══════════════════════════════════════════════════════════════════
-var _sfcAnimId     = null;
-var _sfcCanvas     = null;
-var _sfcCtx        = null;
-var _sfcBall       = null;          // initialised in _sfcInitCanvas
-var _sfcPitchers   = [];
-var _sfcGoalCool   = false;
-var _sfcMatchA     = 'james';
-var _sfcMatchB     = 'g';
-var _sfcMetricNow  = 'rev';
-var _sfcLeaguePer  = 'month';       // 'today' | 'week' | 'month'
-var _sfcTab        = 'players';
-var _sfcInitDone   = false;         // guard: only build players once per page visit
+var _sfcPeriod  = 'month';   // 'today' | 'week' | 'month'
+var _sfcMetric  = 'rev';     // 'rev' | 'nm'
+var _sfcView    = 'players'; // 'players' | 'teams' | 'challenge'
 
+// Kit colours per team — cycles for unknowns
 var SFC_META = {
-  james:{label:'Team James',col:'#2563eb',kit:'#1d4ed8'},
-  g:    {label:'Team G',    col:'#16a34a',kit:'#15803d'},
-  damo: {label:'Team Damo', col:'#ea580c',kit:'#c2410c'}
+  james:{label:'Team James', primary:'#1d4ed8', secondary:'#fff',    badge:'🔵'},
+  g:    {label:'Team G',     primary:'#15803d', secondary:'#fff',    badge:'🟢'},
+  damo: {label:'Team Damo',  primary:'#c2410c', secondary:'#fff',    badge:'🔴'}
 };
+var SFC_KIT_COLS = ['#1d4ed8','#15803d','#c2410c','#7c3aed','#0f766e','#b45309'];
 
-function sfcSetMetric(v)    { _sfcMetricNow=v;   _sfcInitDone=false; renderSalesFC(); }
-function sfcSetMatch(a,b)   { _sfcMatchA=a; _sfcMatchB=b; _sfcInitDone=false; renderSalesFC(); }
-function sfcSetTab(t)       { _sfcTab=t;          renderSalesFC(); }
-function sfcSetLeaguePer(p) { _sfcLeaguePer=p;    renderSalesFC(); }
+function sfcSetPeriod(p){ _sfcPeriod=p; renderSalesFC(); }
+function sfcSetMetric(m){ _sfcMetric=m; renderSalesFC(); }
+function sfcSetView(v)  { _sfcView=v;   renderSalesFC(); }
 
-// ── Called on page show (once) and on month/metric change ─────────
+// Draw an inline SVG football shirt with initials
+function sfcShirt(col, initials, size){
+  size = size||32;
+  var s = size, fs = Math.round(s*0.28);
+  return '<svg width="'+s+'" height="'+s+'" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;display:block;">'
+    +'<path d="M11 2 L5 7 L8 9 L8 27 L24 27 L24 9 L27 7 L21 2 Q18.5 5 16 5 Q13.5 5 11 2Z" fill="'+col+'" stroke="rgba(0,0,0,0.25)" stroke-width="0.8"/>'
+    +'<path d="M11 2 Q13.5 5 16 5 Q18.5 5 21 2 L19.5 3.5 Q18 6 16 6 Q14 6 12.5 3.5Z" fill="rgba(255,255,255,0.25)"/>'
+    +'<text x="16" y="19" text-anchor="middle" dominant-baseline="middle" font-family="system-ui,sans-serif" font-weight="800" font-size="'+fs+'" fill="#fff" opacity="0.92">'+initials+'</text>'
+    +'</svg>';
+}
+
+function sfcMedal(pos){
+  if(pos===1) return '<span style="font-size:16px;">🥇</span>';
+  if(pos===2) return '<span style="font-size:16px;">🥈</span>';
+  if(pos===3) return '<span style="font-size:16px;">🥉</span>';
+  return '<span style="font-size:12px;color:#445;font-weight:700;width:20px;display:inline-block;text-align:center;">'+(pos)+'</span>';
+}
+
 function renderSalesFC(){
   var mk      = (document.getElementById('sfcMonth')&&document.getElementById('sfcMonth').value)||APP.activeMonth;
   var today   = _localDateStr(new Date());
   var entries = getEntries(mk);
-  var teams   = APP.teams||{james:[],g:[],damo:[]};
+  var teams   = APP.teams||{};
 
-  // ── Build per-person stats ─────────────────────────────────────
-  // Each person's "goals" = floor(todayRev / their own RPD)  (or NM count for nm mode)
+  // Week start (Monday)
+  var wsDate  = new Date();
+  var dow     = wsDate.getDay();
+  wsDate.setDate(wsDate.getDate()-(dow===0?6:dow-1));
+  var weekStart = _localDateStr(wsDate);
+
+  // Filter entries by period
+  function periodEntries(allE){
+    if(_sfcPeriod==='today') return allE.filter(function(e){return e.date===today;});
+    if(_sfcPeriod==='week')  return allE.filter(function(e){return e.date>=weekStart;});
+    return allE;
+  }
+
+  // Build per-person stats
   var personStats = {};
-  (APP.people||[]).forEach(function(person){
-    var ep = getPersonForMonth(person, mk);
-    if(!ep||!ep.riskPerDay) return;
-    var rpd  = ep.riskPerDay;
-    var mine = entries.filter(function(e){return e.name===person.name;});
-    var mineT= mine.filter(function(e){return e.date===today;});
-    var rT   = mineT.reduce(function(s,e){return s+(e.revenue||0);},0);
-    var nT   = mineT.reduce(function(s,e){return s+(e.nm||0);},0);
-    var rM   = mine.reduce(function(s,e){return s+(e.revenue||0);},0);
-    var nM   = mine.reduce(function(s,e){return s+(e.nm||0);},0);
-    var tgt  = Math.round(rpd*(ep.daysT||0));
-    // Goals today: floor(revToday / RPD) for rev mode; NM count for nm mode
-    var goalsRevToday = rpd>0?Math.floor(rT/rpd):0;
-    var goalsNmToday  = nT;
-    var pctRR = rpd>0?Math.min(200,Math.round(rT/rpd*100)):0;
-    personStats[person.name]={
-      name:person.name, ini:person.name.slice(0,2).toUpperCase(),
-      rpd:rpd, rT:rT, nT:nT, rM:rM, nM:nM, tgt:tgt,
-      goalsRevToday:goalsRevToday, goalsNmToday:goalsNmToday,
-      pctRR:pctRR
+  var kitIdx = 0;
+  var teamOfPerson = {};
+  Object.keys(teams).forEach(function(tk){
+    (Array.from(new Set(teams[tk]||[]))).forEach(function(name){
+      teamOfPerson[name] = tk;
+    });
+  });
+
+  (APP.people||[]).forEach(function(person, pi){
+    var ep  = getPersonForMonth(person, mk);
+    var rpd = ep&&ep.riskPerDay?ep.riskPerDay:0;
+    var mine    = entries.filter(function(e){return e.name===person.name;});
+    var periE   = periodEntries(mine);
+    var rev     = periE.reduce(function(s,e){return s+(e.revenue||0);},0);
+    var nm      = periE.reduce(function(s,e){return s+(e.nm||0);},0);
+    var revM    = mine.reduce(function(s,e){return s+(e.revenue||0);},0);
+    var nmM     = mine.reduce(function(s,e){return s+(e.nm||0);},0);
+    var tgt     = Math.round(rpd*(ep&&ep.daysT?ep.daysT:0));
+    var goals   = rpd>0?Math.floor(rev/rpd):0;
+    var goalsNm = nm;
+    var pctTgt  = tgt>0?Math.round(revM/tgt*100):0;
+
+    // Kit colour: team colour if in a team, else cycle
+    var tk = teamOfPerson[person.name];
+    var meta = tk&&SFC_META[tk]?SFC_META[tk]:null;
+    var col  = meta?meta.primary:SFC_KIT_COLS[pi%SFC_KIT_COLS.length];
+
+    personStats[person.name] = {
+      name:person.name,
+      ini: person.name.replace(/\s+/g,'').slice(0,3).toUpperCase(),
+      col: col,
+      teamKey: tk||null,
+      teamLabel: meta?meta.label:'No Team',
+      rev:rev, nm:nm, revM:revM, nmM:nmM, tgt:tgt,
+      goals:goals, goalsNm:goalsNm, rpd:rpd, pctTgt:pctTgt
     };
   });
 
-  // ── Build team data ────────────────────────────────────────────
-  var teamData = {};
-  ['james','g','damo'].forEach(function(tk){
-    var members = Array.from(new Set(teams[tk]||[]));
-    var players = members.map(function(n){ return personStats[n]; }).filter(Boolean);
-    var scoreRev = players.reduce(function(s,p){return s+p.goalsRevToday;},0);
-    var scoreNm  = players.reduce(function(s,p){return s+p.goalsNmToday;},0);
-    var revT     = players.reduce(function(s,p){return s+p.rT;},0);
-    var nmT      = players.reduce(function(s,p){return s+p.nT;},0);
-    var rrT      = players.reduce(function(s,p){return s+p.rpd;},0);
-    var pctRR    = rrT>0?Math.round(revT/rrT*100):0;
-    teamData[tk]={key:tk,label:SFC_META[tk].label,col:SFC_META[tk].col,kit:SFC_META[tk].kit,
-      players:players,scoreRev:scoreRev,scoreNm:scoreNm,revT:revT,nmT:nmT,pctRR:pctRR,rrT:rrT};
+  // Sort players by goals (metric-appropriate)
+  var allPlayers = Object.values(personStats);
+  allPlayers.sort(function(a,b){
+    return _sfcMetric==='nm'?(b.goalsNm-a.goalsNm):(b.goals-a.goals);
   });
 
-  var tA = teamData[_sfcMatchA]||{label:'—',col:'#555',kit:'#444',players:[],scoreRev:0,scoreNm:0,revT:0,nmT:0,pctRR:0,rrT:0};
-  var tB = teamData[_sfcMatchB]||{label:'—',col:'#555',kit:'#444',players:[],scoreRev:0,scoreNm:0,revT:0,nmT:0,pctRR:0,rrT:0};
-  var sA = _sfcMetricNow==='nm'?tA.scoreNm:tA.scoreRev;
-  var sB = _sfcMetricNow==='nm'?tB.scoreNm:tB.scoreRev;
-
-  // ── League table (daily / weekly / monthly) ────────────────────
-  // Each day: each person scores floor(dayRev/RPD) goals for their team.
-  // Team with most goals that day wins (3pts). Tie within 1 goal = draw (1pt each).
-  var weekStart = (function(){
-    var d=new Date(); var day=d.getDay(); var diff=day===0?-6:1-day;
-    d.setDate(d.getDate()+diff); return _localDateStr(d);
-  })();
-
+  // ── Build team table ─────────────────────────────────────────
+  // Per day: each player scores floor(dayRev/RPD). Team with most goals wins.
   var wdAll = workingDatesInMonth(mk).filter(function(d){return d<=today;});
-  var wdForPeriod = wdAll.filter(function(d){
-    if(_sfcLeaguePer==='today') return d===today;
-    if(_sfcLeaguePer==='week')  return d>=weekStart;
-    return true; // month
+  var wdPeriod = wdAll.filter(function(d){
+    if(_sfcPeriod==='today') return d===today;
+    if(_sfcPeriod==='week')  return d>=weekStart;
+    return true;
   });
 
-  var lp={james:{pts:0,w:0,d:0,l:0,gf:0,ga:0},g:{pts:0,w:0,d:0,l:0,gf:0,ga:0},damo:{pts:0,w:0,d:0,l:0,gf:0,ga:0}};
+  var teamKeys = Object.keys(SFC_META);
+  var lt = {};
+  teamKeys.forEach(function(k){lt[k]={pts:0,w:0,d:0,l:0,gf:0,ga:0,gd:0};});
 
-  wdForPeriod.forEach(function(ds){
-    var dayGoals={james:0,g:0,damo:0};
-    ['james','g','damo'].forEach(function(tk){
-      var td=teamData[tk]; if(!td) return;
-      td.players.forEach(function(p){
-        var dayE=entries.filter(function(e){return e.name===p.name&&e.date===ds;});
-        var dayRev=dayE.reduce(function(s,e){return s+(e.revenue||0);},0);
-        var dayNm =dayE.reduce(function(s,e){return s+(e.nm||0);},0);
-        dayGoals[tk]+=_sfcMetricNow==='nm'?dayNm:(p.rpd>0?Math.floor(dayRev/p.rpd):0);
-      });
+  wdPeriod.forEach(function(ds){
+    var dayG = {};
+    teamKeys.forEach(function(tk){
+      var members = Array.from(new Set(teams[tk]||[]));
+      dayG[tk] = members.reduce(function(s,name){
+        var p = personStats[name]; if(!p||!p.rpd) return s;
+        var dayE = entries.filter(function(e){return e.name===name&&e.date===ds;});
+        var v = _sfcMetric==='nm'
+          ? dayE.reduce(function(s2,e){return s2+(e.nm||0);},0)
+          : Math.floor(dayE.reduce(function(s2,e){return s2+(e.revenue||0);},0)/p.rpd);
+        return s+v;
+      },0);
     });
-    var active=Object.keys(dayGoals).filter(function(k){return dayGoals[k]>0;});
+    var active = teamKeys.filter(function(k){return dayG[k]>0;});
     if(!active.length) return;
-    active.sort(function(a,b){return dayGoals[b]-dayGoals[a];});
-    var best=dayGoals[active[0]];
-    var tied=active.filter(function(k){return dayGoals[k]>=best-0.5;});
+    active.sort(function(a,b){return dayG[b]-dayG[a];});
+    var best = dayG[active[0]];
+    var tied = active.filter(function(k){return dayG[k]>=best-0.4;});
+    active.forEach(function(k){lt[k].gf+=dayG[k];});
+    // goals against = combined opponents' goals
+    active.forEach(function(k){
+      lt[k].ga += active.filter(function(j){return j!==k;}).reduce(function(s,j){return s+dayG[j];},0);
+    });
     if(tied.length>=2){
-      tied.forEach(function(k){lp[k].pts+=1;lp[k].d++;lp[k].gf+=dayGoals[k];});
-      active.filter(function(k){return !tied.includes(k);}).forEach(function(k){lp[k].l++;lp[k].gf+=dayGoals[k];});
+      tied.forEach(function(k){lt[k].pts+=1;lt[k].d++;});
+      active.filter(function(k){return !tied.includes(k);}).forEach(function(k){lt[k].l++;});
     } else {
-      lp[active[0]].pts+=3; lp[active[0]].w++; lp[active[0]].gf+=dayGoals[active[0]];
-      if(active[1]){lp[active[1]].pts+=1;lp[active[1]].d++;lp[active[1]].gf+=dayGoals[active[1]];}
-      if(active[2]){lp[active[2]].l++;   lp[active[2]].gf+=dayGoals[active[2]];}
+      lt[active[0]].pts+=3; lt[active[0]].w++;
+      if(active[1]){lt[active[1]].pts+=1;lt[active[1]].d++;}
+      if(active[2]) lt[active[2]].l++;
     }
   });
+  teamKeys.forEach(function(k){lt[k].gd=lt[k].gf-lt[k].ga;});
+  var leagueRows = teamKeys.map(function(k){return Object.assign({key:k},lt[k]);})
+    .sort(function(a,b){return b.pts-a.pts||b.gd-a.gd||b.gf-a.gf;});
 
-  var leagueRows=['james','g','damo'].map(function(k){
-    return {key:k,pts:lp[k].pts,w:lp[k].w,d:lp[k].d,l:lp[k].l,gf:lp[k].gf};
-  }).sort(function(a,b){return b.pts-a.pts||b.gf-a.gf||b.w-a.w;});
+  // ── Period label ──────────────────────────────────────────────
+  var periodLabel = _sfcPeriod==='today'?'Today':_sfcPeriod==='week'?'This Week':monthLabel(mk);
+  var metricLabel = _sfcMetric==='nm'?'Needs Met':'Revenue';
 
-  // ── Render HTML ────────────────────────────────────────────────
-  var matchBtns=[['james','g','James vs G'],['james','damo','James vs Damo'],['g','damo','G vs Damo']].map(function(m){
-    var on=_sfcMatchA===m[0]&&_sfcMatchB===m[1];
-    var col=teamData[m[0]]?teamData[m[0]].col:'#2563eb';
-    return '<button onclick="sfcSetMatch(\''+m[0]+'\',\''+m[1]+'\')" style="font-size:10px;padding:4px 11px;border-radius:20px;border:1px solid '+(on?col:'#1e2a3a')+';background:'+(on?col+'33':'transparent')+';color:'+(on?col:'#556')+';cursor:pointer;font-weight:700;">'+m[2]+'</button>';
-  }).join('');
+  // ── Button helpers ────────────────────────────────────────────
+  function pillBtn(label, active, onclick, col){
+    col = col||'#60a5fa';
+    return '<button onclick="'+onclick+'" style="font-size:11px;padding:5px 13px;border-radius:20px;border:1px solid '+(active?col:'#1e2a3a')+';background:'+(active?col+'22':'transparent')+';color:'+(active?col:'#556')+';cursor:pointer;font-weight:700;letter-spacing:.02em;transition:all .15s;">'+label+'</button>';
+  }
 
-  var metricBtns=[['rev','Revenue goals'],['nm','NM goals']].map(function(m){
-    var on=_sfcMetricNow===m[0];
-    return '<button onclick="sfcSetMetric(\''+m[0]+'\')" style="font-size:10px;padding:4px 11px;border-radius:20px;border:1px solid '+(on?'#60a5fa':'#1e2a3a')+';background:'+(on?'#1e3a5f':'transparent')+';color:'+(on?'#60a5fa':'#556')+';cursor:pointer;font-weight:700;">'+m[1]+'</button>';
-  }).join('');
+  var periodBtns =
+    pillBtn('Today',   _sfcPeriod==='today', "sfcSetPeriod('today')")+
+    pillBtn('This Week',_sfcPeriod==='week', "sfcSetPeriod('week')")+
+    pillBtn(monthLabel(mk), _sfcPeriod==='month', "sfcSetPeriod('month')");
+  var metricBtns =
+    pillBtn('Revenue', _sfcMetric==='rev', "sfcSetMetric('rev')","#60a5fa")+
+    pillBtn('Needs Met',_sfcMetric==='nm', "sfcSetMetric('nm')", '#22c55e');
+  var viewBtns =
+    pillBtn('⚽ Top Scorers', _sfcView==='players', "sfcSetView('players')")+
+    pillBtn('🏆 League Table',_sfcView==='teams',   "sfcSetView('teams')")+
+    pillBtn('⚔ 1v1 Duel',    _sfcView==='challenge',"sfcSetView('challenge')");
 
-  // ── Players panel ──────────────────────────────────────────────
-  function playerRows(team){
-    if(!team.players.length) return '<div style="color:#445;font-size:11px;padding:8px 0;font-family:monospace;">No players in this team.</div>';
-    return team.players.map(function(p){
-      var goals=_sfcMetricNow==='nm'?p.goalsNmToday:p.goalsRevToday;
-      var pctBar=Math.min(100,p.pctRR);
-      var pos=p.pctRR>=80?'FWD':p.pctRR>=40?'MID':'DEF';
-      var posCol=p.pctRR>=80?'#22c55e':p.pctRR>=40?'#fbb83a':'#ef4444';
-      var statStr=_sfcMetricNow==='nm'?p.nT+' NM today':'£'+Math.round(p.rT).toLocaleString()+' (RPD £'+Math.round(p.rpd).toLocaleString()+')';
-      return '<div style="display:flex;align-items:center;gap:9px;margin-bottom:8px;">'+
-        '<div style="width:30px;height:30px;border-radius:5px;background:'+team.col+';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;flex-shrink:0;">'+p.ini+'</div>'+
-        '<div style="flex:1;min-width:0;">'+
-          '<div style="display:flex;align-items:baseline;gap:5px;margin-bottom:2px;">'+
-            '<span style="font-size:12px;font-weight:700;color:#dde;">'+p.name+'</span>'+
-            '<span style="font-size:9px;font-weight:700;color:'+posCol+';background:'+posCol+'22;padding:1px 5px;border-radius:3px;">'+pos+'</span>'+
-            '<span style="font-size:11px;font-weight:800;color:#fbb83a;margin-left:auto;">'+goals+' ⚽</span>'+
-          '</div>'+
-          '<div style="font-size:10px;color:#556;font-family:monospace;">'+statStr+'</div>'+
-          '<div style="height:4px;background:#1a2230;border-radius:2px;margin-top:4px;overflow:hidden;">'+
-            '<div class="sfc-bar" data-w="'+pctBar+'" style="height:4px;background:'+team.col+';border-radius:2px;width:0%;transition:width 1s cubic-bezier(.34,1.4,.64,1);"></div>'+
-          '</div>'+
-        '</div>'+
-      '</div>';
+  // ── Top Scorers view ──────────────────────────────────────────
+  function topScorersHTML(){
+    if(!allPlayers.length) return '<div style="color:#445;font-size:12px;padding:16px;font-family:monospace;">No data yet for this period.</div>';
+
+    var topGoals = _sfcMetric==='nm'?allPlayers[0].goalsNm:allPlayers[0].goals;
+
+    var rows = allPlayers.map(function(p, i){
+      var goals  = _sfcMetric==='nm'?p.goalsNm:p.goals;
+      var barPct = topGoals>0?Math.round(goals/topGoals*100):0;
+      var subStat= _sfcMetric==='nm'
+        ? p.nm+' NM · RPD target: '+p.rpd+' NM'
+        : '£'+Math.round(p.rev).toLocaleString()+' · RPD £'+Math.round(p.rpd).toLocaleString();
+      var isLeader = i===0&&goals>0;
+      var bg = isLeader?'background:linear-gradient(90deg,rgba(251,184,58,0.07) 0%,transparent 100%);':'';
+      var border = isLeader?'border-left:3px solid #fbb83a;':'border-left:3px solid transparent;';
+
+      return '<div style="display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid #0f1520;'+bg+border+'">'
+        // Rank
+        +'<div style="width:28px;flex-shrink:0;text-align:center;">'+sfcMedal(i+1)+'</div>'
+        // Shirt
+        +'<div style="flex-shrink:0;">'+sfcShirt(p.col, p.ini, 34)+'</div>'
+        // Name & team
+        +'<div style="flex:1;min-width:0;">'
+          +'<div style="display:flex;align-items:center;gap:7px;">'
+            +'<span style="font-size:13px;font-weight:700;color:#dde;">'+p.name+'</span>'
+            +(isLeader?'<span style="font-size:9px;background:#fbb83a;color:#111;font-weight:800;padding:1px 5px;border-radius:3px;letter-spacing:.04em;">TOP SCORER</span>':'')
+          +'</div>'
+          +'<div style="font-size:10px;color:#445;font-family:monospace;margin-top:1px;">'+p.teamLabel+' · '+subStat+'</div>'
+          +'<div style="margin-top:5px;height:4px;background:#1a2230;border-radius:2px;overflow:hidden;">'
+            +'<div style="height:4px;width:'+barPct+'%;background:'+p.col+';border-radius:2px;transition:width 0.8s cubic-bezier(.34,1.4,.64,1);"></div>'
+          +'</div>'
+        +'</div>'
+        // Goals badge
+        +'<div style="text-align:center;flex-shrink:0;">'
+          +'<div style="font-size:22px;font-weight:900;color:'+(goals>0?'#fbb83a':'#2a3a4a');font-family:monospace;">'+goals+'</div>'
+          +'<div style="font-size:9px;color:#445;letter-spacing:.06em;text-transform:uppercase;">Goals</div>'
+        +'</div>'
+      +'</div>';
     }).join('');
+
+    return '<div style="background:#111828;border-radius:10px;overflow:hidden;">'
+      +'<div style="padding:10px 14px;border-bottom:1px solid #1a2230;display:flex;align-items:center;justify-content:space-between;">'
+        +'<div style="font-size:10px;font-weight:700;color:#445;letter-spacing:.07em;text-transform:uppercase;">Top Scorers · '+periodLabel+' · '+metricLabel+'</div>'
+        +'<div style="font-size:9px;color:#334;font-family:monospace;">1 goal = 1 × RPD completed</div>'
+      +'</div>'
+      +rows
+    +'</div>';
   }
 
-  // ── League HTML ────────────────────────────────────────────────
-  var perBtns=[['today','Today'],['week','This Week'],['month','Full Month']].map(function(m){
-    var on=_sfcLeaguePer===m[0];
-    return '<button onclick="sfcSetLeaguePer(\''+m[0]+'\')" style="font-size:10px;padding:3px 10px;border-radius:20px;border:1px solid '+(on?'#60a5fa':'#1e2a3a')+';background:'+(on?'#1e3a5f':'transparent')+';color:'+(on?'#60a5fa':'#556')+';cursor:pointer;font-weight:700;">'+m[1]+'</button>';
-  }).join('');
+  // ── League Table view ─────────────────────────────────────────
+  function leagueHTML(){
+    var rows = leagueRows.map(function(r,i){
+      var m   = SFC_META[r.key]||{label:r.key,primary:'#555',badge:'⚽'};
+      var top = i===0&&r.pts>0;
+      var gdStr=(r.gd>=0?'+':'')+r.gd;
+      return '<div style="display:grid;grid-template-columns:28px 36px 1fr 36px 36px 36px 50px 50px 54px;gap:0;align-items:center;padding:10px 14px;border-bottom:1px solid #0f1520;background:'+(top?'linear-gradient(90deg,rgba(251,184,58,0.06) 0%,transparent 60%)':'transparent')+';border-left:3px solid '+(top?'#fbb83a':'transparent')+';">'
+        +'<div style="font-size:12px;font-weight:700;color:'+(top?'#fbb83a':'#445')+';">'+sfcMedal(i+1)+'</div>'
+        +'<div style="font-size:18px;text-align:center;">'+m.badge+'</div>'
+        +'<div style="font-size:13px;font-weight:700;color:'+(top?'#fbb83a':'#ccd')+';padding-right:8px;">'+m.label+'</div>'
+        +'<div style="text-align:center;font-size:12px;color:#667;font-family:monospace;">'+r.w+'</div>'
+        +'<div style="text-align:center;font-size:12px;color:#667;font-family:monospace;">'+r.d+'</div>'
+        +'<div style="text-align:center;font-size:12px;color:#667;font-family:monospace;">'+r.l+'</div>'
+        +'<div style="text-align:center;font-size:12px;color:#fbb83a;font-family:monospace;font-weight:700;">'+r.gf+'</div>'
+        +'<div style="text-align:center;font-size:11px;color:#445;font-family:monospace;">'+gdStr+'</div>'
+        +'<div style="text-align:center;font-size:14px;font-weight:900;color:#60a5fa;font-family:monospace;">'+r.pts+'</div>'
+      +'</div>';
+    }).join('');
 
-  var leagueHTML=
-    '<div style="display:flex;gap:5px;margin-bottom:10px;">'+perBtns+'</div>'+
-    '<div style="background:#111828;border-radius:8px;overflow:hidden;">'+
-    '<div style="display:grid;grid-template-columns:24px 1fr 34px 34px 34px 44px 44px;gap:4px;padding:8px 12px;font-size:9px;color:#445;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid #1a2230;">'+
-    '<div></div><div>Club</div><div style="text-align:center">W</div><div style="text-align:center">D</div><div style="text-align:center">L</div><div style="text-align:center">⚽</div><div style="text-align:center">Pts</div></div>'+
-    leagueRows.map(function(r,i){
-      var m=SFC_META[r.key];
-      var top=i===0&&r.pts>0;
-      return '<div style="display:grid;grid-template-columns:24px 1fr 34px 34px 34px 44px 44px;gap:4px;padding:9px 12px;border-bottom:1px solid #0f1520;align-items:center;background:'+(top?'#111d30':'transparent')+';">'+
-        '<div style="font-size:11px;font-weight:700;color:'+(top?'#fbb83a':'#445')+';">'+(top?'★':i+1)+'</div>'+
-        '<div style="display:flex;align-items:center;gap:7px;">'+
-          '<div style="width:10px;height:10px;border-radius:2px;background:'+m.col+'"></div>'+
-          '<span style="font-size:12px;font-weight:700;color:'+(top?'#fbb83a':'#ccd')+';">'+m.label+'</span>'+
-        '</div>'+
-        '<div style="text-align:center;font-size:11px;color:#778;font-family:monospace;">'+r.w+'</div>'+
-        '<div style="text-align:center;font-size:11px;color:#778;font-family:monospace;">'+r.d+'</div>'+
-        '<div style="text-align:center;font-size:11px;color:#778;font-family:monospace;">'+r.l+'</div>'+
-        '<div style="text-align:center;font-size:11px;color:#fbb83a;font-family:monospace;">'+r.gf+'</div>'+
-        '<div style="text-align:center;font-size:12px;font-weight:800;color:#60a5fa;font-family:monospace;">'+r.pts+'</div>'+
-      '</div>';
-    }).join('')+
-    '<div style="padding:8px 12px;font-size:10px;color:#2a3a4a;font-family:monospace;">Goal = 1× RPD hit · Win 3pts · Draw 1pt · Loss 0pts</div>'+
-    '</div>';
+    // Team player breakdown
+    var teamBreakdown = leagueRows.map(function(r){
+      var m = SFC_META[r.key]||{label:r.key,primary:'#555'};
+      var members = Array.from(new Set(teams[r.key]||[]));
+      var memberRows = members.map(function(name){
+        var p = personStats[name]; if(!p) return '';
+        var goals = _sfcMetric==='nm'?p.goalsNm:p.goals;
+        return '<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid #0a0f1a;">'
+          +sfcShirt(m.primary,p.ini,26)
+          +'<div style="flex:1;font-size:11px;color:#aab;font-weight:600;">'+p.name+'</div>'
+          +'<div style="font-size:11px;font-weight:700;color:#fbb83a;font-family:monospace;">'+goals+' ⚽</div>'
+        +'</div>';
+      }).join('');
+      return '<div style="margin-top:10px;background:#0d1420;border-radius:8px;overflow:hidden;">'
+        +'<div style="padding:8px 12px;background:'+m.primary+'22;border-bottom:1px solid #1a2230;font-size:10px;font-weight:800;color:'+m.primary+';letter-spacing:.07em;text-transform:uppercase;">'+m.label+'</div>'
+        +memberRows
+      +'</div>';
+    }).join('');
 
-  // ── Challenge panel ────────────────────────────────────────────
-  var allNames=(APP.people||[]).map(function(p){return p.name;});
-  var chalHTML='<div style="background:#111828;border-radius:8px;padding:14px;">'+
-    '<div style="font-size:10px;color:#445;font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-bottom:10px;">Set up a 1v1 duel</div>'+
-    '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">'+
-      '<select id="sfcP1" style="flex:1;background:#0a0e1a;border:1px solid #1e2a3a;color:#aab;font-size:12px;padding:6px 8px;border-radius:6px;">'+allNames.map(function(n){return '<option>'+n+'</option>';}).join('')+'</select>'+
-      '<div style="font-size:14px;color:#334;font-weight:800;">vs</div>'+
-      '<select id="sfcP2" style="flex:1;background:#0a0e1a;border:1px solid #1e2a3a;color:#aab;font-size:12px;padding:6px 8px;border-radius:6px;">'+allNames.slice().reverse().map(function(n){return '<option>'+n+'</option>';}).join('')+'</select>'+
-    '</div>'+
-    '<div style="display:flex;gap:8px;margin-bottom:12px;">'+
-      '<select id="sfcCP" style="flex:1;background:#0a0e1a;border:1px solid #1e2a3a;color:#aab;font-size:12px;padding:6px 8px;border-radius:6px;"><option value="today">Today</option><option value="week">This week</option><option value="month">This month</option></select>'+
-      '<select id="sfcCM" style="flex:1;background:#0a0e1a;border:1px solid #1e2a3a;color:#aab;font-size:12px;padding:6px 8px;border-radius:6px;"><option value="rev">Revenue goals</option><option value="nm">NM goals</option></select>'+
-    '</div>'+
-    '<button onclick="sfcRunChallenge()" style="width:100%;background:#1d4ed8;border:none;color:#fff;font-size:12px;font-weight:700;padding:9px 0;border-radius:7px;cursor:pointer;letter-spacing:.04em;">⚽ Kick Off Challenge</button>'+
-    '<div id="sfcChalResult" style="display:none;margin-top:12px;padding:13px;background:#0a0e1a;border-radius:7px;text-align:center;">'+
-      '<div id="sfcChalWinner" style="font-size:16px;font-weight:800;color:#fbb83a;margin-bottom:4px;"></div>'+
-      '<div id="sfcChalDetail" style="font-size:11px;color:#667;font-family:monospace;"></div>'+
-    '</div>'+
-  '</div>';
-
-  var tabs={players:'Players',league:'League Table',challenge:'1v1 Challenge'};
-  var tabBar=Object.keys(tabs).map(function(t){
-    var on=_sfcTab===t;
-    return '<button onclick="sfcSetTab(\''+t+'\')" style="font-size:11px;padding:5px 13px;border-radius:20px;border:1px solid '+(on?tA.col:'#1e2a3a')+';background:'+(on?tA.col+'33':'transparent')+';color:'+(on?tA.col:'#556')+';cursor:pointer;font-weight:700;">'+tabs[t]+'</button>';
-  }).join('');
-
-  var metricNote=_sfcMetricNow==='nm'?'Each NM = 1 goal':'1 goal per RPD completed (RPD × 1, ×2, ×3…)';
-
-  var html='<div style="background:#0a0e1a;border-radius:14px;padding:18px;color:#fff;">'+
-    '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px;">'+
-      '<div style="display:flex;gap:5px;">'+matchBtns+'</div>'+
-      '<div style="display:flex;gap:5px;">'+metricBtns+'</div>'+
-    '</div>'+
-    '<div style="font-size:9px;color:#2a3a4a;font-family:monospace;margin-bottom:12px;text-align:right;">'+metricNote+'</div>'+
-    // Scoreboard
-    '<div style="background:#111828;border-radius:10px;padding:14px 20px;margin-bottom:14px;display:flex;align-items:center;">'+
-      '<div style="flex:1;text-align:center;">'+
-        '<div style="font-size:10px;font-weight:700;color:'+tA.col+';letter-spacing:.07em;text-transform:uppercase;margin-bottom:5px;">'+tA.label+'</div>'+
-        '<div style="font-size:48px;font-weight:900;line-height:1;">'+sA+'</div>'+
-        '<div style="font-size:10px;color:#334;font-family:monospace;margin-top:3px;">'+(_sfcMetricNow==='nm'?tA.nmT+' NM':'£'+Math.round(tA.revT).toLocaleString()+' · '+tA.pctRR+'% RR')+'</div>'+
-      '</div>'+
-      '<div style="text-align:center;padding:0 16px;"><div style="font-size:30px;font-weight:300;color:#223;">:</div><div style="font-size:9px;color:#334;font-family:monospace;margin-top:4px;">LIVE</div></div>'+
-      '<div style="flex:1;text-align:center;">'+
-        '<div style="font-size:10px;font-weight:700;color:'+tB.col+';letter-spacing:.07em;text-transform:uppercase;margin-bottom:5px;">'+tB.label+'</div>'+
-        '<div style="font-size:48px;font-weight:900;line-height:1;">'+sB+'</div>'+
-        '<div style="font-size:10px;color:#334;font-family:monospace;margin-top:3px;">'+(_sfcMetricNow==='nm'?tB.nmT+' NM':'£'+Math.round(tB.revT).toLocaleString()+' · '+tB.pctRR+'% RR')+'</div>'+
-      '</div>'+
-    '</div>'+
-    // Pitch
-    '<div style="position:relative;margin-bottom:14px;">'+
-      '<canvas id="sfcPitch" style="display:block;width:100%;border-radius:10px;"></canvas>'+
-      '<div id="sfcGoalFlash" style="display:none;position:absolute;inset:0;border-radius:10px;pointer-events:none;"></div>'+
-      '<div id="sfcGoalPop" style="display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(0);background:#fbb83a;color:#111;font-size:22px;font-weight:900;padding:11px 26px;border-radius:8px;z-index:20;letter-spacing:.08em;white-space:nowrap;transition:transform .3s cubic-bezier(.34,1.56,.64,1);">⚽ GOAL!</div>'+
-    '</div>'+
-    '<div style="display:flex;gap:5px;margin-bottom:12px;">'+tabBar+'</div>'+
-    (_sfcTab==='players'?
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'+
-        '<div><div style="font-size:9px;color:'+tA.col+';font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:9px;padding-bottom:5px;border-bottom:1px solid #1a2230;">'+tA.label+'</div>'+playerRows(tA)+'</div>'+
-        '<div><div style="font-size:9px;color:'+tB.col+';font-weight:800;letter-spacing:.08em;text-transform:uppercase;margin-bottom:9px;padding-bottom:5px;border-bottom:1px solid #1a2230;">'+tB.label+'</div>'+playerRows(tB)+'</div>'+
-      '</div>'
-    :_sfcTab==='league'?leagueHTML:chalHTML)+
-  '</div>';
-
-  document.getElementById('sfcContent').innerHTML=html;
-
-  // Animate bars
-  setTimeout(function(){
-    document.querySelectorAll('.sfc-bar').forEach(function(b){
-      setTimeout(function(){b.style.width=b.dataset.w+'%';},50);
-    });
-  },60);
-
-  // Init canvas only once per page visit to prevent the rush bug
-  setTimeout(function(){
-    var c=document.getElementById('sfcPitch');
-    if(!c) return;
-    if(!_sfcInitDone){
-      _sfcInitDone=true;
-      _sfcStopAnim();
-      _sfcCanvas=c;
-      var W=c.offsetWidth||640;
-      c.width=W; c.height=Math.round(W*0.36);
-      _sfcCtx=c.getContext('2d');
-      _sfcBall={x:W/2,y:c.height/2,vx:(Math.random()-.5)*3,vy:(Math.random()-.5)*2,r:Math.max(6,Math.round(W/85))};
-      _sfcBuildPlayers(tA,tB,W,c.height);
-      _sfcLoop();
-    } else {
-      // Page already running — just update canvas reference in case DOM was rebuilt
-      _sfcCanvas=c;
-      if(!_sfcAnimId) _sfcLoop();
-    }
-  },60);
-}
-
-function _sfcBuildPlayers(tA,tB,W,H){
-  _sfcPitchers=[];
-  var formations=[[0.22,0.5],[0.30,0.25],[0.30,0.75],[0.40,0.42],[0.40,0.58],[0.48,0.33],[0.48,0.67]];
-  function addTeam(td,side){
-    if(!td||!td.players) return;
-    // GK — placed at goal line, moves vertically with ball
-    _sfcPitchers.push({x:side==='A'?W*0.045:W*0.955,y:H*0.5,tx:0,ty:H*0.5,col:td.kit,ini:'GK',side:side,pctRR:50,isGK:true});
-    td.players.forEach(function(p,i){
-      var f=formations[i%formations.length];
-      // Forwards push further based on their performance
-      var advance=(p.pctRR/100)*0.12;
-      var fx=side==='A'?f[0]+advance:1-f[0]-advance;
-      fx=Math.max(0.08,Math.min(0.92,fx));
-      var px=W*fx, py=H*f[1];
-      _sfcPitchers.push({x:px,y:py,tx:px,ty:py,col:td.col,ini:p.ini,side:side,pctRR:p.pctRR,isGK:false});
-    });
+    return '<div style="background:#111828;border-radius:10px;overflow:hidden;">'
+      // Header
+      +'<div style="display:grid;grid-template-columns:28px 36px 1fr 36px 36px 36px 50px 50px 54px;gap:0;padding:8px 14px;border-bottom:1px solid #1a2230;font-size:9px;font-weight:700;color:#334;letter-spacing:.07em;text-transform:uppercase;">'
+        +'<div></div><div></div><div>Club</div>'
+        +'<div style="text-align:center">W</div>'
+        +'<div style="text-align:center">D</div>'
+        +'<div style="text-align:center">L</div>'
+        +'<div style="text-align:center">⚽</div>'
+        +'<div style="text-align:center">GD</div>'
+        +'<div style="text-align:center">Pts</div>'
+      +'</div>'
+      +rows
+      +'<div style="padding:8px 14px;font-size:9px;color:#1e2a3a;font-family:monospace;">W=3pts · D=1pt · 1 goal per RPD hit · '+periodLabel+'</div>'
+    +'</div>'
+    +teamBreakdown;
   }
-  addTeam(tA,'A');
-  addTeam(tB,'B');
-}
 
-function _sfcLoop(){
-  var page=document.getElementById('page-salesfc');
-  if(!page||!page.classList.contains('active')||!_sfcCanvas||!_sfcCtx){_sfcStopAnim();return;}
-  var c=_sfcCanvas,ctx=_sfcCtx,W=c.width,H=c.height;
-  if(!W||!H){_sfcStopAnim();return;}
-  _sfcDrawPitch(ctx,W,H);
-  _sfcMovePlayers(W,H);
-  _sfcUpdateBall(W,H);
-  _sfcDrawPlayers(ctx,W,H);
-  _sfcDrawBall(ctx,W,H);
-  _sfcAnimId=requestAnimationFrame(_sfcLoop);
-}
-
-function _sfcStopAnim(){if(_sfcAnimId){cancelAnimationFrame(_sfcAnimId);_sfcAnimId=null;}}
-
-function _sfcDrawPitch(ctx,W,H){
-  ctx.clearRect(0,0,W,H);
-  for(var i=0;i<10;i++){ctx.fillStyle=i%2===0?'#1a4731':'#1e5238';ctx.fillRect(i*W/10,0,W/10,H);}
-  var lw=Math.max(1,W/500);
-  ctx.strokeStyle='rgba(255,255,255,0.18)';ctx.lineWidth=lw;
-  ctx.strokeRect(W*0.03,H*0.05,W*0.94,H*0.9);
-  ctx.beginPath();ctx.moveTo(W/2,H*0.05);ctx.lineTo(W/2,H*0.95);ctx.stroke();
-  ctx.beginPath();ctx.arc(W/2,H/2,H*0.22,0,Math.PI*2);ctx.stroke();
-  ctx.beginPath();ctx.arc(W/2,H/2,lw*2,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,0.3)';ctx.fill();
-  ctx.strokeRect(W*0.03,H*0.2,W*0.12,H*0.6);
-  ctx.strokeRect(W*0.85,H*0.2,W*0.12,H*0.6);
-  // Goals
-  ctx.fillStyle='rgba(255,255,255,0.07)';
-  ctx.fillRect(W*0.005,H*0.35,W*0.028,H*0.3);
-  ctx.fillRect(W*0.967,H*0.35,W*0.028,H*0.3);
-  ctx.strokeStyle='rgba(255,255,255,0.25)';
-  ctx.strokeRect(W*0.005,H*0.35,W*0.028,H*0.3);
-  ctx.strokeRect(W*0.967,H*0.35,W*0.028,H*0.3);
-}
-
-// Pass cooldown: after kicking, ignore ball contact for a short time
-// so the ball travels across the pitch and reaches a different player
-var _sfcKickCool = false;
-var _sfcKickOwner = null;
-
-function _sfcMovePlayers(W,H){
-  var b=_sfcBall;
-  var now=Date.now();
-
-  // Find the player closest to the ball (non-GK, not in kick cooldown)
-  var nearest=null, nearD=9999;
-  _sfcPitchers.forEach(function(p){
-    if(p.isGK) return;
-    var d=Math.hypot(p.x-b.x,p.y-b.y);
-    if(d<nearD){nearD=d;nearest=p;}
-  });
-
-  _sfcPitchers.forEach(function(p){
-    if(p.isGK){
-      var gx=p.side==='A'?W*0.055:W*0.945;
-      var gy=Math.max(H*0.36,Math.min(H*0.64,b.y));
-      p.x+=(gx-p.x)*0.045; p.y+=(gy-p.y)*0.055;
-      return;
-    }
-
-    // Only the nearest player chases the ball — others hold position
-    if(p===nearest && !_sfcKickCool){
-      p.x+=(b.x-p.x)*0.055; p.y+=(b.y-p.y)*0.055;
-
-      if(nearD < W*0.05){
-        // Choose a pass target: random teammate OR shoot at goal
-        // Weighted so players pass to spread play across the pitch
-        var outfield=_sfcPitchers.filter(function(q){return !q.isGK && q!==p;});
-        var teammates=outfield.filter(function(q){return q.side===p.side;});
-        var shootChance=p.side==='A'?
-          (b.x>W*0.55?0.35:0.12):
-          (b.x<W*0.45?0.35:0.12);
-
-        var tgx, tgy;
-        if(Math.random()<shootChance){
-          // Shoot at goal
-          tgx=p.side==='B'?W*0.025:W*0.975;
-          tgy=H*0.5+(Math.random()-.5)*H*0.35;
-        } else if(teammates.length>0){
-          // Pass to a random teammate — prefer one further up the pitch
-          teammates.sort(function(){return Math.random()-.5;}); // shuffle
-          var target=teammates[0];
-          tgx=target.x + (Math.random()-.5)*W*0.04;
-          tgy=target.y + (Math.random()-.5)*H*0.08;
-        } else {
-          tgx=p.side==='B'?W*0.025:W*0.975;
-          tgy=H*0.5+(Math.random()-.5)*H*0.4;
-        }
-
-        // Kick with controlled speed — not too fast, not too slow
-        var dist=Math.hypot(tgx-b.x, tgy-b.y);
-        var spd=Math.min(W/55, Math.max(W/130, dist/28));
-        var ang=Math.atan2(tgy-b.y, tgx-b.x)+(Math.random()-.5)*0.22;
-        b.vx=Math.cos(ang)*spd;
-        b.vy=Math.sin(ang)*spd;
-
-        // Kick cooldown: freeze ball-chasing so ball can travel to destination
-        _sfcKickCool=true;
-        _sfcKickOwner=p;
-        var coolTime=280+Math.random()*320;
-        setTimeout(function(){_sfcKickCool=false;_sfcKickOwner=null;},coolTime);
-      }
-    } else {
-      // Tactical drift — gentle, smooth float towards base position
-      var ballSide=b.x>W/2;
-      var fwd=p.pctRR/100;
-      var nudge=p.side==='A'?(ballSide?W*0.06:-W*0.01):(ballSide?W*0.01:-W*0.06);
-      var tgtX=Math.max(W*0.06,Math.min(W*0.94,p.tx+nudge));
-      // Gentle sinusoidal drift so players look alive when waiting
-      var tgtY=p.ty+Math.sin(now/2200+p.tx*0.01)*H*0.022;
-      p.x+=(tgtX-p.x)*0.018;
-      p.y+=(tgtY-p.y)*0.018;
-    }
-  });
-}
-
-function _sfcUpdateBall(W,H){
-  var b=_sfcBall;
-  b.x+=b.vx; b.y+=b.vy;
-  b.vx*=0.984; b.vy*=0.984;
-  if(b.y<H*0.05+b.r){b.y=H*0.05+b.r;b.vy=Math.abs(b.vy)*0.7;}
-  if(b.y>H*0.95-b.r){b.y=H*0.95-b.r;b.vy=-Math.abs(b.vy)*0.7;}
-  if(b.x>W*0.97-b.r){b.x=W*0.97-b.r;b.vx=-Math.abs(b.vx)*0.7;}
-  if(b.x<W*0.03+b.r){b.x=W*0.03+b.r;b.vx=Math.abs(b.vx)*0.7;}
-  if(!_sfcGoalCool){
-    if(b.x<W*0.035&&b.y>H*0.35&&b.y<H*0.65){_sfcGoalCool=true;_sfcGoalAnim();setTimeout(function(){b.x=W/2;b.y=H/2;b.vx=(Math.random()-.5)*3;b.vy=(Math.random()-.5)*2;_sfcGoalCool=false;},2000);}
-    if(b.x>W*0.965&&b.y>H*0.35&&b.y<H*0.65){_sfcGoalCool=true;_sfcGoalAnim();setTimeout(function(){b.x=W/2;b.y=H/2;b.vx=(Math.random()-.5)*3;b.vy=(Math.random()-.5)*2;_sfcGoalCool=false;},2000);}
+  // ── 1v1 Challenge view ────────────────────────────────────────
+  function challengeHTML(){
+    var names = (APP.people||[]).map(function(p){return p.name;});
+    return '<div style="background:#111828;border-radius:10px;padding:18px;">'
+      +'<div style="font-size:10px;color:#445;font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-bottom:14px;">Head to Head Duel</div>'
+      +'<div style="display:flex;gap:12px;align-items:center;margin-bottom:10px;">'
+        +'<select id="sfcP1" style="flex:1;background:#0a0e1a;border:1px solid #1e2a3a;color:#aab;font-size:13px;padding:8px 10px;border-radius:7px;">'
+          +names.map(function(n){return '<option>'+n+'</option>';}).join('')
+        +'</select>'
+        +'<div style="font-size:18px;color:#223;font-weight:900;">vs</div>'
+        +'<select id="sfcP2" style="flex:1;background:#0a0e1a;border:1px solid #1e2a3a;color:#aab;font-size:13px;padding:8px 10px;border-radius:7px;">'
+          +names.slice().reverse().map(function(n){return '<option>'+n+'</option>';}).join('')
+        +'</select>'
+      +'</div>'
+      +'<button onclick="sfcRunChallenge()" style="width:100%;background:#1d4ed8;border:none;color:#fff;font-size:13px;font-weight:700;padding:11px 0;border-radius:8px;cursor:pointer;letter-spacing:.04em;">⚽ Kick Off</button>'
+      +'<div id="sfcChalResult" style="display:none;margin-top:16px;"></div>'
+    +'</div>';
   }
-  if(Math.hypot(b.vx,b.vy)<0.35){b.vx=(Math.random()-.5)*2.5;b.vy=(Math.random()-.5)*1.5;}
-}
 
-function _sfcDrawPlayers(ctx,W,H){
-  var r=Math.max(9,W*0.023);
-  _sfcPitchers.forEach(function(p){
-    ctx.fillStyle='rgba(0,0,0,0.28)';
-    ctx.beginPath();ctx.ellipse(p.x+1,p.y+r*0.95,r*0.75,r*0.22,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle=p.col;
-    ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,0.14)';
-    ctx.beginPath();ctx.arc(p.x-r*0.28,p.y-r*0.32,r*0.42,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='rgba(0,0,0,0.22)';
-    ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle=p.col;
-    ctx.beginPath();ctx.arc(p.x,p.y,r-1,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#fff';
-    ctx.font='bold '+Math.round(r*0.62)+'px system-ui,sans-serif';
-    ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText(p.ini,p.x,p.y+1);
-  });
-}
+  // ── Assemble page ─────────────────────────────────────────────
+  var html = '<div style="background:#0a0e1a;border-radius:14px;padding:20px;color:#fff;">'
+    // Controls
+    +'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px;">'
+      +'<div style="display:flex;gap:4px;">'+periodBtns+'</div>'
+      +'<div style="display:flex;gap:4px;margin-left:auto;">'+metricBtns+'</div>'
+    +'</div>'
+    +'<div style="display:flex;gap:4px;margin-bottom:18px;">'+viewBtns+'</div>'
 
-function _sfcDrawBall(ctx,W,H){
-  var b=_sfcBall,r=b.r;
-  ctx.fillStyle='rgba(0,0,0,0.22)';
-  ctx.beginPath();ctx.ellipse(b.x+1,b.y+r*1.3,r*0.75,r*0.22,0,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle='#f2f2f2';
-  ctx.beginPath();ctx.arc(b.x,b.y,r,0,Math.PI*2);ctx.fill();
-  ctx.strokeStyle='#888';ctx.lineWidth=0.6;
-  ctx.beginPath();ctx.arc(b.x,b.y,r,0,Math.PI*2);ctx.stroke();
-  var ang=Date.now()/380;
-  ctx.strokeStyle='#555';ctx.lineWidth=0.9;
-  for(var i=0;i<5;i++){
-    var a=ang+i*(Math.PI*2/5);
-    ctx.beginPath();
-    ctx.moveTo(b.x+r*0.35*Math.cos(a),b.y+r*0.35*Math.sin(a));
-    ctx.lineTo(b.x+r*0.82*Math.cos(a),b.y+r*0.82*Math.sin(a));
-    ctx.stroke();
-  }
-}
+    // Title bar
+    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #1a2230;">'
+      +'<div style="font-size:28px;">⚽</div>'
+      +'<div>'
+        +'<div style="font-size:15px;font-weight:800;letter-spacing:.02em;">Sales FC</div>'
+        +'<div style="font-size:11px;color:#445;font-family:monospace;">'+periodLabel+' · '+metricLabel+' · 1 goal per RPD completed</div>'
+      +'</div>'
+    +'</div>'
 
-function _sfcGoalAnim(){
-  var pop=document.getElementById('sfcGoalPop');
-  var flash=document.getElementById('sfcGoalFlash');
-  if(!pop||!flash) return;
-  pop.style.display='block'; flash.style.display='block';
-  flash.style.background='rgba(251,184,58,0.18)';
-  setTimeout(function(){pop.style.transform='translate(-50%,-50%) scale(1)';},10);
-  setTimeout(function(){
-    pop.style.transform='translate(-50%,-50%) scale(0)';
-    setTimeout(function(){pop.style.display='none';flash.style.display='none';},300);
-  },1600);
+    +(_sfcView==='players'?topScorersHTML():_sfcView==='teams'?leagueHTML():challengeHTML())
+
+  +'</div>';
+
+  document.getElementById('sfcContent').innerHTML = html;
 }
 
 function sfcRunChallenge(){
-  var p1=document.getElementById('sfcP1')&&document.getElementById('sfcP1').value;
-  var p2=document.getElementById('sfcP2')&&document.getElementById('sfcP2').value;
-  if(!p1||!p2||p1===p2){showToast('Pick two different players','err');return;}
-  var mk=(document.getElementById('sfcMonth')&&document.getElementById('sfcMonth').value)||APP.activeMonth;
-  var metric=document.getElementById('sfcCM')&&document.getElementById('sfcCM').value;
-  var period=document.getElementById('sfcCP')&&document.getElementById('sfcCP').value;
-  var today=_localDateStr(new Date());
-  var weekStart=(function(){var d=new Date();var dy=d.getDay();d.setDate(d.getDate()-(dy===0?6:dy-1));return _localDateStr(d);})();
-  var entries=getEntries(mk);
-  function personGoals(name){
-    var p=(APP.people||[]).find(function(x){return x.name===name;});
-    var ep=p?getPersonForMonth(p,mk):null;
+  var mk    = (document.getElementById('sfcMonth')&&document.getElementById('sfcMonth').value)||APP.activeMonth;
+  var p1    = document.getElementById('sfcP1')&&document.getElementById('sfcP1').value;
+  var p2    = document.getElementById('sfcP2')&&document.getElementById('sfcP2').value;
+  if(!p1||!p2||p1===p2){ showToast('Pick two different players','err'); return; }
+
+  var today    = _localDateStr(new Date());
+  var wsDate   = new Date(); var dow=wsDate.getDay(); wsDate.setDate(wsDate.getDate()-(dow===0?6:dow-1));
+  var weekStart= _localDateStr(wsDate);
+  var entries  = getEntries(mk);
+
+  function pStats(name){
+    var person=(APP.people||[]).find(function(x){return x.name===name;});
+    var ep=person?getPersonForMonth(person,mk):null;
     var rpd=ep&&ep.riskPerDay?ep.riskPerDay:1;
-    var mine=entries.filter(function(e){
-      if(e.name!==name) return false;
-      if(period==='today') return e.date===today;
-      if(period==='week')  return e.date>=weekStart;
-      return true;
+    var mine=entries.filter(function(e){return e.name===name;});
+    var ps=personStats||{};
+    var col=(ps[name]&&ps[name].col)||'#555';
+
+    var r={today:{rev:0,nm:0},week:{rev:0,nm:0},month:{rev:0,nm:0}};
+    mine.forEach(function(e){
+      r.month.rev+=(e.revenue||0); r.month.nm+=(e.nm||0);
+      if(e.date>=weekStart){r.week.rev+=(e.revenue||0);r.week.nm+=(e.nm||0);}
+      if(e.date===today){r.today.rev+=(e.revenue||0);r.today.nm+=(e.nm||0);}
     });
-    var rev=mine.reduce(function(s,e){return s+(e.revenue||0);},0);
-    var nm =mine.reduce(function(s,e){return s+(e.nm||0);},0);
-    return metric==='nm'?nm:Math.floor(rev/rpd);
+    return {rpd:rpd,col:col,ini:name.replace(/\s+/g,'').slice(0,3).toUpperCase(),
+      todayGoals:Math.floor(r.today.rev/rpd), todayNm:r.today.nm,
+      weekGoals: Math.floor(r.week.rev/rpd),  weekNm: r.week.nm,
+      monthGoals:Math.floor(r.month.rev/rpd), monthNm:r.month.nm};
   }
-  var g1=personGoals(p1),g2=personGoals(p2);
-  var winner=g1>g2?p1:g2>g1?p2:'Draw';
+  var s1=pStats(p1), s2=pStats(p2);
+
+  function row(label, v1, v2){
+    var win1=v1>v2, win2=v2>v1, draw=v1===v2;
+    return '<div style="display:grid;grid-template-columns:1fr 80px 1fr;gap:0;align-items:center;padding:10px 14px;border-bottom:1px solid #0f1520;">'
+      +'<div style="font-size:13px;font-weight:'+(win1?'800':'600')+';color:'+(win1?'#fbb83a':draw?'#aab':'#445')+';text-align:right;">'+v1+'</div>'
+      +'<div style="text-align:center;font-size:10px;color:#334;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">'+label+'</div>'
+      +'<div style="font-size:13px;font-weight:'+(win2?'800':'600')+';color:'+(win2?'#fbb83a':draw?'#aab':'#445')+';text-align:left;">'+v2+'</div>'
+    +'</div>';
+  }
+
+  var overall1=s1.monthGoals+s1.monthNm, overall2=s2.monthGoals+s2.monthNm;
+  var winner = overall1>overall2?p1:overall2>overall1?p2:null;
+
+  var html='<div style="background:#0d1420;border-radius:10px;overflow:hidden;">'
+    // Player headers
+    +'<div style="display:grid;grid-template-columns:1fr 80px 1fr;padding:14px;border-bottom:1px solid #1a2230;">'
+      +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">'
+        +sfcShirt(s1.col,s1.ini,38)
+        +'<div style="font-size:13px;font-weight:800;color:#dde;">'+p1+'</div>'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;justify-content:center;font-size:20px;color:#223;font-weight:900;">vs</div>'
+      +'<div style="display:flex;flex-direction:column;align-items:flex-start;gap:6px;">'
+        +sfcShirt(s2.col,s2.ini,38)
+        +'<div style="font-size:13px;font-weight:800;color:#dde;">'+p2+'</div>'
+      +'</div>'
+    +'</div>'
+    +row('Today Goals',  s1.todayGoals, s2.todayGoals)
+    +row('Today NM',     s1.todayNm,    s2.todayNm)
+    +row('Week Goals',   s1.weekGoals,  s2.weekGoals)
+    +row('Week NM',      s1.weekNm,     s2.weekNm)
+    +row('Month Goals',  s1.monthGoals, s2.monthGoals)
+    +row('Month NM',     s1.monthNm,    s2.monthNm)
+    +(winner?
+      '<div style="padding:14px;text-align:center;background:linear-gradient(90deg,transparent,rgba(251,184,58,0.1),transparent);">'
+        +'<div style="font-size:20px;font-weight:900;color:#fbb83a;">🏆 '+winner+' wins!</div>'
+        +'<div style="font-size:10px;color:#445;margin-top:4px;font-family:monospace;">Overall this month (goals + NM combined)</div>'
+      +'</div>'
+      :'<div style="padding:14px;text-align:center;font-size:16px;font-weight:700;color:#aab;">⚖ It\'s a draw!</div>'
+    )
+  +'</div>';
+
   var res=document.getElementById('sfcChalResult');
-  if(res) res.style.display='block';
-  var w=document.getElementById('sfcChalWinner');
-  var d=document.getElementById('sfcChalDetail');
-  if(w) w.textContent=winner==='Draw'?'Draw! ⚖':'⚽ Winner: '+winner;
-  if(d) d.textContent=p1+': '+g1+' goals  vs  '+p2+': '+g2+' goals · '+(metric==='nm'?'NM':'Rev goals')+' · '+period;
-  _sfcGoalAnim();
+  if(res){ res.style.display='block'; res.innerHTML=html; }
 }
+
 
 
 </script>
