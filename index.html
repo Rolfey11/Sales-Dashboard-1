@@ -1674,8 +1674,8 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 
 
 /* ═══ DEAL DERBY ═══════════════════════════════════════════ */
-.derby-mode-btn{background:none;border:none;font-size:11px;font-weight:700;padding:4px 10px;border-radius:6px;cursor:pointer;color:var(--text3);transition:all .15s;}
-.derby-mode-btn.active{background:var(--surface);color:var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.1);}
+
+
 .derby-wrap{position:relative;width:100%;border-radius:10px;overflow:hidden;user-select:none;}
 .derby-pitch-svg{width:100%;display:block;}
 .derby-players-layer{position:absolute;inset:0;pointer-events:none;}
@@ -1959,7 +1959,6 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <button class="nav-tab" onclick="showPage('monthlysummary')">Monthly Summary</button>
       <button class="nav-tab" onclick="showPage('leaderboard')">Leaderboard</button>
       <button class="nav-tab" onclick="showPage('salesfc')">⚽ Sales FC</button>
-      <button class="nav-tab" onclick="showPage('dealderby')">⚽ Deal Derby</button>
       <button class="nav-tab" onclick="showPage('history')">History</button>
       <button class="nav-tab consultant-only-tab" onclick="showPage('daybyday')">Day by Day</button>
       <button class="nav-tab consultant-only-tab" id="holidayNavTab" onclick="showPage('holiday')">Holiday</button>
@@ -2160,25 +2159,6 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
 </div>
 
 <!-- LEADERBOARD -->
-<div class="page" id="page-dealderby">
-  <div class="section-head">
-    <div>
-      <div class="section-title">⚽ Deal Derby</div>
-      <div class="section-sub" id="derby-sub">Daily football battle — position = % of your run rate</div>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <div id="derby-mode-tabs" style="display:flex;gap:4px;background:var(--surface2);border-radius:8px;padding:3px;">
-        <button id="dmt-rev" class="derby-mode-btn active" onclick="derbySetMode('rev')">Revenue</button>
-        <button id="dmt-nm"  class="derby-mode-btn"        onclick="derbySetMode('nm')">Needs Met</button>
-      </div>
-      <button class="btn btn-s" onclick="renderDealDerby()" style="font-size:12px;padding:5px 14px;">🔄 Refresh</button>
-    </div>
-  </div>
-  <div id="derbyContent">
-    <div class="empty"><div class="empty-icon">⚽</div><div>Loading the match…</div></div>
-  </div>
-</div>
-
 <div class="page" id="page-leaderboard">
   <div class="section-head">
     <div><div class="section-title">Leaderboard</div><div class="section-sub" id="lb-sub"></div></div>
@@ -4040,9 +4020,9 @@ const ROLE_ACCESS = {
   manager:    ['dashboard','biz','teams','summary','entry','monthlysummary','leaderboard',
                'history','daybyday','holiday','settings','manageroverview','staffperf','calloutcomes',
                'consultantdaily','remedialmanager','bonuscalc','dailysend','compliance',
-               'globalsearch','weeklystats','dealderby'],
-  compliance: ['compliance','calloutcomes','remedialmanager','dealderby'],
-  consultant: ['consultantdaily','teams','calloutcomes','holiday','bonuscalc','dealderby']
+               'globalsearch','weeklystats'],
+  compliance: ['compliance','calloutcomes','remedialmanager'],
+  consultant: ['consultantdaily','teams','calloutcomes','holiday','bonuscalc']
 };
 const ROLE_LABELS = { master:'Master', smt:'SMT', manager:'Manager', compliance:'Compliance', consultant:'Consultant' };
 const ROLE_COLORS = { master:'#e879f9', smt:'#f472b6', manager:'#5e9cf5', compliance:'#2dce89', consultant:'#fbb83a' };
@@ -7526,7 +7506,6 @@ function _refreshCurrentPage(id){
   else if(id==='monthlysummary'){ populateAllSelects(); renderMonthlySummary(); }
   else if(id==='leaderboard')  { populateAllSelects(); renderLeaderboard(); }
   else if(id==='salesfc')      { populateAllSelects(); renderSalesFC(); }
-  else if(id==='dealderby')     { renderDealDerby(); }
   else if(id==='history')      { populateAllSelects(); renderHistory(); }
   else if(id==='daybyday')     { populateAllSelects(); renderDayByDay(); }
   else if(id==='settings')       renderSettings();
@@ -7554,7 +7533,6 @@ function showPage(id){
   if(id==='monthlysummary') { populateAllSelects(); renderMonthlySummary(); }
   if(id==='leaderboard')    { populateAllSelects(); renderLeaderboard(); }
   if(id==='salesfc')       { populateAllSelects(); renderSalesFC(); }
-  if(id==='dealderby')     { renderDealDerby(); }
   if(id==='history')        { populateAllSelects(); renderHistory(); }
   if(id==='daybyday')       { populateAllSelects(); renderDayByDay(); }
   if(id==='holiday'){
@@ -11734,7 +11712,6 @@ function renderManagerOverview(){
 // ════════════════════════════════════════════════════════════
 // DEAL DERBY — Football Sales Game
 // ════════════════════════════════════════════════════════════
-let _derbyMode = 'rev'; // 'rev' or 'nm'
 let _derbyGoalInProgress = false;
 let _derbySeasonData = {};
 let _derbyBallTimer = null;
@@ -11743,13 +11720,6 @@ let _derbyConfettiTimers = [];
 const DERBY_COLORS = ['#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6',
                       '#1abc9c','#e67e22','#e91e63','#00bcd4','#8bc34a'];
 
-function derbySetMode(m){
-  _derbyMode = m;
-  document.querySelectorAll('.derby-mode-btn').forEach(b=>b.classList.remove('active'));
-  const btn = document.getElementById('dmt-'+m);
-  if(btn) btn.classList.add('active');
-  renderDealDerby();
-}
 
 function _derbyInitials(name){
   return (name||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
@@ -11757,46 +11727,6 @@ function _derbyInitials(name){
 
 function _derbyColor(idx){ return DERBY_COLORS[idx % DERBY_COLORS.length]; }
 
-function renderDealDerby(){
-  const el = document.getElementById('derbyContent');
-  if(!el) return;
-  const mk = APP.activeMonth || todayKey();
-  const today = _localDateStr(new Date());
-  document.getElementById('derby-sub').textContent =
-    'Deal Derby · '+monthLabel(mk)+' · '+today+' · position = % of daily run rate';
-
-  const stats = calcStats(mk);
-  const entries = getEntries(mk);
-  const todayEntries = entries.filter(e=>e.date===today);
-
-  const players = stats.filter(p=>p.target>0).map((p,i)=>{
-    const ep  = getPersonForMonth(APP.people.find(x=>x.name===p.name), mk);
-    const rpd = ep ? (ep.riskPerDay||0) : 0;
-    const pNmRate = nmRateFor(p.name||'', mk);
-    const myToday = todayEntries.filter(e=>e.name===p.name);
-    const revToday= myToday.reduce((s,e)=>s+(e.revenue||0),0);
-    const nmToday = myToday.reduce((s,e)=>s+(e.nm||0),0);
-    const revPct  = rpd>0  ? Math.round(revToday/rpd*100)   : 0;
-    const nmPct   = pNmRate>0 ? Math.round(nmToday/pNmRate*100) : 0;
-    const pct     = _derbyMode==='nm' ? nmPct : revPct;
-    const val     = _derbyMode==='nm' ? nmToday : revToday;
-    const rr      = _derbyMode==='nm' ? pNmRate : rpd;
-    return { name:p.name, idx:i, pct, val, rr, revPct, nmPct, revMTD:p.revMTD, nmMTD:p.nmMTD, target:p.target, revPctMTD:p.revPct };
-  }).sort((a,b)=>b.pct-a.pct);
-
-  if(!players.length){
-    el.innerHTML='<div class="empty"><div class="empty-icon">⚽</div><div>No consultant data for this month — add entries to kick off!</div></div>';
-    return;
-  }
-
-  // Load season data then render
-  _derbyLoadSeason(mk, function(season){
-    _derbySeasonData = season;
-    _derbyRenderAll(el, players, season, mk);
-    // Check for new goals to record
-    setTimeout(function(){ _derbyCheckGoals(players, mk, today, season); }, 2000);
-  });
-}
 
 function _derbyLoadSeason(mk, cb){
   if(!_db){ cb({}); return; }
@@ -11813,7 +11743,7 @@ function _derbyCheckGoals(players, mk, today, season){
       var existing = (season[today]||{})[p.name];
       if(!existing){
         updates['perfDash2/dealDerby/'+mk+'/'+today+'/'+p.name] = {
-          goals:1, pct:p.pct, val:Math.round(p.val), mode:_derbyMode, ts:Date.now()
+          goals:1, pct:p.pct, val:Math.round(p.val), ts:Date.now()
         };
       }
     }
@@ -23270,37 +23200,83 @@ function _sfcDrawPitch(ctx,W,H){
   ctx.strokeRect(W*0.967,H*0.35,W*0.028,H*0.3);
 }
 
+// Pass cooldown: after kicking, ignore ball contact for a short time
+// so the ball travels across the pitch and reaches a different player
+var _sfcKickCool = false;
+var _sfcKickOwner = null;
+
 function _sfcMovePlayers(W,H){
-  var nearest=null,nearD=9999;
   var b=_sfcBall;
+  var now=Date.now();
+
+  // Find the player closest to the ball (non-GK, not in kick cooldown)
+  var nearest=null, nearD=9999;
   _sfcPitchers.forEach(function(p){
+    if(p.isGK) return;
     var d=Math.hypot(p.x-b.x,p.y-b.y);
-    if(!p.isGK&&d<nearD){nearD=d;nearest=p;}
+    if(d<nearD){nearD=d;nearest=p;}
   });
+
   _sfcPitchers.forEach(function(p){
     if(p.isGK){
-      // GK tracks ball vertically, stays on their line
-      var gx=p.side==='A'?W*0.05:W*0.95;
-      var gy=Math.max(H*0.37,Math.min(H*0.63,b.y));
-      p.x+=(gx-p.x)*0.05; p.y+=(gy-p.y)*0.06;
-    } else if(p===nearest){
-      // Ball chaser runs towards ball
-      p.x+=(b.x-p.x)*0.08; p.y+=(b.y-p.y)*0.08;
-      if(nearD<W*0.045){
-        // Kick towards opponent goal with slight randomness
-        var tgx=p.side==='B'?W*0.03:W*0.97;
-        var tgy=H*0.5+(Math.random()-.5)*H*0.45;
-        var ang=Math.atan2(tgy-b.y,tgx-b.x)+(Math.random()-.5)*0.65;
-        var spd=(W/180)*(1.8+Math.random()*2.2);
-        b.vx=Math.cos(ang)*spd; b.vy=Math.sin(ang)*spd;
+      var gx=p.side==='A'?W*0.055:W*0.945;
+      var gy=Math.max(H*0.36,Math.min(H*0.64,b.y));
+      p.x+=(gx-p.x)*0.045; p.y+=(gy-p.y)*0.055;
+      return;
+    }
+
+    // Only the nearest player chases the ball — others hold position
+    if(p===nearest && !_sfcKickCool){
+      p.x+=(b.x-p.x)*0.055; p.y+=(b.y-p.y)*0.055;
+
+      if(nearD < W*0.05){
+        // Choose a pass target: random teammate OR shoot at goal
+        // Weighted so players pass to spread play across the pitch
+        var outfield=_sfcPitchers.filter(function(q){return !q.isGK && q!==p;});
+        var teammates=outfield.filter(function(q){return q.side===p.side;});
+        var shootChance=p.side==='A'?
+          (b.x>W*0.55?0.35:0.12):
+          (b.x<W*0.45?0.35:0.12);
+
+        var tgx, tgy;
+        if(Math.random()<shootChance){
+          // Shoot at goal
+          tgx=p.side==='B'?W*0.025:W*0.975;
+          tgy=H*0.5+(Math.random()-.5)*H*0.35;
+        } else if(teammates.length>0){
+          // Pass to a random teammate — prefer one further up the pitch
+          teammates.sort(function(){return Math.random()-.5;}); // shuffle
+          var target=teammates[0];
+          tgx=target.x + (Math.random()-.5)*W*0.04;
+          tgy=target.y + (Math.random()-.5)*H*0.08;
+        } else {
+          tgx=p.side==='B'?W*0.025:W*0.975;
+          tgy=H*0.5+(Math.random()-.5)*H*0.4;
+        }
+
+        // Kick with controlled speed — not too fast, not too slow
+        var dist=Math.hypot(tgx-b.x, tgy-b.y);
+        var spd=Math.min(W/55, Math.max(W/130, dist/28));
+        var ang=Math.atan2(tgy-b.y, tgx-b.x)+(Math.random()-.5)*0.22;
+        b.vx=Math.cos(ang)*spd;
+        b.vy=Math.sin(ang)*spd;
+
+        // Kick cooldown: freeze ball-chasing so ball can travel to destination
+        _sfcKickCool=true;
+        _sfcKickOwner=p;
+        var coolTime=280+Math.random()*320;
+        setTimeout(function(){_sfcKickCool=false;_sfcKickOwner=null;},coolTime);
       }
     } else {
-      // Others drift towards tactical position, influenced by ball side
-      var side=b.x>W/2;
-      var nudge=p.side==='A'?(side?W*0.07:-W*0.02):(side?W*0.02:-W*0.07);
+      // Tactical drift — gentle, smooth float towards base position
+      var ballSide=b.x>W/2;
+      var fwd=p.pctRR/100;
+      var nudge=p.side==='A'?(ballSide?W*0.06:-W*0.01):(ballSide?W*0.01:-W*0.06);
       var tgtX=Math.max(W*0.06,Math.min(W*0.94,p.tx+nudge));
-      var tgtY=p.ty+Math.sin(Date.now()/1800+p.tx)*H*0.025;
-      p.x+=(tgtX-p.x)*0.025; p.y+=(tgtY-p.y)*0.025;
+      // Gentle sinusoidal drift so players look alive when waiting
+      var tgtY=p.ty+Math.sin(now/2200+p.tx*0.01)*H*0.022;
+      p.x+=(tgtX-p.x)*0.018;
+      p.y+=(tgtY-p.y)*0.018;
     }
   });
 }
