@@ -4918,13 +4918,13 @@ function calcStats(monthKey){
       const _wdElapsed = workingDatesInMonth(monthKey).filter(ds => ds <= _today2);
       let _cumRR = 0, _cumNmRR = 0;
       _wdElapsed.forEach(ds => {
-        const st = getDayStatus(monthKey, p.name, ds);
-        if(st === 'hol' || st === 'sick' || st === 'bh') return;
+        // Use getDayRRMultiplier so partial absences (H1/H2/Q) are fractionally deducted
+        const mult = getDayRRMultiplier(monthKey, p.name, ds);
+        if(mult === 0) return;
         const personOvr = ((APP.personRROverrides||{})[p.name]||{})[monthKey]?.[ds];
-        _cumRR   += personOvr !== undefined ? personOvr : (ep.riskPerDay||0);
-        // Per-day NM RR override takes precedence over monthly NM rate
+        _cumRR   += (personOvr !== undefined ? personOvr : (ep.riskPerDay||0)) * mult;
         const nmOvr = ((APP.personNmRROverrides||{})[p.name]||{})[monthKey]?.[ds];
-        _cumNmRR += nmOvr !== undefined ? nmOvr : _nmR;
+        _cumNmRR += (nmOvr !== undefined ? nmOvr : _nmR) * mult;
       });
       copRev = revMTD - _cumRR;
       copNm  = nmMTD  - _cumNmRR;
@@ -4978,6 +4978,35 @@ function getDayStatus(mk, name, ds){
   if(getHols(mk, name).includes(ds)) return 'hol';
   if(getSick(mk, name).includes(ds)) return 'sick';
   return null;
+}
+
+// Returns the fraction of a person's daily run rate to count on a given day.
+// 0   = fully off (bank hol, full holiday H, sickness S)
+// 0.5 = half-day off (H1 or H2 — person works the other half)
+// 0.75= quarter-day off (Q)
+// 1   = fully working (non-deductible types W/M/L/C/N, or no absence)
+// E   = custom deductible — uses stored hours relative to 7.5h working day
+function getDayRRMultiplier(mk, name, ds){
+  if(isBankHoliday(ds)) return 0;
+  // Check new absences system first (most accurate, has partial hours)
+  const abs = (typeof getAbsences === 'function') ? getAbsences(mk, name) : {};
+  const entry = abs && abs[ds];
+  if(entry && entry.type){
+    const t = entry.type;
+    if(t === 'S') return 0; // sickness = fully off for run-rate purposes
+    if(typeof ABS_DEDUCTIBLE !== 'undefined' && ABS_DEDUCTIBLE.includes(t)){
+      // Deductible holiday: fraction of day off = hours / 7.5h working day
+      const absHrs = entry.hours || (ABS_TYPES && ABS_TYPES[t] && ABS_TYPES[t].defaultHrs) || 7.5;
+      return Math.max(0, Math.min(1, 1 - absHrs / 7.5));
+    }
+    // Non-deductible (W, M, L, C, N, B) — person is still on the hook for their target
+    return 1;
+  }
+  // Legacy fallback: sickness array
+  if(getSick(mk, name).includes(ds)) return 0;
+  // Legacy fallback: holiday array (always full-day)
+  if(getHols(mk, name).includes(ds)) return 0;
+  return 1;
 }
 function holClick(el){
   const mk   = el.getAttribute('data-mk');
@@ -6113,21 +6142,19 @@ function calcTeamCOP(mk, memberNames, teamKey){
   let cumActual=0, cumRR=0, cumNmActual=0, cumNmRR=0;
   wdDates.forEach(ds=>{
     const calcRR2 = memberRPDs.reduce((s,{name,rpd})=>{
-      const st = getDayStatus(mk,name,ds);
-      if(st==='hol'||st==='sick'||st==='bh') return s;
-      // Apply per-person RR override if set, otherwise use rpd
+      const mult = getDayRRMultiplier(mk,name,ds);
+      if(mult === 0) return s;
       const personOvr = ((APP.personRROverrides||{})[name]||{})[mk]?.[ds];
-      return s + (personOvr !== undefined ? personOvr : rpd);
+      return s + (personOvr !== undefined ? personOvr : rpd) * mult;
     }, 0);
     // Apply team-level RR override if set (teamKey passed as 3rd arg)
     const rrOvr2 = teamKey ? ((APP.rrOverrides||{})[teamKey]||{})[mk]?.[ds] : undefined;
     const dayRR2 = rrOvr2 !== undefined ? rrOvr2 : calcRR2;
     const dayNmRR2 = memberRPDs.reduce((s,{name})=>{
-      const st = getDayStatus(mk,name,ds);
-      if(st==='hol'||st==='sick'||st==='bh') return s;
-      // Per-day NM RR override takes precedence over the monthly NM rate
+      const mult = getDayRRMultiplier(mk,name,ds);
+      if(mult === 0) return s;
       const nmOvr = ((APP.personNmRROverrides||{})[name]||{})[mk]?.[ds];
-      return s + (nmOvr !== undefined ? nmOvr : nmRateFor(name, mk));
+      return s + (nmOvr !== undefined ? nmOvr : nmRateFor(name, mk)) * mult;
     }, 0);
     cumActual   += (dayLookup[ds]||{}).rev||0;
     cumRR       += dayRR2;
@@ -10677,7 +10704,7 @@ function renderConsultantDaily(){
   const _nmR_cop = (typeof nmRateFor === 'function') ? nmRateFor(myName, mk) : nmRate();
   _wdElapsedCop.forEach(ds => {
     const st = getDayStatus(mk, myName, ds);
-    if(st === 'hol' || st === 'sick' || st === 'bh') return;
+    const _mult = getDayRRMultiplier(mk, p.name, ds); if(_mult === 0) return;
     const personOvr = ((APP.personRROverrides||{})[myName]||{})[mk]?.[ds];
     _cumRR_cop   += personOvr !== undefined ? personOvr : (riskPerDay||0);
     const nmOvr = ((APP.personNmRROverrides||{})[myName]||{})[mk]?.[ds];
@@ -12991,19 +13018,20 @@ function renderTeamDashboard(container, teamKey){
     const isToday  = ds === today2;
 
     const _calcDayRR = memberRPDs.reduce((s,{name,rpd})=>{
-      const st = getDayStatus(mk,name,ds);
-      if(st==='hol'||st==='bh') return s;
+      const mult = getDayRRMultiplier(mk,name,ds); // 0=off, 0.5=half-day, 1=full day
+      if(mult === 0) return s;
       const personOvr = ((APP.personRROverrides||{})[name]||{})[mk]?.[ds];
-      return s + (personOvr !== undefined ? personOvr : rpd);
+      // Manual override is the intended day total — scale it by the same fraction
+      return s + (personOvr !== undefined ? personOvr * mult : rpd * mult);
     }, 0);
     const _rrOvr = ((APP.rrOverrides||{})[teamKey]||{})[mk]?.[ds];
     const dayRR  = _rrOvr !== undefined ? _rrOvr : _calcDayRR;
     const isOvr  = _rrOvr !== undefined;
     const dayNmRR = memberRPDs.reduce((s,{name})=>{
-      const st = getDayStatus(mk,name,ds);
-      if(st==='hol'||st==='bh') return s;
+      const mult = getDayRRMultiplier(mk,name,ds);
+      if(mult === 0) return s;
       const nmOvr = ((APP.personNmRROverrides||{})[name]||{})[mk]?.[ds];
-      return s + (nmOvr !== undefined ? nmOvr : nmRateFor(name, mk));
+      return s + (nmOvr !== undefined ? nmOvr * mult : nmRateFor(name, mk) * mult);
     }, 0);
     const dayActual = (dayLookup[ds]||{}).rev||0;
     const dayNm     = (dayLookup[ds]||{}).nm||0;
@@ -14304,7 +14332,7 @@ function _renderSumTrends(){
         const dow2 = new Date(ds).getDay();
         if(dow2<1||dow2>5) return;
         const st = getDayStatus(mk, p.name, ds);
-        if(st==='hol'||st==='sick'||st==='bh') return;
+        const _m = getDayRRMultiplier(mk, p.name||name||'', ds); if(_m === 0) return;
         const ent2 = (_mkEntries[mk]||getEntries(mk)).find(e=>e.name===p.name&&e.date===ds);
         const rev2 = ent2?(ent2.revenue||0):0;
         pDow[dow2].days++;
