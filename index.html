@@ -6127,7 +6127,9 @@ function calcTeamCOP(mk, memberNames, teamKey){
   const entries    = getEntries(mk);
   const seenNames  = new Set();
   const teamPeople = APP.people.filter(p=>{ if(!memberNames.includes(p.name)||seenNames.has(p.name)) return false; seenNames.add(p.name); return true; });
-  const memberRPDs = teamPeople.map(p=>({ name:p.name, rpd:(getPersonForMonth(p,mk).riskPerDay||0) }));
+  const memberRPDs = teamPeople
+    .filter(p => hasMonthTarget(p.name, mk))
+    .map(p=>({ name:p.name, rpd:(getPersonForMonth(p,mk).riskPerDay||0) }));
   const today2     = _localDateStr(new Date());
   const wdDates    = workingDatesInMonth(mk).filter(ds=>ds<=today2);
 
@@ -12980,36 +12982,15 @@ function renderTeamDashboard(container, teamKey){
   const stats      = calcStats(mk).filter(s=>{ if(!members.includes(s.name)) return false; return true; }).filter((s,i,a)=>a.findIndex(x=>x.name===s.name)===i);
   const teamRevMTD = stats.reduce((s,p)=>s+p.revMTD,0);
   const teamNmMTD  = stats.reduce((s,p)=>s+p.nmMTD,0);
+  const teamTgt    = stats.reduce((s,p)=>s+p.target,0);  // target as set in settings (not reduced for holidays)
+  const teamPct    = teamTgt>0?Math.round(teamRevMTD/teamTgt*100):0;
   const elapsed    = APP.manualElapsed || calWorkDaysTeam(mk);
   const ahead      = stats.filter(p=>p.riskAhead).length;
 
-  // Build memberRPDs early so we can use it for both the KPI target and the daily table
-  const _seenRP = new Set();
-  const teamPeopleU = APP.people.filter(p=>{ if(!members.includes(p.name)||_seenRP.has(p.name)) return false; _seenRP.add(p.name); return true; });
-  const memberRPDsEarly = teamPeopleU.map(p=>({ name:p.name, rpd:(getPersonForMonth(p,mk).riskPerDay||0) }));
-
-  // ── Team target = full-month projected run rate (accounts for all holidays & sickness)
-  // This guarantees teamTgt always matches the sum of the daily run-rate column
-  const _allWDMonth = workingDatesInMonth(mk);
-  const teamTgt = Math.round(_allWDMonth.reduce((total, ds) => {
-    return total + memberRPDsEarly.reduce((s,{name,rpd}) => {
-      const mult = getDayRRMultiplier(mk, name, ds);
-      if(mult === 0) return s;
-      const personOvr = ((APP.personRROverrides||{})[name]||{})[mk]?.[ds];
-      return s + (personOvr !== undefined ? personOvr : rpd) * mult;
-    }, 0);
-  }, 0));
-  const teamPct    = teamTgt>0?Math.round(teamRevMTD/teamTgt*100):0;
-
-  // Team COP — teamCopRev and teamCopNm are derived from the daily loop below
-  const teamNmTarget = teamPeopleU.reduce((s,p)=>{
+  // Team NM target (based on daysT, not holiday-adjusted)
+  const teamNmTarget = teamPeople.reduce((s,p)=>{
     const ep = getPersonForMonth(p, mk);
-    // NM target also reduced by holiday and sick days at run-rate
-    const nmRR = _allWDMonth.reduce((nm, ds) => {
-      const mult = getDayRRMultiplier(mk, p.name, ds);
-      return nm + nmRateFor(p.name, mk) * mult;
-    }, 0);
-    return s + nmRR;
+    return s + (ep.daysT||0) * nmRateFor(p.name, mk);
   }, 0);
 
   const TEAM_IMGS = { g: TEAM_G_IMG, james: TEAM_JAMES_IMG, damo: TEAM_DAMO_IMG };
@@ -13026,8 +13007,15 @@ function renderTeamDashboard(container, teamKey){
     dayLookup[e.date].rev += (e.revenue||0);
     dayLookup[e.date].nm  += (e.nm||0);
   });
-  // Per-person RPD for this month (reuse the early-computed version for consistency with teamTgt)
-  const memberRPDs = memberRPDsEarly;
+  // Per-person RPD for this month — only include people who have a month target configured.
+  // This matches teamTgt which also only counts people with hasMonthTarget=true.
+  // People with base RPD but no month-specific override correctly contribute £0 to both.
+  const memberRPDs = teamPeople
+    .filter(p => hasMonthTarget(p.name, mk))
+    .map(p => {
+      const ep = getPersonForMonth(p, mk);
+      return { name: p.name, rpd: (ep.riskPerDay||0), nmRPD: nmRateFor(p.name, mk) };
+    });
 
   let cumActual=0, cumRR=0, cumNmActual=0, cumNmRR=0;
   let tableRows='';
@@ -13041,17 +13029,17 @@ function renderTeamDashboard(container, teamKey){
       const mult = getDayRRMultiplier(mk,name,ds); // 0=off, 0.5=half-day, 1=full day
       if(mult === 0) return s;
       const personOvr = ((APP.personRROverrides||{})[name]||{})[mk]?.[ds];
-      // Manual override is the intended day total — scale it by the same fraction
+      // Holiday/half-day: mult < 1 reduces that day's contribution proportionally
       return s + (personOvr !== undefined ? personOvr * mult : rpd * mult);
     }, 0);
     const _rrOvr = ((APP.rrOverrides||{})[teamKey]||{})[mk]?.[ds];
     const dayRR  = _rrOvr !== undefined ? _rrOvr : _calcDayRR;
     const isOvr  = _rrOvr !== undefined;
-    const dayNmRR = memberRPDs.reduce((s,{name})=>{
+    const dayNmRR = memberRPDs.reduce((s,{name,nmRPD})=>{
       const mult = getDayRRMultiplier(mk,name,ds);
       if(mult === 0) return s;
       const nmOvr = ((APP.personNmRROverrides||{})[name]||{})[mk]?.[ds];
-      return s + (nmOvr !== undefined ? nmOvr * mult : nmRateFor(name, mk) * mult);
+      return s + (nmOvr !== undefined ? nmOvr * mult : nmRPD * mult);
     }, 0);
     const dayActual = (dayLookup[ds]||{}).rev||0;
     const dayNm     = (dayLookup[ds]||{}).nm||0;
