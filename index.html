@@ -4988,23 +4988,38 @@ function getDayStatus(mk, name, ds){
 // E   = custom deductible — uses stored hours relative to 7.5h working day
 function getDayRRMultiplier(mk, name, ds){
   if(isBankHoliday(ds)) return 0;
-  // Check new absences system first (most accurate, has partial hours)
-  const abs = (typeof getAbsences === 'function') ? getAbsences(mk, name) : {};
-  const entry = abs && abs[ds];
-  if(entry && entry.type){
-    const t = entry.type;
-    if(t === 'S') return 0; // sickness = fully off for run-rate purposes
-    if(typeof ABS_DEDUCTIBLE !== 'undefined' && ABS_DEDUCTIBLE.includes(t)){
-      // Deductible holiday: fraction of day off = hours / 7.5h working day
-      const absHrs = entry.hours || (ABS_TYPES && ABS_TYPES[t] && ABS_TYPES[t].defaultHrs) || 7.5;
-      return Math.max(0, Math.min(1, 1 - absHrs / 7.5));
+
+  // ── New absences system (has type + hours info for partial days) ──
+  var absEntry = null;
+  try {
+    var _absMap = APP.absences && APP.absences[mk] && APP.absences[mk][name];
+    if(_absMap && _absMap[ds]) absEntry = _absMap[ds];
+  } catch(e){}
+
+  if(absEntry){
+    var t = absEntry.type || '';
+    // Sickness = fully off
+    if(t === 'S') return 0;
+    // Non-deductible absence types — person is still expected to hit their target
+    if(['M','L','W','B','C','N'].indexOf(t) !== -1) return 1;
+    // Deductible absence types (H, H1, H2, Q, E)
+    if(['H','H1','H2','Q','E'].indexOf(t) !== -1){
+      // Explicit shortcuts for common partial-day types
+      if(t === 'H1' || t === 'H2') return 0.5;   // half-day
+      if(t === 'Q')                return 0.75;   // quarter-day off = 75% of day worked
+      if(t === 'H')                return 0;       // full-day holiday
+      // For E (custom) or H with non-standard hours, use stored hours
+      // Default hours per type if not stored: H=7.5, E=7.5
+      var hrs = (absEntry.hours != null && absEntry.hours > 0)
+                ? parseFloat(absEntry.hours)
+                : 7.5;
+      return Math.max(0, Math.min(1, 1 - hrs / 7.5));
     }
-    // Non-deductible (W, M, L, C, N, B) — person is still on the hook for their target
-    return 1;
+    return 0; // unknown deductible type — treat as full day off
   }
-  // Legacy fallback: sickness array
+
+  // ── Legacy fallback: flat date arrays (no type info — full day only) ──
   if(getSick(mk, name).includes(ds)) return 0;
-  // Legacy fallback: holiday array (always full-day)
   if(getHols(mk, name).includes(ds)) return 0;
   return 1;
 }
