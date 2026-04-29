@@ -9,6 +9,7 @@
 <!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
 :root{
   --bg:#0b0c10;--surface:#12141a;--surface2:#181b23;--surface3:#1e222c;
@@ -1768,22 +1769,25 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <select class="login-input" id="loginUserSel" style="cursor:pointer;">
         <option value="">— Select your name —</option>
       </select>
-      <button class="login-btn" onclick="proceedToPin()" style="margin-top:8px">Continue →</button>
+      <button class="login-btn" onclick="proceedToOTP()" style="margin-top:8px">Continue →</button>
       <button class="login-btn" style="background:var(--surface2);color:var(--text2);margin-top:6px;" onclick="backToPassword()">← Back</button>
       <div class="login-err" id="loginErr2"></div>
 
     </div>
 
-    <!-- Step 3: PIN -->
-    <div id="loginStep3" style="display:none">
-      <div class="login-sub" id="loginPinLabel">Enter your PIN</div>
-      <div class="login-label">PIN</div>
-      <input class="login-input" type="password" id="loginPin" placeholder="Enter your PIN"
-        maxlength="8" onkeydown="if(event.key==='Enter')attemptPinLogin()">
-      <button class="login-btn" onclick="attemptPinLogin()">Sign In ✓</button>
+    <!-- Step 2.5: OTP verification -->
+    <div id="loginStepOTP" style="display:none">
+      <div class="login-sub" id="loginOTPLabel">Check your email for a code</div>
+      <div class="login-label">One-Time Passcode</div>
+      <input class="login-input" type="text" id="loginOTPInput" placeholder="Enter 6-digit code"
+        maxlength="6" inputmode="numeric" autocomplete="one-time-code"
+        onkeydown="if(event.key==='Enter')verifyOTP()">
+      <button class="login-btn" onclick="verifyOTP()">Verify Code ✓</button>
+      <button class="login-btn" style="background:transparent;color:var(--accent);border:1px solid var(--accent);margin-top:6px;" onclick="resendOTP()">Resend Code</button>
       <button class="login-btn" style="background:var(--surface2);color:var(--text2);margin-top:6px;" onclick="backToUserSelect()">← Back</button>
-      <div class="login-err" id="loginErr3"></div>
+      <div class="login-err" id="loginErrOTP"></div>
     </div>
+
   </div>
 </div>
 
@@ -2624,8 +2628,8 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       </select>
     </div>
     <div class="modal-field">
-      <div class="field-lbl">PIN (4–8 digits)</div>
-      <input type="password" id="addUserPin" placeholder="e.g. 1234" maxlength="8">
+      <div class="field-lbl">Email (for OTP login)</div>
+      <input type="email" id="addUserEmail" placeholder="user@example.com">
     </div>
     <div class="modal-btns">
       <button class="btn btn-s" onclick="closeAddUserModal()">Cancel</button>
@@ -4000,6 +4004,17 @@ const DIVISIONS = {
 };
 
 const PASS_HASH = '04f5b70888c0c4bf5956cbca32acbd8701ae8d1d83db91fed942861c56934775';
+
+// ─── EMAILJS CONFIG — fill these in to enable OTP emails ───────────
+// 1. Sign up free at https://www.emailjs.com
+// 2. Create a service (Gmail, Outlook, etc.) → copy the Service ID below
+// 3. Create an Email Template with variables {{otp_code}}, {{user_name}}, {{to_email}}
+//    → copy the Template ID below
+// 4. Copy your Public Key from Account → API Keys
+const EMAILJS_PUBLIC_KEY  = 'YOUR_PUBLIC_KEY';   // e.g. 'abc123XYZ...'
+const EMAILJS_SERVICE_ID  = 'YOUR_SERVICE_ID';   // e.g. 'service_xxxxxx'
+const EMAILJS_TEMPLATE_ID = 'YOUR_TEMPLATE_ID';  // e.g. 'template_xxxxxx'
+// ──────────────────────────────────────────────────────────────────
 // Admin PIN stored as SHA-256 hash — change the hash here to change the PIN
 const ADMIN_PIN_HASH = '9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0'; // SHA-256 of '0000'
 
@@ -4224,28 +4239,133 @@ function _renderLoginUserDropdown(sel, err2){
   if(err2) err2.textContent = '';
 }
 
-// ─── LOGIN STEP 2 → 3: Select user, go to PIN ───────────────────
-function proceedToPin(){
-  const sel   = document.getElementById('loginUserSel');
-  const err2  = document.getElementById('loginErr2');
-  const uid   = sel.value;
+function backToUserSelect(){
+  _adminLoginMode = false;
+  document.getElementById('loginStepOTP').style.display='none';
+  document.getElementById('loginStep2').style.display='';
+  document.getElementById('loginErrOTP').textContent='';
+}
+
+// ─── OTP SYSTEM ─────────────────────────────────────────────────
+let _pendingOTP      = null;   // { code, expiry, uid }
+let _otpResendCooldown = false;
+
+function _generateOTP(){
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+async function proceedToOTP(){
+  const sel  = document.getElementById('loginUserSel');
+  const err2 = document.getElementById('loginErr2');
+  const uid  = sel.value;
   if(!uid){ err2.textContent='Please select your name.'; return; }
   const user = _allUsers[uid];
   if(!user){ err2.textContent='User not found. Contact your manager.'; return; }
   err2.textContent='';
-  document.getElementById('loginPinLabel').textContent = `Hi ${user.name.split(' ')[0]}! Enter your PIN`;
+
+  // Generate OTP
+  const code   = _generateOTP();
+  _pendingOTP  = { code, expiry: Date.now() + 10 * 60 * 1000, uid };
+
+  // Show OTP step
   document.getElementById('loginStep2').style.display='none';
-  document.getElementById('loginStep3').style.display='';
-  document.getElementById('loginPin').value='';
-  document.getElementById('loginPin').focus();
+  document.getElementById('loginStepOTP').style.display='';
+  document.getElementById('loginOTPInput').value='';
+  document.getElementById('loginErrOTP').textContent='';
+
+  const firstName = (user.name||'there').split(' ')[0];
+  const email     = user.email||'';
+
+  if(email && EMAILJS_PUBLIC_KEY !== 'YOUR_PUBLIC_KEY'){
+    document.getElementById('loginOTPLabel').textContent =
+      `A 6-digit code was sent to ${_maskEmail(email)}`;
+    _sendOTPEmail(code, firstName, email);
+  } else {
+    // Fallback: show code on screen (no EmailJS configured or no email on account)
+    document.getElementById('loginOTPLabel').innerHTML =
+      `<span style="color:var(--amber)">⚠ No email configured.</span><br>`+
+      `Your code is: <strong style="font-size:20px;letter-spacing:.15em;color:var(--accent)">${code}</strong>`;
+  }
+
+  document.getElementById('loginOTPInput').focus();
 }
 
-function backToUserSelect(){
-  _adminLoginMode = false;
-  document.getElementById('loginStep3').style.display='none';
-  document.getElementById('loginStep2').style.display='';
-  document.getElementById('loginErr3').textContent='';
+function _maskEmail(email){
+  const [local, domain] = email.split('@');
+  if(!domain) return email;
+  const masked = local.length <= 2 ? local[0]+'*' : local[0]+local[1]+'*'.repeat(Math.min(local.length-2,4));
+  return masked + '@' + domain;
 }
+
+function _sendOTPEmail(code, name, toEmail){
+  if(typeof emailjs === 'undefined') return;
+  emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+  emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+    otp_code: code,
+    user_name: name,
+    to_email: toEmail
+  }).catch(()=>{}); // Silent fail — code still shown or fallback active
+}
+
+async function resendOTP(){
+  if(_otpResendCooldown){ showToast('Please wait before requesting another code','err'); return; }
+  if(!_pendingOTP) return;
+  const user = _allUsers[_pendingOTP.uid];
+  if(!user) return;
+  const code = _generateOTP();
+  _pendingOTP = { code, expiry: Date.now() + 10 * 60 * 1000, uid: _pendingOTP.uid };
+  _otpResendCooldown = true;
+  setTimeout(()=>{ _otpResendCooldown=false; }, 30000);
+  const firstName = (user.name||'there').split(' ')[0];
+  const email     = user.email||'';
+  if(email && EMAILJS_PUBLIC_KEY !== 'YOUR_PUBLIC_KEY'){
+    _sendOTPEmail(code, firstName, email);
+    showToast('New code sent to '+_maskEmail(email));
+  } else {
+    document.getElementById('loginOTPLabel').innerHTML =
+      `<span style="color:var(--amber)">⚠ No email configured.</span><br>`+
+      `Your new code is: <strong style="font-size:20px;letter-spacing:.15em;color:var(--accent)">${code}</strong>`;
+    showToast('New code generated');
+  }
+  document.getElementById('loginOTPInput').value='';
+  document.getElementById('loginErrOTP').textContent='';
+  document.getElementById('loginOTPInput').focus();
+}
+
+function verifyOTP(){
+  const input = document.getElementById('loginOTPInput').value.trim();
+  const err   = document.getElementById('loginErrOTP');
+  if(!input){ err.textContent='Please enter the 6-digit code.'; return; }
+  if(!_pendingOTP){ err.textContent='Session error — go back and try again.'; return; }
+  if(Date.now() > _pendingOTP.expiry){
+    err.textContent='Code has expired. Click Resend Code to get a new one.';
+    _pendingOTP = null;
+    return;
+  }
+  if(input !== _pendingOTP.code){
+    err.textContent='Incorrect code. Please try again.';
+    document.getElementById('loginOTPInput').value='';
+    document.getElementById('loginOTPInput').focus();
+    return;
+  }
+  // OTP verified — log in directly (no PIN required)
+  err.textContent='';
+  const uid  = _pendingOTP.uid;
+  _pendingOTP = null;
+  const user = _allUsers[uid];
+  if(!user){ err.textContent='Session error — go back and try again.'; return; }
+  _currentUser = { id:uid, name:user.name, role:user.role||'consultant', divKey:user.divKey||'' };
+  sessionStorage.setItem('pd_auth','1');
+  sessionStorage.setItem('pd_user', JSON.stringify(_currentUser));
+  document.getElementById('loginScreen').classList.add('hidden');
+  const badge     = document.getElementById('userRoleBadge');
+  const logoutBtn = document.getElementById('logoutBtn');
+  if(badge){ badge.style.display=''; badge.textContent=`${_currentUser.name} · ${ROLE_LABELS[_currentUser.role]||''}`; badge.style.color=ROLE_COLORS[_currentUser.role]||'var(--text2)'; }
+  if(logoutBtn) logoutBtn.style.display='';
+  _adminLoginMode = false;
+  showGreeting(_currentUser.name, null, ()=>_startWithRole());
+}
+// ──────────────────────────────────────────────────────────────────
 
 let _adminLoginMode = false;
 
@@ -4273,7 +4393,7 @@ function backToStep1(){
 }
 
 function _hideAllLoginSteps(){
-  ['loginStep1','loginStep2','loginStep3','loginAdminPin','loginAdminChoice'].forEach(id=>{
+  ['loginStep1','loginStep2','loginStepOTP','loginAdminPin','loginAdminChoice'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.style.display = 'none';
   });
@@ -15201,51 +15321,22 @@ function renderThemePicker(){
 })();
 
 // ═══════════════════════════════════════════════════════════════════
-// FEATURE 1 — SESSION TIMEOUT (30 minutes inactivity)
+// FEATURE 1 — SESSION TIMEOUT — DISABLED (users stay logged in until manual sign-out)
 // ═══════════════════════════════════════════════════════════════════
-const SESSION_TIMEOUT_MS  = 30 * 60 * 1000; // 30 minutes
-const SESSION_WARNING_MS  = 29 * 60 * 1000; // warn at 29 min
+const SESSION_TIMEOUT_MS  = 0; // Not used — timeout disabled
+const SESSION_WARNING_MS  = 0; // Not used — timeout disabled
 let _sessionWarningTimer  = null;
 let _sessionLogoutTimer   = null;
 let _countdownInterval    = null;
 
-function _resetSessionTimers(){
-  clearTimeout(_sessionWarningTimer);
-  clearTimeout(_sessionLogoutTimer);
-  clearInterval(_countdownInterval);
-  // Hide warning modal if showing
-  const modal = document.getElementById('sessionTimeoutModal');
-  if(modal) modal.style.display = 'none';
-  // Only run timers when actually logged in
-  if(!sessionStorage.getItem('pd_auth')) return;
-  _sessionWarningTimer = setTimeout(_showSessionWarning, SESSION_WARNING_MS);
-  _sessionLogoutTimer  = setTimeout(logoutUser, SESSION_TIMEOUT_MS);
-}
-
-function _showSessionWarning(){
-  const modal = document.getElementById('sessionTimeoutModal');
-  if(!modal) return;
-  modal.style.display = 'flex';
-  let secs = 60;
-  const el = document.getElementById('timeoutCountdown');
-  if(el) el.textContent = secs;
-  _countdownInterval = setInterval(()=>{
-    secs--;
-    if(el) el.textContent = secs;
-    if(secs <= 0){ clearInterval(_countdownInterval); }
-  }, 1000);
-}
-
-function resetSessionTimer(){
-  _resetSessionTimers();
-}
+// No-op: timeout is disabled; session persists until explicit logout
+function _resetSessionTimers(){ /* timeout disabled */ }
+function _showSessionWarning(){ /* timeout disabled */ }
+function resetSessionTimer(){ /* timeout disabled */ }
 
 function _startSessionTimeout(){
-  // Reset on any user activity
-  ['mousemove','mousedown','keydown','touchstart','scroll','click'].forEach(evt=>{
-    document.addEventListener(evt, _resetSessionTimers, {passive:true});
-  });
-  _resetSessionTimers();
+  // Timeout intentionally disabled — dashboard stays active indefinitely.
+  // Users are only logged out when they click "Sign Out" or close the tab.
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -15651,7 +15742,7 @@ function _renderUsersTable(){
   card.innerHTML=`
     <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:12px;padding:8px 12px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--accent);">
       ${users.length} users registered · ${consultantCount} consultants · 
-      PINs are auto-generated for new consultants — click 👁 to reveal, or Edit to change.
+      PINs are no longer required — users log in with the team password + OTP sent to their email.
     </div>
     <div style="overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;min-width:780px;">
@@ -15660,7 +15751,7 @@ function _renderUsersTable(){
         <th ${thS}>Role</th>
         <th ${thS}>Team / Division</th>
         <th ${thS} title="Senior or Non-Senior — determines bonus scale">Bonus Scale</th>
-        <th ${thS}>PIN</th>
+        <th ${thS}>Email</th>
         <th ${thS}>Actions</th>
       </tr></thead>
       <tbody>
@@ -15698,9 +15789,8 @@ function _renderUsersTable(){
             </td>
             <td style="padding:9px 12px;">
               <div style="display:flex;align-items:center;gap:6px;">
-                <span id="pin_${u.id}" style="font-family:var(--fm);font-size:13px;letter-spacing:.1em">••••</span>
-                <button class="btn btn-s" onclick="togglePinVisibility('${u.id}','${u.pin}')" style="font-size:10px;padding:3px 8px">👁</button>
-                <button class="btn btn-s" onclick="editUserPin('${u.id}','${u.name}')" style="font-size:10px;padding:3px 8px">Edit</button>
+                <span id="uemail_${u.id}" style="font-family:var(--fm);font-size:12px;color:var(--text2)">${u.email||'—'}</span>
+                <button class="btn btn-s" onclick="editUserEmail('${u.id}','${u.name}')" style="font-size:10px;padding:3px 8px">Edit</button>
               </div>
             </td>
             <td style="padding:9px 12px;" id="actioncell_${u.id}">
@@ -15713,10 +15803,23 @@ function _renderUsersTable(){
   </div>`;
 }
 
-function togglePinVisibility(uid, pin){
-  const el = document.getElementById('pin_'+uid);
-  if(!el) return;
-  el.textContent = el.textContent.includes('•') ? pin : '••••';
+function editUserEmail(uid, name){
+  const current = _allUsers[uid]?.email || '';
+  const newEmail = prompt(`Enter email address for ${name}:`, current);
+  if(newEmail === null) return; // cancelled
+  const trimmed = newEmail.trim().toLowerCase();
+  if(trimmed && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)){
+    alert('Please enter a valid email address.'); return;
+  }
+  _allUsers[uid].email = trimmed || null;
+  const updateVal = trimmed ? { email: trimmed } : { email: null };
+  _usersDbRef()?.child(uid).update(updateVal)
+    .then(()=>{
+      showToast(trimmed ? `Email updated for ${name}` : `Email removed for ${name}`);
+      const el = document.getElementById('uemail_'+uid);
+      if(el) el.textContent = trimmed || '—';
+    })
+    .catch(()=>showToast('Save failed','err'));
 }
 
 function updateUserRole(uid, newRole){
@@ -15763,16 +15866,6 @@ function updateUserSenior(uid, val){
         try{ renderConsultantDaily(); }catch(e){}
       }
     })
-    .catch(()=>showToast('Save failed','err'));
-}
-
-function editUserPin(uid, name){
-  const newPin = prompt(`Enter new PIN for ${name}:`);
-  if(!newPin) return;
-  if(!/^\d{4,8}$/.test(newPin)){ alert('PIN must be 4–8 digits.'); return; }
-  _allUsers[uid].pin = newPin;
-  _usersDbRef()?.child(uid).update({pin:newPin})
-    .then(()=>{ showToast('PIN updated'); _renderUsersTable(); })
     .catch(()=>showToast('Save failed','err'));
 }
 
@@ -15952,9 +16045,10 @@ function editUserName(uid){
 }
 function openAddUserModal(){
   document.getElementById('addUserName').value='';
-  document.getElementById('addUserPin').value='';
   document.getElementById('addUserRole').value='consultant';
   document.getElementById('addUserDiv').value='';
+  const emailEl = document.getElementById('addUserEmail');
+  if(emailEl) emailEl.value='';
   document.getElementById('addUserModal').classList.add('open');
 }
 function closeAddUserModal(){ document.getElementById('addUserModal').classList.remove('open'); }
@@ -15963,11 +16057,10 @@ function saveNewUser(){
   const name  = document.getElementById('addUserName').value.trim();
   const role  = document.getElementById('addUserRole').value;
   const divKey= document.getElementById('addUserDiv').value;
-  const pin   = document.getElementById('addUserPin').value.trim();
+  const email = (document.getElementById('addUserEmail')?.value||'').trim().toLowerCase();
   if(!name){ alert('Please enter a name.'); return; }
-  if(!pin || !/^\d{4,8}$/.test(pin)){ alert('PIN must be 4–8 digits.'); return; }
   const id = 'usr_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
-  const user = { id, name, role, divKey, pin };
+  const user = { id, name, role, divKey, ...(email ? {email} : {}) };
   _usersDbRef()?.child(id).set(user)
     .then(()=>{
       _allUsers[id] = user;
