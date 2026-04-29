@@ -9,7 +9,6 @@
 <!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
 :root{
   --bg:#0b0c10;--surface:#12141a;--surface2:#181b23;--surface3:#1e222c;
@@ -1769,25 +1768,22 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <select class="login-input" id="loginUserSel" style="cursor:pointer;">
         <option value="">— Select your name —</option>
       </select>
-      <button class="login-btn" onclick="proceedToOTP()" style="margin-top:8px">Continue →</button>
+      <button class="login-btn" onclick="proceedToPin()" style="margin-top:8px">Continue →</button>
       <button class="login-btn" style="background:var(--surface2);color:var(--text2);margin-top:6px;" onclick="backToPassword()">← Back</button>
       <div class="login-err" id="loginErr2"></div>
 
     </div>
 
-    <!-- Step 2.5: OTP verification -->
-    <div id="loginStepOTP" style="display:none">
-      <div class="login-sub" id="loginOTPLabel">Check your email for a code</div>
-      <div class="login-label">One-Time Passcode</div>
-      <input class="login-input" type="text" id="loginOTPInput" placeholder="Enter 6-digit code"
-        maxlength="6" inputmode="numeric" autocomplete="one-time-code"
-        onkeydown="if(event.key==='Enter')verifyOTP()">
-      <button class="login-btn" onclick="verifyOTP()">Verify Code ✓</button>
-      <button class="login-btn" style="background:transparent;color:var(--accent);border:1px solid var(--accent);margin-top:6px;" onclick="resendOTP()">Resend Code</button>
+    <!-- Step 3: PIN -->
+    <div id="loginStep3" style="display:none">
+      <div class="login-sub" id="loginPinLabel">Enter your PIN</div>
+      <div class="login-label">PIN</div>
+      <input class="login-input" type="password" id="loginPin" placeholder="Enter your PIN"
+        maxlength="8" onkeydown="if(event.key==='Enter')attemptPinLogin()">
+      <button class="login-btn" onclick="attemptPinLogin()">Sign In ✓</button>
       <button class="login-btn" style="background:var(--surface2);color:var(--text2);margin-top:6px;" onclick="backToUserSelect()">← Back</button>
-      <div class="login-err" id="loginErrOTP"></div>
+      <div class="login-err" id="loginErr3"></div>
     </div>
-
   </div>
 </div>
 
@@ -2628,8 +2624,8 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       </select>
     </div>
     <div class="modal-field">
-      <div class="field-lbl">Email (for OTP login)</div>
-      <input type="email" id="addUserEmail" placeholder="user@example.com">
+      <div class="field-lbl">PIN (4–8 digits)</div>
+      <input type="password" id="addUserPin" placeholder="e.g. 1234" maxlength="8">
     </div>
     <div class="modal-btns">
       <button class="btn btn-s" onclick="closeAddUserModal()">Cancel</button>
@@ -4004,17 +4000,6 @@ const DIVISIONS = {
 };
 
 const PASS_HASH = '04f5b70888c0c4bf5956cbca32acbd8701ae8d1d83db91fed942861c56934775';
-
-// ─── EMAILJS CONFIG — fill these in to enable OTP emails ───────────
-// 1. Sign up free at https://www.emailjs.com
-// 2. Create a service (Gmail, Outlook, etc.) → copy the Service ID below
-// 3. Create an Email Template with variables {{otp_code}}, {{user_name}}, {{to_email}}
-//    → copy the Template ID below
-// 4. Copy your Public Key from Account → API Keys
-const EMAILJS_PUBLIC_KEY  = 'YOUR_PUBLIC_KEY';   // e.g. 'abc123XYZ...'
-const EMAILJS_SERVICE_ID  = 'YOUR_SERVICE_ID';   // e.g. 'service_xxxxxx'
-const EMAILJS_TEMPLATE_ID = 'YOUR_TEMPLATE_ID';  // e.g. 'template_xxxxxx'
-// ──────────────────────────────────────────────────────────────────
 // Admin PIN stored as SHA-256 hash — change the hash here to change the PIN
 const ADMIN_PIN_HASH = '9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0'; // SHA-256 of '0000'
 
@@ -4239,133 +4224,28 @@ function _renderLoginUserDropdown(sel, err2){
   if(err2) err2.textContent = '';
 }
 
-function backToUserSelect(){
-  _adminLoginMode = false;
-  document.getElementById('loginStepOTP').style.display='none';
-  document.getElementById('loginStep2').style.display='';
-  document.getElementById('loginErrOTP').textContent='';
-}
-
-// ─── OTP SYSTEM ─────────────────────────────────────────────────
-let _pendingOTP      = null;   // { code, expiry, uid }
-let _otpResendCooldown = false;
-
-function _generateOTP(){
-  return String(Math.floor(100000 + Math.random() * 900000));
-}
-
-async function proceedToOTP(){
-  const sel  = document.getElementById('loginUserSel');
-  const err2 = document.getElementById('loginErr2');
-  const uid  = sel.value;
+// ─── LOGIN STEP 2 → 3: Select user, go to PIN ───────────────────
+function proceedToPin(){
+  const sel   = document.getElementById('loginUserSel');
+  const err2  = document.getElementById('loginErr2');
+  const uid   = sel.value;
   if(!uid){ err2.textContent='Please select your name.'; return; }
   const user = _allUsers[uid];
   if(!user){ err2.textContent='User not found. Contact your manager.'; return; }
   err2.textContent='';
-
-  // Generate OTP
-  const code   = _generateOTP();
-  _pendingOTP  = { code, expiry: Date.now() + 10 * 60 * 1000, uid };
-
-  // Show OTP step
+  document.getElementById('loginPinLabel').textContent = `Hi ${user.name.split(' ')[0]}! Enter your PIN`;
   document.getElementById('loginStep2').style.display='none';
-  document.getElementById('loginStepOTP').style.display='';
-  document.getElementById('loginOTPInput').value='';
-  document.getElementById('loginErrOTP').textContent='';
-
-  const firstName = (user.name||'there').split(' ')[0];
-  const email     = user.email||'';
-
-  if(email && EMAILJS_PUBLIC_KEY !== 'YOUR_PUBLIC_KEY'){
-    document.getElementById('loginOTPLabel').textContent =
-      `A 6-digit code was sent to ${_maskEmail(email)}`;
-    _sendOTPEmail(code, firstName, email);
-  } else {
-    // Fallback: show code on screen (no EmailJS configured or no email on account)
-    document.getElementById('loginOTPLabel').innerHTML =
-      `<span style="color:var(--amber)">⚠ No email configured.</span><br>`+
-      `Your code is: <strong style="font-size:20px;letter-spacing:.15em;color:var(--accent)">${code}</strong>`;
-  }
-
-  document.getElementById('loginOTPInput').focus();
+  document.getElementById('loginStep3').style.display='';
+  document.getElementById('loginPin').value='';
+  document.getElementById('loginPin').focus();
 }
 
-function _maskEmail(email){
-  const [local, domain] = email.split('@');
-  if(!domain) return email;
-  const masked = local.length <= 2 ? local[0]+'*' : local[0]+local[1]+'*'.repeat(Math.min(local.length-2,4));
-  return masked + '@' + domain;
-}
-
-function _sendOTPEmail(code, name, toEmail){
-  if(typeof emailjs === 'undefined') return;
-  emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
-  emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-    otp_code: code,
-    user_name: name,
-    to_email: toEmail
-  }).catch(()=>{}); // Silent fail — code still shown or fallback active
-}
-
-async function resendOTP(){
-  if(_otpResendCooldown){ showToast('Please wait before requesting another code','err'); return; }
-  if(!_pendingOTP) return;
-  const user = _allUsers[_pendingOTP.uid];
-  if(!user) return;
-  const code = _generateOTP();
-  _pendingOTP = { code, expiry: Date.now() + 10 * 60 * 1000, uid: _pendingOTP.uid };
-  _otpResendCooldown = true;
-  setTimeout(()=>{ _otpResendCooldown=false; }, 30000);
-  const firstName = (user.name||'there').split(' ')[0];
-  const email     = user.email||'';
-  if(email && EMAILJS_PUBLIC_KEY !== 'YOUR_PUBLIC_KEY'){
-    _sendOTPEmail(code, firstName, email);
-    showToast('New code sent to '+_maskEmail(email));
-  } else {
-    document.getElementById('loginOTPLabel').innerHTML =
-      `<span style="color:var(--amber)">⚠ No email configured.</span><br>`+
-      `Your new code is: <strong style="font-size:20px;letter-spacing:.15em;color:var(--accent)">${code}</strong>`;
-    showToast('New code generated');
-  }
-  document.getElementById('loginOTPInput').value='';
-  document.getElementById('loginErrOTP').textContent='';
-  document.getElementById('loginOTPInput').focus();
-}
-
-function verifyOTP(){
-  const input = document.getElementById('loginOTPInput').value.trim();
-  const err   = document.getElementById('loginErrOTP');
-  if(!input){ err.textContent='Please enter the 6-digit code.'; return; }
-  if(!_pendingOTP){ err.textContent='Session error — go back and try again.'; return; }
-  if(Date.now() > _pendingOTP.expiry){
-    err.textContent='Code has expired. Click Resend Code to get a new one.';
-    _pendingOTP = null;
-    return;
-  }
-  if(input !== _pendingOTP.code){
-    err.textContent='Incorrect code. Please try again.';
-    document.getElementById('loginOTPInput').value='';
-    document.getElementById('loginOTPInput').focus();
-    return;
-  }
-  // OTP verified — log in directly (no PIN required)
-  err.textContent='';
-  const uid  = _pendingOTP.uid;
-  _pendingOTP = null;
-  const user = _allUsers[uid];
-  if(!user){ err.textContent='Session error — go back and try again.'; return; }
-  _currentUser = { id:uid, name:user.name, role:user.role||'consultant', divKey:user.divKey||'' };
-  sessionStorage.setItem('pd_auth','1');
-  sessionStorage.setItem('pd_user', JSON.stringify(_currentUser));
-  document.getElementById('loginScreen').classList.add('hidden');
-  const badge     = document.getElementById('userRoleBadge');
-  const logoutBtn = document.getElementById('logoutBtn');
-  if(badge){ badge.style.display=''; badge.textContent=`${_currentUser.name} · ${ROLE_LABELS[_currentUser.role]||''}`; badge.style.color=ROLE_COLORS[_currentUser.role]||'var(--text2)'; }
-  if(logoutBtn) logoutBtn.style.display='';
+function backToUserSelect(){
   _adminLoginMode = false;
-  showGreeting(_currentUser.name, null, ()=>_startWithRole());
+  document.getElementById('loginStep3').style.display='none';
+  document.getElementById('loginStep2').style.display='';
+  document.getElementById('loginErr3').textContent='';
 }
-// ──────────────────────────────────────────────────────────────────
 
 let _adminLoginMode = false;
 
@@ -4393,7 +4273,7 @@ function backToStep1(){
 }
 
 function _hideAllLoginSteps(){
-  ['loginStep1','loginStep2','loginStepOTP','loginAdminPin','loginAdminChoice'].forEach(id=>{
+  ['loginStep1','loginStep2','loginStep3','loginAdminPin','loginAdminChoice'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.style.display = 'none';
   });
@@ -5038,13 +4918,13 @@ function calcStats(monthKey){
       const _wdElapsed = workingDatesInMonth(monthKey).filter(ds => ds <= _today2);
       let _cumRR = 0, _cumNmRR = 0;
       _wdElapsed.forEach(ds => {
-        // Use getDayRRMultiplier so partial absences (H1/H2/Q) are fractionally deducted
-        const mult = getDayRRMultiplier(monthKey, p.name, ds);
-        if(mult === 0) return;
+        const st = getDayStatus(monthKey, p.name, ds);
+        if(st === 'hol' || st === 'sick' || st === 'bh') return;
         const personOvr = ((APP.personRROverrides||{})[p.name]||{})[monthKey]?.[ds];
-        _cumRR   += (personOvr !== undefined ? personOvr : (ep.riskPerDay||0)) * mult;
+        _cumRR   += personOvr !== undefined ? personOvr : (ep.riskPerDay||0);
+        // Per-day NM RR override takes precedence over monthly NM rate
         const nmOvr = ((APP.personNmRROverrides||{})[p.name]||{})[monthKey]?.[ds];
-        _cumNmRR += (nmOvr !== undefined ? nmOvr : _nmR) * mult;
+        _cumNmRR += nmOvr !== undefined ? nmOvr : _nmR;
       });
       copRev = revMTD - _cumRR;
       copNm  = nmMTD  - _cumNmRR;
@@ -5098,50 +4978,6 @@ function getDayStatus(mk, name, ds){
   if(getHols(mk, name).includes(ds)) return 'hol';
   if(getSick(mk, name).includes(ds)) return 'sick';
   return null;
-}
-
-// Returns the fraction of a person's daily run rate to count on a given day.
-// 0   = fully off (bank hol, full holiday H, sickness S)
-// 0.5 = half-day off (H1 or H2 — person works the other half)
-// 0.75= quarter-day off (Q)
-// 1   = fully working (non-deductible types W/M/L/C/N, or no absence)
-// E   = custom deductible — uses stored hours relative to 7.5h working day
-function getDayRRMultiplier(mk, name, ds){
-  if(isBankHoliday(ds)) return 0;
-
-  // ── New absences system (has type + hours info for partial days) ──
-  var absEntry = null;
-  try {
-    var _absMap = APP.absences && APP.absences[mk] && APP.absences[mk][name];
-    if(_absMap && _absMap[ds]) absEntry = _absMap[ds];
-  } catch(e){}
-
-  if(absEntry){
-    var t = absEntry.type || '';
-    // Sickness = fully off
-    if(t === 'S') return 0;
-    // Non-deductible absence types — person is still expected to hit their target
-    if(['M','L','W','B','C','N'].indexOf(t) !== -1) return 1;
-    // Deductible absence types (H, H1, H2, Q, E)
-    if(['H','H1','H2','Q','E'].indexOf(t) !== -1){
-      // Explicit shortcuts for common partial-day types
-      if(t === 'H1' || t === 'H2') return 0.5;   // half-day
-      if(t === 'Q')                return 0.75;   // quarter-day off = 75% of day worked
-      if(t === 'H')                return 0;       // full-day holiday
-      // For E (custom) or H with non-standard hours, use stored hours
-      // Default hours per type if not stored: H=7.5, E=7.5
-      var hrs = (absEntry.hours != null && absEntry.hours > 0)
-                ? parseFloat(absEntry.hours)
-                : 7.5;
-      return Math.max(0, Math.min(1, 1 - hrs / 7.5));
-    }
-    return 0; // unknown deductible type — treat as full day off
-  }
-
-  // ── Legacy fallback: flat date arrays (no type info — full day only) ──
-  if(getSick(mk, name).includes(ds)) return 0;
-  if(getHols(mk, name).includes(ds)) return 0;
-  return 1;
 }
 function holClick(el){
   const mk   = el.getAttribute('data-mk');
@@ -6262,9 +6098,7 @@ function calcTeamCOP(mk, memberNames, teamKey){
   const entries    = getEntries(mk);
   const seenNames  = new Set();
   const teamPeople = APP.people.filter(p=>{ if(!memberNames.includes(p.name)||seenNames.has(p.name)) return false; seenNames.add(p.name); return true; });
-  const memberRPDs = teamPeople
-    .filter(p => hasMonthTarget(p.name, mk))
-    .map(p=>({ name:p.name, rpd:(getPersonForMonth(p,mk).riskPerDay||0) }));
+  const memberRPDs = teamPeople.map(p=>({ name:p.name, rpd:(getPersonForMonth(p,mk).riskPerDay||0) }));
   const today2     = _localDateStr(new Date());
   const wdDates    = workingDatesInMonth(mk).filter(ds=>ds<=today2);
 
@@ -6279,19 +6113,21 @@ function calcTeamCOP(mk, memberNames, teamKey){
   let cumActual=0, cumRR=0, cumNmActual=0, cumNmRR=0;
   wdDates.forEach(ds=>{
     const calcRR2 = memberRPDs.reduce((s,{name,rpd})=>{
-      const mult = getDayRRMultiplier(mk,name,ds);
-      if(mult === 0) return s;
+      const st = getDayStatus(mk,name,ds);
+      if(st==='hol'||st==='sick'||st==='bh') return s;
+      // Apply per-person RR override if set, otherwise use rpd
       const personOvr = ((APP.personRROverrides||{})[name]||{})[mk]?.[ds];
-      return s + (personOvr !== undefined ? personOvr : rpd) * mult;
+      return s + (personOvr !== undefined ? personOvr : rpd);
     }, 0);
     // Apply team-level RR override if set (teamKey passed as 3rd arg)
     const rrOvr2 = teamKey ? ((APP.rrOverrides||{})[teamKey]||{})[mk]?.[ds] : undefined;
     const dayRR2 = rrOvr2 !== undefined ? rrOvr2 : calcRR2;
     const dayNmRR2 = memberRPDs.reduce((s,{name})=>{
-      const mult = getDayRRMultiplier(mk,name,ds);
-      if(mult === 0) return s;
+      const st = getDayStatus(mk,name,ds);
+      if(st==='hol'||st==='sick'||st==='bh') return s;
+      // Per-day NM RR override takes precedence over the monthly NM rate
       const nmOvr = ((APP.personNmRROverrides||{})[name]||{})[mk]?.[ds];
-      return s + (nmOvr !== undefined ? nmOvr : nmRateFor(name, mk)) * mult;
+      return s + (nmOvr !== undefined ? nmOvr : nmRateFor(name, mk));
     }, 0);
     cumActual   += (dayLookup[ds]||{}).rev||0;
     cumRR       += dayRR2;
@@ -10841,7 +10677,7 @@ function renderConsultantDaily(){
   const _nmR_cop = (typeof nmRateFor === 'function') ? nmRateFor(myName, mk) : nmRate();
   _wdElapsedCop.forEach(ds => {
     const st = getDayStatus(mk, myName, ds);
-    const _mult = getDayRRMultiplier(mk, p.name, ds); if(_mult === 0) return;
+    if(st === 'hol' || st === 'sick' || st === 'bh') return;
     const personOvr = ((APP.personRROverrides||{})[myName]||{})[mk]?.[ds];
     _cumRR_cop   += personOvr !== undefined ? personOvr : (riskPerDay||0);
     const nmOvr = ((APP.personNmRROverrides||{})[myName]||{})[mk]?.[ds];
@@ -13117,12 +12953,13 @@ function renderTeamDashboard(container, teamKey){
   const stats      = calcStats(mk).filter(s=>{ if(!members.includes(s.name)) return false; return true; }).filter((s,i,a)=>a.findIndex(x=>x.name===s.name)===i);
   const teamRevMTD = stats.reduce((s,p)=>s+p.revMTD,0);
   const teamNmMTD  = stats.reduce((s,p)=>s+p.nmMTD,0);
-  const teamTgt    = stats.reduce((s,p)=>s+p.target,0);  // target as set in settings (not reduced for holidays)
+  const teamTgt    = stats.reduce((s,p)=>s+p.target,0);
   const teamPct    = teamTgt>0?Math.round(teamRevMTD/teamTgt*100):0;
   const elapsed    = APP.manualElapsed || calWorkDaysTeam(mk);
   const ahead      = stats.filter(p=>p.riskAhead).length;
 
-  // Team NM target (based on daysT, not holiday-adjusted)
+  // Team COP — use per-person stats so we only count people who have
+  // teamCopRev and teamCopNm are derived from the daily loop below
   const teamNmTarget = teamPeople.reduce((s,p)=>{
     const ep = getPersonForMonth(p, mk);
     return s + (ep.daysT||0) * nmRateFor(p.name, mk);
@@ -13133,7 +12970,7 @@ function renderTeamDashboard(container, teamKey){
 
   // ── Build daily breakdown table ──────────────────────────────────
   const today2       = _localDateStr(new Date());
-  const wdDates      = workingDatesInMonth(mk); // full month — past days + future projections
+  const wdDates      = workingDatesInMonth(mk).filter(ds => ds <= today2);
   // Entry lookup: date → {rev, nm}
   const dayLookup = {};
   entries.forEach(e=>{
@@ -13142,95 +12979,62 @@ function renderTeamDashboard(container, teamKey){
     dayLookup[e.date].rev += (e.revenue||0);
     dayLookup[e.date].nm  += (e.nm||0);
   });
-  // Per-person RPD for this month — only include people who have a month target configured.
-  // This matches teamTgt which also only counts people with hasMonthTarget=true.
-  // People with base RPD but no month-specific override correctly contribute £0 to both.
-  const memberRPDs = teamPeople
-    .filter(p => hasMonthTarget(p.name, mk))
-    .map(p => {
-      const ep = getPersonForMonth(p, mk);
-      return { name: p.name, rpd: (ep.riskPerDay||0), nmRPD: nmRateFor(p.name, mk) };
-    });
+  // Per-person RPD for this month
+  const memberRPDs = teamPeople.map(p=>({ name:p.name, rpd:(getPersonForMonth(p,mk).riskPerDay||0) }));
 
   let cumActual=0, cumRR=0, cumNmActual=0, cumNmRR=0;
   let tableRows='';
-  // First future date — used to draw a dashed separator line
-  const firstFutureDate = wdDates.find(d => d > today2);
   wdDates.forEach(ds=>{
-    const isFuture = ds > today2;
-    const isToday  = ds === today2;
-
+    // How many members are working (not on planned holiday or BH) and their combined RPD / NM rate
+    // Calculate base run rate then apply any manual override for this day
     const _calcDayRR = memberRPDs.reduce((s,{name,rpd})=>{
-      const mult = getDayRRMultiplier(mk,name,ds); // 0=off, 0.5=half-day, 1=full day
-      if(mult === 0) return s;
+      const st = getDayStatus(mk,name,ds);
+      if(st==='hol'||st==='bh') return s;
       const personOvr = ((APP.personRROverrides||{})[name]||{})[mk]?.[ds];
-      // Holiday/half-day: mult < 1 reduces that day's contribution proportionally
-      return s + (personOvr !== undefined ? personOvr * mult : rpd * mult);
+      return s + (personOvr !== undefined ? personOvr : rpd);
     }, 0);
     const _rrOvr = ((APP.rrOverrides||{})[teamKey]||{})[mk]?.[ds];
     const dayRR  = _rrOvr !== undefined ? _rrOvr : _calcDayRR;
     const isOvr  = _rrOvr !== undefined;
-    const dayNmRR = memberRPDs.reduce((s,{name,nmRPD})=>{
-      const mult = getDayRRMultiplier(mk,name,ds);
-      if(mult === 0) return s;
+    const dayNmRR = memberRPDs.reduce((s,{name})=>{
+      const st = getDayStatus(mk,name,ds);
+      if(st==='hol'||st==='bh') return s;
       const nmOvr = ((APP.personNmRROverrides||{})[name]||{})[mk]?.[ds];
-      return s + (nmOvr !== undefined ? nmOvr * mult : nmRPD * mult);
+      return s + (nmOvr !== undefined ? nmOvr : nmRateFor(name, mk));
     }, 0);
     const dayActual = (dayLookup[ds]||{}).rev||0;
     const dayNm     = (dayLookup[ds]||{}).nm||0;
+    cumActual  += dayActual;
+    cumRR      += dayRR;
+    cumNmActual+= dayNm;
+    cumNmRR    += dayNmRR;
 
-    // Actuals only accumulate for past/today; projected RR accumulates for all days
-    if(!isFuture){ cumActual += dayActual; cumNmActual += dayNm; }
-    cumRR   += dayRR;
-    cumNmRR += dayNmRR;
-
-    const diff       = dayActual - dayRR;
-    const diffCls    = diff>=0?'var(--green)':'var(--red)';
-    const nmDiff     = dayNm - dayNmRR;
-    const nmDiffCls  = nmDiff>=0?'var(--green)':'var(--red)';
-    const mtdDiff    = cumActual - cumRR;
+    const diff     = dayActual - dayRR;
+    const diffCls  = diff>=0?'var(--green)':'var(--red)';
+    const nmDiff   = dayNm - dayNmRR;
+    const nmDiffCls= nmDiff>=0?'var(--green)':'var(--red)';
+    const mtdDiff  = cumActual - cumRR;
     const mtdDiffCls = mtdDiff>=0?'var(--green)':'var(--red)';
-    const dateLabel  = _fmtWD(ds);
+    const nmMtdDiff  = cumNmActual - cumNmRR;
+    const nmMtdDiffCls = nmMtdDiff>=0?'var(--green)':'var(--red)';
 
-    // Visual styles
-    const rowStyle = isToday ? `background:${color}12;` : isFuture ? 'opacity:0.58;' : '';
-    const sepStyle = (ds === firstFutureDate) ? 'border-top:2px dashed var(--border2);' : '';
-
-    const rrCell = `<td id="rrcell_${ds}" style="padding:6px 10px;text-align:right;white-space:nowrap">
+    const dateLabel = _fmtWD(ds);
+    tableRows += `<tr style="border-bottom:1px solid var(--border);font-size:12px;font-family:var(--fm);">
+      <td style="padding:8px 14px;color:var(--text2);white-space:nowrap">${dateLabel}</td>
+      <td style="padding:8px 14px;text-align:right;color:${dayActual>0?'var(--text)':'var(--text3)'};font-weight:600">£${Math.round(dayActual).toLocaleString()}</td>
+      <td id="rrcell_${ds}" style="padding:6px 10px;text-align:right;white-space:nowrap">
         <span style="font-family:var(--fm);font-size:12px;color:${isOvr?'var(--accent)':'var(--text3)'};font-weight:${isOvr?'700':'400'}">£${Math.round(dayRR).toLocaleString()}</span>
-        ${isOvr?`<button onclick="saveRROverride('${teamKey}','${mk}','${ds}','')" title="Reset" style="margin-left:3px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:10px;padding:1px 3px;border-radius:3px;opacity:.7;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">↺</button>`:''}
+        ${isOvr?`<button onclick="saveRROverride('${teamKey}','${mk}','${ds}','')" title="Reset to £${Math.round(_calcDayRR).toLocaleString()}" style="margin-left:3px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:10px;padding:1px 3px;border-radius:3px;opacity:.7;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">↺</button>`:''}
         <button onclick="editRRCell('${teamKey}','${mk}','${ds}',${Math.round(_calcDayRR)})" title="Edit run rate" style="margin-left:2px;background:none;border:1px solid var(--border);cursor:pointer;color:var(--text3);font-size:10px;padding:2px 5px;border-radius:3px;line-height:1;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text3)'">✎</button>
-      </td>`;
-
-    if(isFuture){
-      tableRows += `<tr style="${sepStyle}border-bottom:1px solid var(--border);font-size:12px;font-family:var(--fm);${rowStyle}">
-        <td style="padding:8px 14px;color:var(--text3);white-space:nowrap;font-style:italic">${dateLabel}</td>
-        <td style="padding:8px 14px;text-align:right;color:var(--text3)">—</td>
-        ${rrCell}
-        <td style="padding:8px 14px;text-align:right;color:var(--text3)">—</td>
-        <td style="padding:8px 14px;text-align:right;color:var(--text3)">—</td>
-        <td style="padding:8px 14px;text-align:right;color:var(--text3)">${dayNmRR.toFixed(2)}</td>
-        <td style="padding:8px 14px;text-align:right;color:var(--text3)">—</td>
-        <td style="padding:8px 14px;text-align:right;border-left:2px solid var(--border)">
-          <span style="color:${color};font-weight:700">£${Math.round(cumActual).toLocaleString()}</span><span style="font-size:10px;color:var(--text3)"> +£${Math.round(cumRR-cumActual).toLocaleString()}</span>
-        </td>
-        <td style="padding:8px 14px;text-align:right;color:var(--text3)">£${Math.round(cumRR).toLocaleString()}</td>
-        <td style="padding:8px 14px;text-align:right;color:var(--text3);font-style:italic;font-size:11px">proj</td>
-      </tr>`;
-    } else {
-      tableRows += `<tr style="${sepStyle}border-bottom:1px solid var(--border);font-size:12px;font-family:var(--fm);${rowStyle}">
-        <td style="padding:8px 14px;color:${isToday?color:'var(--text2)'};white-space:nowrap;font-weight:${isToday?'700':'400'}">${dateLabel}${isToday?' 📍':''}</td>
-        <td style="padding:8px 14px;text-align:right;color:${dayActual>0?'var(--text)':'var(--text3)'};font-weight:600">£${Math.round(dayActual).toLocaleString()}</td>
-        ${rrCell}
-        <td style="padding:8px 14px;text-align:right;color:${diffCls};font-weight:600">${diff>=0?'+':''}£${Math.round(diff).toLocaleString()}</td>
-        <td style="padding:8px 14px;text-align:right;color:${dayNm>0?'var(--text)':'var(--text3)'}">${dayNm}</td>
-        <td style="padding:8px 14px;text-align:right;color:var(--text3)">${dayNmRR.toFixed(2)}</td>
-        <td style="padding:8px 14px;text-align:right;color:${nmDiffCls};font-weight:600">${nmDiff>=0?'+':''}${nmDiff.toFixed(2)}</td>
-        <td style="padding:8px 14px;text-align:right;color:${color};font-weight:700;border-left:2px solid var(--border)">£${Math.round(cumActual).toLocaleString()}</td>
-        <td style="padding:8px 14px;text-align:right;color:var(--text3)">£${Math.round(cumRR).toLocaleString()}</td>
-        <td style="padding:8px 14px;text-align:right;color:${mtdDiffCls};font-weight:700">${mtdDiff>=0?'+':''}£${Math.round(mtdDiff).toLocaleString()}</td>
-      </tr>`;
-    }
+      </td>
+      <td style="padding:8px 14px;text-align:right;color:${diffCls};font-weight:600">${diff>=0?'+':''}£${Math.round(diff).toLocaleString()}</td>
+      <td style="padding:8px 14px;text-align:right;color:${dayNm>0?'var(--text)':'var(--text3)'};">${dayNm}</td>
+      <td style="padding:8px 14px;text-align:right;color:var(--text3)">${dayNmRR.toFixed(2)}</td>
+      <td style="padding:8px 14px;text-align:right;color:${nmDiffCls};font-weight:600">${nmDiff>=0?'+':''}${nmDiff.toFixed(2)}</td>
+      <td style="padding:8px 14px;text-align:right;color:${color};font-weight:700">£${Math.round(cumActual).toLocaleString()}</td>
+      <td style="padding:8px 14px;text-align:right;color:var(--text3)">£${Math.round(cumRR).toLocaleString()}</td>
+      <td style="padding:8px 14px;text-align:right;color:${mtdDiffCls};font-weight:700">${mtdDiff>=0?'+':''}£${Math.round(mtdDiff).toLocaleString()}</td>
+    </tr>`;
   });
 
   // COP = last row's MTD Diff — always matches the bottom of the daily breakdown
@@ -13242,13 +13046,9 @@ function renderTeamDashboard(container, teamKey){
 
   const dailyTable = wdDates.length ? `
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-top:20px">
-      <div style="padding:14px 18px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <div style="font-size:13px;font-weight:700">Daily Breakdown — Full Month</div>
+      <div style="padding:14px 18px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+        <div style="font-size:13px;font-weight:700">Daily Breakdown</div>
         <div style="font-size:11px;color:var(--text3);font-family:var(--fm)">revenue · run rate · needs met · MTD cumulative</div>
-        <div style="margin-left:auto;display:flex;gap:12px;align-items:center">
-          <span style="font-size:10px;color:var(--text3);font-family:var(--fm)">📍 today &nbsp;│&nbsp; <em>italic = projected</em></span>
-          <span style="font-size:10px;color:var(--text3);font-family:var(--fm);border-top:2px dashed var(--border2);padding-top:2px">- - - future days below</span>
-        </div>
       </div>
       <div style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse;min-width:780px">
@@ -14475,7 +14275,7 @@ function _renderSumTrends(){
         const dow2 = new Date(ds).getDay();
         if(dow2<1||dow2>5) return;
         const st = getDayStatus(mk, p.name, ds);
-        const _m = getDayRRMultiplier(mk, p.name||name||'', ds); if(_m === 0) return;
+        if(st==='hol'||st==='sick'||st==='bh') return;
         const ent2 = (_mkEntries[mk]||getEntries(mk)).find(e=>e.name===p.name&&e.date===ds);
         const rev2 = ent2?(ent2.revenue||0):0;
         pDow[dow2].days++;
@@ -15321,22 +15121,51 @@ function renderThemePicker(){
 })();
 
 // ═══════════════════════════════════════════════════════════════════
-// FEATURE 1 — SESSION TIMEOUT — DISABLED (users stay logged in until manual sign-out)
+// FEATURE 1 — SESSION TIMEOUT (30 minutes inactivity)
 // ═══════════════════════════════════════════════════════════════════
-const SESSION_TIMEOUT_MS  = 0; // Not used — timeout disabled
-const SESSION_WARNING_MS  = 0; // Not used — timeout disabled
+const SESSION_TIMEOUT_MS  = 30 * 60 * 1000; // 30 minutes
+const SESSION_WARNING_MS  = 29 * 60 * 1000; // warn at 29 min
 let _sessionWarningTimer  = null;
 let _sessionLogoutTimer   = null;
 let _countdownInterval    = null;
 
-// No-op: timeout is disabled; session persists until explicit logout
-function _resetSessionTimers(){ /* timeout disabled */ }
-function _showSessionWarning(){ /* timeout disabled */ }
-function resetSessionTimer(){ /* timeout disabled */ }
+function _resetSessionTimers(){
+  clearTimeout(_sessionWarningTimer);
+  clearTimeout(_sessionLogoutTimer);
+  clearInterval(_countdownInterval);
+  // Hide warning modal if showing
+  const modal = document.getElementById('sessionTimeoutModal');
+  if(modal) modal.style.display = 'none';
+  // Only run timers when actually logged in
+  if(!sessionStorage.getItem('pd_auth')) return;
+  _sessionWarningTimer = setTimeout(_showSessionWarning, SESSION_WARNING_MS);
+  _sessionLogoutTimer  = setTimeout(logoutUser, SESSION_TIMEOUT_MS);
+}
+
+function _showSessionWarning(){
+  const modal = document.getElementById('sessionTimeoutModal');
+  if(!modal) return;
+  modal.style.display = 'flex';
+  let secs = 60;
+  const el = document.getElementById('timeoutCountdown');
+  if(el) el.textContent = secs;
+  _countdownInterval = setInterval(()=>{
+    secs--;
+    if(el) el.textContent = secs;
+    if(secs <= 0){ clearInterval(_countdownInterval); }
+  }, 1000);
+}
+
+function resetSessionTimer(){
+  _resetSessionTimers();
+}
 
 function _startSessionTimeout(){
-  // Timeout intentionally disabled — dashboard stays active indefinitely.
-  // Users are only logged out when they click "Sign Out" or close the tab.
+  // Reset on any user activity
+  ['mousemove','mousedown','keydown','touchstart','scroll','click'].forEach(evt=>{
+    document.addEventListener(evt, _resetSessionTimers, {passive:true});
+  });
+  _resetSessionTimers();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -15742,7 +15571,7 @@ function _renderUsersTable(){
   card.innerHTML=`
     <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:12px;padding:8px 12px;background:var(--surface2);border-radius:8px;border-left:3px solid var(--accent);">
       ${users.length} users registered · ${consultantCount} consultants · 
-      PINs are no longer required — users log in with the team password + OTP sent to their email.
+      PINs are auto-generated for new consultants — click 👁 to reveal, or Edit to change.
     </div>
     <div style="overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;min-width:780px;">
@@ -15751,7 +15580,7 @@ function _renderUsersTable(){
         <th ${thS}>Role</th>
         <th ${thS}>Team / Division</th>
         <th ${thS} title="Senior or Non-Senior — determines bonus scale">Bonus Scale</th>
-        <th ${thS}>Email</th>
+        <th ${thS}>PIN</th>
         <th ${thS}>Actions</th>
       </tr></thead>
       <tbody>
@@ -15789,8 +15618,9 @@ function _renderUsersTable(){
             </td>
             <td style="padding:9px 12px;">
               <div style="display:flex;align-items:center;gap:6px;">
-                <span id="uemail_${u.id}" style="font-family:var(--fm);font-size:12px;color:var(--text2)">${u.email||'—'}</span>
-                <button class="btn btn-s" onclick="editUserEmail('${u.id}','${u.name}')" style="font-size:10px;padding:3px 8px">Edit</button>
+                <span id="pin_${u.id}" style="font-family:var(--fm);font-size:13px;letter-spacing:.1em">••••</span>
+                <button class="btn btn-s" onclick="togglePinVisibility('${u.id}','${u.pin}')" style="font-size:10px;padding:3px 8px">👁</button>
+                <button class="btn btn-s" onclick="editUserPin('${u.id}','${u.name}')" style="font-size:10px;padding:3px 8px">Edit</button>
               </div>
             </td>
             <td style="padding:9px 12px;" id="actioncell_${u.id}">
@@ -15803,23 +15633,10 @@ function _renderUsersTable(){
   </div>`;
 }
 
-function editUserEmail(uid, name){
-  const current = _allUsers[uid]?.email || '';
-  const newEmail = prompt(`Enter email address for ${name}:`, current);
-  if(newEmail === null) return; // cancelled
-  const trimmed = newEmail.trim().toLowerCase();
-  if(trimmed && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)){
-    alert('Please enter a valid email address.'); return;
-  }
-  _allUsers[uid].email = trimmed || null;
-  const updateVal = trimmed ? { email: trimmed } : { email: null };
-  _usersDbRef()?.child(uid).update(updateVal)
-    .then(()=>{
-      showToast(trimmed ? `Email updated for ${name}` : `Email removed for ${name}`);
-      const el = document.getElementById('uemail_'+uid);
-      if(el) el.textContent = trimmed || '—';
-    })
-    .catch(()=>showToast('Save failed','err'));
+function togglePinVisibility(uid, pin){
+  const el = document.getElementById('pin_'+uid);
+  if(!el) return;
+  el.textContent = el.textContent.includes('•') ? pin : '••••';
 }
 
 function updateUserRole(uid, newRole){
@@ -15866,6 +15683,16 @@ function updateUserSenior(uid, val){
         try{ renderConsultantDaily(); }catch(e){}
       }
     })
+    .catch(()=>showToast('Save failed','err'));
+}
+
+function editUserPin(uid, name){
+  const newPin = prompt(`Enter new PIN for ${name}:`);
+  if(!newPin) return;
+  if(!/^\d{4,8}$/.test(newPin)){ alert('PIN must be 4–8 digits.'); return; }
+  _allUsers[uid].pin = newPin;
+  _usersDbRef()?.child(uid).update({pin:newPin})
+    .then(()=>{ showToast('PIN updated'); _renderUsersTable(); })
     .catch(()=>showToast('Save failed','err'));
 }
 
@@ -16045,10 +15872,9 @@ function editUserName(uid){
 }
 function openAddUserModal(){
   document.getElementById('addUserName').value='';
+  document.getElementById('addUserPin').value='';
   document.getElementById('addUserRole').value='consultant';
   document.getElementById('addUserDiv').value='';
-  const emailEl = document.getElementById('addUserEmail');
-  if(emailEl) emailEl.value='';
   document.getElementById('addUserModal').classList.add('open');
 }
 function closeAddUserModal(){ document.getElementById('addUserModal').classList.remove('open'); }
@@ -16057,10 +15883,11 @@ function saveNewUser(){
   const name  = document.getElementById('addUserName').value.trim();
   const role  = document.getElementById('addUserRole').value;
   const divKey= document.getElementById('addUserDiv').value;
-  const email = (document.getElementById('addUserEmail')?.value||'').trim().toLowerCase();
+  const pin   = document.getElementById('addUserPin').value.trim();
   if(!name){ alert('Please enter a name.'); return; }
+  if(!pin || !/^\d{4,8}$/.test(pin)){ alert('PIN must be 4–8 digits.'); return; }
   const id = 'usr_'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
-  const user = { id, name, role, divKey, ...(email ? {email} : {}) };
+  const user = { id, name, role, divKey, pin };
   _usersDbRef()?.child(id).set(user)
     .then(()=>{
       _allUsers[id] = user;
@@ -23027,6 +22854,7 @@ window._tkAll=_tkAll;
 // SALES FC — Football-themed leaderboards & season tables
 // ═══════════════════════════════════════════════════════════════════
 var _sfcPeriod  = 'month';   // 'today' | 'week' | 'month'
+var _sfcPersonStats = {};     // populated by renderSalesFC, read by sfcRunChallenge
 var _sfcMetric  = 'rev';     // 'rev' | 'nm'
 var _sfcView    = 'players'; // 'players' | 'teams' | 'challenge'
 
@@ -23080,7 +22908,7 @@ function renderSalesFC(){
   }
 
   // Build per-person stats
-  var personStats = {};
+  var personStats = {}; // will be copied to _sfcPersonStats at end
   var kitIdx = 0;
   var teamOfPerson = {};
   Object.keys(teams).forEach(function(tk){
@@ -23118,6 +22946,9 @@ function renderSalesFC(){
       goals:goals, goalsNm:goalsNm, rpd:rpd, pctTgt:pctTgt
     };
   });
+
+  // Persist to module scope so sfcRunChallenge can read it
+  _sfcPersonStats = personStats;
 
   // Sort players by goals (metric-appropriate)
   var allPlayers = Object.values(personStats);
@@ -23360,7 +23191,7 @@ function sfcRunChallenge(){
     var ep=person?getPersonForMonth(person,mk):null;
     var rpd=ep&&ep.riskPerDay?ep.riskPerDay:1;
     var mine=entries.filter(function(e){return e.name===name;});
-    var ps=personStats||{};
+    var ps=_sfcPersonStats||{};
     var col=(ps[name]&&ps[name].col)||'#555';
 
     var r={today:{rev:0,nm:0},week:{rev:0,nm:0},month:{rev:0,nm:0}};
