@@ -12980,16 +12980,36 @@ function renderTeamDashboard(container, teamKey){
   const stats      = calcStats(mk).filter(s=>{ if(!members.includes(s.name)) return false; return true; }).filter((s,i,a)=>a.findIndex(x=>x.name===s.name)===i);
   const teamRevMTD = stats.reduce((s,p)=>s+p.revMTD,0);
   const teamNmMTD  = stats.reduce((s,p)=>s+p.nmMTD,0);
-  const teamTgt    = stats.reduce((s,p)=>s+p.target,0);
-  const teamPct    = teamTgt>0?Math.round(teamRevMTD/teamTgt*100):0;
   const elapsed    = APP.manualElapsed || calWorkDaysTeam(mk);
   const ahead      = stats.filter(p=>p.riskAhead).length;
 
-  // Team COP — use per-person stats so we only count people who have
-  // teamCopRev and teamCopNm are derived from the daily loop below
-  const teamNmTarget = teamPeople.reduce((s,p)=>{
+  // Build memberRPDs early so we can use it for both the KPI target and the daily table
+  const _seenRP = new Set();
+  const teamPeopleU = APP.people.filter(p=>{ if(!members.includes(p.name)||_seenRP.has(p.name)) return false; _seenRP.add(p.name); return true; });
+  const memberRPDsEarly = teamPeopleU.map(p=>({ name:p.name, rpd:(getPersonForMonth(p,mk).riskPerDay||0) }));
+
+  // ── Team target = full-month projected run rate (accounts for all holidays & sickness)
+  // This guarantees teamTgt always matches the sum of the daily run-rate column
+  const _allWDMonth = workingDatesInMonth(mk);
+  const teamTgt = Math.round(_allWDMonth.reduce((total, ds) => {
+    return total + memberRPDsEarly.reduce((s,{name,rpd}) => {
+      const mult = getDayRRMultiplier(mk, name, ds);
+      if(mult === 0) return s;
+      const personOvr = ((APP.personRROverrides||{})[name]||{})[mk]?.[ds];
+      return s + (personOvr !== undefined ? personOvr : rpd) * mult;
+    }, 0);
+  }, 0));
+  const teamPct    = teamTgt>0?Math.round(teamRevMTD/teamTgt*100):0;
+
+  // Team COP — teamCopRev and teamCopNm are derived from the daily loop below
+  const teamNmTarget = teamPeopleU.reduce((s,p)=>{
     const ep = getPersonForMonth(p, mk);
-    return s + (ep.daysT||0) * nmRateFor(p.name, mk);
+    // NM target also reduced by holiday and sick days at run-rate
+    const nmRR = _allWDMonth.reduce((nm, ds) => {
+      const mult = getDayRRMultiplier(mk, p.name, ds);
+      return nm + nmRateFor(p.name, mk) * mult;
+    }, 0);
+    return s + nmRR;
   }, 0);
 
   const TEAM_IMGS = { g: TEAM_G_IMG, james: TEAM_JAMES_IMG, damo: TEAM_DAMO_IMG };
@@ -13006,8 +13026,8 @@ function renderTeamDashboard(container, teamKey){
     dayLookup[e.date].rev += (e.revenue||0);
     dayLookup[e.date].nm  += (e.nm||0);
   });
-  // Per-person RPD for this month
-  const memberRPDs = teamPeople.map(p=>({ name:p.name, rpd:(getPersonForMonth(p,mk).riskPerDay||0) }));
+  // Per-person RPD for this month (reuse the early-computed version for consistency with teamTgt)
+  const memberRPDs = memberRPDsEarly;
 
   let cumActual=0, cumRR=0, cumNmActual=0, cumNmRR=0;
   let tableRows='';
