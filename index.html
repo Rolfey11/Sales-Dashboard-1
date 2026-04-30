@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" href="data:,">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JG MI</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -12970,7 +12971,7 @@ function renderTeams(){
     nav.innerHTML = visibleTeams.map((t,i) =>
       `<button class="sub-tab${(!_currentTeamTab && i===0)||_currentTeamTab===t.key?' active':''}"
         data-tab="${t.key.replace(/"/g,'&quot;')}"
-        onclick="switchTeamTab(${JSON.stringify(t.key)})">${t.label}</button>`
+        onclick="switchTeamTab(this.dataset.tab)">${t.label}</button>`
     ).join('') +
     (role === 'manager' || role === 'master' || role === 'smt'
       ? `<button class="sub-tab${_currentTeamTab==='assign'?' active':''}" data-tab="assign" onclick="switchTeamTab('assign')" style="margin-left:auto;color:var(--accent)">⚙ Direct Reports</button>`
@@ -13324,7 +13325,7 @@ function renderDayByDay(){
     nav.innerHTML = `<button class="sub-tab${(!_dbdTeam||_dbdTeam==='overall')?' active':''}" data-tab="overall" onclick="switchDbdTab('overall')">Overall</button>`
       + teams.map(t =>
           `<button class="sub-tab${_dbdTeam===t.key?' active':''}" data-tab="${t.key.replace(/"/g,'&quot;')}"
-            onclick="switchDbdTab(${JSON.stringify(t.key)})">${t.label}</button>`
+            onclick="switchDbdTab(this.dataset.tab)">${t.label}</button>`
         ).join('');
   }
 
