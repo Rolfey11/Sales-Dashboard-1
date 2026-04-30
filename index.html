@@ -4705,7 +4705,7 @@ function allMonthKeysWithAbsences(){
 // ── entry helpers (source of truth) ───────────────────────────────
 // An entry = {date:'YYYY-MM-DD', name:String, revenue:Number, nm:Number}
 function getEntries(monthKey){
-  return (APP.months[monthKey]||{entries:[]}).entries;
+  return ((APP.months&&APP.months[monthKey]||{}).entries) || [];
 }
 function setEntries(monthKey, entries){
   if(!APP.months[monthKey]) APP.months[monthKey]={entries:[]};
@@ -8142,7 +8142,7 @@ function renderDailySend(){
     // ── Compute per-division metrics ─────────────────────────────────
     function divMetrics(key){
       const data    = byKey[key] || {};
-      const entries = ((data.months||{})[mk]||{entries:[]}).entries;
+      const entries = (((data.months||{})[mk]||{}).entries) || [];
       const ovrs    = (data.monthOverrides||{})[mk] || {};
       const people  = (data.people||[]).filter(p => {
         const ovr    = ovrs[p.name] || {};
@@ -8374,7 +8374,7 @@ function renderDailySend(){
 
     function divChartData(key, useNm){
       const data    = byKey[key] || {};
-      const entries = ((data.months||{})[mk]||{entries:[]}).entries;
+      const entries = (((data.months||{})[mk]||{}).entries) || [];
       const ovrs    = (data.monthOverrides||{})[mk] || {};
       let target = 0, nmTarget = 0;
       (data.people||[]).forEach(p => {
@@ -8652,7 +8652,7 @@ function renderSpTable(){
         target   += Math.round(rpd * daysT);
         nmTarget += daysT * nmRateFor(p.name);
       }
-      const mine = ((data.months||{})[mk]||{entries:[]}).entries.filter(e=>e.name===p.name);
+      const mine = (((data.months||{})[mk]||{}).entries) || [].filter(e=>e.name===p.name);
       actual   += mine.reduce((s,e)=>s+(e.revenue||0),0);
       nmActual += mine.reduce((s,e)=>s+(e.nm||0),0);
     });
@@ -8823,7 +8823,7 @@ function renderSpTable(){
     people.forEach(p => {
       _iEntries[p.name] = {};
       _spMonths().forEach(mk => {
-        ((data.months||{})[mk]||{entries:[]}).entries
+        (((data.months||{})[mk]||{}).entries) || []
           .filter(e => e.name === p.name && e.date)
           .forEach(e => { _iEntries[p.name][e.date] = e.revenue||0; });
       });
@@ -9130,7 +9130,7 @@ function exportSpCSV(){
         const ovr=(((_spDivData.monthOverrides||{})[mk])||{})[p.name]||{};
         const rpd=ovr.riskPerDay!==undefined?ovr.riskPerDay:0, dt=ovr.daysT!==undefined?ovr.daysT:0;
         if(rpd>0&&dt>0){ tgt+=Math.round(rpd*dt); nmT+=dt*nmRateFor(p.name); }
-        const mine=(((_spDivData.months||{})[mk])||{entries:[]}).entries.filter(e=>e.name===p.name);
+        const mine=(((_spDivData.months||{})[mk]||{}).entries||[]).filter(e=>e.name===p.name);
         act+=mine.reduce((s,e)=>s+(e.revenue||0),0);
         nmA+=mine.reduce((s,e)=>s+(e.nm||0),0);
       });
@@ -11438,7 +11438,7 @@ function _getEntryMeta(mk, personName, date, cb){
 // GLOBAL divStats helper — used by Manager Overview AND Daily Send
 // ═══════════════════════════════════════════════════════════════════
 function _divStats(data, mk){
-  const entries = ((data.months||{})[mk]||{entries:[]}).entries;
+  const entries = (((data.months||{})[mk]||{}).entries) || [];
   const today   = _localDateStr(new Date());
   const wdAll   = workingDatesInMonth(mk);
   const wdPast  = wdAll.filter(ds=>ds<=today);
