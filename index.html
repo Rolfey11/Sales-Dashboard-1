@@ -489,7 +489,7 @@ input[type=date],input[type=number],input[type=text],select{
   padding:9px 12px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none;transition:border-color .15s;
 }
 input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94,156,245,.08);}
-.btn{display:inline-flex;align-items:center;justify-content:center;padding:9px 18px;border-radius:8px;font-family:var(--fh);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;gap:6px;}
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:9px 18px;border-radius:8px;font-family:var(--fh);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;gap:6px;position:relative;overflow:hidden;}
 .btn-p{background:var(--accent);color:#fff;box-shadow:0 2px 12px rgba(94,156,245,.3);}.btn-p:hover{background:#4d8ee0;box-shadow:0 4px 18px rgba(94,156,245,.4);}
 .btn-s{background:var(--surface2);color:var(--text2);border:1px solid var(--border2);}.btn-s:hover{color:var(--text);border-color:var(--border2);}
 .btn-d{background:var(--red-bg);color:var(--red);border:1px solid rgba(245,54,92,.2);}.btn-d:hover{background:rgba(245,54,92,.2);}
@@ -15482,18 +15482,23 @@ function generateMonthlyReport(){
    ═══════════════════════════════════════════════════════════════════ */
 
 /* ── Ripple effect on buttons ─────────────────────────────────────── */
-.btn, .nav-tab, .sub-tab, .div-btn, button[onclick] {
+.btn, .nav-tab, .div-btn {
   position: relative;
   overflow: hidden;
+}
+/* sub-tabs need relative but NOT overflow:hidden (ink bar overflows) */
+.sub-tab {
+  position: relative;
 }
 .ripple {
   position: absolute;
   border-radius: 50%;
   transform: scale(0);
-  animation: ripple-expand .55s linear;
+  animation: ripple-expand .55s linear forwards;
   background: rgba(255,255,255,0.22);
   pointer-events: none;
   z-index: 10;
+  display: block;
 }
 @keyframes ripple-expand {
   to { transform: scale(4); opacity: 0; }
@@ -24253,7 +24258,11 @@ function _attachRipple(el){
 }
 
 function _initRipples(){
-  document.querySelectorAll('.btn, .nav-tab, .div-btn').forEach(_attachRipple);
+  document.querySelectorAll('.btn, .nav-tab, .div-btn').forEach(function(el){
+    // Skip buttons whose content changes size dynamically (e.g. save-all-entries)
+    const skip = el.id === 'saveAllBtn' || el.classList.contains('no-ripple');
+    if(!skip) _attachRipple(el);
+  });
 }
 
 // Re-run after any dynamic render
