@@ -489,7 +489,7 @@ input[type=date],input[type=number],input[type=text],select{
   padding:9px 12px;font-size:13px;font-family:var(--fm);color:var(--text);outline:none;transition:border-color .15s;
 }
 input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94,156,245,.08);}
-.btn{display:inline-flex;align-items:center;justify-content:center;padding:9px 18px;border-radius:8px;font-family:var(--fh);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;gap:6px;position:relative;overflow:hidden;}
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:9px 18px;border-radius:8px;font-family:var(--fh);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;gap:6px;}
 .btn-p{background:var(--accent);color:#fff;box-shadow:0 2px 12px rgba(94,156,245,.3);}.btn-p:hover{background:#4d8ee0;box-shadow:0 4px 18px rgba(94,156,245,.4);}
 .btn-s{background:var(--surface2);color:var(--text2);border:1px solid var(--border2);}.btn-s:hover{color:var(--text);border-color:var(--border2);}
 .btn-d{background:var(--red-bg);color:var(--red);border:1px solid rgba(245,54,92,.2);}.btn-d:hover{background:rgba(245,54,92,.2);}
@@ -15482,23 +15482,12 @@ function generateMonthlyReport(){
    ═══════════════════════════════════════════════════════════════════ */
 
 /* ── Ripple effect on buttons ─────────────────────────────────────── */
-.btn, .nav-tab, .div-btn {
+.nav-tab, .div-btn {
   position: relative;
   overflow: hidden;
 }
-/* sub-tabs need relative but NOT overflow:hidden (ink bar overflows) */
 .sub-tab {
   position: relative;
-}
-.ripple {
-  position: absolute;
-  border-radius: 50%;
-  transform: scale(0);
-  animation: ripple-expand .55s linear forwards;
-  background: rgba(255,255,255,0.22);
-  pointer-events: none;
-  z-index: 10;
-  display: block;
 }
 @keyframes ripple-expand {
   to { transform: scale(4); opacity: 0; }
@@ -24240,29 +24229,59 @@ function renderNMTiming(mk){
 // MICRO-INTERACTIONS JS
 // ═══════════════════════════════════════════════════════════════════
 
-// ── Ripple effect ─────────────────────────────────────────────────
+// ── Ripple effect — canvas overlay, zero layout impact ────────────
+// Uses a shared fixed canvas drawn over the clicked element.
+// No DOM nodes are inserted into buttons, so no layout can be affected.
+const _rippleCanvas = document.createElement('canvas');
+_rippleCanvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;';
+document.addEventListener('DOMContentLoaded', ()=>document.body.appendChild(_rippleCanvas));
+const _rippleCtx = _rippleCanvas.getContext('2d');
+let _rippleRAF = null;
+const _ripples = [];
+
+function _rippleResize(){
+  _rippleCanvas.width  = window.innerWidth;
+  _rippleCanvas.height = window.innerHeight;
+}
+window.addEventListener('resize', _rippleResize);
+_rippleResize();
+
+function _rippleTick(){
+  const ctx = _rippleCtx;
+  ctx.clearRect(0, 0, _rippleCanvas.width, _rippleCanvas.height);
+  const now = performance.now();
+  for(let i = _ripples.length - 1; i >= 0; i--){
+    const r = _ripples[i];
+    const t = Math.min(1, (now - r.t0) / 520);
+    const radius = r.maxR * t;
+    const alpha  = 0.28 * (1 - t);
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+    ctx.fill();
+    if(t >= 1) _ripples.splice(i, 1);
+  }
+  if(_ripples.length > 0){
+    _rippleRAF = requestAnimationFrame(_rippleTick);
+  } else {
+    ctx.clearRect(0, 0, _rippleCanvas.width, _rippleCanvas.height);
+    _rippleRAF = null;
+  }
+}
+
 function _attachRipple(el){
   if(el._rippleAttached) return;
   el._rippleAttached = true;
   el.addEventListener('pointerdown', function(e){
     const rect  = el.getBoundingClientRect();
-    const size  = Math.max(rect.width, rect.height) * 1.8;
-    const x     = e.clientX - rect.left - size/2;
-    const y     = e.clientY - rect.top  - size/2;
-    const ripple = document.createElement('span');
-    ripple.className = 'ripple';
-    ripple.style.cssText = `width:${size}px;height:${size}px;left:${x}px;top:${y}px`;
-    el.appendChild(ripple);
-    ripple.addEventListener('animationend', ()=>ripple.remove());
+    const maxR  = Math.max(rect.width, rect.height) * 0.9;
+    _ripples.push({ x: e.clientX, y: e.clientY, maxR, t0: performance.now() });
+    if(!_rippleRAF) _rippleRAF = requestAnimationFrame(_rippleTick);
   });
 }
 
 function _initRipples(){
-  document.querySelectorAll('.btn, .nav-tab, .div-btn').forEach(function(el){
-    // Skip buttons whose content changes size dynamically (e.g. save-all-entries)
-    const skip = el.id === 'saveAllBtn' || el.classList.contains('no-ripple');
-    if(!skip) _attachRipple(el);
-  });
+  document.querySelectorAll('.btn, .nav-tab, .div-btn, .sub-tab').forEach(_attachRipple);
 }
 
 // Re-run after any dynamic render
