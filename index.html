@@ -8107,6 +8107,7 @@ function renderDailySend(){
   const elapsedPct  = totalWD > 0 ? Math.round(elapsedWD / totalWD * 100) : 0;
 
   // ── Division groupings ────────────────────────────────────────────
+  // Divisions with no consultants/targets are filtered out at render time
   const bauDivisions = [
     { key:'core',     label:'Core Team' },
     { key:'advice',   label:'Specialist Advice' },
@@ -8179,8 +8180,8 @@ function renderDailySend(){
       return t;
     }
 
-    const bauRows = bauDivisions.map(d => ({...d, m: divMetrics(d.key)}));
-    const stRows  = stDivisions.map(d  => ({...d, m: divMetrics(d.key)}));
+    const bauRows = bauDivisions.map(d => ({...d, m: divMetrics(d.key)})).filter(r => r.m.target > 0);
+    const stRows  = stDivisions.map(d  => ({...d, m: divMetrics(d.key)})).filter(r => r.m.target > 0);
     const bauTot  = sectionTotal(bauRows);
     const stTot   = sectionTotal(stRows);
 
@@ -8239,6 +8240,12 @@ function renderDailySend(){
         <td style="${tdBase}background:${rowBg}">${m.nmPct}%</td>
         <td style="${tdBase}background:${rowBg}">${m.nmToGo}</td>
       </tr>`;
+    }
+
+    // Skip entire section if no rows have data
+    if(!bauRows.length && !stRows.length){
+      document.getElementById('moContent').innerHTML = '<div class="empty"><div class="empty-icon">📊</div><div>No division data found for this month.<br>Set monthly targets for consultants first.</div></div>';
+      return;
     }
 
     function sectionHeader(label, bg){
@@ -8305,26 +8312,22 @@ function renderDailySend(){
       <!-- Report table -->
       <div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.15);overflow-x:auto;">
         <table style="${tbl}">
-          <!-- BAU Section -->
-          ${sectionHeader('Business As Usual', bauHdr)}
-          ${colHeaders(bauHdr)}
+          <!-- BAU Section — only rendered if any BAU division has data -->
+          ${bauRows.length ? sectionHeader('Business As Usual', bauHdr) : ''}
+          ${bauRows.length ? colHeaders(bauHdr) : ''}
           ${bauRows.map(r=>dataRow(r.label, r.m, bauTeam, bauTotBg, false)).join('')}
-          ${dataRow('BAU TOTALS', bauTot, bauTeam, bauTotBg, true)}
+          ${bauRows.length > 1 ? dataRow('BAU TOTALS', bauTot, bauTeam, bauTotBg, true) : ''}
+          ${bauRows.length ? '<tr><td colspan="11" style="padding:6px;background:#f0f0f0;border:none"></td></tr>' : ''}
 
-          <!-- spacer -->
-          <tr><td colspan="11" style="padding:6px;background:#f0f0f0;border:none"></td></tr>
-
-          <!-- Single Tie Section -->
-          ${sectionHeader('SINGLE TIE', stHdr)}
-          ${colHeaders(stHdr)}
+          <!-- Single Tie Section — only rendered if any ST division has data -->
+          ${stRows.length ? sectionHeader('SINGLE TIE', stHdr) : ''}
+          ${stRows.length ? colHeaders(stHdr) : ''}
           ${stRows.map(r=>dataRow(r.label, r.m, stTeam, stTotBg, false)).join('')}
-          ${dataRow('TOTAL', stTot, stTeam, stTotBg, true)}
+          ${stRows.length > 1 ? dataRow('TOTAL', stTot, stTeam, stTotBg, true) : ''}
+          ${stRows.length ? '<tr><td colspan="11" style="padding:6px;background:#f0f0f0;border:none"></td></tr>' : ''}
 
-          <!-- spacer -->
-          <tr><td colspan="11" style="padding:6px;background:#f0f0f0;border:none"></td></tr>
-
-          <!-- Grand total -->
-          ${grandRow}
+          <!-- Grand total — only if both sections have data -->
+          ${(bauRows.length && stRows.length) ? grandRow : ''}
         </table>
       </div>
 
