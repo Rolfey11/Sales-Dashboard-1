@@ -23010,6 +23010,7 @@ var _sfcPeriod  = 'month';   // 'today' | 'week' | 'month'
 var _sfcPersonStats = {};     // populated by renderSalesFC, read by sfcRunChallenge
 var _sfcMetric  = 'rev';     // 'rev' | 'nm'
 var _sfcView    = 'players'; // 'players' | 'teams' | 'challenge'
+var _sfcChalTab = 'today';  // 'today' | 'week' | 'month' | 'manual'
 
 // Kit colours per team — now driven dynamically from getDivisionTeams()
 var SFC_KIT_COLS = ['#1d4ed8','#15803d','#c2410c','#7c3aed','#0f766e','#b45309'];
@@ -23263,7 +23264,7 @@ function renderSalesFC(){
     // Team player breakdown
     var teamBreakdown = leagueRows.map(function(r){
       var m = SFC_META[r.key]||{label:r.key,primary:'#555'};
-      var members = Array.from(new Set(teams[r.key]||[]));
+      var members = Array.from(new Set((SFC_META[r.key]&&SFC_META[r.key].members)||[]));
       var memberRows = members.map(function(name){
         var p = personStats[name]; if(!p) return '';
         var goals = _sfcMetric==='nm'?p.goalsNm:p.goals;
@@ -23298,21 +23299,25 @@ function renderSalesFC(){
 
   // ── 1v1 Challenge view ────────────────────────────────────────
   function challengeHTML(){
-    var names = (APP.people||[]).map(function(p){return p.name;});
-    return '<div style="background:#111828;border-radius:10px;padding:18px;">'
-      +'<div style="font-size:10px;color:#445;font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-bottom:14px;">Head to Head Duel</div>'
-      +'<div style="display:flex;gap:12px;align-items:center;margin-bottom:10px;">'
-        +'<select id="sfcP1" style="flex:1;background:#0a0e1a;border:1px solid #1e2a3a;color:#aab;font-size:13px;padding:8px 10px;border-radius:7px;">'
-          +names.map(function(n){return '<option>'+n+'</option>';}).join('')
-        +'</select>'
-        +'<div style="font-size:18px;color:#223;font-weight:900;">vs</div>'
-        +'<select id="sfcP2" style="flex:1;background:#0a0e1a;border:1px solid #1e2a3a;color:#aab;font-size:13px;padding:8px 10px;border-radius:7px;">'
-          +names.slice().reverse().map(function(n){return '<option>'+n+'</option>';}).join('')
-        +'</select>'
-      +'</div>'
-      +'<button onclick="sfcRunChallenge()" style="width:100%;background:#1d4ed8;border:none;color:#fff;font-size:13px;font-weight:700;padding:11px 0;border-radius:8px;cursor:pointer;letter-spacing:.04em;">⚽ Kick Off</button>'
-      +'<div id="sfcChalResult" style="display:none;margin-top:16px;"></div>'
+    var names = Object.keys(_sfcPersonStats||{});
+    var today = _localDateStr(new Date());
+    var mk    = (document.getElementById('sfcMonth')&&document.getElementById('sfcMonth').value)||APP.activeMonth;
+
+    function tab(id,label){
+      var active = _sfcChalTab===id;
+      return '<button onclick="_sfcChalTab=\''+id+'\';sfcSetView(\'challenge\')" style="padding:6px 14px;border:1px solid '+(active?'#60a5fa':'#1e2a3a')+';background:'+(active?'rgba(96,165,250,0.12)':'transparent')+';color:'+(active?'#60a5fa':'#556')+';border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;letter-spacing:.04em">'+label+'</button>';
+    }
+    var tabs = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">'
+      +tab('today','📅 Today\'s Fixtures')+tab('week','📊 Weekly Board')+tab('month','🏆 Monthly Board')+tab('manual','⚔ Manual Duel')
     +'</div>';
+
+    var content = '';
+    if(_sfcChalTab==='today')  content = _sfcTodayHTML(names,today,mk);
+    else if(_sfcChalTab==='week')  content = _sfcStandingsHTML(names,'week',mk);
+    else if(_sfcChalTab==='month') content = _sfcStandingsHTML(names,'month',mk);
+    else content = _sfcManualHTML(names);
+
+    return '<div style="background:#111828;border-radius:10px;padding:18px;">'+tabs+content+'</div>';
   }
 
   // ── Assemble page ─────────────────────────────────────────────
@@ -23340,6 +23345,167 @@ function renderSalesFC(){
   document.getElementById('sfcContent').innerHTML = html;
 }
 
+// ── 1v1 helper: round-robin daily fixtures ───────────────────────
+function _sfcGetDayFixtures(names, dateStr){
+  var n = names.length;
+  if(n < 2) return [];
+  var list = names.slice().sort(); // stable order
+  var isOdd = n % 2 !== 0;
+  if(isOdd) list.push(null); // bye slot
+  var sz = list.length;
+  var numRounds = sz - 1;
+  var d = new Date(dateStr);
+  var dayNum = Math.floor(d.getTime() / 86400000);
+  var round  = dayNum % numRounds;
+  // Round-robin: fix slot 0, rotate slots 1..sz-1
+  var fixed = list[0];
+  var rot   = list.slice(1);
+  for(var i=0;i<round;i++) rot.unshift(rot.pop());
+  var slots = [fixed].concat(rot);
+  var pairs = [];
+  for(var j=0;j<sz/2;j++){
+    var a=slots[j], b=slots[sz-1-j];
+    if(a&&b) pairs.push([a,b]);
+  }
+  return pairs;
+}
+
+function _sfcDayResult(p1, p2, dateStr, mk){
+  var entries = getEntries(mk);
+  function gs(name){
+    var person=(APP.people||[]).find(function(x){return x.name===name;});
+    var ep=person?getPersonForMonth(person,mk):null;
+    var rpd=(ep&&ep.riskPerDay)?ep.riskPerDay:1;
+    var dayE=entries.filter(function(e){return e.name===name&&e.date===dateStr;});
+    var rev=dayE.reduce(function(s,e){return s+(e.revenue||0);},0);
+    var nm =dayE.reduce(function(s,e){return s+(e.nm||0);},0);
+    return {goals:rpd>0?Math.floor(rev/rpd):0, nm:nm, score:(rpd>0?Math.floor(rev/rpd):0)+nm};
+  }
+  var s1=gs(p1),s2=gs(p2);
+  return {p1:p1,p2:p2,s1:s1,s2:s2,
+    winner: s1.score>s2.score?p1:s2.score>s1.score?p2:null,
+    played: s1.score>0||s2.score>0};
+}
+
+function _sfcTodayHTML(names, today, mk){
+  var pairs = _sfcGetDayFixtures(names, today);
+  if(!pairs.length) return '<div style="color:#445;font-size:13px;text-align:center;padding:20px">No fixtures — add consultants first.</div>';
+  var ps = _sfcPersonStats||{};
+  var rows = pairs.map(function(pair){
+    var p1=pair[0],p2=pair[1];
+    var r=_sfcDayResult(p1,p2,today,mk);
+    var col1=(ps[p1]&&ps[p1].col)||'#5e9cf5';
+    var col2=(ps[p2]&&ps[p2].col)||'#2dce89';
+    var ini1=p1.replace(/\s+/g,'').slice(0,3).toUpperCase();
+    var ini2=p2.replace(/\s+/g,'').slice(0,3).toUpperCase();
+    var w1=r.winner===p1,w2=r.winner===p2,draw=r.played&&!r.winner;
+    var badge=r.played?(w1?'🏆':'⚖'):r.played?'⚖':'⏳';
+    return '<div style="background:#0d1420;border-radius:8px;padding:12px 16px;margin-bottom:8px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;">'
+      +'<div style="display:flex;align-items:center;gap:8px;">'
+        +sfcShirt(col1,ini1,28)
+        +'<span style="font-size:12px;font-weight:'+(w1?'800':'600')+';color:'+(w1?'#fbb83a':draw?'#aab':'#556')+'">'+p1+'</span>'
+      +'</div>'
+      +'<div style="text-align:center;">'
+        +(r.played
+          ?'<div style="font-size:16px;font-weight:900;color:#dde">'+r.s1.goals+'<span style="color:#334;font-size:11px;padding:0 4px">-</span>'+r.s2.goals+'</div>'
+          +'<div style="font-size:9px;color:#334;font-family:monospace;margin-top:2px">NM '+r.s1.nm+' - '+r.s2.nm+'</div>'
+          :'<div style="font-size:18px">⏳</div>')
+        +'<div style="font-size:10px;color:#334;margin-top:2px">'+badge+'</div>'
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:8px;justify-content:flex-end;">'
+        +'<span style="font-size:12px;font-weight:'+(w2?'800':'600')+';color:'+(w2?'#fbb83a':draw?'#aab':'#556')+'">'+p2+'</span>'
+        +sfcShirt(col2,ini2,28)
+      +'</div>'
+    +'</div>';
+  }).join('');
+  var next = new Date(today); next.setDate(next.getDate()+1);
+  var nextPairs = _sfcGetDayFixtures(names, _localDateStr(next));
+  var numRounds = (names.length%2===0?names.length-1:names.length);
+  return '<div style="font-size:10px;color:#445;font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-bottom:10px">Today\'s Fixtures · '+today+' · Round '+((Math.floor(new Date(today).getTime()/86400000)%numRounds)+1)+'/'+numRounds+'</div>'
+    +rows
+    +'<div style="margin-top:8px;font-size:10px;color:#334;font-family:monospace">Tomorrow: '
+    +nextPairs.map(function(p){return p[0]+' vs '+p[1];}).join(' · ')
+    +'</div>';
+}
+
+function _sfcStandingsHTML(names, period, mk){
+  var today = _localDateStr(new Date());
+  var wsDate = new Date(); var dow=wsDate.getDay(); wsDate.setDate(wsDate.getDate()-(dow===0?6:dow-1));
+  var weekStart = _localDateStr(wsDate);
+  // Get all dates in range
+  var allDates = [];
+  var entries = getEntries(mk);
+  var datesInMonth = workingDatesInMonth(mk);
+  if(period==='week'){
+    allDates = datesInMonth.filter(function(d){return d>=weekStart&&d<=today;});
+  } else {
+    allDates = datesInMonth.filter(function(d){return d<=today;});
+  }
+  // Compute standings
+  var record = {}; // name -> {w,d,l,gf,ga,pts}
+  names.forEach(function(n){ record[n]={w:0,d:0,l:0,gf:0,ga:0,pts:0}; });
+  allDates.forEach(function(ds){
+    var pairs = _sfcGetDayFixtures(names, ds);
+    pairs.forEach(function(pair){
+      var r = _sfcDayResult(pair[0],pair[1],ds,mk);
+      if(!r.played) return;
+      var a=pair[0],b=pair[1];
+      if(!record[a]||!record[b]) return;
+      record[a].gf+=r.s1.goals; record[a].ga+=r.s2.goals;
+      record[b].gf+=r.s2.goals; record[b].ga+=r.s1.goals;
+      if(r.winner===a)     { record[a].w++; record[a].pts+=3; record[b].l++; }
+      else if(r.winner===b){ record[b].w++; record[b].pts+=3; record[a].l++; }
+      else                 { record[a].d++; record[a].pts++; record[b].d++; record[b].pts++; }
+    });
+  });
+  var sorted = names.slice().sort(function(a,b){
+    var ra=record[a]||{pts:0}, rb=record[b]||{pts:0};
+    if(rb.pts!==ra.pts) return rb.pts-ra.pts;
+    return (rb.gf-rb.ga)-(ra.gf-ra.ga);
+  });
+  var label = period==='week'?'Weekly Standings ('+weekStart+' – '+today+')':'Monthly Standings · '+mk;
+  var rows = sorted.map(function(n,i){
+    var r=record[n]||{w:0,d:0,l:0,gf:0,ga:0,pts:0};
+    var played=r.w+r.d+r.l;
+    var ps=_sfcPersonStats||{};
+    var col=(ps[n]&&ps[n].col)||'#5e9cf5';
+    var ini=n.replace(/\s+/g,'').slice(0,3).toUpperCase();
+    return '<div style="display:grid;grid-template-columns:24px 32px 1fr 36px 36px 36px 44px 44px;gap:0;align-items:center;padding:9px 12px;border-bottom:1px solid #0d1520;'+(i===0?'background:rgba(251,184,58,0.05)':'')+'">'
+      +'<div style="font-size:11px;color:#445;font-weight:700;text-align:center">'+(i+1)+'</div>'
+      +sfcShirt(col,ini,22)
+      +'<div style="font-size:12px;font-weight:700;color:#dde;padding-left:8px">'+n+'</div>'
+      +'<div style="text-align:center;font-size:11px;color:#556">'+played+'</div>'
+      +'<div style="text-align:center;font-size:11px;color:var(--green)">'+r.w+'</div>'
+      +'<div style="text-align:center;font-size:11px;color:#556">'+r.d+'</div>'
+      +'<div style="text-align:center;font-size:11px;color:var(--red)">'+r.l+'</div>'
+      +'<div style="text-align:center;font-size:11px;color:#fbb83a;font-weight:800">'+r.pts+'</div>'
+    +'</div>';
+  }).join('');
+  return '<div style="font-size:10px;color:#445;font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-bottom:10px">'+label+'</div>'
+    +'<div style="background:#0d1420;border-radius:8px;overflow:hidden;">'
+    +'<div style="display:grid;grid-template-columns:24px 32px 1fr 36px 36px 36px 44px 44px;gap:0;padding:7px 12px;border-bottom:1px solid #1a2230;font-size:9px;font-weight:700;color:#334;letter-spacing:.07em;text-transform:uppercase;">'
+    +'<div></div><div></div><div style="padding-left:8px">Player</div><div style="text-align:center">P</div><div style="text-align:center;color:var(--green)">W</div><div style="text-align:center">D</div><div style="text-align:center;color:var(--red)">L</div><div style="text-align:center;color:#fbb83a">Pts</div>'
+    +'</div>'
+    +rows
+    +'</div>'
+    +'<div style="margin-top:6px;font-size:9px;color:#223;font-family:monospace">W=3pts · D=1pt · computed from daily fixtures · '+allDates.length+' matchdays</div>';
+}
+
+function _sfcManualHTML(names){
+  return '<div style="font-size:10px;color:#445;font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-bottom:14px">Manual Head to Head</div>'
+    +'<div style="display:flex;gap:12px;align-items:center;margin-bottom:10px;">'
+      +'<select id="sfcP1" style="flex:1;background:#0a0e1a;border:1px solid #1e2a3a;color:#aab;font-size:13px;padding:8px 10px;border-radius:7px;">'
+        +names.map(function(n){return '<option>'+n+'</option>';}).join('')
+      +'</select>'
+      +'<div style="font-size:18px;color:#223;font-weight:900">vs</div>'
+      +'<select id="sfcP2" style="flex:1;background:#0a0e1a;border:1px solid #1e2a3a;color:#aab;font-size:13px;padding:8px 10px;border-radius:7px;">'
+        +names.slice().reverse().map(function(n){return '<option>'+n+'</option>';}).join('')
+      +'</select>'
+    +'</div>'
+    +'<button onclick="sfcRunChallenge()" style="width:100%;background:#1d4ed8;border:none;color:#fff;font-size:13px;font-weight:700;padding:11px 0;border-radius:8px;cursor:pointer;letter-spacing:.04em">⚽ Kick Off</button>'
+    +'<div id="sfcChalResult" style="display:none;margin-top:16px;"></div>';
+}
+
 function sfcRunChallenge(){
   var mk    = (document.getElementById('sfcMonth')&&document.getElementById('sfcMonth').value)||APP.activeMonth;
   var p1    = document.getElementById('sfcP1')&&document.getElementById('sfcP1').value;
@@ -23358,7 +23524,6 @@ function sfcRunChallenge(){
     var mine=entries.filter(function(e){return e.name===name;});
     var ps=_sfcPersonStats||{};
     var col=(ps[name]&&ps[name].col)||'#555';
-
     var r={today:{rev:0,nm:0},week:{rev:0,nm:0},month:{rev:0,nm:0}};
     mine.forEach(function(e){
       r.month.rev+=(e.revenue||0); r.month.nm+=(e.nm||0);
@@ -23385,7 +23550,6 @@ function sfcRunChallenge(){
   var winner = overall1>overall2?p1:overall2>overall1?p2:null;
 
   var html='<div style="background:#0d1420;border-radius:10px;overflow:hidden;">'
-    // Player headers
     +'<div style="display:grid;grid-template-columns:1fr 80px 1fr;padding:14px;border-bottom:1px solid #1a2230;">'
       +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">'
         +sfcShirt(s1.col,s1.ini,38)
