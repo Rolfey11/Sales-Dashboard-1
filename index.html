@@ -15620,21 +15620,7 @@ function generateMonthlyReport(){
   animation: page-enter .22s ease both;
 }
 
-/* ── Sales FC particle pitch canvas ──────────────────────────────────*/
-#sfcPitchCanvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 0;
-  opacity: .55;
-  border-radius: inherit;
-}
-#sfcContent > div {
-  position: relative;
-  z-index: 1;
-}
+
 
 </style>
   </head><body>
@@ -24337,105 +24323,6 @@ function _initDashShimmer(){
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// SALES FC — PARTICLE PITCH BACKGROUND
-// ═══════════════════════════════════════════════════════════════════
-let _sfcPitchAnim = null;
-let _sfcPitchCanvas = null;
-
-function _startSfcPitch(){
-  const content = document.getElementById('sfcContent');
-  if(!content) return;
-
-  // Only run on the dark SFC container div
-  const wrap = content.querySelector('div');
-  if(!wrap || wrap.style.background === '') return;
-
-  if(_sfcPitchCanvas && _sfcPitchCanvas.parentNode){
-    _sfcPitchCanvas.parentNode.removeChild(_sfcPitchCanvas);
-  }
-  if(_sfcPitchAnim){ cancelAnimationFrame(_sfcPitchAnim); _sfcPitchAnim = null; }
-
-  const canvas = document.createElement('canvas');
-  canvas.id = 'sfcPitchCanvas';
-  _sfcPitchCanvas = canvas;
-  wrap.insertBefore(canvas, wrap.firstChild);
-  wrap.style.position = 'relative';
-
-  function resize(){
-    canvas.width  = wrap.offsetWidth;
-    canvas.height = wrap.offsetHeight;
-  }
-  resize();
-  window.addEventListener('resize', resize);
-
-  const ctx = canvas.getContext('2d');
-  const W = ()=>canvas.width, H = ()=>canvas.height;
-
-  // Particles: represent floating dust/light motes over the pitch
-  const PARTICLE_COUNT = 38;
-  const particles = Array.from({length: PARTICLE_COUNT}, ()=>({
-    x: Math.random(),
-    y: Math.random(),
-    r: 0.6 + Math.random() * 1.4,
-    vx: (Math.random() - 0.5) * 0.00012,
-    vy: -0.00004 - Math.random() * 0.00008,
-    alpha: 0.1 + Math.random() * 0.35,
-    phase: Math.random() * Math.PI * 2,
-  }));
-
-  function drawPitchLines(w, h){
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.045)';
-    ctx.lineWidth   = 1;
-    // Centre circle
-    ctx.beginPath();
-    ctx.arc(w/2, h/2, Math.min(w,h)*0.13, 0, Math.PI*2);
-    ctx.stroke();
-    // Centre line
-    ctx.beginPath(); ctx.moveTo(w/2, 0); ctx.lineTo(w/2, h); ctx.stroke();
-    // Outer border
-    const pad = Math.min(w,h)*0.06;
-    ctx.strokeRect(pad, pad, w-pad*2, h-pad*2);
-    // Penalty boxes
-    const bw = (w-pad*2)*0.28, bh = (h-pad*2)*0.45;
-    ctx.strokeRect(pad, (h-bh)/2, bw, bh);
-    ctx.strokeRect(w-pad-bw, (h-bh)/2, bw, bh);
-    // Centre dot
-    ctx.beginPath(); ctx.arc(w/2, h/2, 2.5, 0, Math.PI*2);
-    ctx.fillStyle='rgba(255,255,255,0.07)'; ctx.fill();
-    ctx.restore();
-  }
-
-  const t0 = performance.now();
-
-  function frame(now){
-    const w = W(), h = H();
-    ctx.clearRect(0, 0, w, h);
-    drawPitchLines(w, h);
-
-    const t = (now - t0) / 1000;
-    particles.forEach(p=>{
-      p.x += p.vx + Math.sin(t*0.4 + p.phase)*0.00006;
-      p.y += p.vy;
-      if(p.y < -0.02) p.y = 1.02;
-      if(p.x < 0) p.x = 1; if(p.x > 1) p.x = 0;
-
-      const pulse = 0.7 + 0.3 * Math.sin(t*1.2 + p.phase);
-      ctx.beginPath();
-      ctx.arc(p.x*w, p.y*h, p.r, 0, Math.PI*2);
-      ctx.fillStyle = `rgba(255,255,255,${p.alpha * pulse})`;
-      ctx.fill();
-    });
-    _sfcPitchAnim = requestAnimationFrame(frame);
-  }
-  _sfcPitchAnim = requestAnimationFrame(frame);
-}
-
-function _stopSfcPitch(){
-  if(_sfcPitchAnim){ cancelAnimationFrame(_sfcPitchAnim); _sfcPitchAnim = null; }
-}
-
 // ── Init everything on DOMContentLoaded ───────────────────────────
 document.addEventListener('DOMContentLoaded', function(){
   _initRipples();
@@ -24456,25 +24343,16 @@ document.addEventListener('DOMContentLoaded', function(){
 (function(){
   const _sp = window.showPage;
   window.showPage = function(id){
-    if(id !== 'salesfc') _stopSfcPitch();
     if(_sp) _sp.apply(this, arguments);
     requestAnimationFrame(function(){
       _syncInkBars();
       _initDashShimmer();
       _initRipples();
-      if(id === 'salesfc') setTimeout(_startSfcPitch, 80);
     });
   };
 })();
 
-// Hook into renderSalesFC to start pitch after render
-(function(){
-  const _orig = window.renderSalesFC;
-  if(_orig) window.renderSalesFC = function(){
-    _orig.apply(this, arguments);
-    setTimeout(_startSfcPitch, 60);
-  };
-})();
+
 </script>
 
 
