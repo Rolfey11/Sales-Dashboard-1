@@ -15476,7 +15476,167 @@ function generateMonthlyReport(){
         .no-print { display:none !important; }
         @page { size:A4; margin:1.5cm; }
       }
-    </style>
+    
+/* ═══════════════════════════════════════════════════════════════════
+   MICRO-INTERACTIONS & AMBIENT ANIMATIONS
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Ripple effect on buttons ─────────────────────────────────────── */
+.btn, .nav-tab, .sub-tab, .div-btn, button[onclick] {
+  position: relative;
+  overflow: hidden;
+}
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  transform: scale(0);
+  animation: ripple-expand .55s linear;
+  background: rgba(255,255,255,0.22);
+  pointer-events: none;
+  z-index: 10;
+}
+@keyframes ripple-expand {
+  to { transform: scale(4); opacity: 0; }
+}
+
+/* ── Nav tab sliding underline ────────────────────────────────────── */
+.nav-tabs {
+  position: relative;
+}
+.nav-tab-ink {
+  position: absolute;
+  bottom: 0;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 2px 2px 0 0;
+  transition: left .22s cubic-bezier(.4,0,.2,1), width .22s cubic-bezier(.4,0,.2,1);
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* ── Nav tab hover refinement ─────────────────────────────────────── */
+.nav-tab {
+  transition: color .15s, background .15s, transform .1s;
+}
+.nav-tab:hover { transform: translateY(-1px); }
+.nav-tab:active { transform: translateY(0); }
+
+/* ── Sub-tab animated underline ───────────────────────────────────── */
+.sub-nav {
+  position: relative;
+}
+.sub-tab-ink {
+  position: absolute;
+  bottom: -1px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: left .2s cubic-bezier(.4,0,.2,1), width .2s cubic-bezier(.4,0,.2,1);
+  pointer-events: none;
+}
+.sub-tab {
+  transition: color .15s, transform .1s;
+}
+.sub-tab:hover { transform: translateY(-1px); }
+.sub-tab:active { transform: translateY(0); }
+.sub-tab.active { border-bottom-color: transparent !important; } /* let ink handle it */
+
+/* ── Consultant/leaderboard row lift on hover ─────────────────────── */
+.lb-row {
+  transition: background .15s, transform .15s, box-shadow .15s;
+  border-radius: 6px;
+  padding-left: 6px;
+  padding-right: 6px;
+  cursor: default;
+}
+.lb-row:hover {
+  background: var(--surface2);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,0,0,.18);
+}
+.set-card {
+  transition: border-color .2s, box-shadow .2s, transform .15s;
+}
+.set-card:hover {
+  border-color: var(--border2);
+  box-shadow: 0 6px 24px rgba(0,0,0,.12);
+  transform: translateY(-1px);
+}
+/* Member toggles */
+.member-toggle {
+  transition: border-color .15s, background .15s, transform .12s, box-shadow .15s;
+}
+.member-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0,0,0,.12);
+}
+
+/* ── Dashboard header shimmer ─────────────────────────────────────── */
+@keyframes shimmer-sweep {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.dash-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.dash-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    rgba(255,255,255,0.035) 50%,
+    transparent 65%
+  );
+  background-size: 800px 100%;
+  animation: shimmer-sweep 4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── KPI card entrance animation ──────────────────────────────────── */
+@keyframes kpi-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.kpi-card {
+  animation: kpi-enter .35s ease both;
+}
+.kpi-card:nth-child(1) { animation-delay: .04s; }
+.kpi-card:nth-child(2) { animation-delay: .08s; }
+.kpi-card:nth-child(3) { animation-delay: .12s; }
+.kpi-card:nth-child(4) { animation-delay: .16s; }
+.kpi-card:nth-child(5) { animation-delay: .20s; }
+.kpi-card:nth-child(6) { animation-delay: .24s; }
+
+/* ── Page fade-in ─────────────────────────────────────────────────── */
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(6px) scale(0.995); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+.page.active {
+  animation: page-enter .22s ease both;
+}
+
+/* ── Sales FC particle pitch canvas ──────────────────────────────────*/
+#sfcPitchCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: .55;
+  border-radius: inherit;
+}
+#sfcContent > div {
+  position: relative;
+  z-index: 1;
+}
+
+</style>
   </head><body>
 
   <!-- Header -->
@@ -24083,6 +24243,238 @@ function renderNMTiming(mk){
   </div>`;
 }
 
+
+
+// ═══════════════════════════════════════════════════════════════════
+// MICRO-INTERACTIONS JS
+// ═══════════════════════════════════════════════════════════════════
+
+// ── Ripple effect ─────────────────────────────────────────────────
+function _attachRipple(el){
+  if(el._rippleAttached) return;
+  el._rippleAttached = true;
+  el.addEventListener('pointerdown', function(e){
+    const rect  = el.getBoundingClientRect();
+    const size  = Math.max(rect.width, rect.height) * 1.8;
+    const x     = e.clientX - rect.left - size/2;
+    const y     = e.clientY - rect.top  - size/2;
+    const ripple = document.createElement('span');
+    ripple.className = 'ripple';
+    ripple.style.cssText = `width:${size}px;height:${size}px;left:${x}px;top:${y}px`;
+    el.appendChild(ripple);
+    ripple.addEventListener('animationend', ()=>ripple.remove());
+  });
+}
+
+function _initRipples(){
+  document.querySelectorAll('.btn, .nav-tab, .div-btn').forEach(_attachRipple);
+}
+
+// Re-run after any dynamic render
+const _origShowPage = window.showPage;
+if(_origShowPage){
+  window.showPage = function(){
+    _origShowPage.apply(this, arguments);
+    requestAnimationFrame(_initRipples);
+  };
+}
+
+// ── Sliding nav-tab ink bar ────────────────────────────────────────
+let _navInk = null;
+
+function _moveNavInk(activeTab){
+  if(!activeTab) return;
+  const tabs = activeTab.closest('.nav-tabs');
+  if(!tabs) return;
+  if(!_navInk){
+    _navInk = document.createElement('div');
+    _navInk.className = 'nav-tab-ink';
+    tabs.appendChild(_navInk);
+  }
+  const tabRect  = activeTab.getBoundingClientRect();
+  const contRect = tabs.getBoundingClientRect();
+  _navInk.style.left  = (tabRect.left - contRect.left) + 'px';
+  _navInk.style.width = tabRect.width + 'px';
+}
+
+// ── Sliding sub-tab ink bar ────────────────────────────────────────
+const _subInks = {};
+
+function _moveSubInk(activeTab){
+  if(!activeTab) return;
+  const nav = activeTab.closest('.sub-nav');
+  if(!nav) return;
+  const navId = nav.id || (nav.id = '_subNav_' + Math.random().toString(36).slice(2));
+  if(!_subInks[navId]){
+    _subInks[navId] = document.createElement('div');
+    _subInks[navId].className = 'sub-tab-ink';
+    nav.appendChild(_subInks[navId]);
+  }
+  const ink  = _subInks[navId];
+  const tabR = activeTab.getBoundingClientRect();
+  const navR = nav.getBoundingClientRect();
+  ink.style.left  = (tabR.left - navR.left) + 'px';
+  ink.style.width = tabR.width + 'px';
+}
+
+// Observe DOM for active tab changes and move ink accordingly
+function _syncInkBars(){
+  // Nav tabs
+  const activeNav = document.querySelector('.nav-tab.active');
+  if(activeNav) _moveNavInk(activeNav);
+  // Sub tabs (all sub-navs on page)
+  document.querySelectorAll('.sub-nav').forEach(nav=>{
+    const active = nav.querySelector('.sub-tab.active');
+    if(active) _moveSubInk(active);
+  });
+}
+
+// ── Dashboard header shimmer ───────────────────────────────────────
+function _initDashShimmer(){
+  const head = document.querySelector('#page-dashboard .section-head');
+  if(head && !head.classList.contains('dash-shimmer')){
+    head.classList.add('dash-shimmer');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SALES FC — PARTICLE PITCH BACKGROUND
+// ═══════════════════════════════════════════════════════════════════
+let _sfcPitchAnim = null;
+let _sfcPitchCanvas = null;
+
+function _startSfcPitch(){
+  const content = document.getElementById('sfcContent');
+  if(!content) return;
+
+  // Only run on the dark SFC container div
+  const wrap = content.querySelector('div');
+  if(!wrap || wrap.style.background === '') return;
+
+  if(_sfcPitchCanvas && _sfcPitchCanvas.parentNode){
+    _sfcPitchCanvas.parentNode.removeChild(_sfcPitchCanvas);
+  }
+  if(_sfcPitchAnim){ cancelAnimationFrame(_sfcPitchAnim); _sfcPitchAnim = null; }
+
+  const canvas = document.createElement('canvas');
+  canvas.id = 'sfcPitchCanvas';
+  _sfcPitchCanvas = canvas;
+  wrap.insertBefore(canvas, wrap.firstChild);
+  wrap.style.position = 'relative';
+
+  function resize(){
+    canvas.width  = wrap.offsetWidth;
+    canvas.height = wrap.offsetHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const ctx = canvas.getContext('2d');
+  const W = ()=>canvas.width, H = ()=>canvas.height;
+
+  // Particles: represent floating dust/light motes over the pitch
+  const PARTICLE_COUNT = 38;
+  const particles = Array.from({length: PARTICLE_COUNT}, ()=>({
+    x: Math.random(),
+    y: Math.random(),
+    r: 0.6 + Math.random() * 1.4,
+    vx: (Math.random() - 0.5) * 0.00012,
+    vy: -0.00004 - Math.random() * 0.00008,
+    alpha: 0.1 + Math.random() * 0.35,
+    phase: Math.random() * Math.PI * 2,
+  }));
+
+  function drawPitchLines(w, h){
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.045)';
+    ctx.lineWidth   = 1;
+    // Centre circle
+    ctx.beginPath();
+    ctx.arc(w/2, h/2, Math.min(w,h)*0.13, 0, Math.PI*2);
+    ctx.stroke();
+    // Centre line
+    ctx.beginPath(); ctx.moveTo(w/2, 0); ctx.lineTo(w/2, h); ctx.stroke();
+    // Outer border
+    const pad = Math.min(w,h)*0.06;
+    ctx.strokeRect(pad, pad, w-pad*2, h-pad*2);
+    // Penalty boxes
+    const bw = (w-pad*2)*0.28, bh = (h-pad*2)*0.45;
+    ctx.strokeRect(pad, (h-bh)/2, bw, bh);
+    ctx.strokeRect(w-pad-bw, (h-bh)/2, bw, bh);
+    // Centre dot
+    ctx.beginPath(); ctx.arc(w/2, h/2, 2.5, 0, Math.PI*2);
+    ctx.fillStyle='rgba(255,255,255,0.07)'; ctx.fill();
+    ctx.restore();
+  }
+
+  const t0 = performance.now();
+
+  function frame(now){
+    const w = W(), h = H();
+    ctx.clearRect(0, 0, w, h);
+    drawPitchLines(w, h);
+
+    const t = (now - t0) / 1000;
+    particles.forEach(p=>{
+      p.x += p.vx + Math.sin(t*0.4 + p.phase)*0.00006;
+      p.y += p.vy;
+      if(p.y < -0.02) p.y = 1.02;
+      if(p.x < 0) p.x = 1; if(p.x > 1) p.x = 0;
+
+      const pulse = 0.7 + 0.3 * Math.sin(t*1.2 + p.phase);
+      ctx.beginPath();
+      ctx.arc(p.x*w, p.y*h, p.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(255,255,255,${p.alpha * pulse})`;
+      ctx.fill();
+    });
+    _sfcPitchAnim = requestAnimationFrame(frame);
+  }
+  _sfcPitchAnim = requestAnimationFrame(frame);
+}
+
+function _stopSfcPitch(){
+  if(_sfcPitchAnim){ cancelAnimationFrame(_sfcPitchAnim); _sfcPitchAnim = null; }
+}
+
+// ── Init everything on DOMContentLoaded ───────────────────────────
+document.addEventListener('DOMContentLoaded', function(){
+  _initRipples();
+  _initDashShimmer();
+
+  // Sync ink bars on any class mutation
+  const observer = new MutationObserver(()=>{
+    _syncInkBars();
+    _initRipples();
+  });
+  observer.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
+
+  // Initial sync after short delay for auth render
+  setTimeout(_syncInkBars, 600);
+});
+
+// Hook into showPage to stop/start pitch animation
+(function(){
+  const _sp = window.showPage;
+  window.showPage = function(id){
+    if(id !== 'salesfc') _stopSfcPitch();
+    if(_sp) _sp.apply(this, arguments);
+    requestAnimationFrame(function(){
+      _syncInkBars();
+      _initDashShimmer();
+      _initRipples();
+      if(id === 'salesfc') setTimeout(_startSfcPitch, 80);
+    });
+  };
+})();
+
+// Hook into renderSalesFC to start pitch after render
+(function(){
+  const _orig = window.renderSalesFC;
+  if(_orig) window.renderSalesFC = function(){
+    _orig.apply(this, arguments);
+    setTimeout(_startSfcPitch, 60);
+  };
+})();
 </script>
 
 
