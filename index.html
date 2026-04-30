@@ -23778,7 +23778,7 @@ function renderConversionFunnel(mk){
     return { name: p.name, capacity, active, hasRev, hitRPD, hasNM, fullHit, nmRate, hitRate };
   }).sort((a,b) => b.fullHit - a.fullHit || b.hitRPD - a.hitRPD);
 
-  // Division totals
+  // Division totals (person-days — used for per-consultant metrics)
   const div = rows.reduce((t,r)=>({
     capacity: t.capacity + r.capacity,
     active:   t.active   + r.active,
@@ -23788,14 +23788,16 @@ function renderConversionFunnel(mk){
     fullHit:  t.fullHit  + r.fullHit,
   }), {capacity:0, active:0, hasRev:0, hitRPD:0, hasNM:0, fullHit:0});
 
+  // For the division-level funnel, base = working days elapsed (not person-days)
+  // Each stage shows what % of those days the *team* achieved something
   const maxCap = div.capacity || 1;
   const stages = [
-    { label: 'Working days', val: div.capacity, pct: 100,                                    col: '#5e9cf5', desc: 'Total scheduled working days this period' },
-    { label: 'Days logged',  val: div.active,   pct: Math.round(div.active  /maxCap*100),    col: '#38b2ac', desc: 'Days where any entry was recorded' },
-    { label: 'Revenue days', val: div.hasRev,   pct: Math.round(div.hasRev  /maxCap*100),    col: '#2dce89', desc: 'Days with revenue > £0' },
-    { label: 'RPD hit',      val: div.hitRPD,   pct: Math.round(div.hitRPD  /maxCap*100),    col: '#fbb83a', desc: 'Days where risk-per-day target was met' },
-    { label: 'NM achieved',  val: div.hasNM,    pct: Math.round(div.hasNM   /maxCap*100),    col: '#a78bfa', desc: 'Days with at least 1 Needs Met' },
-    { label: 'Full hit',     val: div.fullHit,  pct: Math.round(div.fullHit /maxCap*100),    col: '#e879f9', desc: 'Days where both RPD and NM were achieved' },
+    { label: 'Working days', val: totalWD,      pct: 100,                                       col: '#5e9cf5', desc: `${totalWD} working days elapsed · ${people.length} consultants · ${div.capacity} total person-days scheduled` },
+    { label: 'Days logged',  val: div.active,   pct: Math.round(div.active  /maxCap*100),       col: '#38b2ac', desc: 'Person-days where any entry was recorded' },
+    { label: 'Revenue days', val: div.hasRev,   pct: Math.round(div.hasRev  /maxCap*100),       col: '#2dce89', desc: 'Person-days with revenue > £0' },
+    { label: 'RPD hit',      val: div.hitRPD,   pct: Math.round(div.hitRPD  /maxCap*100),       col: '#fbb83a', desc: 'Person-days where risk-per-day target was met' },
+    { label: 'NM achieved',  val: div.hasNM,    pct: Math.round(div.hasNM   /maxCap*100),       col: '#a78bfa', desc: 'Person-days with at least 1 Needs Met' },
+    { label: 'Full hit',     val: div.fullHit,  pct: Math.round(div.fullHit /maxCap*100),       col: '#e879f9', desc: 'Person-days where both RPD and NM were achieved' },
   ];
 
   // Division funnel SVG bars
@@ -23853,7 +23855,7 @@ function renderConversionFunnel(mk){
     <!-- Funnel -->
     <div class="set-card">
       <div class="set-title" style="margin-bottom:4px">Division Funnel · ${monthLabel(mk)}</div>
-      <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:18px">${people.length} consultants · ${totalWD} working days elapsed</div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:18px">${people.length} consultants · ${totalWD} working days elapsed · ${div.capacity} person-days capacity</div>
       ${funnelHTML}
     </div>
 
