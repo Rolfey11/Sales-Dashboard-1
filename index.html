@@ -1960,6 +1960,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <button class="nav-tab" onclick="showPage('monthlysummary')">Monthly Summary</button>
       <button class="nav-tab" onclick="showPage('leaderboard')">Leaderboard</button>
       <button class="nav-tab" onclick="showPage('salesfc')">⚽ Sales FC</button>
+      <button class="nav-tab" onclick="showPage('insights')">📈 Insights</button>
       <button class="nav-tab" onclick="showPage('history')">History</button>
       <button class="nav-tab consultant-only-tab" onclick="showPage('daybyday')">Day by Day</button>
       <button class="nav-tab consultant-only-tab" id="holidayNavTab" onclick="showPage('holiday')">Holiday</button>
@@ -4007,7 +4008,7 @@ const ROLE_ACCESS = {
   manager:    ['dashboard','biz','teams','summary','entry','monthlysummary','leaderboard',
                'history','daybyday','holiday','settings','manageroverview','staffperf','calloutcomes',
                'consultantdaily','remedialmanager','bonuscalc','dailysend','compliance',
-               'globalsearch','weeklystats'],
+               'globalsearch','weeklystats','insights'],
   compliance: ['compliance','calloutcomes','remedialmanager'],
   consultant: ['consultantdaily','teams','calloutcomes','holiday','bonuscalc']
 };
@@ -6697,6 +6698,7 @@ function renderLeaderboard(){
   function lbRows(arr, valFn, barFn, colFn){
     return arr.slice(0,rowLimit).map((p,i)=>`<div class="lb-row">
       <div class="lb-rank ${rankCls(i)}">${rankLbl(i)}</div>
+      <div style="width:28px;height:28px;flex-shrink:0">${renderAvatarEl(p.name,28)}</div>
       <div class="lb-name">${p.name}</div>
       <div class="lb-bar-bg"><div class="lb-bar-fill" style="width:${barFn(p)+'%'};background:${colFn(p)}"></div></div>
       <div class="lb-val" style="color:${colFn(p)}">${valFn(p)}</div>
@@ -7520,6 +7522,7 @@ function _refreshCurrentPage(id){
   else if(id==='monthlysummary'){ populateAllSelects(); renderMonthlySummary(); }
   else if(id==='leaderboard')  { populateAllSelects(); renderLeaderboard(); }
   else if(id==='salesfc')      { populateAllSelects(); renderSalesFC(); }
+  else if(id==='insights')     { populateAllSelects(); renderInsights(); }
   else if(id==='history')      { populateAllSelects(); renderHistory(); }
   else if(id==='daybyday')     { populateAllSelects(); renderDayByDay(); }
   else if(id==='settings')       renderSettings();
@@ -7547,6 +7550,7 @@ function showPage(id){
   if(id==='monthlysummary') { populateAllSelects(); renderMonthlySummary(); }
   if(id==='leaderboard')    { populateAllSelects(); renderLeaderboard(); }
   if(id==='salesfc')       { populateAllSelects(); renderSalesFC(); }
+  if(id==='insights')      { populateAllSelects(); renderInsights(); }
   if(id==='history')        { populateAllSelects(); renderHistory(); }
   if(id==='daybyday')       { populateAllSelects(); renderDayByDay(); }
   if(id==='holiday'){
@@ -15589,6 +15593,7 @@ function _applyDefaults(){
   if(!APP.personRROverrides) APP.personRROverrides = {};
   if(!APP.personNmRROverrides) APP.personNmRROverrides = {};
   if(!APP.people)        APP.people = [];
+  if(!APP.photos)        APP.photos = {};
 }
 
 
@@ -15777,6 +15782,7 @@ function _renderUsersTable(){
     <div style="overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;min-width:780px;">
       <thead><tr>
+        <th ${thS}>Photo</th>
         <th ${thS}>Name</th>
         <th ${thS}>Role</th>
         <th ${thS}>Team / Division</th>
@@ -15791,6 +15797,17 @@ function _renderUsersTable(){
           const isConsultant = u.role === 'consultant';
           const isSenior = !!u.isSenior;
           return `<tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:9px 12px;text-align:center;">
+              ${renderAvatarEl(u.name, 38, true)}
+              <div style="margin-top:4px">
+                <label title="Upload photo" style="cursor:pointer;font-size:10px;color:var(--accent);font-family:var(--fm)">
+                  📷
+                  <input type="file" accept="image/*" style="display:none"
+                    onchange="uploadPersonPhoto('${u.name}', this)">
+                </label>
+                ${(APP.photos||{})[u.name] ? `<span onclick="removePersonPhoto('${u.name}')" title="Remove photo" style="cursor:pointer;font-size:10px;color:var(--red);margin-left:4px">✕</span>` : ''}
+              </div>
+            </td>
             <td style="padding:9px 12px;font-weight:600;font-size:13px">
               <span id="uname_${u.id}">${u.name}</span>
               <button class="btn btn-s" onclick="editUserName('${u.id}')" style="font-size:10px;padding:2px 6px;margin-left:6px;opacity:.6;" title="Rename">✏️</button>
@@ -23084,8 +23101,12 @@ function sfcSetMetric(m){ _sfcMetric=m; renderSalesFC(); }
 function sfcSetView(v)  { _sfcView=v;   renderSalesFC(); }
 
 // Draw an inline SVG football shirt with initials
-function sfcShirt(col, initials, size){
+function sfcShirt(col, initials, size, name){
   size = size||32;
+  // If person has a photo, show circular photo instead of shirt
+  if(name && typeof APP !== 'undefined' && APP.photos && APP.photos[name]){
+    return '<img src="'+APP.photos[name]+'" style="width:'+size+'px;height:'+size+'px;border-radius:50%;object-fit:cover;flex-shrink:0;display:block;border:2px solid '+col+'">';
+  }
   var s = size, fs = Math.round(s*0.28);
   return '<svg width="'+s+'" height="'+s+'" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;display:block;">'
     +'<path d="M11 2 L5 7 L8 9 L8 27 L24 27 L24 9 L27 7 L21 2 Q18.5 5 16 5 Q13.5 5 11 2Z" fill="'+col+'" stroke="rgba(0,0,0,0.25)" stroke-width="0.8"/>'
@@ -23262,7 +23283,7 @@ function renderSalesFC(){
         // Rank
         +'<div style="width:28px;flex-shrink:0;text-align:center;">'+sfcMedal(i+1)+'</div>'
         // Shirt
-        +'<div style="flex-shrink:0;">'+sfcShirt(p.col, p.ini, 34)+'</div>'
+        +'<div style="flex-shrink:0;">'+sfcShirt(p.col, p.ini, 34, p.name)+'</div>'
         // Name & team
         +'<div style="flex:1;min-width:0;">'
           +'<div style="display:flex;align-items:center;gap:7px;">'
@@ -23318,7 +23339,7 @@ function renderSalesFC(){
         var p = personStats[name]; if(!p) return '';
         var goals = _sfcMetric==='nm'?p.goalsNm:p.goals;
         return '<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid #0a0f1a;">'
-          +sfcShirt(m.primary,p.ini,26)
+          +sfcShirt(m.primary,p.ini,26,name)
           +'<div style="flex:1;font-size:11px;color:#aab;font-weight:600;">'+p.name+'</div>'
           +'<div style="font-size:11px;font-weight:700;color:#fbb83a;font-family:monospace;">'+goals+' ⚽</div>'
         +'</div>';
@@ -23452,7 +23473,7 @@ function _sfcTodayHTML(names, today, mk){
     var badge=r.played?(w1?'🏆':'⚖'):r.played?'⚖':'⏳';
     return '<div style="background:#0d1420;border-radius:8px;padding:12px 16px;margin-bottom:8px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;">'
       +'<div style="display:flex;align-items:center;gap:8px;">'
-        +sfcShirt(col1,ini1,28)
+        +sfcShirt(col1,ini1,28,p1)
         +'<span style="font-size:12px;font-weight:'+(w1?'800':'600')+';color:'+(w1?'#fbb83a':draw?'#aab':'#556')+'">'+p1+'</span>'
       +'</div>'
       +'<div style="text-align:center;">'
@@ -23464,7 +23485,7 @@ function _sfcTodayHTML(names, today, mk){
       +'</div>'
       +'<div style="display:flex;align-items:center;gap:8px;justify-content:flex-end;">'
         +'<span style="font-size:12px;font-weight:'+(w2?'800':'600')+';color:'+(w2?'#fbb83a':draw?'#aab':'#556')+'">'+p2+'</span>'
-        +sfcShirt(col2,ini2,28)
+        +sfcShirt(col2,ini2,28,p2)
       +'</div>'
     +'</div>';
   }).join('');
@@ -23525,7 +23546,7 @@ function _sfcStandingsHTML(names, period, mk){
     var ini=n.replace(/\s+/g,'').slice(0,3).toUpperCase();
     return '<div style="display:grid;grid-template-columns:24px 32px 1fr 36px 36px 36px 44px 44px;gap:0;align-items:center;padding:9px 12px;border-bottom:1px solid #0d1520;'+(i===0?'background:rgba(251,184,58,0.05)':'')+'">'
       +'<div style="font-size:11px;color:#445;font-weight:700;text-align:center">'+(i+1)+'</div>'
-      +sfcShirt(col,ini,22)
+      +sfcShirt(col,ini,22,n)
       +'<div style="font-size:12px;font-weight:700;color:#dde;padding-left:8px">'+n+'</div>'
       +'<div style="text-align:center;font-size:11px;color:#556">'+played+'</div>'
       +'<div style="text-align:center;font-size:11px;color:var(--green)">'+r.w+'</div>'
@@ -23605,12 +23626,12 @@ function sfcRunChallenge(){
   var html='<div style="background:#0d1420;border-radius:10px;overflow:hidden;">'
     +'<div style="display:grid;grid-template-columns:1fr 80px 1fr;padding:14px;border-bottom:1px solid #1a2230;">'
       +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">'
-        +sfcShirt(s1.col,s1.ini,38)
+        +sfcShirt(s1.col,s1.ini,38,p1)
         +'<div style="font-size:13px;font-weight:800;color:#dde;">'+p1+'</div>'
       +'</div>'
       +'<div style="display:flex;align-items:center;justify-content:center;font-size:20px;color:#223;font-weight:900;">vs</div>'
       +'<div style="display:flex;flex-direction:column;align-items:flex-start;gap:6px;">'
-        +sfcShirt(s2.col,s2.ini,38)
+        +sfcShirt(s2.col,s2.ini,38,p2)
         +'<div style="font-size:13px;font-weight:800;color:#dde;">'+p2+'</div>'
       +'</div>'
     +'</div>'
@@ -23635,7 +23656,430 @@ function sfcRunChallenge(){
 
 
 
+
+
+// ═══════════════════════════════════════════════════════════════════
+// CONSULTANT PHOTO AVATARS
+// APP.photos[name] = base64 data URL
+// ═══════════════════════════════════════════════════════════════════
+
+/** Returns an HTML string: <img> if photo exists, else coloured initials circle */
+function renderAvatarEl(name, size, forceCircleOnMissing){
+  size = size || 32;
+  const photo = (APP.photos||{})[name];
+  if(photo){
+    return `<img src="${photo}" alt="${name}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;display:block;border:2px solid var(--border2);">`;
+  }
+  const palette = ['#5e9cf5','#2dce89','#f5365c','#fbb83a','#a78bfa','#38b2ac','#ed8936','#e879f9'];
+  const col = palette[(name||'').charCodeAt(0) % palette.length];
+  const initials = (name||'?').split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase() || '?';
+  const fs = Math.round(size * 0.35);
+  return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;font-size:${fs}px;font-weight:800;color:#fff;flex-shrink:0;border:2px solid var(--border2)">${initials}</div>`;
+}
+
+function uploadPersonPhoto(name, inputEl){
+  const file = inputEl.files && inputEl.files[0];
+  if(!file) return;
+  if(file.size > 400 * 1024){ showToast('Photo must be under 400 KB', 'err'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    // Compress to max 120×120 via canvas
+    const img = new Image();
+    img.onload = () => {
+      const max = 120;
+      const scale = Math.min(max/img.width, max/img.height, 1);
+      const canvas = document.createElement('canvas');
+      canvas.width  = Math.round(img.width  * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      if(!APP.photos) APP.photos = {};
+      APP.photos[name] = canvas.toDataURL('image/jpeg', 0.82);
+      saveApp();
+      _renderUsersTable();
+      showToast(`Photo saved for ${name}`);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removePersonPhoto(name){
+  if(!APP.photos || !APP.photos[name]) return;
+  delete APP.photos[name];
+  saveApp();
+  _renderUsersTable();
+  showToast(`Photo removed for ${name}`);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// INSIGHTS PAGE — Conversion Funnel + NM Timing
+// ═══════════════════════════════════════════════════════════════════
+
+let _insightsTab = 'funnel';
+
+function switchInsightsTab(tab){
+  _insightsTab = tab;
+  document.querySelectorAll('#insightsSubNav .sub-tab').forEach(b=>{
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+  renderInsights();
+}
+
+function renderInsights(){
+  populateAllSelects();
+  const mk  = document.getElementById('insightsMonth')?.value || APP.activeMonth;
+  const el  = document.getElementById('insightsContent');
+  if(!el) return;
+  if(_insightsTab === 'funnel')   el.innerHTML = renderConversionFunnel(mk);
+  else                            el.innerHTML = renderNMTiming(mk);
+}
+
+// ── Conversion Funnel ────────────────────────────────────────────────
+function renderConversionFunnel(mk){
+  const entries  = getEntries(mk);
+  const people   = (APP.people||[]).filter(p => personTargetForMonth(p, mk) > 0);
+  const today    = _localDateStr(new Date());
+  const wdDates  = workingDatesInMonth(mk).filter(ds => ds <= today);
+  const totalWD  = wdDates.length;
+
+  if(!people.length) return '<div class="empty"><div class="empty-icon">🎯</div><div>No consultants with targets set for this month.</div></div>';
+  if(!totalWD)       return '<div class="empty"><div class="empty-icon">📅</div><div>No working days elapsed yet.</div></div>';
+
+  // Per-consultant funnel data
+  const rows = people.map(p => {
+    const ep  = getPersonForMonth(p, mk);
+    const rpd = ep.riskPerDay || 0;
+    const mine = entries.filter(e => e.name === p.name);
+    const lookup = {};
+    mine.forEach(e => { lookup[e.date] = { rev: e.revenue||0, nm: e.nm||0 }; });
+
+    let capacity=0, active=0, hasRev=0, hitRPD=0, hasNM=0, fullHit=0;
+    wdDates.forEach(ds => {
+      const status = getDayStatus(mk, p.name, ds);
+      if(status === 'hol' || status === 'bh' || status === 'sick') return;
+      capacity++;
+      const d = lookup[ds];
+      if(!d) return;
+      active++;
+      if(d.rev > 0)           hasRev++;
+      if(rpd > 0 && d.rev >= rpd) hitRPD++;
+      if(d.nm  > 0)           hasNM++;
+      if(rpd > 0 && d.rev >= rpd && d.nm > 0) fullHit++;
+    });
+    const nmRate = active > 0 ? Math.round(hasNM / active * 100) : 0;
+    const hitRate = capacity > 0 ? Math.round(hitRPD / capacity * 100) : 0;
+    return { name: p.name, capacity, active, hasRev, hitRPD, hasNM, fullHit, nmRate, hitRate };
+  }).sort((a,b) => b.fullHit - a.fullHit || b.hitRPD - a.hitRPD);
+
+  // Division totals
+  const div = rows.reduce((t,r)=>({
+    capacity: t.capacity + r.capacity,
+    active:   t.active   + r.active,
+    hasRev:   t.hasRev   + r.hasRev,
+    hitRPD:   t.hitRPD   + r.hitRPD,
+    hasNM:    t.hasNM    + r.hasNM,
+    fullHit:  t.fullHit  + r.fullHit,
+  }), {capacity:0, active:0, hasRev:0, hitRPD:0, hasNM:0, fullHit:0});
+
+  const maxCap = div.capacity || 1;
+  const stages = [
+    { label: 'Working days', val: div.capacity, pct: 100,                                    col: '#5e9cf5', desc: 'Total scheduled working days this period' },
+    { label: 'Days logged',  val: div.active,   pct: Math.round(div.active  /maxCap*100),    col: '#38b2ac', desc: 'Days where any entry was recorded' },
+    { label: 'Revenue days', val: div.hasRev,   pct: Math.round(div.hasRev  /maxCap*100),    col: '#2dce89', desc: 'Days with revenue > £0' },
+    { label: 'RPD hit',      val: div.hitRPD,   pct: Math.round(div.hitRPD  /maxCap*100),    col: '#fbb83a', desc: 'Days where risk-per-day target was met' },
+    { label: 'NM achieved',  val: div.hasNM,    pct: Math.round(div.hasNM   /maxCap*100),    col: '#a78bfa', desc: 'Days with at least 1 Needs Met' },
+    { label: 'Full hit',     val: div.fullHit,  pct: Math.round(div.fullHit /maxCap*100),    col: '#e879f9', desc: 'Days where both RPD and NM were achieved' },
+  ];
+
+  // Division funnel SVG bars
+  const funnelHTML = stages.map((s,i) => {
+    const w = Math.max(4, s.pct);
+    const dropPct = i > 0 ? Math.round((1 - s.val / (stages[i-1].val||1))*100) : 0;
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:3px">
+        <div style="width:140px;font-size:11px;font-weight:700;color:var(--text2);text-align:right;flex-shrink:0">${s.label}</div>
+        <div style="flex:1;background:var(--surface3);border-radius:4px;height:28px;overflow:hidden;position:relative">
+          <div style="width:${w}%;height:100%;background:${s.col};border-radius:4px;opacity:.85;transition:width .6s ease"></div>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;padding-left:10px;font-size:12px;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.5)">${s.val} days <span style="font-weight:400;opacity:.7;margin-left:6px">(${s.pct}%)</span></div>
+        </div>
+        ${i > 0 && dropPct > 0 ? `<div style="width:60px;font-size:10px;color:var(--red);font-family:var(--fm);flex-shrink:0">↓ ${dropPct}% drop</div>` : '<div style="width:60px"></div>'}
+      </div>
+      <div style="margin-left:150px;font-size:10px;color:var(--text3);font-family:var(--fm)">${s.desc}</div>
+    </div>`;
+  }).join('');
+
+  // Per-consultant table
+  const tableRows = rows.map(r => {
+    const hitPct = r.capacity > 0 ? Math.round(r.hitRPD/r.capacity*100) : 0;
+    const nmPct  = r.active   > 0 ? Math.round(r.hasNM /r.active  *100) : 0;
+    const fullPct= r.capacity > 0 ? Math.round(r.fullHit/r.capacity*100): 0;
+    const hitCol = hitPct>=80?'var(--green)':hitPct>=50?'var(--amber)':'var(--red)';
+    const nmCol  = nmPct >=80?'var(--green)':nmPct >=50?'var(--amber)':'var(--red)';
+    const fullCol= fullPct>=60?'var(--green)':fullPct>=30?'var(--amber)':'var(--red)';
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:10px 12px;display:flex;align-items:center;gap:8px">
+        ${renderAvatarEl(r.name, 28)}
+        <span style="font-size:12px;font-weight:600">${r.name}</span>
+      </td>
+      <td style="padding:10px 12px;text-align:center;font-size:12px;font-family:var(--fm)">${r.capacity}</td>
+      <td style="padding:10px 12px;text-align:center;font-size:12px;font-family:var(--fm)">${r.active}</td>
+      <td style="padding:10px 12px;text-align:center">
+        <span style="font-size:13px;font-weight:700;color:${hitCol}">${hitPct}%</span>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--fm)">${r.hitRPD}/${r.capacity}d</div>
+      </td>
+      <td style="padding:10px 12px;text-align:center">
+        <span style="font-size:13px;font-weight:700;color:${nmCol}">${nmPct}%</span>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--fm)">${r.hasNM}/${r.active}d</div>
+      </td>
+      <td style="padding:10px 12px;text-align:center">
+        <span style="font-size:13px;font-weight:700;color:${fullCol}">${fullPct}%</span>
+        <div style="font-size:10px;color:var(--text3);font-family:var(--fm)">${r.fullHit}/${r.capacity}d</div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const thS = `style="padding:9px 12px;background:var(--surface2);font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;border-bottom:1px solid var(--border)"`;
+
+  return `
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+
+    <!-- Funnel -->
+    <div class="set-card">
+      <div class="set-title" style="margin-bottom:4px">Division Funnel · ${monthLabel(mk)}</div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:18px">${people.length} consultants · ${totalWD} working days elapsed</div>
+      ${funnelHTML}
+    </div>
+
+    <!-- Summary stats -->
+    <div class="set-card">
+      <div class="set-title" style="margin-bottom:16px">Key Ratios</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        ${[
+          { label:'Login Rate',    val: div.capacity>0?Math.round(div.active/div.capacity*100):0,   sub:'Days with any entry',    col:'#38b2ac' },
+          { label:'RPD Hit Rate',  val: div.capacity>0?Math.round(div.hitRPD/div.capacity*100):0,   sub:'Days target was met',    col:'#fbb83a' },
+          { label:'NM Rate',       val: div.active>0  ?Math.round(div.hasNM/div.active*100):0,       sub:'Of logged days',         col:'#a78bfa' },
+          { label:'Full Hit Rate', val: div.capacity>0?Math.round(div.fullHit/div.capacity*100):0,  sub:'RPD + NM same day',      col:'#e879f9' },
+        ].map(k=>`<div style="background:var(--surface2);border-radius:10px;padding:14px;border-left:3px solid ${k.col}">
+          <div style="font-size:10px;font-weight:700;color:var(--text3);font-family:var(--fm);letter-spacing:.07em;text-transform:uppercase;margin-bottom:6px">${k.label}</div>
+          <div style="font-size:28px;font-weight:800;color:${k.col}">${k.val}%</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:2px">${k.sub}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+  </div>
+
+  <!-- Per-consultant breakdown -->
+  <div class="set-card">
+    <div class="set-title" style="margin-bottom:2px">Per-Consultant Breakdown</div>
+    <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:14px">Sorted by full-hit days · hover rows for detail</div>
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;min-width:600px">
+        <thead><tr>
+          <th ${thS} style="text-align:left">Consultant</th>
+          <th ${thS} style="text-align:center">Capacity</th>
+          <th ${thS} style="text-align:center">Logged</th>
+          <th ${thS} style="text-align:center">RPD Hit</th>
+          <th ${thS} style="text-align:center">NM Rate</th>
+          <th ${thS} style="text-align:center">Full Hit</th>
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+// ── NM Timing Analysis ───────────────────────────────────────────────
+function renderNMTiming(mk){
+  const entries = getEntries(mk);
+  const people  = (APP.people||[]).filter(p => personTargetForMonth(p, mk) > 0);
+  const today   = _localDateStr(new Date());
+
+  if(!people.length) return '<div class="empty"><div class="empty-icon">⏰</div><div>No consultants with targets set.</div></div>';
+
+  const days  = ['Mon','Tue','Wed','Thu','Fri'];
+  const [yr, mo] = mk.split('-').map(Number);
+  const daysInMo = new Date(yr, mo, 0).getDate();
+
+  // Build day-of-week × week-of-month grid
+  // grid[dow][week] = { nm: total, count: days }
+  const grid = Array.from({length:5},()=>Array.from({length:5},()=>({nm:0,count:0})));
+  // Per-person by-dow totals
+  const perPersonDow = {}; // name → [mon,tue,wed,thu,fri] NM sums
+
+  for(let d=1; d<=daysInMo; d++){
+    const ds  = mk+'-'+String(d).padStart(2,'0');
+    if(ds > today) continue;
+    const date = new Date(ds+'T12:00:00');
+    const dow  = date.getDay(); // 0=Sun,6=Sat
+    if(dow===0||dow===6) continue; // skip weekends
+    const dowIdx = dow - 1; // 0=Mon..4=Fri
+
+    // Week of month (1-based)
+    const weekIdx = Math.floor((d-1) / 7);
+    const clampedWeek = Math.min(weekIdx, 4);
+
+    const dayNM = entries.filter(e=>e.date===ds).reduce((s,e)=>s+(e.nm||0),0);
+    const peopleActive = people.filter(p=>{
+      const status = getDayStatus(mk,p.name,ds);
+      return status!=='hol'&&status!=='bh'&&status!=='sick';
+    }).length;
+
+    grid[dowIdx][clampedWeek].nm    += dayNM;
+    grid[dowIdx][clampedWeek].count += peopleActive;
+
+    // Per-person
+    entries.filter(e=>e.date===ds).forEach(e=>{
+      if(!perPersonDow[e.name]) perPersonDow[e.name]=[0,0,0,0,0];
+      perPersonDow[e.name][dowIdx] += (e.nm||0);
+    });
+  }
+
+  // Heatmap cells — colour by avg NM per person-day
+  const allAvgs = [];
+  grid.forEach(row=>row.forEach(cell=>{
+    if(cell.count>0) allAvgs.push(cell.nm/cell.count);
+  }));
+  const maxAvg = Math.max(0.01, ...allAvgs);
+
+  function heatColor(avg){
+    if(avg<=0) return 'var(--surface3)';
+    const t = Math.min(1, avg/maxAvg);
+    const r = Math.round(45  + t*(45-45));   // green family
+    const g = Math.round(206 + t*(168-206));
+    const b = Math.round(137 + t*(60-137));
+    return `rgba(${45+Math.round(t*100)},${206-Math.round(t*40)},${137-Math.round(t*60)},${0.2+t*0.75})`;
+  }
+
+  // Find best dow
+  const dowTotals = days.map((_, di)=>
+    grid[di].reduce((s,c)=>s+(c.count>0?c.nm/c.count:0),0)
+  );
+  const bestDow = days[dowTotals.indexOf(Math.max(...dowTotals))];
+
+  // Determine number of weeks that have data
+  const weeksWithData = [];
+  for(let w=0;w<5;w++){
+    if(grid.some(row=>row[w].count>0)) weeksWithData.push(w);
+  }
+
+  const heatmapHTML = `
+    <table style="border-collapse:separate;border-spacing:4px;width:100%">
+      <thead>
+        <tr>
+          <th style="font-size:10px;color:var(--text3);font-family:var(--fm);text-transform:uppercase;letter-spacing:.07em;text-align:left;padding:4px 8px">Day</th>
+          ${weeksWithData.map(w=>`<th style="font-size:10px;color:var(--text3);font-family:var(--fm);text-transform:uppercase;letter-spacing:.07em;text-align:center;padding:4px 8px">Wk ${w+1}</th>`).join('')}
+          <th style="font-size:10px;color:var(--text3);font-family:var(--fm);text-transform:uppercase;letter-spacing:.07em;text-align:center;padding:4px 8px">Avg</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${days.map((day,di)=>{
+          const rowAvg = weeksWithData.length>0
+            ? (weeksWithData.reduce((s,w)=>s+(grid[di][w].count>0?grid[di][w].nm/grid[di][w].count:0),0) / weeksWithData.length)
+            : 0;
+          return `<tr>
+            <td style="font-size:12px;font-weight:700;color:var(--text2);padding:4px 8px;white-space:nowrap">${day}</td>
+            ${weeksWithData.map(w=>{
+              const cell = grid[di][w];
+              const avg  = cell.count>0 ? cell.nm/cell.count : -1;
+              const bg   = avg>=0 ? heatColor(avg) : 'var(--surface3)';
+              const lbl  = avg>0 ? avg.toFixed(1) : cell.count>0?'0':'—';
+              return `<td style="background:${bg};border-radius:6px;text-align:center;padding:10px 8px;font-size:13px;font-weight:700;color:var(--text);font-family:var(--fm)" title="${cell.nm} NM total, ${cell.count} person-days">${lbl}</td>`;
+            }).join('')}
+            <td style="text-align:center;padding:4px 8px;font-size:12px;font-weight:700;color:${rowAvg>0?'var(--green)':'var(--text3)'};font-family:var(--fm)">${rowAvg>0?rowAvg.toFixed(2):'—'}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+
+  // Per-person dow breakdown
+  const personRows = people.filter(p=>perPersonDow[p.name]).map(p=>{
+    const d = perPersonDow[p.name]||[0,0,0,0,0];
+    const total = d.reduce((s,v)=>s+v,0);
+    const best  = d.indexOf(Math.max(...d));
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="width:28px;height:28px;flex-shrink:0">${renderAvatarEl(p.name,28)}</div>
+      <div style="width:120px;font-size:12px;font-weight:600;flex-shrink:0">${p.name}</div>
+      <div style="flex:1;display:flex;gap:6px">
+        ${days.map((day,di)=>{
+          const v = d[di];
+          const isBest = di===best&&v>0;
+          return `<div style="flex:1;text-align:center">
+            <div style="height:40px;display:flex;align-items:flex-end;justify-content:center">
+              <div style="width:100%;background:${isBest?'var(--green)':'var(--surface3)'};border-radius:3px 3px 0 0;height:${total>0?Math.round(v/Math.max(...d)*36)+4:4}px;transition:height .4s;opacity:${v>0?1:0.4}"></div>
+            </div>
+            <div style="font-size:10px;color:var(--text3);font-family:var(--fm);margin-top:2px">${day}</div>
+            <div style="font-size:11px;font-weight:${isBest?'800':'400'};color:${isBest?'var(--green)':'var(--text2)'}">${v||0}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="width:60px;text-align:right;font-size:11px;font-family:var(--fm);flex-shrink:0">
+        <div style="color:var(--text3)">Total</div>
+        <div style="font-size:14px;font-weight:700;color:var(--text)">${total}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+
+    <!-- Heatmap -->
+    <div class="set-card">
+      <div class="set-title" style="margin-bottom:4px">NM by Day × Week · ${monthLabel(mk)}</div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:14px">Average NM per active consultant-day · darker = more NM</div>
+      ${heatmapHTML}
+      <div style="margin-top:14px;padding:10px 14px;background:var(--green-bg);border-radius:8px;border-left:3px solid var(--green);font-size:12px;color:var(--text2)">
+        📈 Best day for NM: <strong style="color:var(--green)">${bestDow}</strong>
+      </div>
+    </div>
+
+    <!-- Day-of-week summary bar chart -->
+    <div class="set-card">
+      <div class="set-title" style="margin-bottom:4px">Day-of-Week NM Distribution</div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:18px">Total NM accumulated per weekday across the month</div>
+      ${days.map((day,di)=>{
+        const total = grid[di].reduce((s,c)=>s+c.nm,0);
+        const maxT  = Math.max(1,...days.map((_,di2)=>grid[di2].reduce((s,c)=>s+c.nm,0)));
+        const pct   = Math.round(total/maxT*100);
+        const isBest= day===bestDow;
+        return `<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+          <div style="width:36px;font-size:12px;font-weight:700;color:var(--text2);text-align:right">${day}</div>
+          <div style="flex:1;background:var(--surface3);border-radius:4px;height:24px;overflow:hidden">
+            <div style="width:${pct}%;height:100%;background:${isBest?'var(--green)':'var(--accent)'};border-radius:4px;opacity:.8"></div>
+          </div>
+          <div style="width:40px;font-size:12px;font-weight:700;color:${isBest?'var(--green)':'var(--text)'};text-align:right;font-family:var(--fm)">${total}</div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>
+
+  <!-- Per-consultant NM timing -->
+  <div class="set-card">
+    <div class="set-title" style="margin-bottom:2px">Per-Consultant NM Timing</div>
+    <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:16px">Bar height = NM volume per weekday · highlighted bar = personal best day</div>
+    ${personRows || '<div style="color:var(--text3);font-size:12px;font-family:var(--fm)">No NM data recorded yet for this month.</div>'}
+  </div>`;
+}
+
 </script>
+
+
+<!-- INSIGHTS PAGE -->
+<div class="page" id="page-insights">
+  <div class="section-head">
+    <div>
+      <div class="section-title">📈 Insights</div>
+      <div class="section-sub">Conversion funnel, NM timing analysis and productivity patterns</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select id="insightsMonth" onchange="renderInsights()" style="width:160px"></select>
+    </div>
+  </div>
+  <div class="sub-nav" id="insightsSubNav">
+    <button class="sub-tab active" data-tab="funnel"  onclick="switchInsightsTab('funnel')">🎯 Conversion Funnel</button>
+    <button class="sub-tab"        data-tab="nmtiming" onclick="switchInsightsTab('nmtiming')">⏰ NM Timing</button>
+  </div>
+  <div id="insightsContent" style="min-height:300px;"></div>
+</div>
 
 <!-- Global Search page -->
 <div class="page" id="page-globalsearch"></div>
