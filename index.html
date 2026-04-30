@@ -12862,20 +12862,22 @@ const _TEAM_PALETTE = ['#5e9cf5','#2dce89','#fbb83a','#a78bfa','#f5365c','#56cfb
 /** Returns [{key, label, color, members, managerName}] derived from managers/masters
  *  in the current division who have direct reports assigned. */
 function getDivisionTeams(){
-  const people   = APP.people || [];
-  const drMap    = APP.directReports || {};
-  const mgrs     = people.filter(p => p.role === 'manager' || p.role === 'master');
-  const teams    = [];
-  mgrs.forEach((mgr, i) => {
-    const members = [...new Set(drMap[mgr.name] || [])];
-    if(!members.length) return;
-    const firstName = mgr.name.split(' ')[0];
+  const drMap = APP.directReports || {};
+  const teams = [];
+  // Build from directReports keys — anyone who has been assigned reports is a "team lead"
+  // Sort by name for consistent ordering
+  const mgrNames = Object.keys(drMap)
+    .filter(name => (drMap[name]||[]).length > 0)
+    .sort();
+  mgrNames.forEach((name, i) => {
+    const members   = [...new Set(drMap[name])];
+    const firstName = name.split(' ')[0];
     teams.push({
-      key        : mgr.name,
+      key        : name,
       label      : 'Team ' + firstName,
       color      : _TEAM_PALETTE[i % _TEAM_PALETTE.length],
       members,
-      managerName: mgr.name
+      managerName: name
     });
   });
   return teams;
