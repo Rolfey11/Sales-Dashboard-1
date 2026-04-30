@@ -4425,6 +4425,7 @@ function _initApp(divKey){
   if(_appInited) return;
   _appInited = true;
   _currentDivKey = divKey || 'branch';
+  _resetTeamTabs();
   const dbKey = (DIVISIONS[_currentDivKey]||DIVISIONS.branch).dbKey;
   _currentDbRef = _db.ref(dbKey);
   _dbRef = _currentDbRef;
@@ -7095,8 +7096,19 @@ function updatePerson(i, field, val){
 }
 
 function removePerson(i){
-  if(!confirm('Remove '+APP.people[i].name+'? Their data will remain in history.')) return;
+  const person = APP.people[i];
+  if(!person) return;
+  if(!confirm('Remove '+person.name+'? Their data will remain in history.')) return;
+  const name = person.name;
   APP.people.splice(i,1);
+  // Remove from any direct reports lists
+  Object.keys(APP.directReports||{}).forEach(mgr => {
+    APP.directReports[mgr] = (APP.directReports[mgr]||[]).filter(n => n !== name);
+    if(!APP.directReports[mgr].length) delete APP.directReports[mgr];
+  });
+  // Remove as a manager key too
+  if(APP.directReports && APP.directReports[name]) delete APP.directReports[name];
+  _invalidateDivTeamsCache();
   saveApp();
   renderSettings();
 }
@@ -7447,7 +7459,8 @@ function createNewMonth(){
 
 function clearAllData(){
   if(!confirm('Delete ALL data and consultants? This cannot be undone.')) return;
-  APP={people:[],months:{},activeMonth:todayKey(),teams:{g:[],james:[],damo:[]},bizTargets:{},holidays:{},sickness:{},monthOverrides:{},manualElapsed:null};
+  if(!confirm('Are you absolutely sure? All entries, targets and people will be permanently deleted.')) return;
+  APP={people:[],months:{},activeMonth:todayKey(),teams:{},directReports:{},bizTargets:{},holidays:{},sickness:{},absences:{},allowances:{},rrOverrides:{},personRROverrides:{},personNmRROverrides:{},nmRates:{},monthOverrides:{},manualElapsed:null};
   APP.months[APP.activeMonth]={entries:[]};
   _writeLocalViewMonth(APP.activeMonth);
   saveApp();
@@ -12858,6 +12871,8 @@ function renderBizTarget(){
 // TEAMS
 // ═══════════════════════════════════════════════════════════════════
 let _currentTeamTab = null; // set dynamically from first available team
+/** Reset team tab when switching divisions so stale keys don't persist */
+function _resetTeamTabs(){ _currentTeamTab = null; _divTeamsCache = null; _divTeamsCacheKey = ''; }
 // Legacy static labels kept for any stored compliance/remedial records that used old keys
 const TEAM_LABELS_LEGACY = { g:'Team G', james:'Team James', damo:'Team Damo' };
 const TEAM_LABELS = TEAM_LABELS_LEGACY; // alias for remaining backward-compat references
@@ -12865,7 +12880,17 @@ const _TEAM_PALETTE = ['#5e9cf5','#2dce89','#fbb83a','#a78bfa','#f5365c','#56cfb
 
 /** Returns [{key, label, color, members, managerName}] derived from managers/masters
  *  in the current division who have direct reports assigned. */
+let _divTeamsCache = null;
+let _divTeamsCacheKey = '';
+
+/** Invalidate the getDivisionTeams cache (call after directReports change) */
+function _invalidateDivTeamsCache(){ _divTeamsCache = null; _divTeamsCacheKey = ''; }
+
 function getDivisionTeams(){
+  // Cache bust key: serialise directReports keys + lengths
+  const cacheKey = JSON.stringify(Object.keys(APP.directReports||{}).sort().map(k=>[k,(APP.directReports[k]||[]).length]));
+  if(_divTeamsCache && _divTeamsCacheKey === cacheKey) return _divTeamsCache;
+  _divTeamsCacheKey = cacheKey;
   const drMap = APP.directReports || {};
   const teams = [];
   // Build from directReports keys — anyone who has been assigned reports is a "team lead"
@@ -12885,7 +12910,8 @@ function getDivisionTeams(){
     });
   });
   return teams;
-}
+
+  _divTeamsCache = teams;}
 
 /** Resolve a team label from either a dynamic manager-name key or a legacy key */
 function getTeamLabel(key){
@@ -12985,22 +13011,37 @@ function renderTeams(){
     _currentTeamTab = visibleTeams[0]?.key || null;
   }
 
+  // If still no tab (no teams configured), show guidance
+  if(!_currentTeamTab && _currentTeamTab !== 'assign'){
+    const container = document.getElementById('teamTabContent');
+    if(container) container.innerHTML='<div class="empty"><div class="empty-icon">👥</div><div>No teams configured yet.<br>Use <strong>⚙ Direct Reports</strong> above to assign consultants to managers — each manager\'s reports will appear as a team tab.</div></div>';
+    return;
+  }
+
   renderTeamTabContent();
 }
 
 function renderTeamTabContent(){
   const container = document.getElementById('teamTabContent');
+  if(!container) return;
   if(_currentTeamTab==='assign'){
     renderTeamAssign(container);
-  } else {
+  } else if(_currentTeamTab){
     renderTeamDashboard(container, _currentTeamTab);
+  } else {
+    // No teams set up yet
+    container.innerHTML='<div class="empty"><div class="empty-icon">👥</div><div>No teams set up yet.<br>Go to <strong>Settings → Direct Reports</strong> to assign consultants to managers.</div></div>';
   }
 }
 
 function renderTeamAssign(container){
   if(!APP.directReports) APP.directReports = {};
-  const managers = (APP.people||[]).filter(p => p.role==='manager'||p.role==='master');
-  const consultants = (APP.people||[]).filter(p => p.role==='consultant');
+  // Get managers from _allUsers (role-based) since they may not be in APP.people
+  const allUsersList = typeof _allUsers !== 'undefined' ? Object.values(_allUsers||{}) : [];
+  const managers = allUsersList.length
+    ? allUsersList.filter(u => u.role==='manager'||u.role==='master').sort((a,b)=>a.name.localeCompare(b.name))
+    : (APP.people||[]).filter(p => p.role==='manager'||p.role==='master');
+  const consultants = (APP.people||[]).filter(p => p.role!=='manager'&&p.role!=='master'&&p.role!=='compliance');
 
   if(managers.length === 0){
     container.innerHTML = `<div class="empty"><div class="empty-icon">👤</div><div>No managers or masters found in this division.<br>Add managers in <strong>Settings → Users &amp; Roles</strong> first.</div></div>`;
@@ -13044,6 +13085,7 @@ function toggleDirectReport(managerName, consultantName, checked){
   } else {
     APP.directReports[managerName] = APP.directReports[managerName].filter(n=>n!==consultantName);
   }
+  _invalidateDivTeamsCache();
   saveApp();
   renderTeamAssign(document.getElementById('teamTabContent'));
 }
@@ -15551,6 +15593,7 @@ function _applyDefaults(){
 
 
 function _syncConsultantsFromUsers(){
+  if(!_dbLoadedSuccessfully) return; // Never save before first load confirmed
   if(!_allUsers || !Object.keys(_allUsers).length) return;
   if(!APP.people) APP.people = [];
   const divKey = _currentDivKey || 'branch';
@@ -15571,13 +15614,13 @@ _dbRef.once('value').then(snap=>{
   const data = snap.val();
   if(data){ APP = data; }
   _applyDefaults();
-  _syncConsultantsFromUsers();
   // ── DATA-LOSS PROTECTION: only allow saves once we've confirmed a
   // successful load. If `data` was null, this is a genuinely empty division
   // (first-time use) and saves are safe. If `data` was populated, we've
   // captured it and saves will preserve it.
   _dbLoadedSuccessfully = true;
   _lastSavedFootprint = _appFootprint(APP);
+  _syncConsultantsFromUsers(); // Must run after _dbLoadedSuccessfully = true
   // Restore this user's local month preference — must run AFTER _applyDefaults
   _initLocalViewMonth();
   setSyncStatus('live');
@@ -15595,6 +15638,7 @@ _dbRef.once('value').then(snap=>{
     if(!remote) return;
     APP = remote;
     _applyDefaults();
+    _syncConsultantsFromUsers();
     // Update footprint baseline from trusted remote data
     _lastSavedFootprint = _appFootprint(APP);
     // IMPORTANT: restore this user's local month — don't let another user's
@@ -18187,19 +18231,24 @@ function saveDirectReports(){
     if(!APP.directReports[k]||!APP.directReports[k].length) delete APP.directReports[k];
   });
 
+  _invalidateDivTeamsCache();
   saveApp();
   document.getElementById('directReportModal').classList.remove('open');
   renderDirectReports();
+  populateCoTeamSelects();
   showToast(`Direct reports saved for ${mgr} (${selected.length} people) ✓`);
 
   // Refresh team-based pages if open
   const activePage = document.querySelector('.page.active')?.id;
   if(activePage==='page-calloutcomes') loadCallOutcomes();
+  if(activePage==='page-teams'){ renderTeams(); }
+  if(activePage==='page-daybyday'){ renderDayByDay(); }
 }
 
 function clearDirectReports(mgr){
   if(!confirm(`Remove all direct reports from ${mgr}?`)) return;
   if(APP.directReports && APP.directReports[mgr]) delete APP.directReports[mgr];
+  _invalidateDivTeamsCache();
   saveApp();
   renderDirectReports();
   showToast(`Cleared reports for ${mgr}`);
@@ -23353,7 +23402,7 @@ function _sfcGetDayFixtures(names, dateStr){
   var isOdd = n % 2 !== 0;
   if(isOdd) list.push(null); // bye slot
   var sz = list.length;
-  var numRounds = sz - 1;
+  var numRounds = Math.max(1, sz - 1);
   var d = new Date(dateStr);
   var dayNum = Math.floor(d.getTime() / 86400000);
   var round  = dayNum % numRounds;
@@ -23379,7 +23428,8 @@ function _sfcDayResult(p1, p2, dateStr, mk){
     var dayE=entries.filter(function(e){return e.name===name&&e.date===dateStr;});
     var rev=dayE.reduce(function(s,e){return s+(e.revenue||0);},0);
     var nm =dayE.reduce(function(s,e){return s+(e.nm||0);},0);
-    return {goals:rpd>0?Math.floor(rev/rpd):0, nm:nm, score:(rpd>0?Math.floor(rev/rpd):0)+nm};
+    var g = (rpd>0&&rev>0)?Math.floor(rev/rpd):0;
+    return {goals:g, nm:nm, score:g+nm};
   }
   var s1=gs(p1),s2=gs(p2);
   return {p1:p1,p2:p2,s1:s1,s2:s2,
@@ -23423,9 +23473,9 @@ function _sfcTodayHTML(names, today, mk){
   var numRounds = (names.length%2===0?names.length-1:names.length);
   return '<div style="font-size:10px;color:#445;font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-bottom:10px">Today\'s Fixtures · '+today+' · Round '+((Math.floor(new Date(today).getTime()/86400000)%numRounds)+1)+'/'+numRounds+'</div>'
     +rows
-    +'<div style="margin-top:8px;font-size:10px;color:#334;font-family:monospace">Tomorrow: '
-    +nextPairs.map(function(p){return p[0]+' vs '+p[1];}).join(' · ')
-    +'</div>';
+    +(nextPairs.length?'<div style="margin-top:8px;padding:8px 10px;background:#080e18;border-radius:6px;font-size:10px;color:#334;font-family:monospace">Tomorrow\'s fixtures: '
+    +nextPairs.map(function(p){return p[0]+' vs '+p[1];}).join(' &nbsp;·&nbsp; ')
+    +'</div>':'');
 }
 
 function _sfcStandingsHTML(names, period, mk){
@@ -23435,12 +23485,15 @@ function _sfcStandingsHTML(names, period, mk){
   // Get all dates in range
   var allDates = [];
   var entries = getEntries(mk);
-  var datesInMonth = workingDatesInMonth(mk);
-  if(period==='week'){
-    allDates = datesInMonth.filter(function(d){return d>=weekStart&&d<=today;});
-  } else {
-    allDates = datesInMonth.filter(function(d){return d<=today;});
+  // Use all calendar days (not just working days) so weekend entries count
+  var [yr, mo] = mk.split('-').map(Number);
+  var daysInMo = new Date(yr, mo, 0).getDate();
+  var monthStart = mk + '-01';
+  for(var _di=1;_di<=daysInMo;_di++){
+    var _ds = mk+'-'+(String(_di).padStart(2,'0'));
+    if(_ds<=today) allDates.push(_ds);
   }
+  if(period==='week') allDates = allDates.filter(function(d){return d>=weekStart;});
   // Compute standings
   var record = {}; // name -> {w,d,l,gf,ga,pts}
   names.forEach(function(n){ record[n]={w:0,d:0,l:0,gf:0,ga:0,pts:0}; });
