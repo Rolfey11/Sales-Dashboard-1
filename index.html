@@ -6250,7 +6250,8 @@ function renderDashboard(){
 
     let totalTodayRev=0, totalTodayNM=0, totalTodayRevRR=0, totalTodayNmRR=0;
 
-    const teamCards = teamDefs.map(({key,label})=>{
+    const teamCards = teamDefs.map((t)=>{
+      const {key,label} = t;
       const members = [...new Set(t.members||[])]; // direct reports from dynamic teams
       const ts = stats.filter(s=>members.includes(s.name)&&s.target>0);
 
