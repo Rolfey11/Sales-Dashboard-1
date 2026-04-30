@@ -23158,23 +23158,22 @@ function renderSalesFC(){
     return allE;
   }
 
-  // Build per-person stats — only consultants registered in THIS division
+  // Build per-person stats — ONLY users registered in _allUsers for this division
+  // Never fall back to APP.people as it may contain stale entries from other divisions
   var divKey = _currentDivKey || 'branch';
-  var divConsultants = typeof _allUsers !== 'undefined'
-    ? Object.values(_allUsers||{}).filter(function(u){
-        return u.role==='consultant' && (u.divKey===divKey || (!u.divKey && divKey==='branch'));
-      }).map(function(u){ return u.name; })
-    : [];
-  // Fallback: if _allUsers not populated, use APP.people (all consultants in this division's data)
-  var divPeopleNames = divConsultants.length
-    ? divConsultants
-    : (APP.people||[]).map(function(p){ return p.name; });
+  var registeredNames = Object.values(_allUsers||{})
+    .filter(function(u){
+      return u.role === 'consultant' &&
+             (u.divKey === divKey || (!u.divKey && divKey === 'branch'));
+    })
+    .map(function(u){ return u.name; });
 
   var personStats = {};
   var kitIdx = 0;
 
+  // Only include APP.people entries that are registered users in this division
   (APP.people||[]).filter(function(person){
-    return divPeopleNames.indexOf(person.name) > -1;
+    return registeredNames.indexOf(person.name) > -1;
   }).forEach(function(person, pi){
     var ep  = getPersonForMonth(person, mk);
     var rpd = ep&&ep.riskPerDay?ep.riskPerDay:0;
