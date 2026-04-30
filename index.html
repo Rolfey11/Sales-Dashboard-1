@@ -19190,7 +19190,9 @@ function startActivityTicker(){
   const ref = _activityRef();
   if(!ref) return;
   if(_activityListener) _activityListener.off();
-  _activityListener = ref.orderByChild('ts').limitToLast(30);
+  // orderByChild('ts') requires ".indexOn":"ts" in Firebase rules to avoid performance warning.
+  // We limitToLast without server-side ordering and sort client-side instead.
+  _activityListener = ref.limitToLast(50);
   _activityListener.on('value', snap=>{
     const val = snap.val()||{};
     _activityItems = Object.values(val)
@@ -19211,7 +19213,7 @@ function _logActivity(type, name, amount, extra){
     date: _localDateStr(new Date())
   }).then(()=>{
     // Count total entries; only trim if we exceed 50
-    ref.orderByChild('ts').once('value').then(snap=>{
+    ref.limitToLast(50).once('value').then(snap=>{
       const val = snap.val()||{};
       const entries = Object.entries(val).sort((a,b)=>a[1].ts-b[1].ts);
       const excess = entries.length - 50;
@@ -23156,11 +23158,24 @@ function renderSalesFC(){
     return allE;
   }
 
-  // Build per-person stats
+  // Build per-person stats — only consultants registered in THIS division
+  var divKey = _currentDivKey || 'branch';
+  var divConsultants = typeof _allUsers !== 'undefined'
+    ? Object.values(_allUsers||{}).filter(function(u){
+        return u.role==='consultant' && (u.divKey===divKey || (!u.divKey && divKey==='branch'));
+      }).map(function(u){ return u.name; })
+    : [];
+  // Fallback: if _allUsers not populated, use APP.people (all consultants in this division's data)
+  var divPeopleNames = divConsultants.length
+    ? divConsultants
+    : (APP.people||[]).map(function(p){ return p.name; });
+
   var personStats = {};
   var kitIdx = 0;
 
-  (APP.people||[]).forEach(function(person, pi){
+  (APP.people||[]).filter(function(person){
+    return divPeopleNames.indexOf(person.name) > -1;
+  }).forEach(function(person, pi){
     var ep  = getPersonForMonth(person, mk);
     var rpd = ep&&ep.riskPerDay?ep.riskPerDay:0;
     var mine    = entries.filter(function(e){return e.name===person.name;});
