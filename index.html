@@ -2078,11 +2078,8 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <select id="teamsMonth" onchange="renderTeams()" style="width:180px"></select>
     </div>
   </div>
-  <div class="sub-nav">
-    <button class="sub-tab active" onclick="switchTeamTab('g')">Team G</button>
-    <button class="sub-tab" onclick="switchTeamTab('james')">Team James</button>
-    <button class="sub-tab" onclick="switchTeamTab('damo')">Team Damo</button>
-    <button class="sub-tab" onclick="switchTeamTab('assign')" style="margin-left:auto;color:var(--accent)">⚙ Assign Members</button>
+  <div class="sub-nav" id="teamsSubNav">
+    <!-- Dynamically populated by renderTeams() based on managers with direct reports -->
   </div>
   <div id="teamTabContent"></div>
 </div>
@@ -2209,9 +2206,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
   </div>
   <div class="sub-nav" id="dbdSubNav">
     <button class="sub-tab active" onclick="switchDbdTab('overall')">Overall</button>
-    <button class="sub-tab" onclick="switchDbdTab('g')">Team G</button>
-    <button class="sub-tab" onclick="switchDbdTab('james')">Team James</button>
-    <button class="sub-tab" onclick="switchDbdTab('damo')">Team Damo</button>
+    <!-- Team tabs dynamically populated by renderDayByDay() based on managers with direct reports -->
   </div>
   <div id="dbdContent"></div>
 </div>
@@ -2753,9 +2748,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
           <div class="field-lbl">Team</div>
           <select id="cf_team" onchange="updateCompColleagues()">
             <option value="">— Select team —</option>
-            <option value="g">Team G</option>
-            <option value="james">Team James</option>
-            <option value="damo">Team Damo</option>
+            <!-- Populated dynamically by populateCoTeamSelects() -->
           </select>
         </div>
         <div>
@@ -2924,9 +2917,7 @@ input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(94
       <div class="field-lbl" style="margin-bottom:6px">Team</div>
       <select id="co_team" onchange="applyCoFilters()" style="width:150px">
         <option value="">All Teams</option>
-        <option value="g">Team G</option>
-        <option value="james">Team James</option>
-        <option value="damo">Team Damo</option>
+        <!-- Populated dynamically by populateCoTeamSelects() -->
       </select>
     </div>
     <div>
@@ -5144,7 +5135,8 @@ function renderHoliday(){
     let people = APP.people.filter(p => personTargetForMonth(p, mk) > 0);
     if(!people.length) people = APP.people.slice();
     if(teamFilter !== 'all'){
-      const members = (APP.teams[teamFilter])||[];
+      const _dynHolT = getDivisionTeams().find(t=>t.key===teamFilter);
+      const members = _dynHolT ? _dynHolT.members : ((APP.teams&&APP.teams[teamFilter])||[]);
       people = people.filter(p => members.includes(p.name));
     }
 
@@ -5592,7 +5584,8 @@ function renderHolTotals(){
     people = [];
   }
   if(teamFilter !== 'all'){
-    const members = APP.teams[teamFilter]||[];
+    const _dynHolT2 = getDivisionTeams().find(t=>t.key===teamFilter);
+    const members = _dynHolT2 ? _dynHolT2.members : ((APP.teams&&APP.teams[teamFilter])||[]);
     people = people.filter(p => members.includes(p.name));
   }
 
@@ -5707,7 +5700,8 @@ function renderHolSummaryFilter(){
   const teamFilter = document.getElementById('holSumTeam')?.value || 'all';
   let people = APP.people.slice();
   if(teamFilter !== 'all'){
-    const members = APP.teams[teamFilter]||[];
+    const _dynHolT2 = getDivisionTeams().find(t=>t.key===teamFilter);
+    const members = _dynHolT2 ? _dynHolT2.members : ((APP.teams&&APP.teams[teamFilter])||[]);
     people = people.filter(p => members.includes(p.name));
   }
   const sel = document.getElementById('holSumPerson');
@@ -5727,7 +5721,7 @@ function renderHolSummary(){
   const personF    = document.getElementById('holSumPerson')?.value || 'all';
 
   let people = APP.people.slice();
-  if(teamFilter !== 'all'){ const m=APP.teams[teamFilter]||[]; people=people.filter(p=>m.includes(p.name)); }
+  if(teamFilter !== 'all'){ const _dt=getDivisionTeams().find(t=>t.key===teamFilter); const m=_dt?_dt.members:((APP.teams&&APP.teams[teamFilter])||[]); people=people.filter(p=>m.includes(p.name)); }
   if(personF !== 'all') people = people.filter(p=>p.name===personF);
   if(!people.length){
     document.getElementById('holSumContent').innerHTML = `
@@ -5880,10 +5874,10 @@ function _populateHolSelects(){
     sel.innerHTML = yrs.map(y=>`<option value="${y}"${y===String(curYr)?' selected':''}>${y}</option>`).join('');
     if(yrs.includes(prev)) sel.value = prev;
   });
-  // Team selectors
-  const teamEntries = Object.entries(APP.teams||{}).filter(([,m])=>m&&m.length>0);
+  // Team selectors — use dynamic teams from managers+directReports
+  const _dynTeamsHol = getDivisionTeams();
   const teamOpts = '<option value="all">All Teams</option>' +
-    teamEntries.map(([k])=>`<option value="${k}">${TEAM_LABELS[k]||k}</option>`).join('');
+    _dynTeamsHol.map(t=>`<option value="${t.key.replace(/"/g,'&quot;')}">${t.label}</option>`).join('');
   ['holTeamFilter','holTotTeam','holSumTeam'].forEach(id => {
     const sel = document.getElementById(id);
     if(!sel) return;
@@ -6247,11 +6241,7 @@ function renderDashboard(){
     </div>`;
 
   // ── Team summary strips ──────────────────────────────────────────
-  const teamDefs = [
-    {key:'g',    label:'Team G'},
-    {key:'james',label:'Team James'},
-    {key:'damo', label:'Team Damo'}
-  ];
+  const teamDefs = getDivisionTeams();
   const teamSummaryRow = document.getElementById('teamSummaryRow');
   if(teamSummaryRow){
     const todayStr       = _localDateStr(new Date());
@@ -6261,7 +6251,7 @@ function renderDashboard(){
     let totalTodayRev=0, totalTodayNM=0, totalTodayRevRR=0, totalTodayNmRR=0;
 
     const teamCards = teamDefs.map(({key,label})=>{
-      const members = [...new Set((APP.teams&&APP.teams[key])||[])]; // dedupe
+      const members = [...new Set(t.members||[])]; // direct reports from dynamic teams
       const ts = stats.filter(s=>members.includes(s.name)&&s.target>0);
 
       // ── Today's performance ──────────────────────────────────────
@@ -7059,10 +7049,19 @@ function updatePerson(i, field, val){
       entries.forEach(e=>{ if(e.name===oldName) e.name=newName; });
     });
 
-    // 2. Team assignments
+    // 2. Team assignments (legacy APP.teams + directReports)
     Object.keys(APP.teams||{}).forEach(tk=>{
       APP.teams[tk] = (APP.teams[tk]||[]).map(n=>n===oldName?newName:n);
     });
+    // Also update directReports lists
+    Object.keys(APP.directReports||{}).forEach(mgr=>{
+      APP.directReports[mgr] = (APP.directReports[mgr]||[]).map(n=>n===oldName?newName:n);
+    });
+    // If the renamed person was a manager key themselves, migrate their entry
+    if(APP.directReports && APP.directReports[oldName]!==undefined){
+      APP.directReports[newName] = APP.directReports[oldName];
+      delete APP.directReports[oldName];
+    }
 
     // 3. Holidays
     Object.keys(APP.holidays||{}).forEach(mk=>{
@@ -7480,6 +7479,9 @@ function populateAllSelects(){
     hp.innerHTML = `<option value="all">All consultants</option>`+
       APP.people.map(p=>`<option value="${p.name}"${p.name===cur?' selected':''}>${p.name}</option>`).join('');
   }
+
+  // Repopulate dynamic team selects in compliance forms
+  if(typeof populateCoTeamSelects === 'function') populateCoTeamSelects();
 }
 
 function showToast(msg, type){
@@ -7627,8 +7629,10 @@ function renderMonthlySummary(){
 
   // Helpers
   function getTeam(name){
+    const dynT = getDivisionTeams().find(t=>t.members.includes(name));
+    if(dynT) return dynT.label;
     const k = Object.keys(APP.teams||{}).find(k=>(APP.teams[k]||[]).includes(name));
-    return k ? TEAM_LABELS[k] : '—';
+    return k ? getTeamLabel(k) : '—';
   }
   function personCOP(name){ return calcTeamCOP(mk,[name]); }
 
@@ -7642,8 +7646,10 @@ function renderMonthlySummary(){
     const revDiff  = p.revMTD - p.target;
     const nmDiff   = p.nmMTD  - p.nmTarget;
     const teamLabel= getTeam(p.name);
-    const teamKey  = Object.keys(APP.teams||{}).find(k=>(APP.teams[k]||[]).includes(p.name));
-    const teamCol  = teamKey ? TEAM_COLORS[teamKey] : 'var(--text3)';
+    // Find team via dynamic directReports first, then legacy APP.teams
+    const dynT    = getDivisionTeams().find(t=>t.members.includes(p.name));
+    const teamKey = dynT ? dynT.key : Object.keys(APP.teams||{}).find(k=>(APP.teams[k]||[]).includes(p.name));
+    const teamCol = teamKey ? getTeamColor(teamKey) : 'var(--text3)';
     return { ...p, cop, revToday, revDiff, nmDiff, teamLabel, teamKey, teamCol };
   });
 
@@ -8516,12 +8522,12 @@ function _populateSpSelectors(){
   const data = _spDivData;
   const teams = data.teams || {};
 
-  // Team selector
+  // Team selector — use dynamic teams
   const teamSel = document.getElementById('spTeamSel');
   const prevTeam = teamSel.value || 'all';
-  const teamEntries = Object.entries(teams).filter(([,m]) => m && m.length > 0);
+  const _dynTeamsSP = getDivisionTeams();
   teamSel.innerHTML = '<option value="all">All Teams</option>' +
-    teamEntries.map(([k]) => `<option value="${k}">${TEAM_LABELS[k]||k}</option>`).join('');
+    _dynTeamsSP.map(t => `<option value="${t.key.replace(/"/g,'&quot;')}">${t.label}</option>`).join('');
   teamSel.value = prevTeam;
 
   // Consultant selector
@@ -8537,7 +8543,8 @@ function _populateSpCons(){
 
   let people = (data.people || []).slice();
   if(teamFilter !== 'all'){
-    const members = (data.teams||{})[teamFilter] || [];
+    const _spDynT2 = getDivisionTeams().find(t=>t.key===teamFilter);
+    const members = _spDynT2 ? _spDynT2.members : ((data.teams||{})[teamFilter] || []);
     people = people.filter(p => members.includes(p.name));
   }
   // Only show people who have at least one month configured
@@ -8572,7 +8579,8 @@ function renderSpTable(){
 
   let people = (data.people || []).slice();
   if(teamFilter !== 'all'){
-    const members = (data.teams||{})[teamFilter] || [];
+    const _spDynT = getDivisionTeams().find(t=>t.key===teamFilter);
+    const members = _spDynT ? _spDynT.members : ((data.teams||{})[teamFilter] || []);
     people = people.filter(p => members.includes(p.name));
   }
   if(consFilter !== 'all' && consFilter !== '__div__'){
@@ -8585,7 +8593,7 @@ function renderSpTable(){
   }
 
   const divLabel  = DIVISIONS[_spDivKey].label;
-  const teamLabel = teamFilter !== 'all' ? (TEAM_LABELS[teamFilter]||teamFilter) : 'All Teams';
+  const teamLabel = teamFilter !== 'all' ? getTeamLabel(teamFilter) : 'All Teams';
   const consLabel = consFilter !== 'all' && consFilter !== '__div__'
     ? consFilter + ' — Senior Consultant'
     : 'All Consultants (Combined)';
@@ -9183,6 +9191,29 @@ function renderCompliancePage(){
   clearComplianceForm(false);
 }
 
+function populateCoTeamSelects(){
+  const teams = getDivisionTeams();
+  const teamOptHtml = teams.map(t =>
+    `<option value="${t.key.replace(/"/g,'&quot;')}">${t.label}</option>`
+  ).join('');
+
+  // Compliance form team select
+  const cfTeam = document.getElementById('cf_team');
+  if(cfTeam){
+    const cur = cfTeam.value;
+    cfTeam.innerHTML = '<option value="">— Select team —</option>' + teamOptHtml;
+    if(cur) cfTeam.value = cur;
+  }
+
+  // Compliance filter team select
+  const coTeam = document.getElementById('co_team');
+  if(coTeam){
+    const cur2 = coTeam.value;
+    coTeam.innerHTML = '<option value="">All Teams</option>' + teamOptHtml;
+    if(cur2) coTeam.value = cur2;
+  }
+}
+
 function updateCompColleagues(){
   const teamKey = document.getElementById('cf_team')?.value || '';
   const sel = document.getElementById('cf_colleague');
@@ -9191,7 +9222,9 @@ function updateCompColleagues(){
     sel.innerHTML = '<option value="">— Select team first —</option>';
     return;
   }
-  const members = (APP.teams&&APP.teams[teamKey]) || [];
+  // Use dynamic teams (directReports) first, then legacy APP.teams
+  const dynTeam = getDivisionTeams().find(t => t.key === teamKey);
+  const members = dynTeam ? dynTeam.members : ((APP.teams&&APP.teams[teamKey]) || []);
   const people  = APP.people.filter(p => members.includes(p.name));
   if(!people.length){
     sel.innerHTML = '<option value="">No consultants in this team</option>';
@@ -9260,7 +9293,7 @@ function _getCompFormData(){
   const data = {
     id:          Date.now().toString(36)+Math.random().toString(36).slice(2,6),
     submittedAt: new Date().toISOString(),
-    team:        (()=>{ const s=document.getElementById('cf_team'); return s ? (TEAM_LABELS[s.value]||s.value||'') : ''; })(),
+    team:        (()=>{ const s=document.getElementById('cf_team'); return s ? (getTeamLabel(s.value)||s.value||'') : ''; })(),
     teamKey:     document.getElementById('cf_team')?.value||'',
     colleague:   document.getElementById('cf_colleague')?.value?.trim()||'',
     assessor:    document.getElementById('cf_assessor')?.value?.trim()||'',
@@ -10150,7 +10183,10 @@ function applyCoFilters(){
   const from        = document.getElementById('co_from')?.value||'';
   const to          = document.getElementById('co_to')?.value||'';
 
-  const teamMembers = teamKey ? ((APP.teams&&APP.teams[teamKey])||[]) : null;
+  const dynTeamForFilter = teamKey ? getDivisionTeams().find(t=>t.key===teamKey) : null;
+  const teamMembers = teamKey
+    ? (dynTeamForFilter ? dynTeamForFilter.members : ((APP.teams&&APP.teams[teamKey])||[]))
+    : null;
 
   _coFiltered = _coAllData.filter(d=>{
     // ── Hard scope gate: never show records outside allowed colleagues ──
@@ -10350,7 +10386,7 @@ function _renderCoTable(){
     const rowClick = `onclick="viewCoAssessment('${d.id}')" style="border-bottom:1px solid var(--border);background:${rowBg};font-size:12px;font-family:var(--fm);cursor:pointer;transition:background .15s;" onmouseover="this.style.background='rgba(94,156,245,0.08)'" onmouseout="this.style.background='${rowBg}'"`;
     return `<tr ${rowClick}>
       <td style="padding:8px 10px;font-weight:600;white-space:nowrap;border:1px solid var(--border)">${d.colleague||'—'}</td>
-      <td style="padding:8px 10px;white-space:nowrap;border:1px solid var(--border)">${d.teamKey?(TEAM_LABELS[d.teamKey]||d.team||'—'):d.team||'—'}</td>
+      <td style="padding:8px 10px;white-space:nowrap;border:1px solid var(--border)">${d.teamKey?(getTeamLabel(d.teamKey)||d.team||'—'):d.team||'—'}</td>
       <td style="padding:8px 10px;white-space:nowrap;border:1px solid var(--border)">${d.assessor||'—'}</td>
       <td style="padding:8px 10px;white-space:nowrap;border:1px solid var(--border)">${d.brand||'—'}</td>
       <td style="padding:8px 10px;white-space:nowrap;border:1px solid var(--border)">${d.dateObs||'—'}</td>
@@ -10432,7 +10468,7 @@ function exportCallOutcomesCSV(){
     const s3 = _sectionScore(d,[9,10,11,12]);
     const s4 = _sectionScore(d,[13,14,15,16,17,18,19]);
     const remedial = d.initialOutcome==='Fail'||d.regCompliant==='No'?'Yes':'No';
-    csv += [d.dateObs,d.colleague,d.teamKey?TEAM_LABELS[d.teamKey]||d.team:d.team,d.assessor,d.brand,d.leadSource,
+    csv += [d.dateObs,d.colleague,d.teamKey?getTeamLabel(d.teamKey)||d.team:d.team,d.assessor,d.brand,d.leadSource,
       _outcomeLabel(d.initialOutcome),_outcomeLabel(d.initialOutcome),d.regCompliant,
       s1!==null?s1.toFixed(1)+'%':'—',s2!==null?s2.toFixed(1)+'%':'—',
       s3!==null?s3.toFixed(1)+'%':'—',s4!==null?s4.toFixed(1)+'%':'—',
@@ -12817,18 +12853,60 @@ function renderBizTarget(){
 // ═══════════════════════════════════════════════════════════════════
 // TEAMS
 // ═══════════════════════════════════════════════════════════════════
-let _currentTeamTab = 'g';
-const TEAM_LABELS = { g:'Team G', james:'Team James', damo:'Team Damo' };
-const TEAM_COLORS = { g:'#5e9cf5', james:'#2dce89', damo:'#fbb83a' };
+let _currentTeamTab = null; // set dynamically from first available team
+// Legacy static labels kept for any stored compliance/remedial records that used old keys
+const TEAM_LABELS_LEGACY = { g:'Team G', james:'Team James', damo:'Team Damo' };
+const TEAM_LABELS = TEAM_LABELS_LEGACY; // alias for remaining backward-compat references
+const _TEAM_PALETTE = ['#5e9cf5','#2dce89','#fbb83a','#a78bfa','#f5365c','#56cfb2','#fb923c','#e879f9'];
+
+/** Returns [{key, label, color, members, managerName}] derived from managers/masters
+ *  in the current division who have direct reports assigned. */
+function getDivisionTeams(){
+  const people   = APP.people || [];
+  const drMap    = APP.directReports || {};
+  const mgrs     = people.filter(p => p.role === 'manager' || p.role === 'master');
+  const teams    = [];
+  mgrs.forEach((mgr, i) => {
+    const members = [...new Set(drMap[mgr.name] || [])];
+    if(!members.length) return;
+    const firstName = mgr.name.split(' ')[0];
+    teams.push({
+      key        : mgr.name,
+      label      : 'Team ' + firstName,
+      color      : _TEAM_PALETTE[i % _TEAM_PALETTE.length],
+      members,
+      managerName: mgr.name
+    });
+  });
+  return teams;
+}
+
+/** Resolve a team label from either a dynamic manager-name key or a legacy key */
+function getTeamLabel(key){
+  if(!key) return '—';
+  if(TEAM_LABELS_LEGACY[key]) return TEAM_LABELS_LEGACY[key];
+  const t = getDivisionTeams().find(t => t.key === key);
+  if(t) return t.label;
+  return key;
+}
+/** Resolve a team color from either a dynamic key or legacy key */
+function getTeamColor(key){
+  const legacyColors = { g:'#5e9cf5', james:'#2dce89', damo:'#fbb83a' };
+  if(legacyColors[key]) return legacyColors[key];
+  const t = getDivisionTeams().find(t => t.key === key);
+  return t ? t.color : 'var(--accent)';
+}
 const TEAM_DAMO_IMG = 'data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAD1ASwDASIAAhEBAxEB/8QAHQABAAEFAQEBAAAAAAAAAAAAAAcDBAUGCAIBCf/EAEUQAAEDAwIDBQUEBwUIAwEAAAEAAgMEBREGIRIxQQcTIlFhFHGBkaEIMkKxFSNSgsHR4RYkQ2KSFzNTcnOisvBjs8Lx/8QAGgEBAAMBAQEAAAAAAAAAAAAAAAECBAMFBv/EACwRAAICAgIBBAIABQUAAAAAAAABAgMEERIhMRMiMkFRYQUUIzPwQlJxkbH/2gAMAwEAAhEDEQA/AOMkREAREQBERAEREAREQBERAEREAVWmp56qdsFNDJNK84ayNpc4n3BZDT9kqLu6fu3iOOFrS95aSN3AY295O/kpLgu9Lp7Tslk0xStphK3FXcXsHtdQerQ8fcZnbhbgkDc7kKrlosotkex6P1I6IzPtU0EIeIzLORGwOPQucQB8VbXLT91oKl1PLBHK8NDs007J2497CQs9V94ZAah5c4DYE5x6K4tFXDS1HeSQxSAchKOIfL+oTkyGjSp6apgJE9PLERz42EY+aorf7vVVU8ntJLmt6AjAH1OFTp6q1T0T6G52ejmY/JFRGzu543H8QeOfucHD0HNNjRoiLIXe2SUD+JkjZ6d33ZW/kR0Kx6sQEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBVKeGSoqI4IWF8kjgxjRzJJwAvABJwBklSzoihotL6cnnqaZsmoK3bjdgijg6tA6SOPM9AAOZKrKXFbLRi5PSLOnhisbJbBAXeF5MpcAHOk5HODggY2/qqMtJWScPcwSO8gGkqd+x3sj9vZHqHUEJ4phxwQSDcNPJzvUqdrVoux00bBDbYBwDAPAF508rUvaj1a8H2+5nEti0Bqu+ztjpLVPl+4e9vCMfFX9z7LtWWqAz1Fqla0DJfjIXdtPa4WcPBCxmOXC0DCr1NniniMckTXtI5OCr/NWFv5WldM/OCqoZ4yWStfkbeIbj3Z5fALHy07o/FwYb0z/X+S/QC89l2mLiXPqrbGXEbkDHw2Ueaw+z9pmrp3S2wSUdQNx4i5p+C6QzP9yOc8CL+DOR6N8BJjqIe8jcMOHosLqaxS2sQ1kXjoKouEEgOdxjLT5EZHv+alzXPZPfNOMkq3wNqKZm7nwg+EeeFqVvEMkElPUNbNEWlzWOaH52O4zzx5c/ULXXdGfcTDbjzq+RGyK+vsMMFykigiMTRg8IfxN33BaTvwkYIB3Gd8qxXY4BERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAX+n3SMvVJJEG8TJQ/JbkDG+cei6U7CdDjU98bcrlF/cKZwldG7cPdzaw+fmVAnZ1bnVtzmlMRdHFHu7GwJI2+hXc/YXbm0Wj6ZvCGueC5xxzJWDMs1qKPRwat+5m/2+laxmwAA8gs1SRAAbKlCxoZ05K9p3RsA4nALDFdnoWTeivFGBzVcsBxyXlkkbjwtcCqo32C7JIwyb2W8zAOm6xdyjaYj4eSzTx1csfXcHA4ZCpOPR1pn2aVdbfDUscx7A5rgQQQuYe3Ts3ZpivZqGzRllFUS5fE0bRSeXuP8wus6ljRIcEbrV9f2OnvenKy11DQ9s0Z4c9HdD81xqsdctm26Cthpn546xo/ZL3I5reGOoaJmD38/qCsMpA7QbDUsirJXhwfbT+t4+fCXtZ8dy36qP170JKUdo+dsg4SaYREVigREQBERAEREAREQBERAEREAREQBERAEREAREQBERAfWtLnBrQSScADquiuzHsZtdFQw3LVUAra+RoeKRx/VQ56OH4needvQ81B+gzANb2M1IBh/SEHGD5d4F2kpSN2FVGW5SNH1LaKefUFpstupIqeIgfq4IwwDLvIe5dB6ZtotNogpQfExgBPqols0bZe1C2cTR4Q3f54Us6vkqIbHUCklbFO5pbG88mk9V42W/6jZ6dRgtX9p9tsBkghzPIzILgcji8h5qKa7tsvVZIHxh8LQ/hLWN2A9eq2amtFlttH7Rc/77UyOAJLS7iefwsbzK0XWuptNwPfTQMt8U4JbwmQvIOMkHumuaDjpxZHVZYbn0ls7+2P6JQ0L2k1FXLG2rmf+s4Q7jG+ff8AJTTb7vBLA1/eDcLjnRVwq6m5R+zQsc3IIdE7jaf4hdTaGohU2cS1LXMkxggqYykpaGRXBwUmXOrNUxW2hkm4/ug9VBOsO2i50txxSxtZAxo4s7mRx8s8gtj7axV05NPR8TgSoONFNNVl1xpomxcX3p52RNP+pQpOT7OkKYwgnEl3TXbXa7jwx1sL4pMAHJ5n5KQLTfLffKYy2+oZM0HD253afUKGbFaNHxQsmqaOKJsvh78SMlhz5GRhIaffhbLpywtsWqoKy1eGnmPBJEOoPX1CrJpMq10Rr9oLT4t0up+8B7muovaYj/mY9jv/AMlcvrtP7VtHDV6XHEXCX2KZzcHH3cO/guLF7GE91ng5q/qbCIi2GMIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAiIgMnpON82qbTFGCXvrYWtx5l4Xb1NBNUztgp4nSyO+61oySuZPs76NqrtqeLUdTC5tttzuKN7htLN+EDz4eZPoPNdLujlkjc2CZ8Mgw5r2OwWkEHIKic+EHL8Hr/AMOqbXf2y+07ZKtnaHb31FPJGQwuw4Y3b/8A0KT73RvqadrGt67nGVTEQN2sk73NdI1r43kjclzM5+bVtUMDScYC8Sxu1tmqT4MgzVvZ7c75O7++1FDTsYWd4zmWn7zWjpnYE88bdStYuvZNpKW5xzVwqpJPCBTUjHtYeEAbMaP4rqZtJH3eOEHK8tpI4yXMja0+gVK6pw+LKPLhPqS2RBojs4t1ormXmG1PpJWRNij76VxdwAYGWA45eeSpPtEQjpXbbk55KpXvaRw+qrUreGnJDTuusYaYssco7Zp2pqOGaaXjgbLxgtyQCR6jPVc/a07K6K4SupJr1UxVD5HPjlq4mkvyMcI5NIHphdK3Vo4+E7HORlfWW+juNOYKylgnY7m2Rgc0/ArnpqW4vs1co8Pd4OXLP2T3ezUknsNe19ZJKHe0vOGFmMFj2AkPBHmpG0ParjQUzKOqBLIH/qmuBJjHPhDurfLO+FMFFpOz0W9LRNi9GuJA+BOF8q7bE2QEMbjouVsbZvcmVhdWlxijn37WmKTQYrHYbmCWEE+buEY+q4nX6f6nt1FUOpn1VHHVinEkkcT2ggnh9VwB9oCl9n7S62Z1PT00lWxs8kUDAxjHEkYAH/L8ea9LCsSfp/fk83Nobh6u+l1/6R+iIvRPLCIiAIiIAiIgCIiAIiIAiIgCIiAIsxpzTN/1FN3VmtVTWYOHPYzDG+9x2HxKkmw9gl+qWtfeLrR29p5siaZnj8h9SmjpCmc/iiHkXStq7B9J04Brqy5Vzuo7xsbT8AM/VbPbuzDQdCB3WnKWQjrOXS5/1EqdGiOFY/JyIAScAZKyts0zqK5kC32O41IPIx0zyPnjC7IoLLZ6AAUNqoaXHLuadrPyCv1OjqsD8yOV7L2M65uBaZqGnt8Z/FUzgH5NyfopG0l2EWeilZUahr5Lm9u/cRDu4s+pzxO+imJE0d4Ylcf2UaKlpqKkjpKOCOnp4m8MccbQ1rR5ABZSxQtqLnFTu5SHH8f4KxVainNNWQ1A5xvDvkVWyPODj+TVF8XtG60T5J79X33jk4KQQRMaT4Q3vPEce78ypJhmHCHDktUudFHFZbhNSb97ROxH05ZB96udKV3ttgpZw8Pd3Ya4+ZC8CtcXxZN2rPcvBtbKpnInkk9SO7PQBYjiw47qlWVDjGWMySV2c9IzrHjstLtdaeB8jqh/DFEwvefIALRKbtstNbaHV9s7+SOOpdTObJEWEPHv6Ecir/W98s+m7TI+5yd5JP4eAeInI+iiGpullvNNDRQsNso2ylzGsa1oc47l7sdfVZnaz1K8eEkm10SVpvtY07qu9Vlopql/tsA4jxsLQT14T1UhWqtYQzBHL5rmGnvdpst8jvAtEEk0TuHvYzwve0bZd0Pmp307dKG9WynuVrna7jaC+LiHE09R8FDn3tCylJaN+kqx3eQfksfLU5zl2clYw1LjEHNdg9Qrc1GZw0k5O/orersyKpRRTuNW46jpohxGOOndxgDY8ZAGf9K4O+0+4f7a77A12W05ijHp+ra783Fd2ackZW1l4rXy8MUc3dZPTgYM/DdfnX2oX1mpu0S/X6Ikw1ldLJF/0+LDP+0BbcCO5uZj/iE9VqH+f52a2iIvUPHCIiAIiIAiIgCIiAIiIAiIgPUTHyyNjjY573kNa1oyXE8gAp97MOxWnighuusGGWZwDmW8HDWf9Qjmf8o288rB/Zk0vBcLzV6jrIxIy3kR0wcMjvXDJd72j/yz0XRSskejiY6a5yKVJTU9HTMpqSCKnhjGGRxsDWtHoAqqIpPQCIiEhERAEREAQ8kRAb/UampYtLNY2VslS+mEYaDkh3DjfyXnsxrA23VFLICwRy7E9VoSv7HdzS1c8QcG+FrcZ6nz+vyXkZlCq1YmWi9riS73rS3PXplRtr3tDfaq91vpGBjmHhc47lzvL0wqlNqx9KfZ6kl0rz4Gnn/QbqN7npK7al1FLR0dRwuLw587m5EZdvk+a8ydnJpGiqpLbkWmoIq+/QyXKrnDYpXjLXuyTj0VvSaToqq6QSTXyOnpWgZ42HxHHToPety0Z2VXe1XDj1eajUELZx3fshxiPgdzYS38QaMDPP0Wzvi0NS01PBU9n+rxIw/d/RRcSc7+IOIO/qunpSXg7PJj403/AMER12k7dGJIKe7e1Rtf4ZW7AjqDnpgK1pa2o0wKGrpa1hgjkAG5wdz8jhS3V2XSN072Cl0BqSibJ3be+qKQQtGDu77+Rz3wN1F967F9RSiuu7Ll7LTMcX09u4i8nfYE8uXvRV7+TErU4+2P/ZMOh9VRagoO+2bKCM7g8QPVZuadrGcZO2cEqGuzgOsNvmr3EgxsEbo84Bdn+nNbYNVQ1VtfO1zmx92X4fsRjmFwT0zlKH2bJoivgOjLjM+RpfJNUOeCd9/CPyCgTWnY3pe/F9TQNdZq125dTtBicfWPl/pwpEtwfDb4oi5wyxvGM8zjqqy+jxaHVDTZjtjCx9o5V1P2PazsznPp6Nl1pxykpHcTserDh3yytCq6Wpo5zBV081PK3myVha4fArudWlztluucPc3GgpayP9meJrx9QtOjDPBi/izh1F1hd+yHQdxJcLS6iefxUszmf9py36LUrn9n61vybbqCsg8hPC2T6jhUaM8sKxeOznxFMFw7AtSRZNFd7ZUjoH8cZP0I+q1649j2vqMEttEdU0dYKhjvoSD9E0cnj2LzE0BFmrppTU1sya+wXKnaObnUzuH54wsMQQcEYIUHJpryfEREICIiAIiIDo77LE0btG3KAY7xlwLne50bMf8AiVL65t+zFfBQ6wqrNK/EdxgywE/4keSP+0v+S6SVkeziS5VIIiKTSEREAREQBERAEREAWD1PVS26SlrG/wC5c/upvQn7p/MfFZqaSOGJ0s0jI42jLnPcAAPUlUNBXjSuur3eNGwVXtZktr5Hyxt8DC2RmC13UgkHb13XDJipVNMrKajrZhqnUENZqJoY1kz2vAAG4Ow2/qpr0C+k/R7XNLHSyAF7sbnyXJ10betIawuNmr2n2lnhBBwJBsQ5p8iN/opN7MtVGmlaeHvOGPJcZAG89/gvAsrdepHZT5ridCXS801Ewd88N6brWqrtBt1NViD2lrnuYXAMeHbD8virmstBvtuaScNkaDxcv/Qon1N2XX591ldZ3R7u8WXHqCD/AB+ierZv9HSqFetMkX/aDaaub2Wesa0k4wTnG+OnqR81kZayKel7xozGG5AO2cqNtGdk88ToZrpK1r4j4ow7PXc/QK67Xb+ywxw0YJEIPjljduDjwghc5zsl0WcYLpGpdoFwZaWVTWvZ3dU8gN58LiDz9OS1yxz/AKcmo6SB7+EEPqN+QbzHx2HxWr6pvk96svts1SHdw4N5ji649/L8lvvZHYaui0dFf6xrQbrI7uf2uBm2/vOfktmJjba5HCy7lLSNvREXvFAiIgCIiAIiIAsVd9N6fu7SLnZaCrJ/FJA0u+eMhZVEIaT8kX6g7ENH3AOfbzV2qU8u6k42f6XZPyIUZaq7E9V2lr5rYYbxA3f9T4Jcf8h5/AldOoo0Z54tc/rRwvV01RSVD6eqglgmYcPjkYWuafUHkqS7O1fo/T+q6QwXmgjleBhk7PDLH7nc/gcj0XOPaf2X3fRznVsBdcLQTtUNb4ovISDp7+R9OShowXYsq+12iP0RFBlMhpu6TWW/0F2gJ7yknZKAOoB3HxGR8V2zSzx1VLFUwu4opWB7D5gjIK4WXZfZk+V/Z5p902eM2+HOfLgGPorI9DAl20bEiIpPSCIiAIiIAiIgCL49zWML3ua1rRkuccAD1Wjat7TbDaIHx22Vt0reTWRH9W0+bn8vgM/BCk7IwW5M1Xt/u00txprFG94gZD3soacAucTjPuA+qyH2RI6Wh7TmubUiWaottQwtbyYA5hwfXbKiTUV2uF7uM1wuU5lmlOT0aB0AHQBSR9mNj4O0+0TtjDWupKhpcCfGSM4wfIY5eizZT1Wzzaperfsn3t57PRrK0Mrba1kd7pN6d5OBIzrGf4Hz965psGoauyV09urmd28O4JGluSHNOw92cFdvTHvIceYUL9tPZDR6kpnXWwwR0l5Y7Lzkhs48j5EdMc15UJr4z8HoTjJPlHyZbR/aTBTWiCGpq2cQa0v4em38t8rLP7S6CmlnlcQWNGQW78e3Ncd1cuoNP3F9uuMc1PPC7hc2QYIx/BVH6oqu4jaT93kMqzxJ/wClloZta+cezpy89oxktpkhqzA/iL8N/EzP3PeoS7TtbS3rLJHAyNOMDp/7utJq9S100YbG9zeL74zzOc5WR0bpW56tuzY2Mc1hPE+TGwHX4q1eKqvfYyt2X6vsrRm+xrRlw1vqSCnka4WqCRr6yQnA4c/dHmTy9FNf2lL3/Y+n0ULXw0tJDUzxvgaPA6PgZ4SPrnz3W99mWmYNN2KCipmHhY0Bz+EAvPmcKI/tqHit2mx+zUz/APg1Wqudly/Bxtg66m0+zaLdV09woIK6lkbJBPGJGOByCCFXXPnZJrWfT1xjttfM51pqXhpDjtA4n748h5j4roNewjrRcrY7CIiHYIiIAiIgCIiAIiIAvE8MVRA+CeNksUjS17HjLXA8wR1C9ogOW+3Ds+/sjdW3G2McbNWPIYOfcSc+Any6j4jpvGy7S11YYdS6UuFmmaCZ4j3Tj+CQbsd8CAuL5GOjkdG9pa9pLXA9CFVo8fLpVctrwy80/bKi9XuitNKMzVczYm+mTz9wG/wXbFvpYqGgp6KAYip4mxMHk1oAH0C59+y9YG1eoK7UE7MsoIxFDn/iPzk/BoI/eXRKlGvCr1Dl+QiIpNoREQBERAEQkAEkgAcyei1286105a+Js1e2aRv+HAOM/MbfVCspxj3J6Mf2t2yur9NPloppv1BDnwMOGvbvkkdSNvkVAM8PCTvhShqbtXqJmPprTQMp2OBaZZ3cT8egGwPzWk1TILpSy11OGxzxAGphb0HLvG/5SeY6H0IUo8fKnCc9xezWqoYYpr7PI4tNWbs91NK1rIJ66aColMjsgT8bGeHGAB3ecg53UM1sZALSMLobQlvsOs+wqz6Wrq8W/hcJRWANcYalkr2ND+rWFrieI+QGW5GeGRFSjplcefGaZ0XTgzQtezny580rYeIcTcDh57YWsaFrK6h09bobtMyZ72BjZh4e9wMglp3a4tw7hO4BytpdMx8ZLnh+XHGOgPRfPva6Z7z0+0Rv2haStl+pnOqqSJ8hxglmST7+agXUvZpQU07u6EsQ4uWcrratpTJG47Objy5LULlpCK4VrpX945hOzeL7vu25KY2Tr+LI4Ql8kc8ad7PIqqrZwUpeCRuclT/2f6Mp7VDGyKER8s7LZbFpaCgjaIoRGOeVtVvo2QsyBkhJSnY/cTqEF7UUYacU9PkkgAYx5Lnf7WXs1dpp9WZh/camGCBmGnifJ4nuB54DQAeWCRseIET7f6/uKiLi71lNDmR8kYacuGA1mCeri0cuZaNs5XKv2kbzx26hsomEsfe8bXGTLi5jnl/hAAaOKQjJyXYB6ZO3Er93IwZdmo8SFYml+y6g7P6ySv0TZ6qYkyOpWhxPUt8OfouZqWMhwwFIvZzreewQm3Vje/oC4ujBdh0RPPB8j5L2dGPFujXJ8vBOCLXbbrXTta/uvbhTzA4dHO0sIPv5fVbBFJHNGJIpGSMPJzHAg/EKD1ozjPuL2ekRELhERAEREAREQBERAFxRrNrGawvTIxhjbhOGj07xy7XXEuq6llbqi61kRzHPWzSNPo55I/NQzz8/xE6C+y62MaBrHNGHm4v4jjn+rjwpYUP/AGWa+KXSNyt2R3tPW96R14XsAB+bCpgUo0439qIREQ7hDsMnYBYnUV9pbPEO88Urhlrc8h5lR7e9X1VaXA5bGeQBwPkrRi2ZbsuFXXlkhXLUVpoARJUiR4/DHufnyWpXfX9TlzLfTRwgfik8bv5LQqu4ve53jySsbNUu58RKvxijzp5tsvHRl9Qaku1wY5lVXTSMP4Q7DfkNlqFTO/jKvpHlwyTlY6dvEoM/Jye2y0fITIN85Venqp6CthqqeQxyxnIOM+8EHYgjYg7EKzkHDJuqlX9xrh5KoNqbT23UMbnW5nsdyILjQE5jmxz7hx3z/wDG7f8AZJ5K20Tc5LPqSAPq54KOokax7o5OEA8Yw4522I3ysDRSP4mlkjmOaQ5rmnBa4ciPVZi9FtX3Fc0NDrhGXyEDAbUMPDJt67O/eVZLaLJ6Z1PoGvoobTDQVrZKi3mF7oTGT4Gte4MfFz4HkcI9OW4IJy2kdY0dzr71apgYKiw1XslfVvPDTvdkBrmnfHE4kAE52z1wof7ErxWXO3MtsrCH2qMFk55xsLoxHGf2hwskI9NjghpWCo9T3Oi7T9Xy2alkqqK8NdTTwyUb5mSOB4RkAZLg8HBPXmsE6Yz2pGuN0o6cTrWX2iDLHxPyNiDsR71e0zgCMxsI6EDdaB2b3qrmPstxtlfRzVDXVTTLSzNjkDgx3h4x4QMu6jm3bJCkWn4HMDmY3XmTg65aPUhYpx2XDAJHDAVvf6+G12ueqmkbGyONznPc4NaMDlk7AnYD3qN+1/tNm0s99mttNLHUTRgfpBzMwx5LeLgeMgPa078QAGQc9Dz1rC+6h1ncxaZq3jhmkDpmmra55Y0FzsHkSG4ydiSMnoBqqo5JNma2/j0iadWayo9RWS2XCyRywUlSzvZfaTgtDGOdG8jixnZzsnGA4Z5Bc39rdR7frWVlPJO+khbxsE0gcQ95Lnnblk+eDjGw5KW9QCk0vpanZR0kc1THOYKKk4di4xvDnHbDi3vWubnYBvEc5Cg643KOlqZalr4q+vfI58tS4ccLZCcuLQf94cn7zts8h1W+qCXg862TfkuLfZK2embVOEVNTdKiqlbDF8C7d3wBWQiptK0gc66anZVFv+BaqZ0jnHy7yQNa33+JaRW1dZcqoz1VRNUSnm+Rxcf6L3FF3bcE81pTbOJkKqu9puElRFG6GIu/VsL+IsaOQz126rK2a93K3yh9HXTQb5PA8jK1pjsPwFewbHKsiO0+iVrN2k3OBrW3CKGsZ5jwP+Y2+i2+2a8sVY1veOnpXHpIzI+YyoCbI7OMrIUdU5nUqdI0Qy7Yfezo+iraOtj7yjqYp2/5HA49/krhQHa7nUwTCWGR0ZG/E0kFb1Y9fxsIjuRLmD/E6hHD8GuvPjLqS0SEit7fW0lwpW1NFOyeJ3JzTn4HyKuFQ3ppraCIiEhEWldo3aRYdHU74pJW1lzLf1dHE7xA9C8/hH18ghWUlFbZS7a9XQ6W0dUNjlAuNcx0FKwHxDIw5/uaD88LkxZjV+o7pqm9S3W7T95M/ZjBsyNvRrR0AWHVW9njZF3qy39G59j2rv7Iawhq53H2CpHcVYHRhOz/AN07+7PmuuIZI5omTRPbJG9ocxzTkOB3BB8lwoph7EO1IWQRac1FMf0aTimqXb+zk/hd/k9enu5EzviZCh7JeDoxUq2dtLSS1DhkRtLsZxn0XuJ7JY2yRva9jwHNc05BB5EFaxru4iO3z00bvE0tB/5jk/QDPxC6RW2bci3063IjjV13luFdJK5zhlxyDsQfL4LBNl4o3NO7gMpcpGmoJjy79sk5z6rGyzmGcE8gcH3Lq3ro8Ftt7ZXc7Yg7K3e8ZIyV7qOfGOR5K0e7fmqkFZzhw4Vo85kwVdNZxN9VayjEgOEJRb1UQzkL69nFTgeSrvbkbr3GBw4KjRbZi4HFrsHY5Wes8brlQyWiJw9sEntNACQO8kxh8WfNzQCPMtxzKwlbH3c2RyVRh4o9jgjcEHcFUa+gSJ2aalNp9rtj+7pYqwn2maQgOj4GnAcDjYEYI54JAGcKReyzT9yt+orhPXWyiZU1AkZh15dTcMne4LxGWgtAbK3Hz6qE4bjS3lzWXiZtLX7NZcCPBL0DZwP/ALBv555qc+x/U8dwxpPUlVPb6+ha5jTFRmrlqo3tDHcRdxYDcRvBbgYaTust0W+0aaZpdM3Op1DUCG3zx0GmPaQWhzG3KorXtDmtifwtjbuWSRs28vJUu0PVWtbe0UdI6Cit0w2vVvaaiNojGZXO/FF48MaMb75Ky9DpGipNUSz0hvzqj2NtXHPTXKMGGrDu5cRAzwkkkPcDseFZazztojV32V7aile4x/pC1OAd7JTAlxlp3fidL3meAHOQsbjFvejUpNdbIvtWntc3CoIrBSQ1LmxtbcAXyRSyvPHwExAjIGHuLm8+HyAWrU4oLPc7rWR9xI+kojJTFktS+EtLiCyTia0ASFpceWxaN+SmOCps1SzLKyhiu1YJquskp5pqGXiezjcJYWA4eIgxmdyMk7KGe2+fSlks0zbNVU8tfXPhZFHDcH1LYoGwgukPEBwlznkAZz123XWpLlpHO2Tcds0jtF1pX6rqbhep2Cmkq3somRxvyyJoYHTcPLd2GNJ6jOeajuU94/hH3G7NCy13Hstot1G7IncH1UrT+HvMBo/0Naf3lYU0II4nclujFGFs9QMDGZwvrycFe3b7BAwkcl00QUWty8K/jbgbqnBGOIK5AGwVkiJM8D0KuYNzv0VItGdl7iy12c5Qb6MgahzGhsYxnkrCepkfN3TXHmvskxYwyZzgKwjqYqXM9TIxoPLidjKBeDedD36ew3BspmPdOOJYs/fHu8/IqcbfWU9fRxVdLIJIpW5af4H1XKM+rqKmBFNG+eQjd+OEZ953x8F7h7VtWUdudQWuohoYXO4uJsYe/wCbsgfAKsnE14uQ6upeDq2qqIKWF09TPFBE3dz5HhrR7yVoWp+2DRllDo4K111qByjoxxNz6vOG/Ilcx3i9Xe8Td9dbnV1r85BmlLse4Hl8FYLns7TzpP4ok3WfbRqi9tfTW3gs1I7bEDsykerzy/dAUaSPfJI6SR7nvccuc45JPmSvKKDHOyU3uTCIiFAiIgN/7Ne1G96PLKOXNxtOd6aR2DH6sd093L3c1v0eq7dqGx1VRT1jXVck/eSQuOJG8WenkAMZGygJemPcx4exxa4bgg4IXSE+LLSnKUVFvpEqPk7ovOMk+ax1UONrgDnAyPd5fBalT6iuUbAyWQTtH/EG/wA1fw6mh7sNmpXtdnm0g/yVuaZy0bDb5u9gMbvvN5KlKC1++6wdNf6OGqMgZOWHORwjP5r1U6kpHE93BMffgfxTkg0bBD93mqFRs5a4/U0wGIqZjfLicT/JWVRfLjMd5Ws9GtChzRKRuAGea9xtOceq0N9fWv8AvVcx/fK8CqqgcipmB9HlRzJa2bzVRcbTsrOAFjuFy1qG7XGLHDVSOHk88X5q8gvhcQKmID/Mz+SckwZv7knA8Axu81sdkuJPs9srZ+7fEOG31hkLOAH/AAJHDB7s7gO/CT5Zxr1NLBW02WPa8Y5jokUgc11FUDZ3+7f5FJLaCZ2N2b3ai1XpWgfdfZrfdTUezSSiB9PJBUsLIBMyRxIc5veEkZ3cRtzW+3zTz7fVWqikqLdXh1TTUzZq+nkbUOijBc497FgcbnN4txjnnKgv7NWsKi46Qvem61txramipy5lNTxxzd6zibh/dyEBzhgD5Ka9ZXmg07Gb5cY7jTw0lXK9+XVFJxl8BI3aXRuAxjJwG+8b4JR1LWjWpbSezRu1/tEksIaw9xU3Coieylhtlyk7+SSV7tnxFu7QxgyenFsuZtS3GSa+1V+1bUtu17mfxGlBBhid0Ehbt4eQibyxuRyNxrrW1XdrnU3BtTUPfUN7v2uV5NTNGNgwOO7IgNujn83HoNIhY+pmBcAGjkBsGjyC0116X7OFk+T/AEV5JJ7jXSVlU9z5JHFz3HqVVkIYeEYwqknBGzharceOTdaEtHPaZ7jZ1VYbe5GgAc19DSTzVijez7G0ZJ+i9ncYRgwd+S+nHMdEB9ZtnqrS4XOkoGjv3kyY2jbu4/yWP1FdxSH2emIM5G56M/qtUke6R5e9xc4nJJOSVSU9eCyRlrjf6yqBZFiCLPIbn5rEvc57uJ7i4nqTkryi5ttlgiIoAREQBERAEREAREQBERAEREAREQBERAEREAREQFWlqJqaUSQyFjh5dfethorjHXxhjgI6lu4HR3u/ktZX1pLSCCQRuCFKegTz9nyJty7QaaklnpYG1lLNTS+0TOiY84y0Et8WSRjA5+nNSl9s6trrebXaJKim9hn455oaeqfIHvj4WBrg7luD8vRQl9nC/W2k1xFNcZqdtyZj9HCpk7uGSU7HidwnD8HwgjBJ55wDkvtC1Mtd2qXF0kzXcbYpHxsPhikcwF7fXxFx/eXN8ZWJfZ0SkobXgj/D6qcyvOXH6eiyMLGxR4HNUqaMDGBsq85DWHbC1JaODey1ncMle6dvhyVQxxvA9VdsAGOgRBnsDYBfWjJOyb5x8l9ZkFSQfcYxvhWt1qxRUL5zguGzB5k8ldjJPMLUtXVnfVwpmOBZDzx+0efy/mqyekSkYaV75JHSSOLnOOST1K8oi4lwiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCz9Pf6qsqmvutTJPLwtYJpHZJDQGgOPuAGVgET72N9aJEhwWNI8s5CoVjz93K1W03ipocRn9bD+wTuPcVmY6+nqyDFJ4j+E7ELspJleJe0jTzwrxjRjc4VOmaGtHVV8AqxU+Yy3c+5feHbK+dMDBOd1ZXO60tBGWvfxSdI2nf4+SN6B9vFaygo3S7F52jaepWivc57i5xJcTkk9Srm5V09fUGaZ3LZrRyaPJWq4ylsuloIiKpIREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEGxyERAXtPdK+AAMqXkDo7xfmrr+0Nx4S0mL38CIp2xot6i73GcYdUuaPJg4fyViSSck5JRFAPiIiAIiIAiIgCIiAIiIAiIgCIiA/9k=';
 const TEAM_JAMES_IMG = 'data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAD1ASwDASIAAhEBAxEB/8QAHQABAAIDAQEBAQAAAAAAAAAAAAYHBAUIAwIBCf/EAEMQAAEDAwIDBgMEBgkEAwEAAAEAAgMEBREGIQcSMRMiQVFhcQiBoRQyQpEVI1KxwdEkM0NigpKisvAWU3LhJXPT8f/EABoBAQADAQEBAAAAAAAAAAAAAAABAgQFAwb/xAAqEQACAgICAgEDBAIDAAAAAAAAAQIDBBESITFBEyIyUQUzYXEUI0KBwf/aAAwDAQACEQMRAD8A4yREQBERAEREAREQBERAEREAREQBfYilMTpRG8xtIDnhpwCegJVlad0Ha7dp2g1LqmqMslURLT2mPYvizs6V4OWB3g0DON8jKzNI6mg0jU1VRYLXRU8s45HCV0srXs/ZLXvLCPHJGchVckW4s1Fn4U3ertNBeK262yhoKscznPe90sTc9S3lwdt9ndFq7pw/vNLVMioaq23WKQns5qWqAYQPPn5SPYqQah1TftQGNt0uPOyJgihiaxsUcbAThoa3AxutRJG6OMTMqD2jeoYR+ajbJ4o0UmldQMkcz9GSvc3r2bmv/wBpK1tZRVlE/kq6WaBx6CRhGfZS6G5VEUwkhnkbIeuNsn181nOvEk7TG+aRjH/eAJIz5qOTXocUyu0VkVDqm4QtgldBcYRnljmxkE+RO4Pthaqq0YyrhfJaKnkqowXSUNVhrv8AA/ofZ3KfdWU0Q4NEMRetXTVFJUPp6qGSGZhw5j2kEfJeSsVCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAKz9EWej0xbafUlzhM13qI3Pt1NKwiOBpBAmka5ve/aZg4yMlVtQxyTVsEMUAnkfI1rIj+Mk4DdvPorX4qVsrtW1sMkk73xP7PMzsuaBsG+w6Kk2/CLwS8sj1xqK+sne6WXtHOPM52cZPmsLvZAIOQvSmbPVSlsbHPf12Clti0Nd7k4Yp5HE/dY1uSV4zsjWuzRXRO37URINhdjtG4HjjKSRwf2L2s9iSrrsfw+6ruoD5IG0kZ6GV2PopVb/hVqnu5qy/MZ6RxZ/eV5rJge0sOa86OYXwOPTBPovnsZm78jvyXXTfhfpoYuV12fIRvzGMYWbT8A7ZSUgbMWzuAxnGCoeZr0IYPL/kcdMleP7pHivYVkpAD3vJacteD3h810TrDgVGxrn0QLXeG6p3V3D69WN3N2Dp48ZJaOitXlVWPT6ZFuFdWtrtEYur23kMZcKiUzRs5Ypcc3sMnw9FFquknpXYlZgEkBw3afYrfPDmnlcCCPol45p7C2KGIudFMZZn9e7gAfIHP5rWujAyNIiKSAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIDcaLa86ptz45Y43xTCVrnt5hlnexjx6KSXNtXcbzI9xMtRUSkn1cT/Nanh3Th92nqXMJEFO4g+AcSAN/YlWnwktUdbqqCplaHckg5Sffqs91nDs00VfJ0XJwm4MUlFY6OW4Ma+pma2SoJ656ho9Ary05pm22uJjKakjZjx5d17WOENo4gMbNC30PK0AADC5iXJ8pHXc+EeMfB9QwtB2Cyo4sYOy82vaDthe/aAt2XvGKMU5SZ+vYC3f8lrquDqMbLPMu2+d/RY0juYZwQEkkKm0yM3mma5hHKOigWobJTTh7XxNcHeYVlXcNwTnBUTuRBaQR02WK5aOxTJ6OUuNWgvssz7rbYRt/XMaOvqqttEcZrDTVWWQztdC8n8PMMZPscH5Lr7XlLFPb6huBuwhcv3KnbDdpGOZuH7bdQt2FkNx4v0c39QxoqXOPsrKqiMFTJCXsfyOLeZhy12D1B8QvJbTVVMaW/VLCzkD3CQDmzs4Z/j0WrXST2cZrQREUgIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiID9a0ucGtBJJwAPFdFcMeDNroqGG5aqgFbXyNDxSOP6qHPg4fid5529D1VH6DMA1vYzUgGH9IQc4Pl2gXaSlI3YVUZblIrzi3R0NFpqjpaSmhpo+2PLHCwMbs3yHutRwawzUdOwjDXyDPnhb/jKP/hqEgZJqC36Z/gs3gJpw1lxNe9pDIvHHUrn5j7aNqWrNnS1mcOxYAcDG2Vtoxk53K0dESxrQ0ZPgFu4Z4Y29+RjSPAlZInrLwZsLCQDhZYjHKM5WubcqVoDe1jz5c4XvBXRPOxH5r3i0Y5xm+zILMbY69V8yRk/LwX6Z2c38VhXG7UtNE58krGhoyST0CltaKxjNvpGHdacuB2wobeojGCd18Xbiro6GtNLVXqnikBIOXeS11TrfSdzi/oV6ppQTgFrvFYrdSOrQ3DqRF9RDtYZY8dQQVzXrSIUt8lYcgtd4rpm7Ojc4vjeySN33XNOQVRHG629heKetYzlEzTnHmFOG9T0VzWpQ2Uzr0D9OtkGcyU8bnbY3xj59FH1vdbuLrwzOcinjG/stEu5H7UfOS8sIiKxUIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIDZ6TjfNqm0xRgl762FrceZeF20uaPh30bVXbU8Wo6mFzbbbnc0b3DaWb8IHny9SfQea6XVkdXBg1Bt+yJ8UqOSq0/FJGAewqGvd7EEfxU7+H2Fv/AEvPKBv2+D+QWg1B2E9rqaNssE1Q6MF1OJB2jW52dj3U04LUJo9EBzm4MlQ93yG38Fy8ucZWaTNcoST3rybnVup4rHTlsXK6qLDyNz0VQapvGsrrSS1EFdDSOJzzPk5Rjy6rccVrhHRisrBC6arHdhZ5noAFSN4sWsL+JXto6x5A5mulaWiQ53DAdmjyzuVkhFTfb0j1e4x6W2fAr7xSXMipv8weDkmOcu3/ADVs8KddXh92hp57lNVNdhhDyST5H3VOWnhbqieGaaqjhpyGns2moYSXeGcHYK6OC3Cu826SnvF4qY+dju6yI8zSPDveKvdGCX0vbJx3N/fHS/k6ZpjP+i+1eD2hZnHiuVuPurK+n1LJQmsngcxu7GuIBBC6zpc/o/l8eRc0cZeG7dVazmq2VklPKYgAA3OSFWek48vBXG23NLyc8zvttZXA1tQ9nMcuLQXH6KYWxml6OmEbLxVwueACZoHNaR7rxr+FcFLHJTVV9Yypa897sHdMdCzIIOVrY9BVtBC51JeoXuJG57rCPItJXvKVUo6UiqhfGW3AsLTNcaCojjbWfaKKVwb9/IB8CPJfXGaiNXpSnrGD+oqAHezgR+9RTTNlvNBVClkjBic4SNdHksx/dPl6eCtO72/9JaPraKYhpMIfl3gW75+iy7UJrTPScXOHaOP9bMfHqOojeclrY8ddhyN81pVdGrJqG76cuFpfbKUC3Uj6mKsDcTdo3H4v2SNsH0PkqXXZps5xOHl48qJ6fvsIiL2MoREQBERAEREAREQBERAEREARbjTmmb/qKbsrNaqmswcOexmGN93HYfMqybDwEv1S1r7xdaO3tPVkTTM8fuH1KaPSFM5/ainkXStq4D6TpwDXVlyrneI7RsbT8gM/VSe3cMNB0IHZacpZCPGculz/AJiVOjRHCsfk5EAJOAMlbW2aZ1FcyBb7HcakHoY6Z5H54wuyKCy2egAFDaqGlx07Gnaz9wWep0eqwPzI5XsvBnXNwLTNQ09vjP4qmcA/k3J+isbSXAiz0UrKjUNfJc3t37CIdnFn1OeZ30VxImj3hiVx/k8aKlpqKkjpKOCOnp4m8sccbQ1rR5ABeyIpNJCLVY3TcYqp73SPayN8rX5xjLMAe266G03BDDZqWmiDQxrMd07Z8fqqtipGvuc0/JmSSlLWuGxBA/8ASsLhV+t0nQcxyRzA7/3yuA/3WjoZaTrhL+EZly0rb6yZtTUQNdyHmAx4+BUUvOj7/X1Lo7fzQRvP35s/uBCuCCFuB0XuI2MHMRlQ6EzFHKcCrdJcJaWjqG1V6rprjM08zYvuRA+rR1+asJ9IyNrWNDWtb0AGAF5Xm9QW5uSQXO6DO687VPHWUgqZZ8iUZG+AFZKKekTKds1zn4NxRMLoS0HGyrvU1P2V8jmJ5cv6qexXOko4gZJmbdclQbVt0s9ZP2U9TG0udth4BHsouScURi8lY9ro977oqwanoWC50TJJA3DZm92Qf4huoFX8EKGKcy0FyqGt6hkoDwpXpvUcttuDrRXytfFzfqZyc84x09wpma6GVmWuG/0XmlCaNLlbW9eisqbSstupRDUSRSiMd0tZjC0momxwW2sY7Zhgka7HkWlWjd2se1xZjPkVWmsGPfBUMYMucxwAHjsvNQUWHPkuyk+JlDTW/hteaylpmxyVFJTxOfjflMrP34XOS6r41Uxg4P3qWXOP6PEwe0jP45XKi6+D+3/2cn9a/fX9L/0IiLacgIiIAiIgCIiAIiIAiIgPqJj5ZGxxsc97yGta0ZLiegAV+8MOCtPFBDddYMMszgHMt4OGs/8AsI6n+6NvPK0fwyaXguF5q9R1kYkZbyI6YOGR2rhku92j/dnwXRSskdHEx01zkeVJTU9HTMpqSCKnhjGGRxsDWtHoAvVEUnQCIiEhERAEREAREQEm0pR0dZThznE1ERILAcEtUo0a2CAVDIo2xRiUhrB+EDw/55qtaaeWmmbNC8sePEKWaOubgHREEvfI55JO3QH+K5mTQ4y+ReC07G6+LLNFWxjBkj1WmveoIaaIuc8YHqo3er46LtI2SAn08FX90qq251ThV1X2WijaXOPiR7+AWGy7XSLUUxfbJrbZxfLi6pef1DD0J2O6pLjdqO82S7OpbPqirpaaF5LIYCMbnpn0WyuHEmho6Y221F3MSWR8u7h/eJ81Ba611uo5nzvZJM9oyHDJDznp6+KpU9STkjTOW01E0U/FLVNVTNpZbi+Vzermnkc4euNsqMXHVl8r6kONdUR4+6GPOfzUkqOFmpZa90lDRudAG83MTjcj7uPNe1DoGpoAX1sLXzsHM5gfnkPqPquhzoito5vDLm9PpFz8C457/wAPXtr6p8laJy5srzlwwO6pS693C1P+zVbyS3bJVGWHUVw0ZKJY5XGN7mkxl2G+qsKDVtFrChD4iG1LcNILsly5tie+SOpXZv6WTpup+0eC54IIWm1FXscGSjBD3YyfBQ251r6GDlJIcHAdVtbZKavsYZ2h7WguII8cH6bqaoubS/J43NRe0af4kn3C88M4LTpy1SXGSonY+pdCAXMYzvfdG5JdjpnoVyPV0tTRzmCrp5qeVvVkrC1w+RXczWtY0NY0NaOgA2WLc7ZbrnD2NxoKWsj/AGZ4mvH1C79NPxw4nNysf55896OHUXWF34Q6DuJLhaXUTz+Klmcz/Sct+iiVz+H61vybbqCsg8hPC2T6jlXpowywrF47OfEVwXDgFqSLJorvbKkeAfzxk/Qj6qPXHg9r6jBLbRHVNHjBUMd9CQfomjyePYvMSAIt1dNKamtmTX2C5U7R1c6mdy/njC0xBBwRghQeTTXk/EREICIiAIiIDo74WJo3aNuUAx2jLgXO9nRsx/tKt9c2/DFfBQ6wqrNK/EdxgywE/wBpHkj/AEl/5LpJWR2cSXKpBERSaQiIgCIiAIiIAiIgC2VlmDGzMGGyY5o3nwI8P3LWr0pubtgGs7RzgWhucZyvO6PKtorLwYdXd3G8EOdu9hy3wJH8srUcWqa5v0fFUWcPfI4gSBgz3SsXVdvro6x1why6Ll3ZndvhhS7R92o6qOKjqu83HK8Hw9PRfNtd7PeL2c96R4ea6vlwE1HZpA0b89UTGw+mf5K3rfwx1/UU7YLleqWy0waG9lRxl4DR5nIyr8hqoX0Qp4I2tcAGtx4BVzxK1zNpwSUrmOe1mAHNO5O22T55/IFaJ38n2WoXB9EPj4T3mIPbTcRWwg7HnpX5x8nKH6g4ZXGjqXCLV76yTrzR0xBcf8yyqninVVFThjA3JDTzH8yPRYdTxAq4qp4dCXtyeV2/dwd/cePzUqcvSNXzVv7m2Ru+cPNbtt7pXSU9VED3Rz8sjifQ+K1OiqXUFj1VSw1UFTTOfK1rmvb1AO6u/Rl9kuNdGKxg7IkgAjcHGc/Rfmv7vTSVUMzoWmSlJYHcu4GOuP8AnVU/ypNODS7M88aKlzTZHNb3CnZXgPa3lG5ypBoqp+12p853BcGxnI3aFWFVObtd385IDiCB12Vp6Rp46e0iOLl7NruVpb44Az9crRh1/wCxGacts3CIi7QCIiAIiIAtVd9N6fu7SLnZaCrJ/FJA0u/PGQtqiENJ+Sr9QcENH3AOfbzV2qU9Oyk52f5XZP5EKstVcE9V2lr5rYYbxA3f9T3Jcf8AgevyJXTqKNGeeLXP1o4Xq6aopKh9PVQSwTMOHxyMLXNPqD0XkuztX6P0/qukMF5oI5XgYZOzuyx+zuvyOR6LnHifwvu+jnOrYC64Wgnaoa3vReQkHh79D6dFDRguxZV9rtFfoiKDKbDTd0mst/oLtAT2lJOyUAeIB3HzGR812zSzx1VLFUwu5opWB7D5gjIK4WXZfDJ8r+Hmn3TZ5zb4c58uQY+isjoYEu2iRIiKTpBERAEREAREQBERAF6U5xURnyeP3rzX729LRs+210nZ00T2Bx8SS4ANHqVDaS2ysmkts0F5rZLdf6yx3iUgZMlPITkyB3h6/wDorW6VD4K+dsZf98hrc5LQcHKk3GC2Nu9r7WOPmqqZ3PG9n3vUeyqC3aqqLbKD9nI5O65x7uPfZfPcOW9FlLjrZ0Tp24yU87AHDlLAOdzycY6khSm+aPtepqFgrAyRpw7PsucafiUyON7BKz7RJHyZ6hgxufVbmzcZ6mibTieTLcY991VVSj5Rb5U30yS3LhdYrTUXKsDcvjixE0jPJkHvfmSsSLRlmjomwXGi5alsEcjnDqMtAO/TqB+a12oOJ0VUI546hxDyHT5PddnP8wPmoPe+Jk016qKhjywMPICHZyM5wPT+ShQnPwaPlhFbkywbjNbbCQxrw18fdwHDm6bnHluoJqW80tVdXxxytcXtG4J381XupdW1N1uP2iSR+wcDv1ytVSXCo5i9riXnbdaa8JrtmK3PUnpE4rJ4KI9lSEmpcQGOB6E//wBVxaXpDQ6foqVzw9zYwXOH4idyfqqO0hSiqukNRUkvIcCxuds+a6Cjj7OngAHddE1zfbC3YsVGbREG32z9REW49AiIgCIiAIiIAiIgC+J4YqiB8E8bJYpGlr2PGWuB6gjxC+0QHLfHDh9/0jdW3G2McbNWPIYOvYSdeQny8R8x4b1su0tdWGHUulLhZpmgmeI9k4/gkG7HfIgLi+Rjo5HRvaWvaS1wPgQqtHHy6VXLa8MzNP2yovV7orTSjM1XM2Jvpk9fYDf5Lti30sVDQU9FAMRU8TYmDya0AD6Bc+/C9YG1eoK7UE7MsoIxFDn/ALj85PyaCP8AEuiVKNeFXqHL8hERSbQiIgCIiAIiIAiIgABJwBknoFXvH68TWh9usUb+STnD5Njs/IJPuNm/NX9ovTEcdVDWXBpdK1glER6MP4c+viuaPiRjq4+JUhle4RODHMacYczm5j8+YfuXla+jDZerJcIFsV9Z2zC5jhk7qvdT6boK2SSrha2OV272ZPLJ5+x9lIaCqFZb45I3feaCCPZYswcciQDAG56L52EnFnbnSnEpO62/7FHK1lS0l27m8uCDnoo7JWVHMGyOcQzYAq6NUaZo7pEOx/o0oOOZjdiPZVrqPTVwt0hjMZqYz92RgO3uurRdGfT8nEyaJwe4mknuUrmNa17tm4IJ6rGdUPc8Fzsr2NIYye0heSB5eK/KeilmcAyI5z4ha0oIwv5GeMEbpZBk4BPVbm30Li4OIPJnBK+qe29l/W4Dgeg3W0pmbgLxtt66NePje5G/0s1kE7CBhrTke6vPhm86p0bPIwgVFLWyRxFx2c3PQ/wVExn7JQvlO3d2XQHw50BpOHJle/ndPKJc82d3DOPl5LxxNubkaMubrgtHnPDLBK6KZjmPb1BXmrGuNto7rCDOwh7erm7OHqFGbrpS40pL6VprIuvcHfHu3+S6aK05cLOn0yPovqRj43lkjHMe3YtcMEL5Q1hERAEREAREQBERAFxRrNrGawvTIxhjbhOGj07Ry7XXEuq6llbqi61kRzHPWzSNPo55I/eoZz8/xE6C+F1sY0DWOaMPNxfzHHX9XHhWwqf+Fmvil0jcrdkdrT1vakePK9gAP5sKuBSjTjftRCIiHuEREAREQBFtdPWC43yYto4wImnD5n7Mb/M+gU7tGhbTRcs1wmdWPb4OHKzPt1KGe3Jrq6b7IBZrJc7vJy0NK97fGR3dY33JU8sGhqKicyorKn7ZOOgYP1bD+8lSyBrHYYyIRwMbhkfLge+PLyC9pdnMaDsChzbcyc+l0jUSwtpr5FUMy1kkPK5oOG7OG+Omd1z58WmlpWVlJf2h5iEjoCOfIBO/3cd3p4Ejc9D16Gv1QyBtNz4AfN2QcfBzvu/mQB81AuOENr1JpW4SUdwbURU0hhmEUxcyOoaAeVzMYyCQC5pBGRkEZx43r6GUxpasRQXD2vzQMpHO78YwAT1ClcmHNzsVXNPBPb6tr2Zbg77dCpvbK1lVA1w2eBuMr56a72fWUz3HTP2p26dB0AWnuMTDsQCD1W3qnDBJyD03Wtq3gsIOM+atHorbFMh9wo4hMe5ynOy1ssPKCW4J8FIbo0ufkD5rWGJuM4z7LVGx6MbqWzVNpzkF4ySs6hpxzg4z5L07FznDYLPpYsADG6pObZeMUYN4a6SARDYEgE+S650xbYbPpC00cU0komAcHvIJLQzG2AABk4AG2Fzto7T0F8v1JS1sghpQ4y1D3ODQ2Ng5jknYZxj5roO0ansWp/0TcNN1Tqi1MpzDHI7IPM13KQc7526rbgrabOZ+py00jcwMBqyznIw3OW/xHis9kc7XbTu5gdstGD4rDt2Jaiof4B/Ztx443P1JHyWzkOKqJp8Xbj5LonJMK5Wygu0GK6naZBtzt2c35qKXPRE7CXW6qZM3/ty91359D9FMqsOY/tWO5HdD5HyyF8CpAcDOOxx+LOWn5+HzTR715FlfhlV3C31tBJyVlNJCfAuGx9j0KxVckghq4HxTRslifsQ4ZDlD7nokvle+11LADuIZTj5B380OhTmxl1PpkLRZdyttdbZeyraZ8J8CRsfY9CsRDammtoIiISERQriNxIsOjqd8Ukray5lv6ujid3gfAvP4R9fIIVlJRW2eXGvV0OltHVDY5QLjXMdBSsB7wyMOf7NB/PC5MW41fqO6apvUt1u0/aTP2YwbMjb4NaPABadVb2cbIu+WW/RM+D2rv+kNYQ1c7j9gqR2FWB4MJ2f/AITv7Z811xDJHNEyaJ7ZI3tDmOachwO4IPkuFFcPBDikLIItOaimP6NJxTVLt/s5P4Xf3PXw9uhM98TIUPol4OjEXzE9ksbZI3tex4Dmuacgg9CCvpWOoEX61pc4NaC5xOAAMkqU2HRFzrntlr2mhperi/75Ho3w+aFJ2RgtyZGIYpJpWxQxukkecNa0ZJPsp3prQfdbU3xxaOop2H/c7+A/NSe1Wm1WSmLrdTgyYw6d+7j8/H2GyzCC5oMzi/bPKdgPl/NDmXZzl1Do9KRtPBAKa3xRxQs2BY3uj28z6r8q3GNpLfvnYuJ3/wDS9IsBnORgY6LGnIfK0P8APcZUoweTNpjyt8NmhfBdzTZyV9vw2MnplY9Nhzy7KlIg1mtqKa5acr6Omf2VS6Lnp3/sSt7zHfJwCpzR1+p9SWW8x26qho4Kyu7est9ZF3G1D2iOWJzxvHktBbJu3c5xhXpW9R1XN8jYtE8ZrzDLiO3XSCSXkxkSOIyG49X7exKOHJaJjLT2a3VdikgrZZPs8sbHyO7krcOY7PeafDIPlsdiNio/A2SllyzmAHVW9YKSG3WNsVRRfpdt2qXCOGaUmKnf3j977wzk4A6Z6rQ6k0wKSOCd1M6nFS1zmxF3NjlOMg4GR5Z/9ri5OJKv6/R9BiZkbGoeyMNlZUU5PiAtdUZG2y2MtG6leS3dpXk+nEgPTJGyxHT1s0dTTc4OBsVi/o/lxgBSAwtwARuvaKkLyO7kKeRKq2RxlDyDYLNobe+ST7uFJaWzGdw7m3spZYtLlz42NZzPeQB7qOW+iJRUe2R2SwVsPC/UlxpHthdLSvpi/ly4R8vNJy+rstb7Fy/eAIksnDahdUMIZUufMzHXJOw+eyt+p0wIauitVO+N1FNHyVUT3Y7QjOSB45JOR5AeS0ukNPU1pvM2nH80jLVNmCN7NhE7vRvB8djyn1aV38er44Jez5TKu+WxyJvp2lkitlOaj+t5Od4/vHc/Ur3Lue6NA6MaT8ysuQiNvQDHgsCk78ksx8XYHyXvozntVN5i5v8AzKx4Ogz18VkS7nIXk9pZLsBg7+yNA+ORzHl0b3x53w07H3BX2182OYBjx4/hd/L9y/ScN5uXp5LSan1dpnS0RqdQ3ygtrHNyBPMGud7N+8fkE0Dd89PWwvgljZKzo+N7dx8iohqXSXZsdV2kOe0bugO5H/j5+yq3WXxQaHoJHx2O2V99lb92Tl+zxZ8w53f/ANKqPVHxN8Rbn2kdpfRWSF33TDEJZWjy535/PAVdo9qrZ1PaL6q54KSJ8tXNHTxs+8+VwaG+5PRQHU/GDRllDo4K111qB0joxzNz6vOG/kSuZ9Q6gvmoa19ZfLtW3Gd5yX1Exf8Alnp8lrFGzZPOk/tRZus+NGqL219NbeSzUjtsQOzKR6vPT/CAq0ke+SR0kj3Pe45c5xySfMlfKKDHOyU3uTCIiFAiIgJ/w04o3rSBZRy5uFpzvTSO70frG7w9unt1XSHD/V1i1y+KCw1jZKyTY0kncmb55b4geYyFxgvSlnnpahlRTTSQTRnmZJG4tc0+YI3BU7NNWVOta8o/qDpzTdDaKXvNbNVuH6yYjcejfIfVbyJgc2N8sjpXYxl52z546LgHRPxIcTdNxMpqm4w32kbsGXFnO8D0kBDvzJVu6d+MKz/Z2x3zRldBIOr6OqZKD8nhuPzUpozTlKb2zpy4vJ7KPqScr65MyAuOT5LnuT4suHMkomNp1KDjoaeL/wDRYdd8X2kIXF1BpS91Lh07aSKIH8i5TtFNM6Wnc2Ng5jgLEoz9oquf8I3XHupvi61FW87bNpS20LSMNNTO+cj/AC8igV3+IvizXgth1Gy3Rn8NHSxs/wBRBd9U5JE6Z/Qm4vLYCG9XfRftKA2IHYnzX8xbpxH1/dHF1frXUE+fB1wlDfyDsLXx6s1VG8Pj1NemOHQtrpQR/qTmRxP6j1bHHfbCpX4ibD2tBSaggZmWifiQjxYVyTp7jTxTsb2Oo9bXWVrf7Orl+0tI8sScytXTfxPuutvksvETT8U9NUMMb623Dle3O3MY3HB+RHsrRmtkOLLj4c1jrxbY6Br2tlLmzwE/9xvUfMKY8QYW11HQVYZs0OidtgA7ED6FUrwvulO8C4WK4wV9LG/mZJG4hzHA7BzTu0keBV9VBbc7A50O8U7RPDvnD+pb+8KuXD5Kmke2JZ8dqbKludt5i7DceC1L7a5mCOintVRuPQB3isKpt7nNyW7L5htro+whNPsiEVs5yO7kjzWzorT3xkZ+S20NEWO3aBk7qQ2+3cwGWgdFHbLSnowLTamt5e6NlNdJ0TG1D6uQbQjYnpk/8+qxYaRjGjbOBscKV2+j7OkipcDJHPJ/z/nRbsGnlZt+jkfqORxr0vZEtasqKtkccbZOaR/OSwHma1vTGFk2CKolkbWVuTVtjERlI3kYCS0nzO5U0hpo2u7ZrGuczrnwWgu9bTu1BNSwBocyNpk5T+I+H5fvC7/k+e2KuU8hHj7r6pmCOBoPjusdzOadjMn1Wa4d7A6YVQj8eBy7EKvOK3FrR3D2m5LxXGe54zHb6bD53eRcOjB6ux6ZUD+JzjkdGCTSWlJWP1BIz+k1Ozm0LSNgB0MhG+/QYPiFxjXVdVXVktZW1EtTUzPL5ZZXlz3uPUknclUlL0WSLl4ifEhrrUbpaaySM05b3ZAbSnmncPWU7g/+Iaqarauqrql9VW1M1TPIcvlmeXvcfUncrxRVb2WCIigBERAEREAREQBERAEREAREQBERAEREAREQBERAbLTl9u2nbmy42aulpKhniw7OHk4dHD0K7H+F/jJaNXPdpa9yRWy8SDtKZpdiOZ/iI89CevL12OMriZfcMskMzJoZHxyxuDmPY7DmkbggjoVZSaIaP6XXSi5LhPFyjuO7p6eqxhQh33gCR0wqL4Acem359LpnXFU1l12ipbjIcNqvANkPg/yPR3v16Mjaxze9vtjHmuLk1cZs+gxLudaNLHa2GfJA9c+a2lHRlhJDgRhZsLWuPOWtBwOgWVG1vkB5LwUTRKbPy3UzX1DAR3Wd53yW/iYGNc5xAL/HyWJbomiEvxu935rPi72SSOUdfU+Xsu3i18If2fP5tnOz+jU6qvkGltN118uckYpqWEuONnOP4WjwySQB6lVDwnulfe55bjXf11XKZpAOgz0aPQDA+SjPHPV7tcaxh0dZJXSWq2zYqJGHImnG2M+LWbj3z5BWdw+sbbTZ42hmHFvktsekZGSSJuajmG4CinGvXEPD3h5cNQPLHVYHY0UTv7Sd2eUeoG7j6NKl9M0g5Hj4ZXFfxpa6GoeIMel6Gfnt9iaWScp2fUuxz+/KMN9CHLzk9FkijLnW1dyuNRcK+ofUVdTK6WaV5y573HJJ9yVjoi8iwREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBdKfD78QLreyn0xrypdJSACOlubyS6IdA2U+LfJ/UeO245rRUsrjYtM9KrZVS3E/p1R1jZRHNBLHLBI0Oa5juYOB3BBG2MLZxyDsiW4yfzXAHCHjNqTQEkdE4m62Tmy6imfgx+Zjd+H23Hp4rrzhfxY0VreOnZa7rHDXFwL6GqIjnb5gA/e925XNljThL8o60cuFkfwy46OLljYzZzWDGPNU58THEqXT1uGkbFVObeLhHmeZh71LAds58Hu3A8tz4BT7iZrOj0HoiovdURNLjs6SDO88zvutB8upJ8ACVy5w+sN01vqye+XmZ1RNUTdrUSuGzj5AeDQNgPABdquPWjhye3sm3AXRbYqdtyqIy39kYV5xsDGcoDgPDdYNnoYqCjZTwNDWtA6BQ7i1xh0bw6t8kVbXMrrxj9XbKV4dKT4c56Rj1O/kCryZTyz346cQqThtw+qbr2zXXWpBgtsDsEvlI+8R+y37x+Q8Qv53VU81VVS1VTK+WeZ5kkkecue4nJJPmSpNxQ17fuIep5L5fZhnHJTU0eeypo87MYP3nqSoovBvZ6IIiKCQiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAL9a5zXBzSWuByCDuCiIDfz611ZU0tJSVmoLhW09GXGmiqpjM2LPXlDs46KW6a45a709RfZbZLbY2/tOo2lyIpUmhow9S8aOJuoI3w12rKyKF4wY6QNpwR5ExgEj3KgD3Oe9z3uLnOOS4nJJ80RRvYPlERAEREAREQBERAEREAREQBERAf/9k=';
 const TEAM_G_IMG = 'data:image/png;base64,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FvihhABAc5pPU9TjyBUeqbf49dPzTOnAkc1j3dXNB2PuPJUpJvk9eWmy1Nrk8L9VXSSWN1LRNY2LaMucebGc9B0/Nd92qbpqSGmpa2KOKnhkMjY4ySHPIwXEknssjRWuNjg4Rhx7E7rLUVNHGRyt5d+mFZlLoR0858SfBgqHR9JPJ8cOBjoVI7XYZKOMR09fWRxjpGJiG/gsjFlrMcuXA4B81kImhsZLvLzKjc2aoaeuHSOEVKynbzc7nE93d177dGJpwebIB2OfIrE1UznTFo2BOMZyFmrbH4dK52N8dENMWfL44y4bucdvJRG4yhmxIawHrnoApJcZHOfk/exj73ZUhxv1K6nf/BKOUiWQZqHA7hvl7rqMcsx67Ux01bskceIvFOYROsmm3NZGz4ZqsdXHvy+XzVSTyyzyulmkfJI45c5xyT7rgi0xil0fB6rV26me6b/4ERFJmCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAiIgCIiAIiIAucMskMrZYnuY9pyHA4IXBEHRfHC/iFQ3azQ6dvDY4quIBsTz92Ye/RymFRTQM5nAANz2WrLHOY8PY4tc05BB3BVtaA4kCWkjtF8cBK34Yql3Rw8nevqqJ145R9V6Z6ypxVN758P/ZYzCxmSOvXboF66bkaBnO533WNp5RI3mBJyOo3yFk4R9mCS3B36Kk+ggz2QHErNyS3sei9U0oELjgNHb98Lx0zcHPKA52B8l13GU+CQ0Df2Qs8Hdbx4tW1oI36nqcKSbANYMnHX4unqo1ZwAyN2ch3fupDEQBkfdJ643UnUOsmI1dcae1WyouUrwIoWFzj547LUm+XCa63apuE5JfPIXb9h2Ct36ROq2PMemaKUOwfEqi09D2b+6pVaK44WT4317WK272o9R/yERFYeCEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQEw0brisszmU1aHVVENsE/Ez5f2V06f1JZb9SRuoK1jn4+KJx5Xt9lrMucMssMgkhkfG8dHNOCFXKtPk9bRer3ab4y+SNs6N2CwZyc7ZK8lyc4AgvyObGMLXq2a71Tb2hsN0ke0dBKA/9V7KjiVqmZgaaiBp8xCMqv2meyvX9O48pmw1rEcMTZZi1o5ernAYUM4k8V6C1U0ltsD2VdeRh07d2RHzz3KpK76mv11HLXXSplYOjOfDR6YCw67jVjsxar1+co7KVj8+TtqqiaqqZKmokdJNK4ue9xySSupEVp863nlhERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREAREQBERAEREB//Z';
 
 function switchTeamTab(tab){
   _currentTeamTab = tab;
-  document.querySelectorAll('.sub-tab').forEach(b=>{
-    b.classList.toggle('active', b.textContent.trim()===
-      (tab==='assign'?'⚙ Assign Members': TEAM_LABELS[tab]||tab));
+  document.querySelectorAll('#teamsSubNav .sub-tab').forEach(b=>{
+    const isActive = tab === 'assign'
+      ? b.dataset.tab === 'assign'
+      : b.dataset.tab === tab;
+    b.classList.toggle('active', isActive);
   });
   renderTeamTabContent();
 }
@@ -12871,24 +12949,36 @@ function editRRCell(teamKey, mk, ds, calcRR){
 function renderTeams(){
   populateAllSelects();
 
-  // For consultants — auto-select their team and hide others
-  if(_currentUser?.role === 'consultant'){
-    const myName   = _currentUser?.name||'';
-    const myTeamKey = Object.keys(APP.teams||{}).find(k=>(APP.teams[k]||[]).includes(myName));
-    // Show/hide sub-tabs
-    document.querySelectorAll('#page-teams .sub-nav .sub-tab').forEach(btn=>{
-      const m = btn.getAttribute('onclick')?.match(/switchTeamTab\('([^']+)'\)/);
-      if(!m){ btn.style.display='none'; return; } // hide Assign Members
-      btn.style.display = (m[1] === myTeamKey) ? '' : 'none';
-    });
-    // Switch to their team if not already there
-    if(myTeamKey && _currentTeamTab !== myTeamKey) switchTeamTab(myTeamKey);
-    else renderTeamTabContent();
-    return;
+  const teams    = getDivisionTeams();
+  const role     = _currentUser?.role || '';
+  const myName   = _currentUser?.name || '';
+  const isConsultant = role === 'consultant';
+
+  // Determine which teams this user can see
+  let visibleTeams = teams;
+  if(isConsultant){
+    // Consultant only sees their own team tab
+    visibleTeams = teams.filter(t => t.members.includes(myName));
   }
 
-  // Managers/Masters — show all tabs
-  document.querySelectorAll('#page-teams .sub-nav .sub-tab').forEach(btn=>btn.style.display='');
+  // Rebuild sub-nav dynamically
+  const nav = document.getElementById('teamsSubNav');
+  if(nav){
+    nav.innerHTML = visibleTeams.map((t,i) =>
+      `<button class="sub-tab${(!_currentTeamTab && i===0)||_currentTeamTab===t.key?' active':''}"
+        data-tab="${t.key.replace(/"/g,'&quot;')}"
+        onclick="switchTeamTab(${JSON.stringify(t.key)})">${t.label}</button>`
+    ).join('') +
+    (role === 'manager' || role === 'master' || role === 'smt'
+      ? `<button class="sub-tab${_currentTeamTab==='assign'?' active':''}" data-tab="assign" onclick="switchTeamTab('assign')" style="margin-left:auto;color:var(--accent)">⚙ Direct Reports</button>`
+      : '');
+  }
+
+  // Set default tab if not set or no longer valid
+  if(!visibleTeams.find(t=>t.key===_currentTeamTab) && _currentTeamTab !== 'assign'){
+    _currentTeamTab = visibleTeams[0]?.key || null;
+  }
+
   renderTeamTabContent();
 }
 
@@ -12902,45 +12992,70 @@ function renderTeamTabContent(){
 }
 
 function renderTeamAssign(container){
-  if(!APP.teams) APP.teams={g:[],james:[],damo:[]};
-  const teamKeys = ['g','james','damo'];
+  if(!APP.directReports) APP.directReports = {};
+  const managers = (APP.people||[]).filter(p => p.role==='manager'||p.role==='master');
+  const consultants = (APP.people||[]).filter(p => p.role==='consultant');
+
+  if(managers.length === 0){
+    container.innerHTML = `<div class="empty"><div class="empty-icon">👤</div><div>No managers or masters found in this division.<br>Add managers in <strong>Settings → Users &amp; Roles</strong> first.</div></div>`;
+    return;
+  }
+
+  const palette = _TEAM_PALETTE;
   container.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
-      ${teamKeys.map(tk=>`
-        <div class="set-card">
-          <div class="set-title" style="color:${TEAM_COLORS[tk]}">${TEAM_LABELS[tk]}</div>
-          <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:12px">${(APP.teams[tk]||[]).length} members assigned</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px">
+      ${managers.map((mgr, i) => {
+        const color   = palette[i % palette.length];
+        const reports = (APP.directReports[mgr.name]||[]);
+        return `<div class="set-card">
+          <div class="set-title" style="color:${color}">Team ${mgr.name.split(' ')[0]}</div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:4px">${mgr.name} · ${mgr.role}</div>
+          <div style="font-size:11px;color:var(--text3);font-family:var(--fm);margin-bottom:12px">${reports.length} direct report${reports.length!==1?'s':''}</div>
           <div style="display:flex;flex-direction:column;gap:6px">
-            ${APP.people.map(p=>{
-              const inTeam = (APP.teams[tk]||[]).includes(p.name);
+            ${consultants.map(p=>{
+              const inTeam = reports.includes(p.name);
+              // check if already in another manager's team
+              const otherMgr = managers.find(m2=>m2.name!==mgr.name&&(APP.directReports[m2.name]||[]).includes(p.name));
               return `<label class="member-toggle ${inTeam?'selected':''}">
-                <input type="checkbox" ${inTeam?'checked':''} onchange="toggleTeamMember('${tk}','${p.name}',this.checked)" style="width:14px;height:14px">
+                <input type="checkbox" ${inTeam?'checked':''} onchange="toggleDirectReport('${mgr.name.replace(/'/g,"\\'")}','${p.name.replace(/'/g,"\\'")}',this.checked)" style="width:14px;height:14px">
                 <span style="font-size:13px;font-weight:600">${p.name}</span>
-                ${teamKeys.filter(t=>t!==tk&&(APP.teams[t]||[]).includes(p.name)).map(t=>`<span style="font-size:9px;color:${TEAM_COLORS[t]};margin-left:auto">${TEAM_LABELS[t]}</span>`).join('')}
+                ${otherMgr?`<span style="font-size:9px;color:${palette[managers.indexOf(otherMgr)%palette.length]};margin-left:auto">Team ${otherMgr.name.split(' ')[0]}</span>`:''}
               </label>`;
             }).join('')}
-            ${APP.people.length===0?'<div style="color:var(--text3);font-size:12px">No consultants yet. Add them in Settings.</div>':''}
+            ${consultants.length===0?'<div style="color:var(--text3);font-size:12px">No consultants yet. Add them in Settings.</div>':''}
           </div>
-        </div>
-      `).join('')}
+        </div>`;
+      }).join('')}
     </div>`;
 }
 
-function toggleTeamMember(teamKey, name, checked){
-  if(!APP.teams) APP.teams={g:[],james:[],damo:[]};
-  if(!APP.teams[teamKey]) APP.teams[teamKey]=[];
-  if(checked){ if(!APP.teams[teamKey].includes(name)) APP.teams[teamKey].push(name); }
-  else { APP.teams[teamKey]=APP.teams[teamKey].filter(n=>n!==name); }
+function toggleDirectReport(managerName, consultantName, checked){
+  if(!APP.directReports) APP.directReports = {};
+  if(!APP.directReports[managerName]) APP.directReports[managerName] = [];
+  if(checked){
+    if(!APP.directReports[managerName].includes(consultantName))
+      APP.directReports[managerName].push(consultantName);
+  } else {
+    APP.directReports[managerName] = APP.directReports[managerName].filter(n=>n!==consultantName);
+  }
   saveApp();
   renderTeamAssign(document.getElementById('teamTabContent'));
 }
 
+function toggleTeamMember(teamKey, name, checked){
+  // Legacy wrapper — now routes through directReports
+  toggleDirectReport(teamKey, name, checked);
+}
+
 function renderTeamDashboard(container, teamKey){
-  if(!APP.teams) APP.teams={g:[],james:[],damo:[]};
   const mk      = document.getElementById('teamsMonth').value || APP.activeMonth;
-  const members = [...new Set(APP.teams[teamKey]||[])]; // dedupe in case of prior bad renames
-  const color   = TEAM_COLORS[teamKey];
-  const label   = TEAM_LABELS[teamKey];
+  // Resolve team data from dynamic teams first, then legacy APP.teams
+  const dynTeam = getDivisionTeams().find(t=>t.key===teamKey);
+  const members = dynTeam
+    ? [...new Set(dynTeam.members)]
+    : [...new Set((APP.teams||{})[teamKey]||[])];
+  const color   = dynTeam ? dynTeam.color : getTeamColor(teamKey);
+  const label   = dynTeam ? dynTeam.label : getTeamLabel(teamKey);
 
   if(members.length===0){
     container.innerHTML=`<div class="empty"><div class="empty-icon">👥</div><div>No members assigned to ${label} yet.<br><button class="btn btn-s" onclick="switchTeamTab('assign')" style="margin-top:12px">Assign Members</button></div></div>`;
@@ -12965,8 +13080,9 @@ function renderTeamDashboard(container, teamKey){
     return s + (ep.daysT||0) * nmRateFor(p.name, mk);
   }, 0);
 
-  const TEAM_IMGS = { g: TEAM_G_IMG, james: TEAM_JAMES_IMG, damo: TEAM_DAMO_IMG };
-  const teamImg = TEAM_IMGS[teamKey];
+  // Manager photo: look up the manager's own photo if available (legacy images only stored for g/james/damo)
+  const _legacyImgs = typeof TEAM_G_IMG!=='undefined' ? { g: TEAM_G_IMG, james: TEAM_JAMES_IMG, damo: TEAM_DAMO_IMG } : {};
+  const teamImg = _legacyImgs[teamKey] || null;
 
   // ── Build daily breakdown table ──────────────────────────────────
   const today2       = _localDateStr(new Date());
@@ -13180,9 +13296,9 @@ let _dbdPerson = null; // null = team grid view, string = individual view
 function switchDbdTab(team){
   _dbdTeam = team;
   _dbdPerson = null;
-  const labelMap = {...TEAM_LABELS, overall:'Overall'};
   document.querySelectorAll('#dbdSubNav .sub-tab').forEach(b=>{
-    b.classList.toggle('active', b.textContent.trim() === (labelMap[team]||team));
+    const tab = b.dataset.tab || (b.getAttribute('onclick')||'').match(/'([^']+)'/)?.[1];
+    b.classList.toggle('active', tab === team);
   });
   document.getElementById('dbdBackBtn').style.display = 'none';
   renderDbdContent();
@@ -13196,6 +13312,19 @@ function dbdBackToGrid(){
 
 function renderDayByDay(){
   populateAllSelects();
+
+  // Rebuild DBD sub-nav from dynamic teams
+  const teams = getDivisionTeams();
+  const nav   = document.getElementById('dbdSubNav');
+  if(nav){
+    // Keep the Overall button, rebuild the rest
+    nav.innerHTML = `<button class="sub-tab${(!_dbdTeam||_dbdTeam==='overall')?' active':''}" data-tab="overall" onclick="switchDbdTab('overall')">Overall</button>`
+      + teams.map(t =>
+          `<button class="sub-tab${_dbdTeam===t.key?' active':''}" data-tab="${t.key.replace(/"/g,'&quot;')}"
+            onclick="switchDbdTab(${JSON.stringify(t.key)})">${t.label}</button>`
+        ).join('');
+  }
+
   renderDbdContent();
 }
 
@@ -13228,19 +13357,33 @@ function renderDbdOverallGrid(){
   }
 
   // All consultants that have a target set for this month, grouped by team order
-  const teamOrder = ['james', 'damo', 'g'];
-  const personTeamKey = {};
-  teamOrder.forEach(tk => {
-    (APP.teams[tk]||[]).forEach(name => { personTeamKey[name] = tk; });
+  const _dynTeamsDBD = getDivisionTeams();
+  const personTeamKey   = {};
+  const personTeamColor = {};
+  _dynTeamsDBD.forEach(t => {
+    t.members.forEach(name => {
+      personTeamKey[name]   = t.key;
+      personTeamColor[name] = t.color;
+    });
+  });
+  // Also check legacy APP.teams for backward compat
+  Object.keys(APP.teams||{}).forEach(tk => {
+    (APP.teams[tk]||[]).forEach(name => {
+      if(!personTeamKey[name]){
+        personTeamKey[name]   = tk;
+        personTeamColor[name] = getTeamColor(tk);
+      }
+    });
   });
 
   const allPeople = APP.people.filter(p => personTargetForMonth(p, mk) > 0);
   const people = [...allPeople].sort((a, b) => {
-    const ai = teamOrder.indexOf(personTeamKey[a.name] || '');
-    const bi = teamOrder.indexOf(personTeamKey[b.name] || '');
-    const aIdx = ai === -1 ? teamOrder.length : ai;
-    const bIdx = bi === -1 ? teamOrder.length : bi;
-    return aIdx - bIdx;
+    // Sort by team order (index of team in dynamic list), then by name
+    const ai = _dynTeamsDBD.findIndex(t => t.key === (personTeamKey[a.name]||''));
+    const bi = _dynTeamsDBD.findIndex(t => t.key === (personTeamKey[b.name]||''));
+    const aIdx = ai === -1 ? _dynTeamsDBD.length : ai;
+    const bIdx = bi === -1 ? _dynTeamsDBD.length : bi;
+    return aIdx !== bIdx ? aIdx - bIdx : a.name.localeCompare(b.name);
   });
 
   if(!people.length){
@@ -13248,10 +13391,6 @@ function renderDbdOverallGrid(){
       '<div class="empty"><div class="empty-icon">📊</div><div>No consultants have targets set for this month. Go to Settings → Monthly Targets.</div></div>';
     return;
   }
-
-  // Build team colour lookup from personTeamKey already computed above
-  const personTeamColor = {};
-  Object.entries(personTeamKey).forEach(([name, tk]) => { personTeamColor[name] = TEAM_COLORS[tk]; });
 
   // Entry lookup
   const lookup = {};
@@ -13374,7 +13513,7 @@ function renderDbdOverallGrid(){
     <span style="display:flex;align-items:center;gap:6px"><span style="color:var(--red);font-weight:700">£x</span> Below daily run rate</span>
     <span style="display:flex;align-items:center;gap:6px"><span style="color:var(--text3)">—</span> No entry logged</span>
     <span style="display:flex;align-items:center;gap:6px"><span style="color:var(--accent);font-weight:700">▶ Name</span> Click to see individual tracker</span>
-    ${['g','james','damo'].map(tk=>`<span style="display:flex;align-items:center;gap:4px"><span style="color:${TEAM_COLORS[tk]};font-weight:700">▶</span> ${TEAM_LABELS[tk]}</span>`).join('')}
+    ${getDivisionTeams().map(t=>`<span style="display:flex;align-items:center;gap:4px"><span style="color:${t.color};font-weight:700">▶</span> ${t.label}</span>`).join('')}
   </div>`;
 
   document.getElementById('dbdContent').innerHTML = html;
@@ -13383,11 +13522,12 @@ function renderDbdOverallGrid(){
 // ── Team grid ───────────────────────────────────────────────────────
 function renderDbdTeamGrid(teamKey){
   const mk      = document.getElementById('dbdMonth').value || APP.activeMonth;
-  const members = (APP.teams||{})[teamKey] || [];
+  const dynTeam = getDivisionTeams().find(t=>t.key===teamKey);
+  const members = dynTeam ? dynTeam.members : ((APP.teams||{})[teamKey] || []);
+  const label   = dynTeam ? dynTeam.label : getTeamLabel(teamKey);
+  const color   = dynTeam ? dynTeam.color : getTeamColor(teamKey);
   const entries = getEntries(mk);
   const today   = _localDateStr(new Date());
-  const label   = TEAM_LABELS[teamKey] || teamKey;
-  const color   = TEAM_COLORS[teamKey] || 'var(--accent)';
 
   document.getElementById('dbd-sub').textContent = label + ' · ' + monthLabel(mk);
   document.getElementById('dbdBackBtn').style.display = 'none';
@@ -13679,7 +13819,7 @@ function renderPersonTracker(name){
   const target    = Math.round(riskPerDay * (ep.daysT||0));
   const nmTarget  = parseFloat(((ep.daysT||0)*nmPerDay).toFixed(2));
   const teamKey   = _dbdTeam;
-  const color     = TEAM_COLORS[teamKey]||'var(--accent)';
+  const color     = getTeamColor(teamKey);
 
   document.getElementById('dbd-sub').textContent = name + ' · ' + monthLabel(mk);
 
@@ -13852,7 +13992,7 @@ function exportDbdCSV(){
       const tgt=personTargetForMonth(p,mk);
       wdDates.forEach(ds=>{
         const e = pL[ds]||{revenue:0,nm:0};
-        rows.push([monthLabel(mk),TEAM_LABELS[teamKey]||teamKey,p.name,ds,Math.round(e.revenue),e.nm,e.revenue>=(p.riskPerDay||0)?'Yes':'No',Math.round(mtdR),mtdN,tgt>0?Math.round(mtdR/tgt*100)+'%':'0%']);
+        rows.push([monthLabel(mk),getTeamLabel(teamKey),p.name,ds,Math.round(e.revenue),e.nm,e.revenue>=(p.riskPerDay||0)?'Yes':'No',Math.round(mtdR),mtdN,tgt>0?Math.round(mtdR/tgt*100)+'%':'0%']);
       });
     });
     downloadCSV('daybyday_'+teamKey+'_'+mk+'.csv', rows);
@@ -14653,15 +14793,9 @@ function exportBizCSV(){
 // Teams — one row per consultant per team for selected month
 function exportTeamsCSV(){
   const mk    = document.getElementById('teamsMonth').value || APP.activeMonth;
-  const teams = APP.teams || {g:[],james:[],damo:[]};
   const rows  = [['Month','Team','Consultant','Revenue MTD (£)','Target (£)','Rev %','NM MTD','NM Target','Risk Ahead','NM Ahead']];
-  const teamDefs = [
-    {key:'g',    label:'Team G'},
-    {key:'james',label:'Team James'},
-    {key:'damo', label:'Team Damo'}
-  ];
-  teamDefs.forEach(({key, label}) => {
-    const members = (teams[key]||[]);
+  const teamDefs = getDivisionTeams();
+  teamDefs.forEach(({label, members}) => {
     const stats   = calcStats(mk).filter(s=>members.includes(s.name));
     stats.forEach(p => rows.push([
       monthLabel(mk), label, p.name,
@@ -14784,9 +14918,10 @@ function renderPersonProfile(name){
   const nmPct  = nmTarget>0?Math.round(nmMTD/nmTarget*100):0;
 
   // Team
-  const teamKey   = Object.keys(APP.teams||{}).find(k=>(APP.teams[k]||[]).includes(name))||null;
-  const teamLabel = teamKey ? TEAM_LABELS[teamKey] : 'Unassigned';
-  const teamColor = teamKey ? TEAM_COLORS[teamKey] : 'var(--accent)';
+  const _dynTeam2 = getDivisionTeams().find(t=>t.members.includes(name));
+  const teamKey   = _dynTeam2 ? _dynTeam2.key : (Object.keys(APP.teams||{}).find(k=>(APP.teams[k]||[]).includes(name))||null);
+  const teamLabel = teamKey ? getTeamLabel(teamKey) : 'Unassigned';
+  const teamColor = teamKey ? getTeamColor(teamKey) : 'var(--accent)';
 
   // Day analysis
   let cumRev=0, cumTgt=0, cumNm=0, cumNmTgt=0;
@@ -15249,15 +15384,14 @@ function generateMonthlyReport(){
   }).join('');
 
   // Team summaries
-  const teamRows = Object.entries(TEAM_LABELS).map(([key,label])=>{
-    const members = (APP.teams[key]||[]);
+  const teamRows = getDivisionTeams().map(({key,label,color,members})=>{
     const ts = stats.filter(s=>members.includes(s.name));
     if(!ts.length) return '';
     const tRev = ts.reduce((s,p)=>s+p.revMTD,0);
     const tTgt = ts.reduce((s,p)=>s+p.target,0);
     const tNM  = ts.reduce((s,p)=>s+p.nmMTD,0);
     const pct  = tTgt>0?Math.round(tRev/tTgt*100):0;
-    const col  = TEAM_COLORS[key]||'#5e9cf5';
+    const col  = color||'#5e9cf5';
     return `<div style="background:#fff;border:1px solid #e0e6ef;border-radius:8px;padding:14px 16px;border-left:4px solid ${col};">
       <div style="font-weight:700;font-size:13px;margin-bottom:8px;color:${col}">${label}</div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:12px;">
@@ -16301,7 +16435,7 @@ function _renderRemedialCard(r, role){
           <div class="rem-field"><span class="rem-field-label">CRM Ref</span><span class="rem-field-val">${r.crmRef||'—'}</span></div>
           <div class="rem-field"><span class="rem-field-label">Date Remedial Issued</span><span class="rem-field-val">${_fmtDate(r.dateIssued)}</span></div>
           <div class="rem-field"><span class="rem-field-label">Colleague Name</span><span class="rem-field-val">${r.colleague||'—'}</span></div>
-          <div class="rem-field"><span class="rem-field-label">Team / Dept</span><span class="rem-field-val">${r.team||TEAM_LABELS[r.teamKey]||r.teamKey||'—'}</span></div>
+          <div class="rem-field"><span class="rem-field-label">Team / Dept</span><span class="rem-field-val">${r.team||getTeamLabel(r.teamKey)||r.teamKey||'—'}</span></div>
           <div class="rem-field"><span class="rem-field-label">Customer Surname</span><span class="rem-field-val">${r.customerSurname||'—'}</span></div>
           <div class="rem-field"><span class="rem-field-label">Date &amp; Time of Call</span><span class="rem-field-val">${r.dateTimeOfCall||'—'}</span></div>
           <div class="rem-field"><span class="rem-field-label">Call Assessor</span><span class="rem-field-val">${r.callAssessor||'—'}</span></div>
@@ -19208,13 +19342,10 @@ function showMidMonthCinematic(mk){
   const mostDays   = [...active].sort((a,b)=>b.loggedDays-a.loggedDays)[0];
 
   // Team data
-  const teamDefs = [
-    {key:'g',    label:'Team G',    color:'#2dce89'},
-    {key:'james',label:'Team James',color:'#5e9cf5'},
-    {key:'damo', label:'Team Damo', color:'#a78bfa'},
-  ];
+  const _teamPalette2 = ['#2dce89','#5e9cf5','#a78bfa','#fbb83a','#f5365c','#56cfb2'];
+  const teamDefs = getDivisionTeams().map((t,i)=>({...t, color: t.color || _teamPalette2[i%_teamPalette2.length]}));
   const teamStats = teamDefs.map(td=>{
-    const members = (APP.teams&&APP.teams[td.key])||[];
+    const members = [...new Set(td.members||[])];
     const ts      = active.filter(s=>members.includes(s.name));
     const tRev    = ts.reduce((s,p)=>s+p.revMTD,0);
     const tTgt    = ts.reduce((s,p)=>s+p.target,0);
@@ -22467,9 +22598,9 @@ function renderWeeklyStats(){
     cursor.setDate(cursor.getDate() + 7);
   }
 
-  // Get teams
-  var teams = APP.teams||{};
-  var teamKeys = Object.keys(teams).filter(function(k){ return teams[k]&&teams[k].length; });
+  // Get teams dynamically from managers + direct reports
+  var dynTeams = getDivisionTeams();
+  var teamKeys = dynTeams.map(function(t){ return t.key; });
   var allPeople = (APP.people||[]).filter(function(p){ return personTargetForMonth(p,mk)>0; });
 
   // Build monthly targets per person
@@ -22600,11 +22731,12 @@ function renderWeeklyStats(){
   var teamsHtml = '';
   var groupedNames = new Set();
   teamKeys.forEach(function(tk){
-    var members = (teams[tk]||[]).filter(function(name){ return allPeople.some(function(p){ return p.name===name; }); });
+    var dynT    = dynTeams.find(function(t){ return t.key===tk; });
+    var members = (dynT?dynT.members:[]).filter(function(name){ return allPeople.some(function(p){ return p.name===name; }); });
     if(!members.length) return;
     var people = members.map(function(name){ return allPeople.find(function(p){ return p.name===name; }); }).filter(Boolean);
     people.forEach(function(p){ groupedNames.add(p.name); });
-    teamsHtml += renderGroup(tk, people, '👥');
+    teamsHtml += renderGroup(dynT?dynT.label:tk, people, '👥');
   });
   var ungrouped = allPeople.filter(function(p){ return !groupedNames.has(p.name); });
   if(ungrouped.length) teamsHtml += renderGroup('No Team Assigned', ungrouped, '🧑');
@@ -22858,13 +22990,23 @@ var _sfcPersonStats = {};     // populated by renderSalesFC, read by sfcRunChall
 var _sfcMetric  = 'rev';     // 'rev' | 'nm'
 var _sfcView    = 'players'; // 'players' | 'teams' | 'challenge'
 
-// Kit colours per team — cycles for unknowns
-var SFC_META = {
-  james:{label:'Team James', primary:'#1d4ed8', secondary:'#fff',    badge:'🔵'},
-  g:    {label:'Team G',     primary:'#15803d', secondary:'#fff',    badge:'🟢'},
-  damo: {label:'Team Damo',  primary:'#c2410c', secondary:'#fff',    badge:'🔴'}
-};
+// Kit colours per team — now driven dynamically from getDivisionTeams()
 var SFC_KIT_COLS = ['#1d4ed8','#15803d','#c2410c','#7c3aed','#0f766e','#b45309'];
+var SFC_BADGES   = ['🔵','🟢','🔴','🟣','🟤','🟡'];
+
+function getSfcMeta(){
+  var meta = {};
+  getDivisionTeams().forEach(function(t,i){
+    meta[t.key] = {
+      label    : t.label,
+      primary  : SFC_KIT_COLS[i % SFC_KIT_COLS.length],
+      secondary: '#fff',
+      badge    : SFC_BADGES[i % SFC_BADGES.length],
+      members  : t.members
+    };
+  });
+  return meta;
+}
 
 function sfcSetPeriod(p){ _sfcPeriod=p; renderSalesFC(); }
 function sfcSetMetric(m){ _sfcMetric=m; renderSalesFC(); }
@@ -22892,7 +23034,15 @@ function renderSalesFC(){
   var mk      = (document.getElementById('sfcMonth')&&document.getElementById('sfcMonth').value)||APP.activeMonth;
   var today   = _localDateStr(new Date());
   var entries = getEntries(mk);
-  var teams   = APP.teams||{};
+  var SFC_META = getSfcMeta(); // dynamic from managers+directReports
+
+  // Build team-of-person map from dynamic teams
+  var teamOfPerson = {};
+  Object.keys(SFC_META).forEach(function(tk){
+    (SFC_META[tk].members||[]).forEach(function(name){
+      teamOfPerson[name] = tk;
+    });
+  });
 
   // Week start (Monday)
   var wsDate  = new Date();
@@ -22908,14 +23058,8 @@ function renderSalesFC(){
   }
 
   // Build per-person stats
-  var personStats = {}; // will be copied to _sfcPersonStats at end
+  var personStats = {};
   var kitIdx = 0;
-  var teamOfPerson = {};
-  Object.keys(teams).forEach(function(tk){
-    (Array.from(new Set(teams[tk]||[]))).forEach(function(name){
-      teamOfPerson[name] = tk;
-    });
-  });
 
   (APP.people||[]).forEach(function(person, pi){
     var ep  = getPersonForMonth(person, mk);
