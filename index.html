@@ -11513,8 +11513,8 @@ function renderManagerOverview(){
     // Helper: delegates to global _divStats
     function divStats(data){ return _divStats(data, mk); }
 
-    // Build per-division summaries
-    const divSummaries = results.map(({key,data})=>{
+    // Build per-division summaries (all divisions)
+    const divSummariesAll = results.map(({key,data})=>{
       const stats   = divStats(data);
       const div     = DIVISIONS[key];
       const totRev  = stats.reduce((s,p)=>s+p.revMTD,0);
@@ -11534,7 +11534,11 @@ function renderManagerOverview(){
                totRevToday, totNmToday, revRRToday, nmRRToday };
     });
 
-    // Grand totals across all divisions
+    // Filter: only show divisions that have consultants with targets set for this month
+    // Always include the current division even if empty (so user sees their own)
+    const divSummaries = divSummariesAll.filter(d => d.stats.length > 0 || d.isActive);
+
+    // Grand totals across visible divisions only
     const grandRev    = divSummaries.reduce((s,d)=>s+d.totRev,0);
     const grandTgt    = divSummaries.reduce((s,d)=>s+d.totTgt,0);
     const grandNm     = divSummaries.reduce((s,d)=>s+d.totNm,0);
