@@ -23119,7 +23119,7 @@ function renderSalesFC(){
   wdPeriod.forEach(function(ds){
     var dayG = {};
     teamKeys.forEach(function(tk){
-      var members = Array.from(new Set(teams[tk]||[]));
+      var members = Array.from(new Set((SFC_META[tk]&&SFC_META[tk].members)||[]));
       dayG[tk] = members.reduce(function(s,name){
         var p = personStats[name]; if(!p||!p.rpd) return s;
         var dayE = entries.filter(function(e){return e.name===name&&e.date===ds;});
