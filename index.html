@@ -7205,6 +7205,8 @@ function _mtOpenMonth(mk){
 function _renderMtConsultants(mk){
   const container = document.getElementById('mtContent');
   const ovrs  = (APP.monthOverrides && APP.monthOverrides[mk]) || {};
+  // Fallback: if APP.people empty, pull consultant-role users into it first
+  if(!(APP.people||[]).length) _syncConsultantsFromUsers();
   const people = APP.people;
 
   // Header with back button
@@ -15547,12 +15549,29 @@ function _applyDefaults(){
   if(!APP.people)        APP.people = [];
 }
 
+
+function _syncConsultantsFromUsers(){
+  if(!_allUsers || !Object.keys(_allUsers).length) return;
+  if(!APP.people) APP.people = [];
+  const divKey = _currentDivKey || 'branch';
+  let added = 0;
+  Object.values(_allUsers).forEach(function(u){
+    if(u.role !== 'consultant') return;
+    if(u.divKey && u.divKey !== divKey) return;
+    if(APP.people.find(function(p){ return p.name === u.name; })) return;
+    APP.people.push({ name: u.name, riskPerDay: 0, daysT: 0 });
+    added++;
+  });
+  if(added > 0){ saveApp(); }
+}
+
 function _startFirebase(){
 // Load once, then subscribe to real-time updates
 _dbRef.once('value').then(snap=>{
   const data = snap.val();
   if(data){ APP = data; }
   _applyDefaults();
+  _syncConsultantsFromUsers();
   // ── DATA-LOSS PROTECTION: only allow saves once we've confirmed a
   // successful load. If `data` was null, this is a genuinely empty division
   // (first-time use) and saves are safe. If `data` was populated, we've
@@ -17957,11 +17976,9 @@ function renderDirectReports(){
     return;
   }
 
-  const allPeople = APP.people.map(p=>p.name);
-
   el.innerHTML = managers.map(mgr => {
     const reports = APP.directReports[mgr]||[];
-    const valid   = reports.filter(r => allPeople.includes(r));
+    const valid   = reports; // show all regardless of APP.people state
     const avatarColors = ['#5e9cf5','#2dce89','#f5365c','#fbb83a','#a78bfa','#38b2ac','#ed8936'];
     const avatars = valid.slice(0,6).map((r,i) =>
       `<div title="${r}" style="width:30px;height:30px;border-radius:50%;background:${avatarColors[i%avatarColors.length]};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;border:2px solid var(--surface);margin-left:${i>0?'-8px':'0'};z-index:${10-i};position:relative;flex-shrink:0">
