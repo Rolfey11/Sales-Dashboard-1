@@ -7420,9 +7420,16 @@ function setGlobalMonth(){
   // are never affected by this user's month selection.
   APP.activeMonth = val;
   _writeLocalViewMonth(val);
-  // Sync the settings selector too
-  const s = document.getElementById('activeMonthSel');
-  if(s) s.value = val;
+  // Sync ALL per-tab month selectors so every tab immediately reflects
+  // the newly chosen month without the user having to change each one.
+  [
+    'entryMonth','lbMonth','histMonth','activeMonthSel',
+    'bizMonth','teamsMonth','dbdMonth','mcsMonth',
+    'moMonth','dsMonth','cdMonth','bcMonth','insightsMonth'
+  ].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el && el.querySelector('option[value="'+val+'"]')) el.value = val;
+  });
   // Re-render current page
   const pg = document.querySelector('.page.active');
   if(pg){ showPage(pg.id.replace('page-','')); }
@@ -7478,7 +7485,7 @@ function clearAllData(){
 function populateAllSelects(){
   const months = allMonthKeys();
 
-  ['entryMonth','lbMonth','histMonth','activeMonthSel','bizMonth','teamsMonth','dbdMonth','mcsMonth','moMonth','dsMonth','cdMonth','bcMonth'].forEach(id=>{
+  ['entryMonth','lbMonth','histMonth','activeMonthSel','bizMonth','teamsMonth','dbdMonth','mcsMonth','moMonth','dsMonth','cdMonth','bcMonth','insightsMonth'].forEach(id=>{
     const el = document.getElementById(id);
     if(!el) return;
     const cur = el.value || APP.activeMonth;
