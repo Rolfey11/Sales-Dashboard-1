@@ -24531,7 +24531,7 @@ document.addEventListener('DOMContentLoaded', function(){
   // Path lives outside any specific division dbKey but inside the dashboard root
   // so this dashboard's data stays isolated from the BAU dashboard's data.
   const COACH_ROOT = 'perfDash2/coaching';
-  const _coachRef = (sub) => (window._db ? window._db.ref(COACH_ROOT + (sub ? '/'+sub : '')) : null);
+  const _coachRef = (sub) => (_db ? _db.ref(COACH_ROOT + (sub ? '/'+sub : '')) : null);
 
   const CALL_TYPES = [
     { v:'tud',     label:'TUD',     pill:'tud' },
@@ -24577,8 +24577,8 @@ document.addEventListener('DOMContentLoaded', function(){
   // Build {id,name,divKey} list of all consultants from _allUsers
   function _allConsultants(){
     const list = [];
-    if(window._allUsers){
-      Object.entries(window._allUsers).forEach(([uid,u])=>{
+    if(_allUsers){
+      Object.entries(_allUsers).forEach(([uid,u])=>{
         if(u && u.role === 'consultant'){
           list.push({ id: uid, name: u.name || '(unknown)', divKey: u.divKey || '' });
         }
@@ -24590,7 +24590,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
   // What divisions the current user can VIEW feedback for
   function _viewableDivKeys(){
-    const u = window._currentUser;
+    const u = _currentUser;
     if(!u) return [];
     const role = u.role || 'consultant';
     if(role === 'master' || role === 'smt') return null; // null = all
@@ -24600,7 +24600,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
   // Permission to submit feedback
   function _canSubmitFeedback(){
-    const r = window._currentUser?.role;
+    const r = _currentUser?.role;
     return r === 'master' || r === 'manager';
   }
 
@@ -24706,11 +24706,11 @@ document.addEventListener('DOMContentLoaded', function(){
     const consultants = _allConsultants();
 
     // Pre-select consultant filtered by current division if the manager has one set
-    const curDiv = window._currentDivKey || '';
+    const curDiv = _currentDivKey || '';
 
     let consultantOpts = '<option value="">— Select consultant —</option>';
     consultants.forEach(c=>{
-      const lbl = c.name + (c.divKey && c.divKey !== curDiv ? ' ('+(window.DIVISIONS?.[c.divKey]?.label||c.divKey)+')' : '');
+      const lbl = c.name + (c.divKey && c.divKey !== curDiv ? ' ('+(DIVISIONS?.[c.divKey]?.label||c.divKey)+')' : '');
       consultantOpts += '<option value="'+_esc(c.id)+'" data-name="'+_esc(c.name)+'" data-div="'+_esc(c.divKey)+'">'+_esc(lbl)+'</option>';
     });
 
@@ -24787,7 +24787,7 @@ document.addEventListener('DOMContentLoaded', function(){
     const consultantName = consOpt?.dataset?.name || '';
     const divKey = consOpt?.dataset?.div || '';
 
-    const u = window._currentUser || {};
+    const u = _currentUser || {};
     const ref = _coachRef('callFeedback');
     if(!ref){ _showToast('Database not available', true); return; }
 
@@ -24825,7 +24825,7 @@ document.addEventListener('DOMContentLoaded', function(){
   function _renderCoachFbList(){
     const body = document.getElementById('coachFbTabBody');
     if(!body) return;
-    const u = window._currentUser || {};
+    const u = _currentUser || {};
     const role = u.role || '';
 
     const consultants = _allConsultants();
@@ -24835,8 +24835,8 @@ document.addEventListener('DOMContentLoaded', function(){
     });
 
     let divOpts = '<option value="">All divisions</option>';
-    if(window.DIVISIONS){
-      Object.entries(window.DIVISIONS).forEach(([k,d])=>{
+    if(DIVISIONS){
+      Object.entries(DIVISIONS).forEach(([k,d])=>{
         divOpts += '<option value="'+_esc(k)+'" '+(_coachFbFilter.divKey===k?'selected':'')+'>'+_esc(d.icon||'')+' '+_esc(d.label||k)+'</option>';
       });
     }
@@ -24885,7 +24885,7 @@ document.addEventListener('DOMContentLoaded', function(){
       return;
     }
 
-    const u = window._currentUser || {};
+    const u = _currentUser || {};
     const role = u.role || '';
     const viewable = _viewableDivKeys(); // null = all, [] = none
 
@@ -24906,7 +24906,7 @@ document.addEventListener('DOMContentLoaded', function(){
     let html = '';
     items.forEach(it=>{
       const ct = CT_MAP[it.callType] || { label: it.callType||'—', pill:'' };
-      const divLbl = window.DIVISIONS?.[it.divKey]?.label || it.divKey || '';
+      const divLbl = DIVISIONS?.[it.divKey]?.label || it.divKey || '';
       const canDelete = (role === 'master') || (role === 'manager' && it.authorId === u.id);
       html += ''+
         '<div class="coach-feedback-item">' +
@@ -24940,7 +24940,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
   window._coachFbDelete = function(id){
     if(!id) return;
-    const u = window._currentUser || {};
+    const u = _currentUser || {};
     const role = u.role || '';
     const item = _allFeedback.find(x=>x.id===id);
     if(!item) return;
@@ -24980,7 +24980,7 @@ document.addEventListener('DOMContentLoaded', function(){
       out.innerHTML = '<div class="coach-empty"><div class="coach-empty-icon">⏳</div><div>Loading your feedback…</div></div>';
       return;
     }
-    const u = window._currentUser || {};
+    const u = _currentUser || {};
     const myId = u.id;
     const items = _allFeedback.filter(it => it.consultantId === myId);
     if(!items.length){
