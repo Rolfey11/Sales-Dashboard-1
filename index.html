@@ -24661,8 +24661,11 @@ document.addEventListener('DOMContentLoaded', function(){
     _startFeedbackListener();
 
     const canSubmit = _canSubmitFeedback();
-    // SMT can view but not submit — auto-route them to history
-    if(!canSubmit) _coachFbActiveTab = 'history';
+    // Default tab: form for those who can submit, history for those who can't.
+    // Resetting on every page-open avoids the tab "sticking" on History after
+    // a previous SMT/consultant visit in the same session.
+    if(canSubmit) _coachFbActiveTab = 'new';
+    else          _coachFbActiveTab = 'history';
 
     let html = ''+
       '<div class="section-head">' +
